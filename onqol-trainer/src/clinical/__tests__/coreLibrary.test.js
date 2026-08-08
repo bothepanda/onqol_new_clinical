@@ -1,5 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import YAML from "yaml";
 import { acuteAppendicitisCase } from "../cases/acuteAppendicitis.js";
 import { appendicitisRouterConceptMap } from "../diseases/appendicitis/router/conceptMap.js";
 import { composeCaseWithCore } from "../core/composeCase.js";
@@ -371,5 +373,71 @@ test("a base-layer fact can never become the scored correct answer", () => {
       !onlyBase || action.eligible_for_scoring === false,
       `${action.id} scores while resting on tier B alone`
     );
+  }
+});
+
+// --- base corpus manifest -------------------------------------------------
+
+const baseManifest = YAML.parse(
+  readFileSync(new URL("../corpus/base/manifest.yaml", import.meta.url), "utf8")
+);
+
+test("base corpus manifest is parseable and entirely citation-only", () => {
+  assert.ok(baseManifest.sources.length > 0);
+  for (const source of baseManifest.sources) {
+    assert.equal(source.ingest_fulltext, false, `${source.id} would be ingested`);
+    assert.match(source.license, /CC BY-NC-ND/, `${source.id} has an unexpected licence`);
+    assert.match(String(source.bookshelf_id), /^NBK\d+$/, `${source.id} has no Bookshelf ID`);
+  }
+  assert.equal(baseManifest.ingest_policy, "citation_only");
+});
+
+test("the NC clause is recorded as a monetisation blocker, not forgotten", () => {
+  assert.equal(baseManifest.license_review.blocker_for_monetisation, true);
+  assert.equal(baseManifest.license_review.status, "PILOT_ONLY");
+});
+
+test("every tier-B citation traces back to a source in the manifest", () => {
+  const manifestIds = new Set(baseManifest.sources.map((source) => String(source.bookshelf_id)));
+  const tierB = coreEvidence.references.filter((reference) => reference.provenance === "B");
+
+  assert.ok(tierB.length >= 6);
+  for (const reference of tierB) {
+    const match = reference.citation.match(/NBK\d+/);
+    assert.ok(match, `${reference.id} has no Bookshelf ID in its citation`);
+    assert.ok(
+      manifestIds.has(match[0]),
+      `${reference.id} cites ${match[0]}, which is not in the base manifest`
+    );
+  }
+});
+
+test("no tier-B entry is left citing nothing", () => {
+  const tierB = coreEvidence.references.filter((reference) => reference.provenance === "B");
+  for (const reference of tierB) {
+    assert.ok(
+      !reference.verification_status,
+      `${reference.id} still lacks a source: ${reference.verification_status}`
+    );
+    assert.doesNotMatch(reference.citation, /подлежит внесению/);
+  }
+});
+
+test("partial coverage is declared rather than overclaimed", () => {
+  const limits = coreEvidence.references.find(
+    (reference) => reference.id === "base-clinical-limits-of-competence"
+  );
+  // The source supports "hierarchy is a barrier, speaking up is trainable".
+  // It does not support "escalating after the minimum is maturity" - that
+  // wording is ours and must say so.
+  assert.match(limits.coverage_note, /^PARTIAL/);
+  assert.match(limits.coverage_note, /авторск/);
+});
+
+test("rejected downloads keep their reason on record", () => {
+  assert.ok(baseManifest.not_used.length > 0);
+  for (const entry of baseManifest.not_used) {
+    assert.ok(entry.reason && entry.reason.length > 20, `${entry.title} has no real reason`);
+    assert.match(String(entry.bookshelf_id), /^NBK\d+$/);
   }
 });

@@ -421,7 +421,7 @@ export const coreActions = [
     review_status: NOT_SCOREABLE_UNTIL_REVIEW,
     feedback_if_done: "Передача выполнена структурно: ситуация, фон, оценка, предложение.",
     feedback_if_missed: "Структура передачи информации другому врачу не прозвучала.",
-    evidence_reference_ids: ["who-handover-sbar"],
+    evidence_reference_ids: ["who-handover-sbar", "base-closed-loop-communication"],
   },
 
   // --- Коммуникация и документация ---------------------------------------

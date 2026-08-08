@@ -167,14 +167,63 @@ sources:
     note: Out of scope for the current case. Kept for future cases.
     topics: [appendix, oncology]
 
+# --- Профессионализм, коммуникация, безопасность ---------------------------
+# Второй набор. Из семи скачанных статей две закрывают пробелы ядра, две
+# полезны как литература по проектированию тренажёра, три не подошли.
+
+  - id: statpearls_closed_loop_communication
+    title: Closed Loop Communication Training in Medical Simulation
+    publisher: StatPearls Publishing
+    bookshelf_id: NBK549899
+    pmid: 31751089
+    last_update: 2023-01-23
+    license: CC BY-NC-ND 4.0
+    ingest_fulltext: false
+    role: base_team_communication
+    covers:
+      - call-out and check-back as the closed loop
+      - hierarchy and reluctance to speak up as a known communication barrier
+      - speaking up treated as a trainable skill, not a character trait
+    topics: [communication, teamwork, escalation, patient_safety]
+
+  - id: statpearls_medical_error_prevention
+    title: Medical Error Reduction and Prevention
+    publisher: StatPearls Publishing
+    bookshelf_id: NBK499956
+    pmid: 29763131
+    last_update: 2024-02-12
+    license: CC BY-NC-ND 4.0
+    ingest_fulltext: false
+    role: base_error_and_uncertainty
+    covers:
+      - staff should be encouraged to ask questions when uncertain
+      - root-cause typology including incomplete assessment and inadequate supervision
+    topics: [patient_safety, uncertainty, error_prevention]
+
+# Скачаны, но в корпус не идут. Причина записана, чтобы не пересматривать.
+not_used:
+  - title: Therapeutic Communication
+    bookshelf_id: NBK567775
+    reason: >-
+      Психиатрическая и сестринская линия, терапевтические отношения. Для
+      explain_to_patient это натяжка; объектив безопасной хирургии ВОЗ ближе.
+  - title: Interprofessional Education in a Simulation Setting
+    bookshelf_id: NBK557471
+    reason: >-
+      Про то, как строить симуляционное обучение, а не про клиническое
+      поведение. Полезно Боте как проектировщику, не как содержание корпуса.
+  - title: Human Factors in Medical Simulation
+    bookshelf_id: NBK559226
+    reason: Та же причина - литература о проектировании тренажёра.
+  - title: Adverse Events
+    bookshelf_id: NBK558963
+    reason: Классификация и регистрация событий. Не покрывает пробелы ядра.
+  - title: Malingering
+    bookshelf_id: NBK507837
+    reason: Симуляция симптомов пациентом. К пробелам ядра отношения не имеет.
+
 # Gaps the current download does not close. Named so they are not forgotten.
 missing_for_core_library:
-  - topic: limits of competence, escalation, supervision
-    needed_for: base-clinical-limits-of-competence
-    status: NO_SOURCE_YET
-  - topic: clinical uncertainty and its disclosure
-    needed_for: base-clinical-uncertainty-disclosure
-    status: NO_SOURCE_YET
   - topic: sepsis and SIRS recognition in surgical patients
     needed_for: recognize_sepsis
     status: PARTIAL

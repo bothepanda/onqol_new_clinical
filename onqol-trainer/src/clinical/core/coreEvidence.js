@@ -196,39 +196,56 @@ export const coreEvidence = {
 
     {
       id: "base-clinical-limits-of-competence",
-      name: "Базовая клиническая подготовка",
-      year: null,
+      name: "StatPearls: Closed Loop Communication Training in Medical Simulation",
+      year: 2023,
       citation:
-        "Общепринятая учебная база хирургической подготовки. Конкретный учебный источник подлежит внесению при сборке базового корпуса.",
-      section: "Границы компетентности и эскалация",
+        "Tiel Groenestege-Kreb D, et al. Closed Loop Communication Training in Medical Simulation. StatPearls [Internet]. Treasure Island (FL): StatPearls Publishing. Bookshelf ID NBK549899, PMID 31751089. Last update 23 Jan 2023.",
+      section: "Introduction; Issues of Concern",
       recommendation:
-        "Распознавание границ собственной компетентности и своевременный вызов старшего коллеги или профильной службы является ожидаемым профессиональным поведением, а не признаком несостоятельности. Вызов помощи после выполнения доступного минимума оценки отличается от вызова вместо оценки.",
+        "Иерархия в клинической команде и нежелание возражать вышестоящему — известный барьер коммуникации и признанная причина сбоев в передаче информации. Способность высказаться и привлечь помощь рассматривается как тренируемый навык, а не как черта характера; отработка в симуляции повышает её использование в реальной работе.",
       strength: "teaching-level",
       certainty: "not GRADE",
       provenance: "B",
       kz_protocol_status: "КП?",
-      verification_status:
-        "NEEDS_SOURCE_VERIFICATION: to be replaced by a citable base-corpus source (StatPearls / CC-licensed textbook layer) when corpus/base is ingested.",
+      license: "CC BY-NC-ND 4.0 (citation only, not ingested)",
+      coverage_note:
+        "PARTIAL. Источник обосновывает, что иерархический барьер реален и что навык тренируем. Он НЕ утверждает напрямую, что вызов старшего после выполненного минимума — признак зрелости; эта формулировка в escalation_policy остаётся авторской и идёт рецензенту.",
       local_note:
         "Tier B may teach and guide but must never be the scored correct answer, by the same rule that applies to T3.",
     },
     {
       id: "base-clinical-uncertainty-disclosure",
-      name: "Базовая клиническая подготовка",
-      year: null,
+      name: "StatPearls: Medical Error Reduction and Prevention",
+      year: 2024,
       citation:
-        "Общепринятая учебная база хирургической подготовки. Конкретный учебный источник подлежит внесению при сборке базового корпуса.",
-      section: "Работа в условиях неопределённости",
+        "Rodziewicz TL, Houseman B, Vaqar S, Hipskind JE. Medical Error Reduction and Prevention. StatPearls [Internet]. Treasure Island (FL): StatPearls Publishing. Bookshelf ID NBK499956, PMID 29763131. Last update 12 Feb 2024.",
+      section: "Clinical Significance; root causes of error",
       recommendation:
-        "Явное называние неопределённости и того, каких данных не хватает для решения, является рабочим клиническим навыком: оно делает рассуждение проверяемым и позволяет старшему коллеге вмешаться точечно.",
+        "Сотрудников следует поощрять задавать вопросы при неуверенности. В типологии корневых причин ошибки отдельно стоят человеческий фактор с неполной оценкой, коммуникационные сбои с несообщением о проблеме, а также недостаточный надзор и укомплектованность.",
       strength: "teaching-level",
       certainty: "not GRADE",
       provenance: "B",
       kz_protocol_status: "КП?",
-      verification_status:
-        "NEEDS_SOURCE_VERIFICATION: to be replaced by a citable base-corpus source when corpus/base is ingested.",
+      license: "CC BY-NC-ND 4.0 (citation only, not ingested)",
       local_note:
-        "Directly supports the кейс-пробел mode described in the PRD: reasoning correctly in the absence of a protocol.",
+        "Supports the кейс-пробел mode from the PRD: naming what you do not know is framed as error prevention, not as failure.",
+    },
+    {
+      id: "base-closed-loop-communication",
+      name: "StatPearls: Closed Loop Communication Training in Medical Simulation",
+      year: 2023,
+      citation:
+        "Tiel Groenestege-Kreb D, et al. Closed Loop Communication Training in Medical Simulation. StatPearls [Internet]. Treasure Island (FL): StatPearls Publishing. Bookshelf ID NBK549899, PMID 31751089. Last update 23 Jan 2023.",
+      section: "Introduction; Procedural Skills Assessment",
+      recommendation:
+        "Замкнутый контур коммуникации строится из call-out — первичного проговаривания значимого изменения или наблюдения — и подтверждения приёма принимающей стороной. Дефицит устной коммуникации усугубляется прерываниями, недопониманием и нехваткой стандартизированной терминологии.",
+      strength: "teaching-level",
+      certainty: "not GRADE",
+      provenance: "B",
+      kz_protocol_status: "КП?",
+      license: "CC BY-NC-ND 4.0 (citation only, not ingested)",
+      local_note:
+        "More precise anchor for structured_handover than the WHO hand-over solution, whose exact numbering is still unverified. Both are kept: WHO for the SBAR structure, this for the call-out/check-back loop.",
     },
   ],
 };
