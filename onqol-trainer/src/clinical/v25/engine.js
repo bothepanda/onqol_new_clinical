@@ -13,6 +13,8 @@ import {
 } from "./scenarioEngine.js";
 import { createInitialTemporalState, projectTemporalState } from "./temporalPatientModel.js";
 import { planClinicalTurn } from "./turnPlanner.js";
+import { buildMentorBrief, prerequisiteMeta } from "../core/mentorBrief.js";
+import { runMentorAgent } from "../core/mentorAgent.js";
 
 function uniquePush(list, value) {
   return list.includes(value) ? list : [...list, value];
@@ -94,6 +96,25 @@ function updateActionState(memory, operation, status, turnNumber, extra = {}) {
   return { ...memory, actionStates, pendingOperationalization: pending };
 }
 
+/**
+ * Blocking prerequisites stop the action, the way an unavailable resource does.
+ *
+ * Without this the mentor could only comment after the fact - "стоп, нужно
+ * согласие" printed underneath the operative finding. A stop that arrives after
+ * the appendix is out is not a stop.
+ *
+ * Only "blocking" severity halts. Advisory prerequisites stay advisory.
+ */
+function prerequisiteBlocks(caseData, plan, actionId) {
+  return (plan.prerequisiteWarnings || [])
+    .filter((warning) => warning.action_id === actionId)
+    .map((warning) => ({
+      ...prerequisiteMeta(caseData, actionId, warning.missing),
+      missing: warning.missing,
+    }))
+    .filter((meta) => meta.severity === "blocking");
+}
+
 function resourceChecks(session, operation, input) {
   const checks = [resolveActionResource(session.scenario, operation.action_id, input)];
   if (operation.action_id === "open_appendectomy_here" && operation.commitment !== "proposed") {
@@ -123,7 +144,7 @@ function closingPrompt(session, plan, blockedOperations) {
   return plan.plannerPrompt;
 }
 
-function applyPlan(caseData, session, plan) {
+function applyPlan(caseData, session, plan, options = {}) {
   let nextSession = session;
   let memory = {
     ...session.workingMemory,
@@ -154,6 +175,27 @@ function applyPlan(caseData, session, plan) {
         lifecycle_before: beforeStatus,
         lifecycle_after: "proposed",
         applied_to_patient: false,
+        confidence: operation.confidence,
+      });
+      continue;
+    }
+
+    const missingBlocking = options.enforceBlockingPrerequisites
+      ? prerequisiteBlocks(caseData, plan, operation.action_id)
+      : [];
+    if (missingBlocking.length) {
+      blockedOperations.push(operation);
+      memory = updateActionState(memory, operation, "blocked", memory.turnNumber, {
+        blocked_by: missingBlocking.map((meta) => meta.reason_id),
+      });
+      actionLogEntries.push({
+        turn: memory.turnNumber,
+        action_id: operation.action_id,
+        intent_type: operation.intent_type,
+        lifecycle_before: beforeStatus,
+        lifecycle_after: "blocked",
+        applied_to_patient: false,
+        prerequisite_blocks: missingBlocking.map((meta) => meta.reason_id),
         confidence: operation.confidence,
       });
       continue;
@@ -412,7 +454,14 @@ export async function advanceV25Session({
     };
   }
 
-  const deterministicUpdate = applyPlan(caseData, nextSession, plan);
+  // V3 semantics: when the mentor is on, a blocking prerequisite stops the
+  // action instead of merely docking points afterwards. Explicitly overridable.
+  const enforceBlockingPrerequisites =
+    options.enforceBlockingPrerequisites ?? Boolean(options.mentor);
+  const deterministicUpdate = applyPlan(caseData, nextSession, plan, {
+    ...options,
+    enforceBlockingPrerequisites,
+  });
   let simulator = null;
   let reply = deterministicUpdate.reply;
   let additionalFindingIds = [];
@@ -447,6 +496,35 @@ export async function advanceV25Session({
     additionalFindingIds = simulator.additionalFindingIds || [];
   }
 
+  // Mentor channel. Off by default so V2.5 behaviour is unchanged; V3 turns it
+  // on. The patient/environment channel above stays exactly as it was - facts
+  // still come only from the Case Card. The mentor replaces the three
+  // hard-coded closing prompts with a pedagogical reply built from a brief that
+  // contains no patient facts at all.
+  let mentor = null;
+  if (options.mentor) {
+    const brief = buildMentorBrief({
+      caseData,
+      session: deterministicUpdate.session,
+      plan,
+      deterministicUpdate,
+    });
+    mentor = await runMentorAgent(
+      {
+        brief,
+        learnerText: input,
+        caseData,
+        revealedFindingIds: deterministicUpdate.session.revealedFindings || [],
+      },
+      { llm: options.mentorLLM, locale: options.locale || session.locale }
+    );
+
+    const facts = deterministicUpdate.neutralPrompt
+      ? reply.split(deterministicUpdate.neutralPrompt).join("").trim()
+      : reply;
+    reply = [facts, mentor.text].filter(Boolean).join("\n\n").trim();
+  }
+
   nextSession = {
     ...deterministicUpdate.session,
     revealedFindings: [
@@ -463,6 +541,7 @@ export async function advanceV25Session({
     parsed: plan.parsed,
     reply,
     simulator,
+    mentor,
   };
 }
 

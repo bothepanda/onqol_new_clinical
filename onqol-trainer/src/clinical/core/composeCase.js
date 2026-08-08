@@ -20,10 +20,18 @@ import { coreRouterConceptMap } from "./coreConceptMap.js";
  *        acquire the standard operative prerequisites (consent, anaesthesia...)
  * @param {object} [options.conceptMap]  disease router dictionary to merge with
  * @param {string[]} [options.include]   restrict composition to these core ids
+ * @param {string[]} [options.minimumAssessmentActionIds]  the reviewed bar for
+ *        judging whether an escalation was mature or avoidant. Omit it and the
+ *        mentor stops judging escalation at all, rather than guessing a bar.
  * @returns {{caseData: object, conceptMap: object, report: object}}
  */
 export function composeCaseWithCore(caseData, options = {}) {
-  const { operativeActionIds = [], conceptMap = {}, include = null } = options;
+  const {
+    operativeActionIds = [],
+    conceptMap = {},
+    include = null,
+    minimumAssessmentActionIds = null,
+  } = options;
 
   const caseOwnedIds = new Set(
     [
@@ -109,6 +117,10 @@ export function composeCaseWithCore(caseData, options = {}) {
       version: "0.1.0",
       composed_action_ids: [...composedIds],
       skipped_as_case_owned: skippedAsCaseOwned,
+      // The bar for "did the learner do the available minimum before calling
+      // for help". A clinical judgement: declared per case, reviewed, never
+      // inferred. Null means the mentor does not judge escalation here.
+      minimum_assessment_action_ids: minimumAssessmentActionIds,
       // Domains present for key safety but carrying no scoreable weight yet.
       // The debrief must render these as "не оценивается", not as 100.
       unscored_domains: domainsAdded.filter((domain) =>
