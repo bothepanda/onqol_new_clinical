@@ -1,6 +1,9 @@
 const DEFAULT_MODELS = Object.freeze({
   router: "gpt-5.6-luna",
   simulator: "gpt-5.6-terra",
+  // The mentor only rephrases an authored brief. It needs fluency, not
+  // clinical reasoning: the clinical content is decided before it is called.
+  mentor: "gpt-5.6-luna",
 });
 
 const TASKS = Object.freeze({
@@ -72,6 +75,25 @@ const TASKS = Object.freeze({
           retrieval_sources_used: { type: "array", items: { type: "string" } },
         },
         required: ["response_parts", "retrieval_sources_used"],
+        additionalProperties: false,
+      },
+    },
+  },
+  mentor: {
+    // Deliberately small. The mentor speaks two to four sentences; a large
+    // budget invites it to start teaching, which is exactly what it must not do
+    // mid-case.
+    maxOutputTokens: 600,
+    format: {
+      type: "json_schema",
+      name: "onqol_mentor_reply",
+      strict: true,
+      schema: {
+        type: "object",
+        properties: {
+          mentor_text: { type: "string" },
+        },
+        required: ["mentor_text"],
         additionalProperties: false,
       },
     },
@@ -174,6 +196,7 @@ export function createOpenAIGateway(options = {}) {
   const models = {
     router: options.routerModel || DEFAULT_MODELS.router,
     simulator: options.simulatorModel || DEFAULT_MODELS.simulator,
+    mentor: options.mentorModel || DEFAULT_MODELS.mentor,
   };
   const requestBuckets = new Map();
 
@@ -203,6 +226,7 @@ export function createOpenAIGateway(options = {}) {
         provider: "openai",
         routerModel: models.router,
         simulatorModel: models.simulator,
+        mentorModel: models.mentor,
       });
     }
 

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createV3Case } from "./clinical/v3/caseFactory.js";
 import ReactMarkdown from "react-markdown";
 import { getBrowserContentForCase } from "./clinical/browserContentRegistry.js";
 import { getOrCreateAnonymousUserId } from "./clinical/simulationRepository.js";
@@ -181,6 +182,7 @@ function StartScreen({
             <span>{t.realBody}</span>
           </button>
         </section>
+
       </main>
     </div>
   );
@@ -249,7 +251,13 @@ function persistSession(session) {
   }
 }
 
-export default function V25Trainer() {
+/**
+ * V3 is this component with the mentor on; V2.5 is the same component with the
+ * mentor off, kept reachable at ?version=2.5 so the two can be compared and so
+ * the older behaviour stays regression-testable. There is no in-product switch:
+ * a learner should never be asked whether they want the mentor.
+ */
+export default function V25Trainer({ mentor = true }) {
   const [screen, setScreen] = useState("start");
   const [locale, setLocale] = useState("ru");
   const [caseData, setCaseData] = useState(() => createV25Case());
@@ -281,7 +289,9 @@ export default function V25Trainer() {
   }, []);
 
   function start(mode) {
-    const nextCase = createV25Case(locale);
+    // The mentor needs the core library: consent, anaesthesia, escalation and
+    // the prerequisite graph all live there, not in the disease card.
+    const nextCase = mentor ? createV3Case(locale) : createV25Case(locale);
     const seedOverride = new URLSearchParams(window.location.search).get("seed")?.trim();
     const nextSession = createV25Session({
       caseData: nextCase,
@@ -311,6 +321,11 @@ export default function V25Trainer() {
       const simulatorLLM = openAIStatus.configured
         ? createOpenAIBackendClient({ task: "simulator" })
         : null;
+      // The mentor falls back to authored text when no key is configured, so
+      // it stays useful offline - it just phrases things more stiffly.
+      const mentorLLM = mentor && openAIStatus.configured
+        ? createOpenAIBackendClient({ task: "mentor" })
+        : null;
       const browserContent = getBrowserContentForCase("app-acute-basic-001");
       const result = await advanceV25Session({
         caseData,
@@ -321,10 +336,12 @@ export default function V25Trainer() {
           actionExtractorLLM,
           simulatorLLM,
           locale,
-          conceptMap: browserContent.conceptMap,
+          conceptMap: caseData.v3_concept_map || browserContent.conceptMap,
           diseaseCard: browserContent.diseaseCard,
           provider: simulatorLLM ? "openai" : "local",
           model: simulatorLLM ? openAIStatus.simulatorModel : null,
+          mentor,
+          mentorLLM,
         },
       });
       persistSession(result.session);

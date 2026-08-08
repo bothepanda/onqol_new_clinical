@@ -11,12 +11,15 @@ export async function getOpenAIBackendStatus(fetchImpl = fetch) {
       provider: "openai",
       routerModel: "gpt-5.6-luna",
       simulatorModel: "gpt-5.6-terra",
+      mentorModel: "gpt-5.6-luna",
     };
   }
 }
 
 export function createOpenAIBackendClient({ task, fetchImpl = fetch }) {
-  if (!['router', 'simulator'].includes(task)) throw new Error("Unsupported ON QOL model task.");
+  if (!["router", "simulator", "mentor"].includes(task)) {
+    throw new Error("Unsupported ON QOL model task.");
+  }
 
   return async function openAIBackendClient(prompt) {
     const response = await fetchImpl("/api/v25/openai", {
