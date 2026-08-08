@@ -25,6 +25,17 @@ const PRESCRIPTION_RE =
 
 const MAX_MENTOR_CHARS = 700;
 
+// Russian past-tense verbs are gendered, so "ты обозначил" assigns the learner
+// a gender nobody stated. Catches "ты <verb>ал/ла" with up to two words in
+// between ("что ты прямо обозначил"). Deliberately anchored on "ты": a bare
+// -л ending elsewhere is usually about the patient or the process, which is
+// fine. On a hit the turn falls back to the authored text, which is neutral.
+// Note: \b cannot be used here. JavaScript word boundaries are ASCII-based, so
+// \bты never matches after a space. Cyrillic-aware guards are used instead, and
+// the trailing lookahead keeps "остановило" (neuter, about "что") from firing.
+const GENDERED_ADDRESS_RE =
+  /(?:^|[^а-яё])ты\s+(?:[а-яё]+\s+){0,2}[а-яё]*(?:ал|ял|ил|ел|ыл|ала|яла|ила|ела|ыла|лся|лась)(?![а-яё])/i;
+
 function parseJsonPayload(payload) {
   if (typeof payload === "object" && payload !== null) return payload;
   const text = String(payload || "").trim();
@@ -78,6 +89,7 @@ export function validateMentorText(mentorText, caseData, revealedFindingIds = []
   if (text.length > MAX_MENTOR_CHARS) return { ok: false, reason: "too_long" };
   if (DIAGNOSIS_CONFIRMATION_RE.test(text)) return { ok: false, reason: "premature_diagnosis_confirmation" };
   if (PRESCRIPTION_RE.test(text)) return { ok: false, reason: "prescribed_expected_decision" };
+  if (GENDERED_ADDRESS_RE.test(text)) return { ok: false, reason: "gendered_address" };
 
   const leak = leaksUnrevealedFinding(text, caseData, revealedFindingIds);
   if (leak.leaked) return { ok: false, reason: "finding_leak", findingId: leak.findingId };
@@ -99,6 +111,10 @@ export function buildMentorPrompt({ brief, learnerText, locale = "ru" }) {
       "Every clinical claim you make must be traceable to a brief move or its attached evidence.",
       "",
       "Speak Russian unless the locale says otherwise. Address the learner informally, as a senior colleague would. Be brief: two to four sentences.",
+      "",
+      "GRAMMATICAL GENDER. The learner's gender is unknown and must stay unknown. Russian past-tense verbs and short adjectives carry gender, so never use them about the learner: not \"ты сделал\", not \"ты сделала\", not \"ты был прав\".",
+      "Use instead: present tense (\"ты зовёшь\", \"ты предлагаешь\"), infinitives (\"назвать неопределённость — правильный ход\"), verbal nouns (\"вызов старшего\", \"осмотр выполнен\"), or impersonal forms (\"что уже сделано\").",
+      "The same applies to Kazakh where a gendered form would otherwise appear.",
       "End with exactly one question that moves the reasoning forward.",
       "Return strict JSON only: {\"mentor_text\": \"...\"}",
     ].join("\n"),

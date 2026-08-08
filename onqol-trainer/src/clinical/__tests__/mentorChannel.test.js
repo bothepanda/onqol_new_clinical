@@ -358,7 +358,7 @@ test("a valid model reply is used and reports its move types", async () => {
       llm: async () =>
         JSON.stringify({
           mentor_text:
-            "Хорошо, что позвал. Осмотр ты уже сделал, значит зовёшь не вместо работы, а после неё — это зрелое решение. Что именно тебя остановило?",
+            "Хорошо, что зовёшь. Осмотр уже выполнен, значит вызов идёт после работы, а не вместо неё — это зрелое решение. Что именно тебя остановило?",
         }),
     }
   );
@@ -504,4 +504,80 @@ test("blocking enforcement can be turned off independently of the mentor", async
   });
 
   assert.equal(result.session.temporalState.sourceControl, true);
+});
+
+// --- grammatical gender ---------------------------------------------------
+
+test("the mentor never assigns the learner a gender", () => {
+  const gendered = [
+    "Хорошо, что ты прямо обозначил неуверенность. Что дальше?",
+    "Ты сделала правильный шаг, вызвав старшего. Что дальше?",
+    "Ты уже осмотрел живот. Каких данных не хватает?",
+    "Ты растерялся здесь. Что именно тебя остановило?",
+  ];
+  for (const text of gendered) {
+    const validation = validateMentorText(text, caseData, []);
+    assert.equal(validation.ok, false, `should have rejected: ${text}`);
+    assert.equal(validation.reason, "gendered_address");
+  }
+});
+
+test("neutral phrasings are accepted", () => {
+  const neutral = [
+    "Хорошо, что неуверенность названа прямо — это не провал. Каких данных не хватает?",
+    "Ты зовёшь старшего до собственной оценки. Что именно тебя останавливает?",
+    "Осмотр выполнен, значит вызов идёт после работы, а не вместо неё. Что дальше?",
+    "Назвать неопределённость вслух — правильный ход. Что нужно уточнить?",
+  ];
+  for (const text of neutral) {
+    const validation = validateMentorText(text, caseData, []);
+    assert.ok(validation.ok, `wrongly rejected (${validation.reason}): ${text}`);
+  }
+});
+
+test("every authored mentor template is gender-neutral", () => {
+  const briefs = [
+    update({ scoringEvents: [{ action_id: "call_senior_surgeon" }] }),
+    update({ scoringEvents: [{ action_id: "call_intensive_care" }] }),
+    update({ scoringEvents: [{ action_id: "declare_uncertainty" }] }),
+    update({ scoringEvents: [{ action_id: "open_appendectomy_here" }] }),
+    update(),
+  ];
+
+  for (const completedActions of [[], minimumAssessmentIds(caseData)]) {
+    for (const deterministicUpdate of briefs) {
+      const brief = buildMentorBrief({
+        caseData,
+        session: session({ completedActions }),
+        plan: plan({
+          prerequisiteWarnings: [
+            { action_id: "open_appendectomy_here", missing: "informed_consent" },
+          ],
+        }),
+        deterministicUpdate,
+      });
+      const rendered = renderMentorBrief(brief);
+      const validation = validateMentorText(rendered, caseData, []);
+      assert.ok(validation.ok, `authored template rejected (${validation.reason}): ${rendered}`);
+    }
+  }
+});
+
+test("a gendered model reply falls back to the neutral authored text", async () => {
+  const brief = buildMentorBrief({
+    caseData,
+    session: session({ completedActions: minimumAssessmentIds(caseData) }),
+    plan: plan(),
+    deterministicUpdate: update({ scoringEvents: [{ action_id: "call_senior_surgeon" }] }),
+  });
+
+  const result = await runMentorAgent(
+    { brief, learnerText: "зову старшего", caseData },
+    { llm: async () => JSON.stringify({ mentor_text: "Молодец, ты правильно поступил." }) }
+  );
+
+  assert.equal(result.source, "deterministic");
+  assert.equal(result.rejectionReason, "gendered_address");
+  const validation = validateMentorText(result.text, caseData, []);
+  assert.ok(validation.ok);
 });

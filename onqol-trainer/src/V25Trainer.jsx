@@ -21,7 +21,7 @@ import "./V25Trainer.css";
 const UI = {
   ru: {
     subtitle: "Клинический симулятор",
-    alpha: "V2.5 · vertical slice",
+    alpha: "V3 · vertical slice",
     landingTitle: "Как вы сегодня работаете?",
     landingBody: "Экстренная абдоминальная хирургия. Выберите формат смены.",
     reference: "Эталонные условия",
@@ -51,7 +51,7 @@ const UI = {
   },
   kk: {
     subtitle: "Клиникалық симулятор",
-    alpha: "V2.5 · сынақ нұсқасы",
+    alpha: "V3 · сынақ нұсқасы",
     landingTitle: "Бүгін қалай жұмыс істейсіз?",
     landingBody: "Шұғыл абдоминалдық хирургия. Кезекшілік форматын таңдаңыз.",
     reference: "Эталондық жағдай",
@@ -115,38 +115,28 @@ function formatClock(minutes) {
   return `${String(hours).padStart(2, "0")}:${String(rest).padStart(2, "0")}`;
 }
 
-function Header({ locale, setLocale }) {
-  const t = UI[locale];
-  return (
-    <header className="v25-header">
-      <button className="v25-brand" onClick={() => window.location.reload()}>
-        <span className="v25-brand-mark">OQ</span>
-        <span>
-          <strong>ON QOL</strong>
-          <small>{t.subtitle}</small>
-        </span>
-      </button>
-      <div className="v25-header-actions">
-        <span className="v25-version-chip">{t.alpha}</span>
-        <div className="v25-language" aria-label="Language">
-          <button className={locale === "ru" ? "active" : ""} onClick={() => setLocale("ru")}>RU</button>
-          <button className={locale === "kk" ? "active" : ""} onClick={() => setLocale("kk")}>ҚАЗ</button>
-        </div>
-      </div>
-    </header>
-  );
-}
-
-function StartHeader({ locale, setLocale }) {
+/**
+ * The single header for every screen. Previously the title screen and the
+ * session rendered two different brand lockups - a wordmark on one, a circular
+ * badge plus sans-serif on the other - which read as two different products.
+ */
+function AppHeader({ locale, setLocale, actions = null }) {
   return (
     <header className="v25-classic-header">
-      <button className="v25-classic-brand" onClick={() => window.location.reload()}>ON QOL</button>
+      <button className="v25-classic-brand" onClick={() => window.location.reload()}>
+        ON QOL
+      </button>
       <span className="v25-classic-divider" />
       <span className="v25-classic-subtitle">{UI[locale].subtitle}</span>
       <div className="v25-classic-controls">
+        {actions}
         <div className="v25-classic-language" aria-label="Language">
-          <button className={locale === "ru" ? "active" : ""} onClick={() => setLocale("ru")}>РУС</button>
-          <button className={locale === "kk" ? "active" : ""} onClick={() => setLocale("kk")}>ҚАЗ</button>
+          <button className={locale === "ru" ? "active" : ""} onClick={() => setLocale("ru")}>
+            РУС
+          </button>
+          <button className={locale === "kk" ? "active" : ""} onClick={() => setLocale("kk")}>
+            ҚАЗ
+          </button>
         </div>
       </div>
     </header>
@@ -161,7 +151,7 @@ function StartScreen({
   const t = UI[locale];
   return (
     <div className="v25-shell v25-classic-start-shell">
-      <StartHeader locale={locale} setLocale={setLocale} />
+      <AppHeader locale={locale} setLocale={setLocale} />
       <main className="v25-classic-start">
         <h1>{t.landingTitle}</h1>
         <p className="v25-classic-lead">{t.landingBody}</p>
@@ -408,7 +398,13 @@ export default function V25Trainer({ mentor = true }) {
 
   return (
     <div className="v25-shell v25-session-shell">
-      <Header locale={locale} setLocale={setLocale} />
+      <AppHeader
+        locale={locale}
+        setLocale={setLocale}
+        actions={
+          <span className="v25-version-chip">{mentor ? t.alpha : "V2.5 · без наставника"}</span>
+        }
+      />
       <div className="v25-case-bar">
         <div>
           <span>{t.case}</span>

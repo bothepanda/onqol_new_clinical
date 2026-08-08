@@ -69,7 +69,7 @@ export function buildEvidenceGroundedDebrief({ caseData, session, scoring, knowl
     .join("\n");
   const scenarioMode = session.scenario.mode === "reference" ? "Эталонные условия" : "Реальная смена";
 
-  const markdown = `# Разбор V2.5
+  const markdown = `# Разбор V${caseData.product_version || "2.5"}
 
 **Кейс:** ${caseData.title}
 
