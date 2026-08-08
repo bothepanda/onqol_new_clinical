@@ -1,0 +1,1329 @@
+schema_version: '0.1'
+disease_id: app-acute
+purpose: Semantic routing only. This dictionary helps map free-text clinical language to language-neutral concept_ids. It
+  must not contain patient-specific findings, scoring, or medical correctness rules.
+supported_locales:
+- ru
+- kk
+- en
+translation_status:
+  ru: internal_review
+  kk: draft_clinical_translation_needs_kazakh_surgeon_review
+  en: internal_review
+router_rules:
+  concept_ids_are_language_neutral: true
+  multiple_concepts_per_utterance: true
+  broad_requests_may_expand_to_children: true
+  do_not_invent_patient_findings: true
+  do_not_score_from_dictionary: true
+  unknown_or_noncase_terms_must_not_be_forced_to_nearest_concept: true
+  partial_parse_executes_recognized_items: true
+  mixed_language_input_allowed: true
+concepts:
+- concept_id: relevant_history
+  intent: request_history
+  category: history
+  description: Broad request for clinically relevant history in this case.
+  aliases:
+    ru:
+    - анамнез
+    - собрать анамнез
+    - опрос
+    - опросить пациентку
+    - расспросить
+    - что по анамнезу
+    - уточню анамнез
+    - жалобы и анамнез
+    - история заболевания
+    kk:
+    - анамнез
+    - анамнез жинаймын
+    - сұрастырамын
+    - науқастан сұраймын
+    - анамнезі қандай
+    - шағымдары мен анамнезі
+    en:
+    - history
+    - take history
+    - ask the patient
+    - relevant history
+    - history and symptoms
+  broad_expands_to:
+  - pain_history
+  - associated_gi_symptoms
+  - urinary_symptoms
+  - gynecologic_history
+  - medication_allergy_history
+- concept_id: physical_examination
+  intent: request_examination
+  category: examination
+  description: Broad physical examination request.
+  aliases:
+    ru:
+    - физикальный осмотр
+    - осмотр пациента
+    - осмотр пациентки
+    - осмотреть
+    - общий осмотр
+    - объективный осмотр
+    - осмотрю пациентку
+    kk:
+    - физикалық тексеру
+    - науқасты қараймын
+    - жалпы қарау
+    - объективті тексеру
+    - науқасты тексеремін
+    en:
+    - physical exam
+    - examine the patient
+    - general examination
+    - clinical examination
+  broad_expands_to:
+  - general_appearance
+  - abdominal_examination
+- concept_id: general_appearance
+  intent: request_examination
+  category: examination
+  description: General appearance and immediately observable physical state.
+  aliases:
+    ru:
+    - общий вид
+    - как выглядит пациентка
+    - состояние пациентки
+    - общее состояние
+    - кожа слизистые
+    - сознание
+    kk:
+    - жалпы жағдайы
+    - науқастың жалпы көрінісі
+    - жағдайы қандай
+    - тері шырышты қабаттары
+    - санасы
+    en:
+    - general appearance
+    - overall condition
+    - how does she look
+    - mental status
+    - skin and mucosa
+  parent_concept_id: physical_examination
+- concept_id: pain_history
+  intent: request_history
+  category: history
+  description: History of pain onset, location, migration, character and progression.
+  aliases:
+    ru:
+    - боль подробнее
+    - характер боли
+    - когда началась боль
+    - где болит
+    - миграция боли
+    - куда сместилась боль
+    - динамика боли
+    - иррадиация боли
+    - интенсивность боли
+    kk:
+    - ауырсыну туралы толығырақ
+    - ауырсыну қашан басталды
+    - қай жері ауырады
+    - ауырсыну қайда ауысты
+    - ауырсыну сипаты
+    - ауырсыну динамикасы
+    - ауырсыну иррадиациясы
+    en:
+    - pain history
+    - pain onset
+    - pain location
+    - pain migration
+    - pain character
+    - pain progression
+    - pain radiation
+- concept_id: associated_gi_symptoms
+  intent: request_history
+  category: history
+  description: Associated gastrointestinal symptoms.
+  aliases:
+    ru:
+    - тошнота рвота
+    - рвота
+    - тошнота
+    - аппетит
+    - анорексия
+    - стул
+    - диарея
+    - запор
+    - газы отходят
+    - кишечные симптомы
+    kk:
+    - жүрек айну құсу
+    - құсу
+    - жүрек айну
+    - тәбет
+    - тәбеті жоқ па
+    - нәжіс
+    - іш өту
+    - іш қату
+    - газ шыға ма
+    - ішек симптомдары
+    en:
+    - nausea vomiting
+    - vomiting
+    - nausea
+    - appetite
+    - anorexia
+    - bowel movements
+    - diarrhea
+    - constipation
+    - passing flatus
+- concept_id: urinary_symptoms
+  intent: request_history
+  category: history
+  description: Urinary symptoms relevant to right-lower-quadrant pain differential diagnosis.
+  aliases:
+    ru:
+    - дизурия
+    - мочеиспускание
+    - боль при мочеиспускании
+    - частое мочеиспускание
+    - мочевые симптомы
+    - кровь в моче
+    kk:
+    - дизурия
+    - зәр шығару
+    - зәр шығарғанда ауырсыну
+    - жиі зәр шығару
+    - зәр симптомдары
+    - зәрде қан
+    en:
+    - dysuria
+    - urination
+    - urinary symptoms
+    - frequency
+    - hematuria
+    - painful urination
+- concept_id: gynecologic_history
+  intent: request_history
+  category: history
+  description: Gynecologic and pregnancy-related history.
+  aliases:
+    ru:
+    - гинекологический анамнез
+    - акушерский анамнез
+    - последняя менструация
+    - когда месячные
+    - задержка
+    - беременность возможна
+    - контрацепция
+    - выделения
+    - кровянистые выделения
+    - вагинальное кровотечение
+    kk:
+    - гинекологиялық анамнез
+    - акушерлік анамнез
+    - соңғы етеккір
+    - етеккірі қашан болды
+    - етеккір кешігуі
+    - жүктілік болуы мүмкін бе
+    - контрацепция
+    - қынаптан бөлінді
+    - қынаптан қан кету
+    en:
+    - gynecologic history
+    - obstetric history
+    - last menstrual period
+    - LMP
+    - missed period
+    - possible pregnancy
+    - contraception
+    - vaginal discharge
+    - vaginal bleeding
+- concept_id: medication_allergy_history
+  intent: request_history
+  category: history
+  description: Medication, allergy and key background history.
+  aliases:
+    ru:
+    - лекарства
+    - какие препараты принимает
+    - аллергии
+    - аллергия на лекарства
+    - сопутствующие заболевания
+    - операции раньше
+    - перенесенные операции
+    kk:
+    - дәрілер
+    - қандай дәрі қабылдайды
+    - аллергия
+    - дәріге аллергия
+    - қосалқы аурулар
+    - бұрын операция болған ба
+    en:
+    - medications
+    - current medications
+    - allergies
+    - drug allergy
+    - comorbidities
+    - previous surgery
+- concept_id: abdominal_examination
+  intent: request_examination
+  category: examination
+  description: Broad abdominal examination request. May expand to available abdominal sub-findings.
+  aliases:
+    ru:
+    - осмотр живота
+    - живот какой
+    - что по животу
+    - посмотрю живот
+    - обследую живот
+    - живот сейчас какой
+    - пальпация живота
+    - живот при осмотре
+    kk:
+    - ішті қараймын
+    - іші қандай
+    - іш бойынша не бар
+    - ішті тексеремін
+    - ішті пальпациялаймын
+    - құрсақты қараймын
+    en:
+    - abdominal exam
+    - examine abdomen
+    - what is the abdomen like
+    - abdomen findings
+    - palpate abdomen
+  parent_concept_id: physical_examination
+  broad_expands_to:
+  - abdominal_inspection
+  - abdominal_palpation
+  - rlq_tenderness
+  - guarding
+  - rebound_tenderness
+- concept_id: abdominal_inspection
+  intent: request_examination
+  category: examination
+  description: Inspection of the abdomen.
+  aliases:
+    ru:
+    - осмотр живота визуально
+    - вздут живот
+    - есть вздутие
+    - асимметрия живота
+    - рубцы на животе
+    kk:
+    - ішті көзбен қарау
+    - іш кебуі бар ма
+    - құрсақ кебуі
+    - іш асимметриясы
+    - құрсақтағы тыртықтар
+    en:
+    - abdominal inspection
+    - distension
+    - abdominal distension
+    - abdominal scars
+  parent_concept_id: abdominal_examination
+- concept_id: abdominal_palpation
+  intent: request_examination
+  category: examination
+  description: Palpation of the abdomen.
+  aliases:
+    ru:
+    - пальпация живота
+    - пальпирую живот
+    - что при пальпации
+    - живот мягкий или напряженный
+    - где болезненность
+    kk:
+    - ішті пальпациялаймын
+    - пальпацияда не бар
+    - іші жұмсақ па
+    - қай жерде ауырсынады
+    en:
+    - abdominal palpation
+    - palpate abdomen
+    - findings on palpation
+    - soft or rigid abdomen
+  parent_concept_id: abdominal_examination
+- concept_id: rlq_tenderness
+  intent: request_examination
+  category: examination
+  description: Right lower quadrant/right iliac fossa tenderness.
+  aliases:
+    ru:
+    - болезненность справа внизу
+    - болезненность в правой подвздошной области
+    - правая подвздошная болезненна
+    - точка мак-бурнея
+    - макбурней
+    - мак бурней
+    - mcburney
+    kk:
+    - оң жақ мықын аймағында ауырсыну
+    - оң жақ төменгі квадрант ауырсына ма
+    - Мак-Бурней нүктесі
+    - Макбурней
+    en:
+    - right lower quadrant tenderness
+    - RLQ tenderness
+    - right iliac fossa tenderness
+    - RIF tenderness
+    - McBurney point tenderness
+  parent_concept_id: abdominal_palpation
+- concept_id: guarding
+  intent: request_examination
+  category: examination
+  description: Voluntary or involuntary abdominal wall guarding/defense.
+  aliases:
+    ru:
+    - дефанс
+    - мышечный дефанс
+    - защитное напряжение
+    - напряжение мышц живота
+    - ригидность живота
+    - мышечная защита
+    kk:
+    - бұлшықет дефансы
+    - қорғаныш керілуі
+    - құрсақ бұлшықеттерінің керілуі
+    - іштің ригидтілігі
+    en:
+    - guarding
+    - muscle guarding
+    - abdominal guarding
+    - rigidity
+    - involuntary guarding
+  parent_concept_id: abdominal_palpation
+- concept_id: rebound_tenderness
+  intent: request_examination
+  category: examination
+  description: Rebound tenderness / Shchetkin-Blumberg sign.
+  aliases:
+    ru:
+    - щеткина-блюмберга
+    - щёткина-блюмберга
+    - блюмберг
+    - симптом щеткина
+    - симптом щёткина
+    - rebound
+    - rebound tenderness
+    - симптом отнятия руки
+    kk:
+    - Щеткин-Блюмберг симптомы
+    - Блюмберг симптомы
+    - кері серпілу ауыруы
+    - қолды тез алғандағы ауырсыну
+    en:
+    - rebound tenderness
+    - Blumberg sign
+    - Shchetkin-Blumberg
+    - rebound
+  parent_concept_id: abdominal_examination
+- concept_id: peritoneal_signs
+  intent: request_examination
+  category: examination
+  description: Broad request for peritoneal irritation signs.
+  aliases:
+    ru:
+    - перитонеальные симптомы
+    - симптомы раздражения брюшины
+    - есть перитонит
+    - признаки перитонита
+    - брюшина раздражена
+    - перитонеальные знаки
+    kk:
+    - ішастар тітіркену белгілері
+    - перитонеальды симптомдар
+    - перитонит белгілері
+    - ішастар белгілері
+    en:
+    - peritoneal signs
+    - peritoneal irritation
+    - signs of peritonitis
+  parent_concept_id: abdominal_examination
+  broad_expands_to:
+  - guarding
+  - rebound_tenderness
+- concept_id: rovsing_sign
+  intent: request_examination
+  category: examination
+  description: Rovsing sign.
+  aliases:
+    ru:
+    - ровзинг
+    - ровзинга
+    - симптом ровзинга
+    - признак ровзинга
+    - rovsing
+    - rovsing sign
+    kk:
+    - Ровзинг симптомы
+    - Ровзинг белгісі
+    - rovsing
+    - rovsing sign
+    en:
+    - Rovsing sign
+    - Rovsing's sign
+    - rovsing
+  parent_concept_id: abdominal_examination
+- concept_id: psoas_sign
+  intent: request_examination
+  category: examination
+  description: Psoas sign.
+  aliases:
+    ru:
+    - psoas
+    - psoas sign
+    - псоас
+    - псоас симптом
+    - симптом псоас
+    - подвздошно-поясничный симптом
+    kk:
+    - psoas
+    - psoas sign
+    - псоас симптомы
+    - мықын-бел бұлшықеті симптомы
+    en:
+    - psoas sign
+    - iliopsoas sign
+    - psoas
+  parent_concept_id: abdominal_examination
+- concept_id: obturator_sign
+  intent: request_examination
+  category: examination
+  description: Obturator sign.
+  aliases:
+    ru:
+    - obturator
+    - obturator sign
+    - обтуратор
+    - обтураторный симптом
+    - симптом обтуратора
+    - запирательный симптом
+    kk:
+    - obturator
+    - obturator sign
+    - обтуратор симптомы
+    - жапқыш бұлшықет симптомы
+    en:
+    - obturator sign
+    - obturator
+    - obturator test
+  parent_concept_id: abdominal_examination
+- concept_id: bowel_sounds
+  intent: request_examination
+  category: examination
+  description: Abdominal auscultation/bowel sounds.
+  aliases:
+    ru:
+    - аускультация живота
+    - перистальтика
+    - кишечные шумы
+    - шумы кишечника
+    - прослушаю живот
+    kk:
+    - ішті аускультациялау
+    - перистальтика
+    - ішек шуы
+    - ішек дыбыстары
+    en:
+    - bowel sounds
+    - abdominal auscultation
+    - peristalsis
+  parent_concept_id: abdominal_examination
+- concept_id: cva_tenderness
+  intent: request_examination
+  category: examination
+  description: Costovertebral angle tenderness / Pasternatsky-type flank percussion finding.
+  aliases:
+    ru:
+    - симптом пастернацкого
+    - пастернацкий
+    - поколачивание почек
+    - болезненность в пояснице
+    - cva tenderness
+    kk:
+    - Пастернацкий симптомы
+    - бүйрек тұсын соққылау
+    - бел аймағы ауырсына ма
+    en:
+    - CVA tenderness
+    - costovertebral angle tenderness
+    - flank percussion tenderness
+- concept_id: pelvic_examination
+  intent: request_examination
+  category: examination
+  description: Pelvic/gynecologic examination.
+  aliases:
+    ru:
+    - гинекологический осмотр
+    - осмотр гинеколога
+    - влагалищное исследование
+    - бимануальный осмотр
+    - осмотр в зеркалах
+    kk:
+    - гинекологиялық тексеру
+    - гинеколог қарауы
+    - қынаптық тексеру
+    - бимануальды тексеру
+    - айнамен қарау
+    en:
+    - pelvic exam
+    - gynecologic examination
+    - bimanual examination
+    - speculum exam
+- concept_id: cervical_motion_tenderness
+  intent: request_examination
+  category: examination
+  description: Cervical motion tenderness.
+  aliases:
+    ru:
+    - болезненность при смещении шейки
+    - болезненность шейки матки при движении
+    - cervical motion tenderness
+    - cmt
+    kk:
+    - жатыр мойнын қозғалтқанда ауырсыну
+    - cervical motion tenderness
+    - CMT
+    en:
+    - cervical motion tenderness
+    - CMT
+- concept_id: rectal_examination
+  intent: request_examination
+  category: examination
+  description: Digital rectal examination when explicitly requested.
+  aliases:
+    ru:
+    - per rectum
+    - ректальный осмотр
+    - пальцевое исследование прямой кишки
+    - прямую кишку посмотрю
+    kk:
+    - per rectum
+    - ректальды тексеру
+    - тік ішекті саусақпен тексеру
+    en:
+    - digital rectal examination
+    - DRE
+    - rectal exam
+    - per rectum
+- concept_id: cbc
+  intent: request_test
+  category: laboratory
+  description: Complete blood count.
+  aliases:
+    ru:
+    - оак
+    - общий анализ крови
+    - клинический анализ крови
+    - лейкоциты
+    - нейтрофилы
+    - гемограмма
+    - cbc
+    kk:
+    - ЖҚА
+    - жалпы қан анализі
+    - жалпы қан талдауы
+    - лейкоциттер
+    - нейтрофилдер
+    - гемограмма
+    en:
+    - CBC
+    - complete blood count
+    - full blood count
+    - FBC
+    - WBC
+    - white count
+- concept_id: crp
+  intent: request_test
+  category: laboratory
+  description: C-reactive protein.
+  aliases:
+    ru:
+    - срб
+    - с-реактивный белок
+    - crp
+    - црб
+    kk:
+    - CRP
+    - С-реактивті ақуыз
+    - с реактивті белок
+    - СРБ
+    en:
+    - CRP
+    - C-reactive protein
+- concept_id: urinalysis
+  intent: request_test
+  category: laboratory
+  description: Urinalysis.
+  aliases:
+    ru:
+    - оам
+    - общий анализ мочи
+    - анализ мочи
+    - моча
+    - urinalysis
+    kk:
+    - ЖЗА
+    - жалпы зәр анализі
+    - жалпы зәр талдауы
+    - зәр анализі
+    en:
+    - urinalysis
+    - urine test
+    - UA
+- concept_id: beta_hcg
+  intent: request_test
+  category: laboratory
+  description: Pregnancy test / beta-hCG.
+  aliases:
+    ru:
+    - bHCG
+    - β-hCG
+    - beta-hcg
+    - бета-хгч
+    - хгч
+    - тест на беременность
+    - беременность тест
+    - мочевой хгч
+    - сывороточный хгч
+    kk:
+    - β-hCG
+    - beta-hcg
+    - ХГЧ
+    - жүктілік тесті
+    - жүктілікке тест
+    - β-ХГЧ
+    en:
+    - beta-hCG
+    - β-hCG
+    - hCG
+    - pregnancy test
+    - urine pregnancy test
+    - serum hCG
+- concept_id: basic_biochemistry
+  intent: request_test
+  category: laboratory
+  description: Basic biochemical/renal/metabolic laboratory panel.
+  aliases:
+    ru:
+    - биохимия
+    - бх
+    - бхак
+    - креатинин
+    - мочевина
+    - электролиты
+    - натрий калий
+    - глюкоза
+    - биохимический анализ крови
+    kk:
+    - биохимия
+    - қан биохимиясы
+    - креатинин
+    - мочевина
+    - электролиттер
+    - натрий калий
+    - глюкоза
+    en:
+    - basic metabolic panel
+    - biochemistry
+    - creatinine
+    - urea
+    - electrolytes
+    - renal function
+    - glucose
+- concept_id: liver_tests
+  intent: request_test
+  category: laboratory
+  description: Liver enzymes and bilirubin when explicitly requested.
+  aliases:
+    ru:
+    - алт аст билирубин
+    - печеночные пробы
+    - лфт
+    - lft
+    - билирубин
+    - алт
+    - аст
+    kk:
+    - АЛТ АСТ билирубин
+    - бауыр сынамалары
+    - бауыр көрсеткіштері
+    en:
+    - LFT
+    - liver function tests
+    - ALT AST bilirubin
+    - liver enzymes
+- concept_id: abdominal_ultrasound
+  intent: request_test
+  category: imaging
+  description: Abdominal ultrasound.
+  aliases:
+    ru:
+    - узи обп
+    - узи живота
+    - узи брюшной полости
+    - ультразвук живота
+    - сонография живота
+    - узи аппендикса
+    kk:
+    - құрсақ қуысының УДЗ
+    - іш қуысының УДЗ
+    - құрсақ УДЗ
+    - аппендикс УДЗ
+    en:
+    - abdominal ultrasound
+    - abdominal US
+    - US abdomen
+    - appendix ultrasound
+    - sonography
+- concept_id: pelvic_ultrasound
+  intent: request_test
+  category: imaging
+  description: Pelvic ultrasound.
+  aliases:
+    ru:
+    - узи омт
+    - узи малого таза
+    - узи органов малого таза
+    - трансвагинальное узи
+    - твузи
+    - tvus
+    kk:
+    - кіші жамбас УДЗ
+    - жамбас ағзаларының УДЗ
+    - трансвагинальды УДЗ
+    en:
+    - pelvic ultrasound
+    - pelvic US
+    - transvaginal ultrasound
+    - TVUS
+- concept_id: ct_abdomen_pelvis
+  intent: request_test
+  category: imaging
+  description: CT abdomen/pelvis.
+  aliases:
+    ru:
+    - кт обп
+    - кт живота
+    - кт брюшной полости
+    - кт брюшной полости и таза
+    - кт омт
+    - кт с контрастом
+    - кт живота с контрастом
+    kk:
+    - құрсақ қуысының КТ
+    - іш қуысының КТ
+    - құрсақ және кіші жамбас КТ
+    - контрастпен КТ
+    en:
+    - CT abdomen
+    - CT abdomen pelvis
+    - CT A/P
+    - contrast CT abdomen
+    - abdominopelvic CT
+- concept_id: mri_abdomen_pelvis
+  intent: request_test
+  category: imaging
+  description: MRI abdomen/pelvis.
+  aliases:
+    ru:
+    - мрт живота
+    - мрт брюшной полости
+    - мрт малого таза
+    - мрт обп
+    - мрт омт
+    kk:
+    - құрсақ қуысының МРТ
+    - кіші жамбас МРТ
+    - іш қуысының МРТ
+    en:
+    - MRI abdomen
+    - MRI pelvis
+    - abdominal MRI
+    - pelvic MRI
+- concept_id: serial_reexamination
+  intent: request_examination
+  category: monitoring
+  description: Repeat/serial clinical examination over time.
+  aliases:
+    ru:
+    - повторный осмотр
+    - динамический осмотр
+    - переоценка
+    - осмотр через несколько часов
+    - наблюдать в динамике
+    - повторно живот
+    kk:
+    - қайта тексеру
+    - динамикада қарау
+    - қайта бағалау
+    - бірнеше сағаттан кейін тексеру
+    - динамикалық бақылау
+    en:
+    - repeat examination
+    - serial examination
+    - reassessment
+    - observe and re-examine
+- concept_id: acute_appendicitis
+  intent: diagnosis
+  category: diagnosis
+  description: Working diagnosis of acute appendicitis.
+  aliases:
+    ru:
+    - острый аппендицит
+    - аппендицит
+    - похоже на аппендицит
+    - думаю аппендицит
+    - вероятен аппендицит
+    kk:
+    - жіті аппендицит
+    - аппендицит
+    - аппендицит болуы мүмкін
+    - аппендицит деп ойлаймын
+    en:
+    - acute appendicitis
+    - appendicitis
+    - likely appendicitis
+- concept_id: uncomplicated_appendicitis
+  intent: diagnosis
+  category: diagnosis
+  description: Working diagnosis of uncomplicated acute appendicitis.
+  aliases:
+    ru:
+    - неосложненный аппендицит
+    - неосложнённый аппендицит
+    - аппендицит без осложнений
+    - простой аппендицит
+    kk:
+    - асқынбаған аппендицит
+    - асқынусыз аппендицит
+    en:
+    - uncomplicated appendicitis
+    - simple appendicitis
+- concept_id: complicated_appendicitis
+  intent: diagnosis
+  category: diagnosis
+  description: Working diagnosis of complicated appendicitis.
+  aliases:
+    ru:
+    - осложненный аппендицит
+    - осложнённый аппендицит
+    - перфоративный аппендицит
+    - гангренозный аппендицит
+    - аппендицит с перитонитом
+    - аппендикулярный абсцесс
+    kk:
+    - асқынған аппендицит
+    - перфорацияланған аппендицит
+    - гангренозды аппендицит
+    - перитонитпен аппендицит
+    - аппендикулярлық абсцесс
+    en:
+    - complicated appendicitis
+    - perforated appendicitis
+    - gangrenous appendicitis
+    - appendicitis with peritonitis
+    - appendiceal abscess
+- concept_id: ectopic_pregnancy
+  intent: diagnosis
+  category: differential
+  description: Ectopic pregnancy as a differential diagnosis.
+  aliases:
+    ru:
+    - внематочная беременность
+    - эктопическая беременность
+    - трубная беременность
+    kk:
+    - жатырдан тыс жүктілік
+    - эктопиялық жүктілік
+    en:
+    - ectopic pregnancy
+    - tubal pregnancy
+- concept_id: ovarian_torsion
+  intent: diagnosis
+  category: differential
+  description: Ovarian/adnexal torsion.
+  aliases:
+    ru:
+    - перекрут яичника
+    - перекрут придатков
+    - торсия яичника
+    kk:
+    - аналық бездің бұралуы
+    - қосалқылардың бұралуы
+    en:
+    - ovarian torsion
+    - adnexal torsion
+- concept_id: pelvic_inflammatory_disease
+  intent: diagnosis
+  category: differential
+  description: Pelvic inflammatory disease.
+  aliases:
+    ru:
+    - воспалительные заболевания органов малого таза
+    - взомт
+    - пид
+    - pid
+    - сальпингит
+    kk:
+    - кіші жамбас ағзаларының қабыну ауруы
+    - PID
+    - сальпингит
+    en:
+    - pelvic inflammatory disease
+    - PID
+    - salpingitis
+- concept_id: renal_colic
+  intent: diagnosis
+  category: differential
+  description: Renal/ureteric colic.
+  aliases:
+    ru:
+    - почечная колика
+    - камень мочеточника
+    - мочекаменная болезнь
+    - уретеролитиаз
+    kk:
+    - бүйрек шаншуы
+    - несепағар тасы
+    - уретеролитиаз
+    - несеп-тас ауруы
+    en:
+    - renal colic
+    - ureteric colic
+    - ureteral stone
+    - urolithiasis
+- concept_id: gastroenteritis
+  intent: diagnosis
+  category: differential
+  description: Gastroenteritis.
+  aliases:
+    ru:
+    - гастроэнтерит
+    - кишечная инфекция
+    - острый гастроэнтерит
+    kk:
+    - гастроэнтерит
+    - ішек инфекциясы
+    - жіті гастроэнтерит
+    en:
+    - gastroenteritis
+    - enteric infection
+- concept_id: iv_access
+  intent: management
+  category: management
+  description: Establish intravenous access.
+  aliases:
+    ru:
+    - венозный доступ
+    - периферический катетер
+    - поставлю вену
+    - катетер в вену
+    - iv доступ
+    - 16g
+    - 18g
+    kk:
+    - көктамырлық жол
+    - перифериялық катетер
+    - венаға катетер қоямын
+    - IV қолжетімділік
+    en:
+    - IV access
+    - peripheral IV
+    - insert IV
+    - venous access
+- concept_id: analgesia
+  intent: management
+  category: management
+  description: Provide analgesia.
+  aliases:
+    ru:
+    - обезболивание
+    - обезболить
+    - анальгезия
+    - анальгетик
+    - дать обезболивающее
+    kk:
+    - ауырсынуды басу
+    - анальгезия
+    - ауырсынуды басатын дәрі
+    - ауырсынуды басамын
+    en:
+    - analgesia
+    - pain control
+    - give analgesic
+- concept_id: iv_fluids
+  intent: management
+  category: management
+  description: Intravenous fluids when clinically indicated.
+  aliases:
+    ru:
+    - инфузия
+    - инфузионная терапия
+    - физраствор
+    - кристаллоиды
+    - внутривенная жидкость
+    - капельница
+    kk:
+    - инфузия
+    - инфузиялық терапия
+    - кристаллоидтар
+    - көктамыр ішіне сұйықтық
+    - тамшылатып ерітінді
+    en:
+    - IV fluids
+    - fluid therapy
+    - crystalloid
+    - intravenous fluids
+- concept_id: npo
+  intent: management
+  category: management
+  description: Keep patient nil per os.
+  aliases:
+    ru:
+    - голод
+    - не кормить
+    - не поить
+    - npo
+    - ничего через рот
+    - натощак
+    kk:
+    - ауыздан ештеңе бермеу
+    - тамақ су бермеу
+    - NPO
+    - аш ұстау
+    en:
+    - NPO
+    - nil by mouth
+    - nothing by mouth
+    - keep fasting
+- concept_id: antibiotics
+  intent: management
+  category: management
+  description: Antibiotic administration as an action concept; correctness/timing must come from disease/case rules.
+  aliases:
+    ru:
+    - антибиотики
+    - аб терапия
+    - антибактериальная терапия
+    - антибиотик
+    - дать антибиотик
+    kk:
+    - антибиотиктер
+    - антибактериялық терапия
+    - антибиотик беру
+    en:
+    - antibiotics
+    - antibiotic therapy
+    - give antibiotics
+- concept_id: surgical_consult
+  intent: management
+  category: management
+  description: Request surgical review/consultation.
+  aliases:
+    ru:
+    - вызвать хирурга
+    - консультация хирурга
+    - позову хирурга
+    - дежурный хирург
+    - осмотр хирургом
+    kk:
+    - хирург шақыру
+    - хирург кеңесі
+    - кезекші хирургты шақырамын
+    - хирург қарауы
+    en:
+    - surgical consult
+    - call surgeon
+    - surgical review
+- concept_id: gynecology_consult
+  intent: management
+  category: management
+  description: Request gynecology review.
+  aliases:
+    ru:
+    - вызвать гинеколога
+    - консультация гинеколога
+    - осмотр гинеколога
+    kk:
+    - гинеколог шақыру
+    - гинеколог кеңесі
+    - гинеколог қарауы
+    en:
+    - gynecology consult
+    - call gynecologist
+    - gynecologic review
+- concept_id: appendectomy
+  intent: management
+  category: management
+  description: Appendectomy without specifying access.
+  aliases:
+    ru:
+    - аппендэктомия
+    - удалить аппендикс
+    - операция по поводу аппендицита
+    - оперировать аппендицит
+    kk:
+    - аппендэктомия
+    - аппендиксті алып тастау
+    - аппендицитке операция
+    en:
+    - appendectomy
+    - remove appendix
+    - operate for appendicitis
+- concept_id: laparoscopic_appendectomy
+  intent: management
+  category: management
+  description: Laparoscopic appendectomy.
+  aliases:
+    ru:
+    - лапароскопическая аппендэктомия
+    - лап аппендэктомия
+    - лапароскопически удалить аппендикс
+    - лапароскопия аппендикс
+    kk:
+    - лапароскопиялық аппендэктомия
+    - лапароскопиялық жолмен аппендиксті алып тастау
+    en:
+    - laparoscopic appendectomy
+    - lap appendectomy
+- concept_id: open_appendectomy
+  intent: management
+  category: management
+  description: Open appendectomy.
+  aliases:
+    ru:
+    - открытая аппендэктомия
+    - аппендэктомия открытым доступом
+    - лапаротомия аппендикс
+    - доступ волковича-дьяконова
+    kk:
+    - ашық аппендэктомия
+    - ашық жолмен аппендиксті алып тастау
+    - лапаротомиялық аппендэктомия
+    en:
+    - open appendectomy
+    - open appendicectomy
+- concept_id: active_observation
+  intent: management
+  category: management
+  description: Active observation with reassessment.
+  aliases:
+    ru:
+    - наблюдение
+    - активное наблюдение
+    - оставить под наблюдением
+    - наблюдать в динамике
+    - динамическое наблюдение
+    kk:
+    - белсенді бақылау
+    - бақылауда қалдыру
+    - динамикалық бақылау
+    - динамикада бақылау
+    en:
+    - active observation
+    - observe
+    - serial observation
+    - watchful observation
+- concept_id: transfer
+  intent: management
+  category: management
+  description: Transfer/referral to higher-level facility.
+  aliases:
+    ru:
+    - перевести
+    - перевод в областную
+    - эвакуировать
+    - направить в областную больницу
+    - транспортировать в центр
+    - санавиация
+    kk:
+    - ауыстыру
+    - облыстық ауруханаға ауыстыру
+    - эвакуация
+    - жоғары деңгейлі орталыққа жіберу
+    - тасымалдау
+    en:
+    - transfer
+    - refer to tertiary center
+    - transfer to regional hospital
+    - evacuate
+- concept_id: nonoperative_management
+  intent: management
+  category: management
+  description: Non-operative management / antibiotic-first strategy.
+  aliases:
+    ru:
+    - консервативное лечение
+    - неоперативное лечение
+    - ном
+    - NOM
+    - антибиотики вместо операции
+    - лечить без операции
+    kk:
+    - консервативті ем
+    - операциясыз ем
+    - NOM
+    - антибиотикпен емдеу
+    en:
+    - nonoperative management
+    - NOM
+    - antibiotics-first
+    - treat without surgery
+- concept_id: shared_decision_making
+  intent: management
+  category: management
+  description: Discuss alternatives and risks with patient.
+  aliases:
+    ru:
+    - обсудить с пациентом
+    - совместное решение
+    - информированное решение
+    - объяснить варианты
+    - обсудить операцию и антибиотики
+    kk:
+    - науқаспен талқылау
+    - бірлескен шешім
+    - ақпараттандырылған шешім
+    - ем нұсқаларын түсіндіру
+    en:
+    - shared decision making
+    - discuss options with patient
+    - informed decision
+- concept_id: resource_availability
+  intent: question
+  category: resource
+  description: Question about availability/timing of local resources.
+  aliases:
+    ru:
+    - когда будет узи
+    - узи доступно
+    - есть кт
+    - кт доступна
+    - есть лапароскопия
+    - есть гинеколог
+    - когда придет узист
+    - можно перевести
+    - сколько ехать до областной
+    kk:
+    - УДЗ қашан болады
+    - УДЗ қолжетімді ме
+    - КТ бар ма
+    - лапароскопия бар ма
+    - гинеколог бар ма
+    - облыстық ауруханаға қанша уақыт
+    en:
+    - when is ultrasound available
+    - is CT available
+    - laparoscopy available
+    - is gynecology available
+    - transfer time
+    - distance to referral center
+negative_examples:
+- surface_form: симптом Ортолани
+  locale: ru
+  expected: unknown_or_noncase
+  reason: Ortolani is not an appendicitis examination sign and must not be coerced into rovsing/psoas/obturator.
+- surface_form: Ortolani sign
+  locale: en
+  expected: unknown_or_noncase
+  reason: Do not map to an appendicitis-specific concept.

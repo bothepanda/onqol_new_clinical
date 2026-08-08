@@ -1,0 +1,162 @@
+corpus_id: onqol-emergency-surgery-v1
+version: '1.0'
+purpose:
+- semantic understanding of emergency surgery language
+- retrieval support for clinical terminology and relationships
+- background evidence context for content authors
+not_for:
+- inventing patient-specific findings
+- direct scoring of learner actions
+- overriding validated Disease Cards
+- overriding Kazakhstan protocol overlays
+language: en
+router_locales:
+- ru
+- kk
+authority_order:
+- validated_case_card
+- validated_disease_card
+- current_disease_specific_guideline
+- kazakhstan_protocol_overlay
+- general_emergency_corpus
+sources:
+- id: wses_global_iai_2021
+  title: WSES/GAIS/SIS-E/WSIS/AAST global clinical pathways for patients with intra-abdominal infections
+  year: 2021
+  journal: World Journal of Emergency Surgery
+  doi: 10.1186/s13017-021-00387-8
+  url: https://wjes.biomedcentral.com/articles/10.1186/s13017-021-00387-8
+  license: CC BY 4.0
+  ingest_fulltext: true
+  priority: P0
+  role: base_pathways
+  topics:
+  - appendicitis
+  - cholecystitis
+  - cholangitis
+  - diverticulitis
+  - peritonitis
+  - intra_abdominal_infection
+  - source_control
+- id: wses_source_control_2023
+  title: 'Source control in emergency general surgery: WSES, GAIS, SIS-E, SIS-A guidelines'
+  year: 2023
+  journal: World Journal of Emergency Surgery
+  doi: 10.1186/s13017-023-00509-4
+  url: https://wjes.biomedcentral.com/articles/10.1186/s13017-023-00509-4
+  license: CC BY 4.0
+  ingest_fulltext: true
+  priority: P0
+  role: source_control_framework
+  topics:
+  - source_control
+  - peritonitis
+  - perforation
+  - diverticulitis
+  - small_bowel_perforation
+  - peptic_ulcer_perforation
+  - pancreatitis
+- id: wses_cesena_2023
+  title: 'Cesena guidelines: WSES consensus statement on laparoscopic-first approach to general surgery
+    emergencies and abdominal trauma'
+  year: 2023
+  journal: World Journal of Emergency Surgery
+  doi: 10.1186/s13017-023-00520-9
+  url: https://wjes.biomedcentral.com/articles/10.1186/s13017-023-00520-9
+  license: CC BY 4.0
+  ingest_fulltext: true
+  priority: P0
+  role: operative_approach_and_resource_context
+  topics:
+  - laparoscopy
+  - appendicitis
+  - cholecystitis
+  - hernia
+  - small_bowel_obstruction
+  - diverticulitis
+  - mesenteric_ischemia
+  - peptic_ulcer_perforation
+  - pancreatitis
+  - abdominal_trauma
+- id: wses_appendicitis_2020
+  title: 'Diagnosis and treatment of acute appendicitis: 2020 update of the WSES Jerusalem guidelines'
+  year: 2020
+  journal: World Journal of Emergency Surgery
+  doi: 10.1186/s13017-020-00306-3
+  url: https://wjes.biomedcentral.com/articles/10.1186/s13017-020-00306-3
+  license: CC BY 4.0
+  ingest_fulltext: true
+  priority: P1
+  role: terminology_and_background_only
+  superseded_for_clinical_authority_by: WSES Jerusalem Guidelines 2025 / validated ON QOL appendicitis
+    Disease Card
+  topics:
+  - appendicitis
+- id: wses_cholecystitis_2020
+  title: 2020 World Society of Emergency Surgery updated guidelines for the diagnosis and treatment of
+    acute calculus cholecystitis
+  year: 2020
+  journal: World Journal of Emergency Surgery
+  doi: 10.1186/s13017-020-00336-x
+  url: https://wjes.biomedcentral.com/articles/10.1186/s13017-020-00336-x
+  license: CC BY 4.0
+  ingest_fulltext: true
+  priority: P1
+  role: condition_specific_background
+  topics:
+  - acute_calculous_cholecystitis
+  - biliary_surgery
+- id: wses_asbo_2018
+  title: 'Bologna guidelines for diagnosis and management of adhesive small bowel obstruction (ASBO):
+    2017 update'
+  year: 2018
+  journal: World Journal of Emergency Surgery
+  doi: 10.1186/s13017-018-0185-2
+  url: https://wjes.biomedcentral.com/articles/10.1186/s13017-018-0185-2
+  license: CC BY 4.0
+  ingest_fulltext: true
+  priority: P1
+  role: condition_specific_background
+  topics:
+  - adhesive_small_bowel_obstruction
+  - bowel_obstruction
+- id: wses_ppu_2020
+  title: 'Perforated and bleeding peptic ulcer: WSES guidelines'
+  year: 2020
+  journal: World Journal of Emergency Surgery
+  doi: 10.1186/s13017-019-0283-9
+  url: https://wjes.biomedcentral.com/articles/10.1186/s13017-019-0283-9
+  license: CC BY 4.0
+  ingest_fulltext: true
+  priority: P1
+  role: condition_specific_background
+  topics:
+  - perforated_peptic_ulcer
+  - upper_gi_bleeding
+- id: wses_pancreatitis_2019
+  title: 2019 WSES guidelines for the management of severe acute pancreatitis
+  year: 2019
+  journal: World Journal of Emergency Surgery
+  doi: 10.1186/s13017-019-0247-0
+  url: https://wjes.biomedcentral.com/articles/10.1186/s13017-019-0247-0
+  license: CC BY 4.0
+  ingest_fulltext: true
+  priority: P1
+  role: condition_specific_background
+  topics:
+  - acute_pancreatitis
+  - necrotizing_pancreatitis
+- id: wses_appendicitis_2025_jama
+  title: 'Diagnosis and Treatment of Acute Appendicitis: 2025 Edition of the World Society of Emergency
+    Surgery Jerusalem Guidelines'
+  year: 2026
+  journal: JAMA Surgery
+  doi: 10.1001/jamasurg.2025.6218
+  url: https://jamanetwork.com/journals/jamasurgery/article-abstract/2844195
+  license: not_assumed_open_for_product_ingestion
+  ingest_fulltext: false
+  priority: P0-reference
+  role: current_appendicitis_authority_for_disease_card_review
+  topics:
+  - appendicitis
+  note: Keep as citation/reference metadata unless product-use rights for full-text indexing are confirmed.

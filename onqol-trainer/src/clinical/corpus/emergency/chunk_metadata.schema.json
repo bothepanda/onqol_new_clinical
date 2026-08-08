@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ON QOL corpus chunk metadata",
+  "type": "object",
+  "required": [
+    "source_id",
+    "title",
+    "year",
+    "doi",
+    "license",
+    "role",
+    "topics",
+    "section"
+  ],
+  "properties": {
+    "source_id": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "year": {
+      "type": "integer"
+    },
+    "doi": {
+      "type": "string"
+    },
+    "license": {
+      "type": "string"
+    },
+    "role": {
+      "type": "string"
+    },
+    "topics": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "section": {
+      "type": "string"
+    },
+    "subsection": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "recommendation_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "recommendation_strength": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "evidence_quality": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "condition": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "resource_context": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "clinical_authority": {
+      "type": "string",
+      "enum": [
+        "background",
+        "condition_specific",
+        "current_reference",
+        "do_not_use_for_runtime_authority"
+      ]
+    }
+  }
+}

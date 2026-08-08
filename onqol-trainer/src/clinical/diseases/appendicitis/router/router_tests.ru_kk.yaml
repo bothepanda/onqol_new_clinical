@@ -1,0 +1,208 @@
+schema_version: '0.1'
+disease_id: app-acute
+purpose: Router acceptance tests. Expected outputs are semantic concepts only, not patient findings or scores.
+tests:
+- locale: ru
+  input: физикальный осмотр и опрос
+  expected_concepts:
+  - physical_examination
+  - relevant_history
+- locale: ru
+  input: сейчас живот какой
+  expected_concepts:
+  - abdominal_examination
+- locale: ru
+  input: что по животу?
+  expected_concepts:
+  - abdominal_examination
+- locale: ru
+  input: пальпирую живот, смотрю симптомы раздражения брюшины
+  expected_concepts:
+  - abdominal_palpation
+  - peritoneal_signs
+- locale: ru
+  input: симптомы Ровзинга, psoas, obturator какие?
+  expected_concepts:
+  - rovsing_sign
+  - psoas_sign
+  - obturator_sign
+- locale: ru
+  input: есть Щёткин-Блюмберг?
+  expected_concepts:
+  - rebound_tenderness
+- locale: ru
+  input: болезненность в точке Мак-Бурнея?
+  expected_concepts:
+  - rlq_tenderness
+- locale: ru
+  input: ОАК, срб, моча, bHCG
+  expected_concepts:
+  - cbc
+  - crp
+  - urinalysis
+  - beta_hcg
+- locale: ru
+  input: УЗИ ОБП + ОМТ
+  expected_concepts:
+  - abdominal_ultrasound
+  - pelvic_ultrasound
+- locale: ru
+  input: пока думаю аппендицит или внематочная, ОАК, CRP и ХГЧ
+  expected_concepts:
+  - acute_appendicitis
+  - ectopic_pregnancy
+  - cbc
+  - crp
+  - beta_hcg
+- locale: ru
+  input: ставлю вену, обезболиваю, NPO
+  expected_concepts:
+  - iv_access
+  - analgesia
+  - npo
+- locale: ru
+  input: вызову хирурга и гинеколога
+  expected_concepts:
+  - surgical_consult
+  - gynecology_consult
+- locale: ru
+  input: если подтвердится, открытая аппендэктомия здесь
+  expected_concepts:
+  - open_appendectomy
+- locale: ru
+  input: наблюдение с повторным осмотром через несколько часов
+  expected_concepts:
+  - active_observation
+  - serial_reexamination
+- locale: ru
+  input: узи когда будет и есть ли кт?
+  expected_concepts:
+  - resource_availability
+- locale: ru
+  input: Ортолани и obturator какие?
+  expected_concepts:
+  - obturator_sign
+  note: Ortolani must remain unresolved/noncase; recognized obturator still executes.
+- locale: ru
+  input: оак срб хгч узи омт живот пропальпирую
+  expected_concepts:
+  - cbc
+  - crp
+  - beta_hcg
+  - pelvic_ultrasound
+  - abdominal_palpation
+- locale: ru
+  input: что с мочеиспусканием и когда последние месячные
+  expected_concepts:
+  - urinary_symptoms
+  - gynecologic_history
+- locale: ru
+  input: перитонеалка есть?
+  expected_concepts:
+  - peritoneal_signs
+- locale: ru
+  input: псоас +? ровзинг?
+  expected_concepts:
+  - psoas_sign
+  - rovsing_sign
+- locale: kk
+  input: физикалық тексеру және анамнез жинаймын
+  expected_concepts:
+  - physical_examination
+  - relevant_history
+- locale: kk
+  input: іші қандай?
+  expected_concepts:
+  - abdominal_examination
+- locale: kk
+  input: ішті пальпациялаймын
+  expected_concepts:
+  - abdominal_palpation
+- locale: kk
+  input: ішастар тітіркену белгілері бар ма?
+  expected_concepts:
+  - peritoneal_signs
+- locale: kk
+  input: Ровзинг, psoas, obturator симптомдары қандай?
+  expected_concepts:
+  - rovsing_sign
+  - psoas_sign
+  - obturator_sign
+- locale: kk
+  input: Щеткин-Блюмберг симптомы бар ма?
+  expected_concepts:
+  - rebound_tenderness
+- locale: kk
+  input: оң жақ мықын аймағында ауырсына ма?
+  expected_concepts:
+  - rlq_tenderness
+- locale: kk
+  input: ЖҚА, CRP, жалпы зәр, ХГЧ
+  expected_concepts:
+  - cbc
+  - crp
+  - urinalysis
+  - beta_hcg
+- locale: kk
+  input: құрсақ қуысы және кіші жамбас УДЗ
+  expected_concepts:
+  - abdominal_ultrasound
+  - pelvic_ultrasound
+- locale: kk
+  input: аппендицит немесе жатырдан тыс жүктілік болуы мүмкін, ЖҚА мен ХГЧ аламын
+  expected_concepts:
+  - acute_appendicitis
+  - ectopic_pregnancy
+  - cbc
+  - beta_hcg
+- locale: kk
+  input: венаға катетер қоямын, ауырсынуды басамын, ауыздан ештеңе бермеймін
+  expected_concepts:
+  - iv_access
+  - analgesia
+  - npo
+- locale: kk
+  input: хирург пен гинекологты шақырамын
+  expected_concepts:
+  - surgical_consult
+  - gynecology_consult
+- locale: kk
+  input: ашық аппендэктомия жасаймын
+  expected_concepts:
+  - open_appendectomy
+- locale: kk
+  input: динамикада бақылап, қайта қараймын
+  expected_concepts:
+  - active_observation
+  - serial_reexamination
+- locale: kk
+  input: УДЗ қашан болады, КТ бар ма?
+  expected_concepts:
+  - resource_availability
+- locale: kk
+  input: зәр шығару қалай, соңғы етеккірі қашан?
+  expected_concepts:
+  - urinary_symptoms
+  - gynecologic_history
+- locale: kk
+  input: псоас пен Ровзингті тексеремін
+  expected_concepts:
+  - psoas_sign
+  - rovsing_sign
+- locale: kk
+  input: құрсақты қараймын және перитонеальды белгілерді тексеремін
+  expected_concepts:
+  - abdominal_examination
+  - peritoneal_signs
+- locale: kk
+  input: ЖҚА срб хгч УДЗ омт
+  expected_concepts:
+  - cbc
+  - crp
+  - beta_hcg
+  - pelvic_ultrasound
+- locale: kk
+  input: аппендицит деп ойлаймын, облыстыққа ауыстырамын
+  expected_concepts:
+  - acute_appendicitis
+  - transfer

@@ -1,0 +1,469 @@
+import { createUuid } from "../ids.js";
+import { scrubSensitiveText } from "../privacy.js";
+import { runClinicalSimulatorAgent } from "../simulatorAgent.js";
+import { createV25Case } from "./caseFactory.js";
+import { createKnowledgeBase, retrieveEvidence } from "./knowledgeBase.js";
+import { buildEvidenceGroundedDebrief } from "./debrief.js";
+import { scoreV25Session } from "./scoring.js";
+import {
+  createScenarioSeed,
+  generateScenario,
+  resolveActionResource,
+  resolveScenarioResource,
+} from "./scenarioEngine.js";
+import { createInitialTemporalState, projectTemporalState } from "./temporalPatientModel.js";
+import { planClinicalTurn } from "./turnPlanner.js";
+
+function uniquePush(list, value) {
+  return list.includes(value) ? list : [...list, value];
+}
+
+function actionKind(caseData, actionId) {
+  if (caseData.expected_actions.some((action) => action.id === actionId)) return "expected";
+  if (caseData.acceptable_alternatives.some((action) => action.id === actionId)) return "alternative";
+  if (caseData.unnecessary_actions.some((action) => action.id === actionId)) return "unnecessary";
+  if (caseData.unsafe_actions.some((action) => action.id === actionId)) return "unsafe";
+  return "unknown";
+}
+
+function allowedActions(caseData) {
+  return [
+    ...caseData.expected_actions,
+    ...caseData.acceptable_alternatives,
+    ...caseData.unnecessary_actions,
+    ...caseData.unsafe_actions,
+  ];
+}
+
+function getAction(caseData, actionId) {
+  return allowedActions(caseData).find((action) => action.id === actionId);
+}
+
+function findingText(finding) {
+  return finding ? `**${finding.title}:** ${finding.text}` : "";
+}
+
+function createWorkingMemory() {
+  return {
+    turnNumber: 0,
+    workingDiagnosis: null,
+    differentials: [],
+    actionStates: {},
+    pendingOperationalization: [],
+    revealedConstraints: [],
+    unresolvedFragments: [],
+    lastLearnerMove: null,
+  };
+}
+
+function event(session, eventType, payload = {}) {
+  return {
+    event_id: createUuid(),
+    session_id: session.session_id,
+    institution_id: session.institution_id,
+    cohort_id: session.cohort_id,
+    learner_id: session.learner_id,
+    case_id: session.case_id,
+    case_version: session.case_version,
+    rubric_version: session.scoring_rubric_version,
+    scenario_seed: session.scenario.seed,
+    sequence: (session.eventLog || []).length + 1,
+    event_type: eventType,
+    timestamp: new Date().toISOString(),
+    ...payload,
+  };
+}
+
+function updateActionState(memory, operation, status, turnNumber, extra = {}) {
+  const previous = memory.actionStates[operation.action_id];
+  const actionStates = {
+    ...memory.actionStates,
+    [operation.action_id]: {
+      action_id: operation.action_id,
+      status,
+      previous_status: previous?.status || null,
+      updated_turn: turnNumber,
+      technique: operation.technique || previous?.technique || null,
+      ...extra,
+    },
+  };
+  let pending = memory.pendingOperationalization.filter((id) => id !== operation.action_id);
+  if (status === "blocked" || (status === "proposed" && operation.intent_type === "management")) {
+    pending = uniquePush(pending, operation.action_id);
+  }
+  return { ...memory, actionStates, pendingOperationalization: pending };
+}
+
+function resourceChecks(session, operation, input) {
+  const checks = [resolveActionResource(session.scenario, operation.action_id, input)];
+  if (operation.action_id === "open_appendectomy_here" && operation.commitment !== "proposed") {
+    checks.push(resolveScenarioResource(session.scenario, "anesthesia"));
+    checks.push(resolveScenarioResource(session.scenario, "operatingRoom"));
+  }
+  return checks.filter((check) => check.resource && !check.available);
+}
+
+function neutralStateLine(previousTemporalState, temporalState) {
+  const clinicallyMeaningful =
+    temporalState.lastDeltaMinutes >= 30 ||
+    previousTemporalState.status !== temporalState.status ||
+    previousTemporalState.sourceControl !== temporalState.sourceControl;
+  if (!clinicallyMeaningful) return "";
+  return `**Динамика:** прошло ${temporalState.lastDeltaMinutes} мин. ЧСС ${temporalState.heartRate}/мин, T ${temporalState.temperatureC.toFixed(
+    1
+  )} °C, боль ${temporalState.painScore}/10.`;
+}
+
+function closingPrompt(session, plan, blockedOperations) {
+  if (blockedOperations.length) return "Как меняешь план с учётом этого ограничения?";
+  if (session.temporalState.status === "controlled") return "Контроль источника выполнен. Что нужно сделать дальше?";
+  if (session.temporalState.status === "controlled_with_antibiotic_gap") {
+    return "Операция завершена. Что ещё должно быть зафиксировано?";
+  }
+  return plan.plannerPrompt;
+}
+
+function applyPlan(caseData, session, plan) {
+  let nextSession = session;
+  let memory = {
+    ...session.workingMemory,
+    turnNumber: session.workingMemory.turnNumber + 1,
+    lastLearnerMove: plan.learnerMove,
+    unresolvedFragments: plan.parsed.unresolvedFragments || [],
+  };
+  const replies = [];
+  const scoringEvents = [];
+  const actionLogEntries = [];
+  const performedIds = [];
+  const findingsRevealed = [];
+  const revealedResources = [];
+  const blockedOperations = [];
+
+  for (const operation of plan.operations) {
+    const action = getAction(caseData, operation.action_id);
+    if (!action) continue;
+    const kind = actionKind(caseData, operation.action_id);
+    const beforeStatus = memory.actionStates[operation.action_id]?.status || null;
+
+    if (operation.commitment === "proposed" && !operation.countsAsDecision) {
+      memory = updateActionState(memory, operation, "proposed", memory.turnNumber);
+      actionLogEntries.push({
+        turn: memory.turnNumber,
+        action_id: operation.action_id,
+        intent_type: operation.intent_type,
+        lifecycle_before: beforeStatus,
+        lifecycle_after: "proposed",
+        applied_to_patient: false,
+        confidence: operation.confidence,
+      });
+      continue;
+    }
+
+    const blockedBy = resourceChecks(nextSession, operation, plan.input);
+    if (blockedBy.length) {
+      blockedOperations.push(operation);
+      for (const block of blockedBy) {
+        if (!revealedResources.includes(block.resource)) revealedResources.push(block.resource);
+        if (block.revealText) replies.push(`**Доступность ресурса:** ${block.revealText}`);
+      }
+      memory = updateActionState(memory, operation, "blocked", memory.turnNumber, {
+        blocked_by: blockedBy.map((block) => block.reasonId),
+      });
+      actionLogEntries.push({
+        turn: memory.turnNumber,
+        action_id: operation.action_id,
+        intent_type: operation.intent_type,
+        lifecycle_before: beforeStatus,
+        lifecycle_after: "blocked",
+        applied_to_patient: false,
+        resource_blocks: blockedBy.map((block) => block.reasonId),
+        confidence: operation.confidence,
+      });
+      continue;
+    }
+
+    const afterStatus = ["request_history", "request_examination", "request_test"].includes(
+      operation.intent_type
+    )
+      ? "resulted"
+      : operation.intent_type === "diagnosis"
+        ? "proposed"
+        : "performed";
+    memory = updateActionState(memory, operation, afterStatus, memory.turnNumber);
+    if (operation.action_id === "diagnosis_acute_appendicitis") {
+      memory = {
+        ...memory,
+        workingDiagnosis: {
+          action_id: operation.action_id,
+          status: "working",
+          updated_turn: memory.turnNumber,
+        },
+      };
+    }
+    if (operation.action_id.startsWith("differential_")) {
+      memory = { ...memory, differentials: uniquePush(memory.differentials, operation.action_id) };
+    }
+
+    nextSession = {
+      ...nextSession,
+      completedActions: uniquePush(nextSession.completedActions, operation.action_id),
+    };
+    if (kind === "unsafe") {
+      nextSession = {
+        ...nextSession,
+        unsafeActions: uniquePush(nextSession.unsafeActions, operation.action_id),
+      };
+    }
+    if (kind === "unnecessary") {
+      nextSession = {
+        ...nextSession,
+        unnecessaryActions: uniquePush(nextSession.unnecessaryActions, operation.action_id),
+      };
+    }
+
+    performedIds.push(operation.action_id);
+    if (operation.finding) {
+      nextSession = {
+        ...nextSession,
+        revealedFindings: uniquePush(nextSession.revealedFindings, operation.finding.id),
+      };
+      findingsRevealed.push(operation.finding.id);
+      replies.push(findingText(operation.finding));
+    }
+    scoringEvents.push({
+      action_id: operation.action_id,
+      action_kind: kind,
+      lifecycle: afterStatus,
+      eligible_for_scoring: action.eligible_for_scoring !== false,
+      critical: Boolean(action.critical),
+      score_weight: action.score_weight || 0,
+      penalty: action.penalty || 0,
+    });
+    actionLogEntries.push({
+      turn: memory.turnNumber,
+      action_id: operation.action_id,
+      intent_type: operation.intent_type,
+      lifecycle_before: beforeStatus,
+      lifecycle_after: afterStatus,
+      technique: operation.technique,
+      applied_to_patient: true,
+      minute_before: nextSession.temporalState.clockMinutes,
+      confidence: operation.confidence,
+    });
+  }
+
+  const previousTemporalState = nextSession.temporalState;
+  const temporalState = projectTemporalState(caseData, previousTemporalState, performedIds);
+  nextSession = {
+    ...nextSession,
+    temporalState,
+    phase: temporalState.phase,
+    workingMemory: {
+      ...memory,
+      revealedConstraints: [
+        ...new Set([...memory.revealedConstraints, ...revealedResources]),
+      ],
+    },
+    actionLog: [...nextSession.actionLog, ...actionLogEntries],
+    prerequisiteWarnings: [
+      ...nextSession.prerequisiteWarnings,
+      ...plan.prerequisiteWarnings.filter((warning) => performedIds.includes(warning.action_id)),
+    ],
+  };
+
+  if (temporalState.sourceControl && !nextSession.revealedFindings.includes("operative_finding")) {
+    const finding = caseData.hidden_findings.operative_finding;
+    if (finding) {
+      nextSession = {
+        ...nextSession,
+        revealedFindings: uniquePush(nextSession.revealedFindings, "operative_finding"),
+      };
+      findingsRevealed.push("operative_finding");
+      replies.push(findingText({ id: "operative_finding", ...finding }));
+    }
+  }
+
+  const stateLine = neutralStateLine(previousTemporalState, temporalState);
+  const neutralPrompt = [stateLine, closingPrompt(nextSession, plan, blockedOperations)]
+    .filter(Boolean)
+    .join("\n\n");
+  const reply = [...new Set(replies), neutralPrompt].filter(Boolean).join("\n\n");
+
+  const turnEvent = event(nextSession, "clinical_turn", {
+    turn_number: memory.turnNumber,
+    raw_text_redacted: scrubSensitiveText(plan.input),
+    parsed_actions: plan.actions.map((action) => ({
+      action_id: action.id,
+      intent_type: action.intent_type,
+      confidence: action.confidence,
+    })),
+    action_changes: actionLogEntries,
+    findings_revealed: findingsRevealed,
+    resources_revealed: revealedResources,
+    elapsed_minutes: temporalState.clockMinutes - previousTemporalState.clockMinutes,
+  });
+
+  return {
+    session: { ...nextSession, eventLog: [...nextSession.eventLog, turnEvent] },
+    reply,
+    neutralPrompt,
+    findingsRevealed,
+    scoringEvents,
+    blockedOperations,
+  };
+}
+
+export function createV25Session(options = {}) {
+  const caseData = options.caseData || createV25Case();
+  const scenario =
+    options.scenario ||
+    generateScenario({ mode: options.mode || "real", seed: options.seed || createScenarioSeed() });
+  const session = {
+    session_id: options.sessionId || createUuid(),
+    product_version: "2.5",
+    case_id: caseData.case_id,
+    case_version: caseData.case_version,
+    disease_card_id: caseData.disease_card_id,
+    disease_card_version: caseData.disease_card_version,
+    scoring_rubric_version: `${caseData.scoring_rubric_version}-v25.1`,
+    router_version: caseData.router_version,
+    title: caseData.title,
+    locale: options.locale === "kk" ? "kk" : "ru",
+    institution_id: options.institutionId || "synthetic-pilot",
+    cohort_id: options.cohortId || null,
+    learner_id: options.learnerId || `anon:${createUuid()}`,
+    scenario,
+    phase: "presentation",
+    completedActions: [],
+    unsafeActions: [],
+    unnecessaryActions: [],
+    revealedFindings: [],
+    prerequisiteWarnings: [],
+    turnPlans: [],
+    workingMemory: createWorkingMemory(),
+    actionLog: [],
+    eventLog: [],
+    temporalState: createInitialTemporalState(caseData),
+    messages: [{ role: "assistant", content: caseData.initial_presentation.text }],
+    finished: false,
+    started_at: options.startedAt || new Date().toISOString(),
+    completed_at: null,
+  };
+  session.eventLog.push(
+    event(session, "session_started", {
+      mode: scenario.mode,
+      facility_template_id: scenario.facility.id,
+      shift_constraint_count: scenario.constraints.length,
+    })
+  );
+  return session;
+}
+
+export async function advanceV25Session({
+  caseData = createV25Case(),
+  session,
+  input,
+  knowledgeBase,
+  options = {},
+}) {
+  if (!session || session.finished) return { session, plan: null, reply: "" };
+  const plan = await planClinicalTurn({ input, caseData, session, options });
+  let nextSession = {
+    ...session,
+    messages: [...session.messages, { role: "user", content: input }],
+  };
+
+  if (plan.mode === "debrief") {
+    const scoring = scoreV25Session(caseData, nextSession);
+    const report = buildEvidenceGroundedDebrief({
+      caseData,
+      session: nextSession,
+      scoring,
+      knowledgeBase: knowledgeBase || createKnowledgeBase(),
+    });
+    const completedAt = new Date().toISOString();
+    nextSession = {
+      ...nextSession,
+      finished: true,
+      scoring,
+      report,
+      completed_at: completedAt,
+      messages: [...nextSession.messages, { role: "assistant", content: report.markdown }],
+      turnPlans: [...nextSession.turnPlans, plan],
+    };
+    nextSession = {
+      ...nextSession,
+      eventLog: [
+        ...nextSession.eventLog,
+        event(nextSession, "session_scored", {
+          overall_score: scoring.overallScore,
+          domain_scores: scoring.domainScores,
+          critical_errors: scoring.criticalErrors,
+        }),
+      ],
+    };
+    return {
+      session: nextSession,
+      plan,
+      parsed: plan.parsed,
+      reply: report.markdown,
+      findingsRevealed: [],
+      scoringEvents: [{ type: "case_scored", overall_score: scoring.overallScore }],
+    };
+  }
+
+  const deterministicUpdate = applyPlan(caseData, nextSession, plan);
+  let simulator = null;
+  let reply = deterministicUpdate.reply;
+  let additionalFindingIds = [];
+  const activeKnowledgeBase = knowledgeBase || createKnowledgeBase();
+
+  if (options.simulatorLLM) {
+    const evidencePacket = retrieveEvidence(activeKnowledgeBase, input, { limit: 5 });
+    simulator = await runClinicalSimulatorAgent(
+      {
+        input,
+        caseData,
+        diseaseCard: options.diseaseCard || "V2.5 structured appendicitis card",
+        retrievalCorpus: evidencePacket,
+        sessionBefore: session,
+        deterministicUpdate: {
+          session: deterministicUpdate.session,
+          parsed: plan.parsed,
+          findingsRevealed: deterministicUpdate.findingsRevealed,
+          neutralPrompt: deterministicUpdate.neutralPrompt,
+          reply: deterministicUpdate.reply,
+        },
+        locale: options.locale || session.locale,
+      },
+      {
+        llm: options.simulatorLLM,
+        provider: options.provider,
+        model: options.model,
+        simulatorVersion: "2.5.1",
+      }
+    );
+    reply = simulator.reply;
+    additionalFindingIds = simulator.additionalFindingIds || [];
+  }
+
+  nextSession = {
+    ...deterministicUpdate.session,
+    revealedFindings: [
+      ...new Set([...deterministicUpdate.session.revealedFindings, ...additionalFindingIds]),
+    ],
+    messages: [...deterministicUpdate.session.messages, { role: "assistant", content: reply }],
+    turnPlans: [...deterministicUpdate.session.turnPlans, plan],
+  };
+
+  return {
+    ...deterministicUpdate,
+    session: nextSession,
+    plan,
+    parsed: plan.parsed,
+    reply,
+    simulator,
+  };
+}
+
+export { createV25Case as createDefaultV25Case };
