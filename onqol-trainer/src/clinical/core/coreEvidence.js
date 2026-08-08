@@ -105,6 +105,96 @@ export const coreEvidence = {
         "Used as the umbrella anchor for generic preoperative preparation. Individual items must be split into their own references before scoring is enabled.",
     },
     {
+      id: "wses-iai-2021-sepsis",
+      name: "WSES/GAIS/SIS-E/WSIS/AAST global clinical pathways for intra-abdominal infections",
+      year: 2021,
+      citation:
+        "Sartelli M, et al. WSES/GAIS/SIS-E/WSIS/AAST global clinical pathways for patients with intra-abdominal infections. World J Emerg Surg. 2021. doi:10.1186/s13017-021-00387-8",
+      section: "Sepsis recognition and early source control",
+      recommendation:
+        "Intra-abdominal infection with signs of organ dysfunction is a time-critical condition: early recognition of sepsis, prompt resuscitation and timely source control determine outcome.",
+      strength: "strong",
+      certainty: "varies by item",
+      provenance: "T1",
+      kz_protocol_status: "КП?",
+      license: "CC BY 4.0",
+      local_note:
+        "Already registered in corpus/emergency/corpus_manifest.yaml as wses_global_iai_2021 with ingest_fulltext: true. Used here as the anchor for the universal sepsis-recognition action.",
+    },
+
+    // --- Базовый слой «Б». Источник: corpus/base/manifest.yaml -------------
+    // Facts stated in our own words with attribution. StatPearls is CC BY-NC-ND:
+    // the article is not ingested, reproduced or paraphrased wholesale.
+    {
+      id: "base-appendicitis-pain-migration",
+      name: "StatPearls: Appendicitis",
+      year: 2024,
+      citation:
+        "Jones MW, Lopez RA, Deppen JG, Kendall BJ. Appendicitis. StatPearls [Internet]. Treasure Island (FL): StatPearls Publishing. Bookshelf ID NBK493193, PMID 29630245. Last update 12 Feb 2024.",
+      section: "History and Physical",
+      recommendation:
+        "Ранняя боль при аппендиците висцеральная и потому нелокализованная — околопупочная, по афферентам T8–T10. Смещение в правую подвздошную область отражает переход на париетальную брюшину. Миграция боли — это описание механизма, а не диагностический критерий.",
+      strength: "teaching-level",
+      certainty: "not GRADE",
+      provenance: "B",
+      kz_protocol_status: "КП?",
+      license: "CC BY-NC-ND 4.0 (citation only, not ingested)",
+      local_note:
+        "Explains to the learner why the question about pain migration is asked at all. Must not be used as a scored diagnostic criterion.",
+    },
+    {
+      id: "base-appendicitis-peritoneal-signs",
+      name: "StatPearls: Appendicitis",
+      year: 2024,
+      citation:
+        "Jones MW, Lopez RA, Deppen JG, Kendall BJ. Appendicitis. StatPearls [Internet]. Treasure Island (FL): StatPearls Publishing. Bookshelf ID NBK493193, PMID 29630245. Last update 12 Feb 2024.",
+      section: "History and Physical",
+      recommendation:
+        "Точка Мак-Бернея — примерно 1,5–2 дюйма от передней верхней подвздошной ости по линии к пупку. Локальное напряжение и болезненность отдачи в правом нижнем квадранте встречаются часто, но не специфичны для аппендицита и бывают при других состояниях. В ранней стадии физикальные находки могут быть скудными.",
+      strength: "teaching-level",
+      certainty: "not GRADE",
+      provenance: "B",
+      kz_protocol_status: "КП?",
+      license: "CC BY-NC-ND 4.0 (citation only, not ingested)",
+      local_note:
+        "The non-specificity clause matters pedagogically: it is what stops a learner from treating a positive sign as a diagnosis.",
+    },
+    {
+      id: "base-appendicitis-special-signs",
+      name: "StatPearls: Appendicitis",
+      year: 2024,
+      citation:
+        "Jones MW, Lopez RA, Deppen JG, Kendall BJ. Appendicitis. StatPearls [Internet]. Treasure Island (FL): StatPearls Publishing. Bookshelf ID NBK493193, PMID 29630245. Last update 12 Feb 2024.",
+      section: "History and Physical",
+      recommendation:
+        "Симптом Ровзинга — боль в правом нижнем квадранте при пальпации левого нижнего. Симптом Данфи — усиление боли при кашле и любом повышении внутрибрюшного давления. Псоас-симптом — боль при разгибании правого бедра или его сгибании против сопротивления, из-за раздражения поясничной мышцы. Ни один из них не является диагностическим.",
+      strength: "teaching-level",
+      certainty: "not GRADE",
+      provenance: "B",
+      kz_protocol_status: "КП?",
+      license: "CC BY-NC-ND 4.0 (citation only, not ingested)",
+      local_note:
+        "Router dictionary already recognises these signs by name; this is the layer that lets the mentor say what they mean without inventing it.",
+    },
+    {
+      id: "base-acute-abdomen-history",
+      name: "StatPearls: Acute Abdomen",
+      year: 2025,
+      citation:
+        "Patterson JW, Kashyap S, Dominique E. Acute Abdomen. StatPearls [Internet]. Treasure Island (FL): StatPearls Publishing. Bookshelf ID NBK459328, PMID 29083722. Last update 15 Feb 2025.",
+      section: "History and Physical",
+      recommendation:
+        "Задача первичного анамнеза и осмотра при острой боли в животе — выделить тех, кому нужно срочное вмешательство. Опорные элементы: локализация и иррадиация, начало и длительность, интенсивность, характер, провоцирующие и облегчающие факторы, сопутствующие симптомы, гинекологический и половой анамнез с датой последней менструации, перенесённые операции, лекарственный анамнез. Распознать разворачивающуюся катастрофу на ранней неспецифической стадии труднее, чем состоявшийся острый живот.",
+      strength: "teaching-level",
+      certainty: "not GRADE",
+      provenance: "B",
+      kz_protocol_status: "КП?",
+      license: "CC BY-NC-ND 4.0 (citation only, not ingested)",
+      local_note:
+        "This is the structure behind the focused_history action. It gives the mentor something to say about what a good history contains.",
+    },
+
+    {
       id: "base-clinical-limits-of-competence",
       name: "Базовая клиническая подготовка",
       year: null,

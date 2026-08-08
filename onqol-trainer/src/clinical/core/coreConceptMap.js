@@ -33,6 +33,12 @@ export const coreRouterConceptMap = {
   vte_prophylaxis: ["vte_risk_assessment"],
   thromboprophylaxis: ["vte_risk_assessment"],
 
+  // systemic response
+  sepsis: ["recognize_sepsis"],
+  septic_shock: ["recognize_sepsis"],
+  sirs: ["recognize_sepsis"],
+  organ_dysfunction: ["recognize_sepsis"],
+
   // monitoring
   vital_signs_monitoring: ["vital_signs_reassessment"],
   haemodynamic_monitoring: ["vital_signs_reassessment"],

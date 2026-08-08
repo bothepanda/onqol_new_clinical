@@ -247,6 +247,44 @@ export const coreActions = [
     evidence_reference_ids: ["eras-emergency-laparotomy-prehab"],
   },
 
+  {
+    // Gap found by checking the library against the Fiser ABSITE contents,
+    // chapter 16 Critical Care: recognising SIRS/sepsis is a competence every
+    // emergency surgical case needs, and no disease card carried it.
+    id: "recognize_sepsis",
+    bucket: "alternative",
+    core: true,
+    phase: "diagnostic reasoning",
+    concept: "recognise sepsis or systemic inflammatory response",
+    intent_type: "diagnosis",
+    router_description:
+      "recognising sepsis, septic shock, systemic inflammatory response or organ dysfunction in a surgical patient",
+    accepted_phrasings: [
+      "сепсис",
+      "признаки сепсиса",
+      "септический шок",
+      "ссво",
+      "sirs",
+      "qsofa",
+      "органная дисфункция",
+      "системная воспалительная реакция",
+    ],
+    importance: "important",
+    score_weight: 0,
+    penalty: 0,
+    domain: "Patient safety",
+    critical: false,
+    time_window: "any",
+    prerequisites: [],
+    eligible_for_scoring: false,
+    review_status: NOT_SCOREABLE_UNTIL_REVIEW,
+    feedback_if_done:
+      "Системный ответ на инфекцию оценён отдельно от локальной картины — это меняет срочность контроля источника.",
+    feedback_if_missed:
+      "Оценка системного ответа не прозвучала. При внутрибрюшной инфекции признаки органной дисфункции меняют сроки вмешательства.",
+    evidence_reference_ids: ["wses-iai-2021-sepsis"],
+  },
+
   // --- Эскалация и границы компетентности --------------------------------
   {
     id: "call_senior_surgeon",

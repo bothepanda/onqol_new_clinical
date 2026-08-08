@@ -20,6 +20,8 @@ import { coreRouterConceptMap } from "./coreConceptMap.js";
  *        acquire the standard operative prerequisites (consent, anaesthesia...)
  * @param {object} [options.conceptMap]  disease router dictionary to merge with
  * @param {string[]} [options.include]   restrict composition to these core ids
+ * @param {Object<string,string[]>} [options.baseEvidenceAttachments]  tier-B
+ *        evidence ids to attach to existing case actions, keyed by action id
  * @param {string[]} [options.minimumAssessmentActionIds]  the reviewed bar for
  *        judging whether an escalation was mature or avoidant. Omit it and the
  *        mentor stops judging escalation at all, rather than guessing a bar.
@@ -31,6 +33,7 @@ export function composeCaseWithCore(caseData, options = {}) {
     conceptMap = {},
     include = null,
     minimumAssessmentActionIds = null,
+    baseEvidenceAttachments = {},
   } = options;
 
   const caseOwnedIds = new Set(
@@ -66,8 +69,28 @@ export function composeCaseWithCore(caseData, options = {}) {
   const prerequisiteIds = applicablePrerequisites.map((prerequisite) => prerequisite.action_id);
   const prerequisitesAttachedTo = [];
 
+  // Base-layer (tier B) evidence attached to a case action. This is what lets
+  // the mentor explain why a step is taken - "почему щупаем именно здесь" -
+  // without inventing the explanation. Tier B teaches; it never scores, so
+  // attaching it cannot change a weight.
+  const baseAttachmentsMade = [];
+  const withAttachments = (action) => {
+    const attach = baseEvidenceAttachments[action.id];
+    if (!attach || attach.length === 0) return action;
+    const existing = action.evidence_reference_ids || [];
+    const added = attach.filter((id) => !existing.includes(id));
+    if (added.length === 0) return action;
+    baseAttachmentsMade.push({ action_id: action.id, evidence_reference_ids: added });
+    return {
+      ...action,
+      evidence_reference_ids: [...existing, ...added],
+      base_evidence_reference_ids: added,
+    };
+  };
+
   const withPrerequisites = (actions) =>
-    actions.map((action) => {
+    actions.map((rawAction) => {
+      const action = withAttachments(rawAction);
       if (!operativeActionIds.includes(action.id)) return action;
       const existing = action.prerequisites || [];
       const merged = [...existing, ...prerequisiteIds.filter((id) => !existing.includes(id))];
@@ -106,7 +129,7 @@ export function composeCaseWithCore(caseData, options = {}) {
       ...withPrerequisites(caseData.acceptable_alternatives || []),
       ...added.alternative,
     ],
-    unnecessary_actions: [...(caseData.unnecessary_actions || [])],
+    unnecessary_actions: (caseData.unnecessary_actions || []).map(withAttachments),
     unsafe_actions: [...(caseData.unsafe_actions || []), ...added.unsafe],
     references: [...(caseData.references || []), ...referencesAdded],
     scoring: {
@@ -141,6 +164,7 @@ export function composeCaseWithCore(caseData, options = {}) {
       referencesAdded: referencesAdded.map((reference) => reference.id),
       prerequisitesAttachedTo,
       applicablePrerequisites,
+      baseAttachmentsMade,
       coreDomains,
     },
   };

@@ -278,3 +278,98 @@ test("composition is restrictable for cases that should not carry the whole libr
   const ids = caseData.acceptable_alternatives.map((action) => action.id);
   assert.ok(!ids.includes("call_senior_surgeon"));
 });
+
+// --- base layer (tier B) --------------------------------------------------
+
+const BASE_ATTACHMENTS = {
+  focused_history: ["base-acute-abdomen-history", "base-appendicitis-pain-migration"],
+  abdominal_exam: ["base-appendicitis-peritoneal-signs", "base-appendicitis-special-signs"],
+};
+
+test("base-layer evidence attaches to case actions without touching their weight", () => {
+  const before = compose();
+  const after = composeCaseWithCore(acuteAppendicitisCase, {
+    operativeActionIds: ["open_appendectomy_here"],
+    conceptMap: appendicitisRouterConceptMap,
+    baseEvidenceAttachments: BASE_ATTACHMENTS,
+  });
+
+  const exam = (bucket) => bucket.find((action) => action.id === "abdominal_exam");
+  const original = exam(before.caseData.expected_actions);
+  const attached = exam(after.caseData.expected_actions);
+
+  assert.equal(attached.score_weight, original.score_weight);
+  assert.equal(attached.domain, original.domain);
+  assert.ok(attached.evidence_reference_ids.includes("base-appendicitis-special-signs"));
+  // the guideline anchor the case already had must survive
+  for (const referenceId of original.evidence_reference_ids) {
+    assert.ok(attached.evidence_reference_ids.includes(referenceId));
+  }
+  assert.deepEqual(after.report.baseAttachmentsMade.map((entry) => entry.action_id).sort(), [
+    "abdominal_exam",
+    "focused_history",
+  ]);
+});
+
+test("composed case with base attachments still validates", () => {
+  const { caseData } = composeCaseWithCore(acuteAppendicitisCase, {
+    operativeActionIds: ["open_appendectomy_here"],
+    conceptMap: appendicitisRouterConceptMap,
+    baseEvidenceAttachments: BASE_ATTACHMENTS,
+  });
+  assert.deepEqual(validateCase(caseData).errors, []);
+});
+
+test("every base-layer reference names a real, checkable source", () => {
+  const base = coreEvidence.references.filter((reference) => reference.provenance === "B");
+  const sourced = base.filter((reference) => !reference.verification_status);
+  assert.ok(sourced.length >= 4, "expected the semiotics/history layer to be sourced");
+
+  for (const reference of sourced) {
+    // StatPearls entries must be traceable: Bookshelf ID and PMID, not a vague
+    // "общепринятая учебная база".
+    assert.match(reference.citation, /NBK\d+/, `${reference.id} has no Bookshelf ID`);
+    assert.match(reference.citation, /PMID \d+/, `${reference.id} has no PMID`);
+    assert.match(reference.license, /CC BY-NC-ND/, `${reference.id} has no license`);
+    assert.match(reference.license, /not ingested/, `${reference.id} must stay citation-only`);
+  }
+});
+
+test("unsourced base entries stay flagged rather than quietly citing nothing", () => {
+  const unsourced = coreEvidence.references.filter(
+    (reference) => reference.provenance === "B" && reference.verification_status
+  );
+  for (const reference of unsourced) {
+    assert.match(reference.verification_status, /NEEDS_SOURCE_VERIFICATION/);
+  }
+});
+
+test("sepsis recognition exists and is anchored to an open-licence guideline", () => {
+  const sepsis = coreActionsById.get("recognize_sepsis");
+  assert.ok(sepsis, "sepsis recognition missing from the core library");
+  assert.deepEqual(sepsis.evidence_reference_ids, ["wses-iai-2021-sepsis"]);
+
+  const reference = coreEvidence.references.find((item) => item.id === "wses-iai-2021-sepsis");
+  assert.equal(reference.provenance, "T1");
+  assert.match(reference.license, /CC BY 4\.0/);
+});
+
+test("a base-layer fact can never become the scored correct answer", () => {
+  const { caseData } = composeCaseWithCore(acuteAppendicitisCase, {
+    conceptMap: appendicitisRouterConceptMap,
+    baseEvidenceAttachments: BASE_ATTACHMENTS,
+  });
+  const baseIds = new Set(
+    coreEvidence.references.filter((item) => item.provenance === "B").map((item) => item.id)
+  );
+
+  for (const action of caseData.expected_actions) {
+    const anchors = action.evidence_reference_ids || [];
+    if (anchors.length === 0) continue;
+    const onlyBase = anchors.every((id) => baseIds.has(id));
+    assert.ok(
+      !onlyBase || action.eligible_for_scoring === false,
+      `${action.id} scores while resting on tier B alone`
+    );
+  }
+});
