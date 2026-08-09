@@ -17,6 +17,14 @@ import {
   runMentorAgent,
   validateMentorText,
 } from "../core/mentorAgent.js";
+import {
+  ENGINE_PHASES,
+  MAX_HEURISTICS_PER_TURN,
+  SEVERITY,
+  mentorHeuristics,
+} from "../core/mentorHeuristics.js";
+import { createV3Case } from "../v3/caseFactory.js";
+import { createEmptyReasoningState } from "../core/reasoningState.js";
 
 const { caseData } = composeCaseWithCore(acuteAppendicitisCase, {
   operativeActionIds: ["open_appendectomy_here"],
@@ -134,7 +142,8 @@ test("a prerequisite warning for an action the learner did not take stays quiet"
     }),
     deterministicUpdate: update({ scoringEvents: [] }),
   });
-  assert.deepEqual(moveTypes(brief), [MENTOR_MOVE.NEUTRAL_PROMPT]);
+  assert.deepEqual(moveTypes(brief), []);
+  assert.equal(brief.silent, true);
 });
 
 test("without a reviewed bar the mentor does not judge escalation at all", () => {
@@ -219,13 +228,28 @@ test("a sensible action outside the library is acknowledged instead of dropped",
   assert.match(move.template, /не войдёт/i);
 });
 
-test("the mentor is never mute: the brief always renders to something", () => {
+// POLICY CHANGE, deliberate. This test used to read "the mentor is never mute:
+// the brief always renders to something", and it was listed as an invariant in
+// HANDOFF.md. The author reversed it: asked whether "Что делаешь дальше?" every
+// turn beats saying nothing, the answer was "пусть молчит лучше когда нечего
+// сказать" - which is also SURGICAL_MENTOR_LOGIC.md section 19, do not
+// overcorrect. Silence is now a legitimate mentor output.
+//
+// What survives is the narrower guarantee that actually mattered: the mentor
+// never *fails* to speak when it has something to say. A brief with moves always
+// renders to text, with or without a model.
+test("a brief with moves always renders to something, with or without a model", () => {
   const brief = buildMentorBrief({
     caseData,
     session: session(),
     plan: plan(),
-    deterministicUpdate: update({ neutralPrompt: "" }),
+    deterministicUpdate: update({
+      neutralPrompt: "",
+      scoringEvents: [{ action_id: "declare_uncertainty" }],
+    }),
   });
+  assert.ok(brief.moves.length > 0);
+  assert.equal(brief.silent, false);
   assert.ok(renderMentorBrief(brief).trim().length > 0);
 });
 
@@ -246,6 +270,7 @@ test("deterministic rendering passes the mentor's own validator", () => {
       }),
       deterministicUpdate,
     });
+    if (brief.silent) continue;
     const validation = validateMentorText(renderMentorBrief(brief), caseData, []);
     assert.ok(validation.ok, `fallback text rejected: ${validation.reason}`);
   }
@@ -327,7 +352,7 @@ test("a model error falls back instead of failing the turn", async () => {
     caseData,
     session: session(),
     plan: plan(),
-    deterministicUpdate: update(),
+    deterministicUpdate: update({ scoringEvents: [{ action_id: "declare_uncertainty" }] }),
   });
 
   const result = await runMentorAgent(
@@ -365,7 +390,13 @@ test("a valid model reply is used and reports its move types", async () => {
 
   assert.equal(result.source, "llm");
   assert.equal(result.rejectionReason, null);
-  assert.deepEqual(result.moveTypes, [MENTOR_MOVE.ESCALATION_APPROPRIATE]);
+  // Escalation is praised, and the core rule adds the second half of the lesson:
+  // call, but say what you think first. The learner stated no assessment here,
+  // so `consultation_replacing_reasoning` is eligible.
+  assert.deepEqual(result.moveTypes, [
+    MENTOR_MOVE.ESCALATION_APPROPRIATE,
+    MENTOR_MOVE.OUTSTANDING_PRIORITY,
+  ]);
 });
 
 test("without a configured model the mentor still speaks", async () => {
@@ -557,6 +588,8 @@ test("every authored mentor template is gender-neutral", () => {
         deterministicUpdate,
       });
       const rendered = renderMentorBrief(brief);
+      // Silence renders to "" and is a valid outcome; only actual text is judged.
+      if (brief.silent) continue;
       const validation = validateMentorText(rendered, caseData, []);
       assert.ok(validation.ok, `authored template rejected (${validation.reason}): ${rendered}`);
     }
@@ -637,4 +670,255 @@ test("a turn with nothing performed reports an empty just_performed", () => {
   });
   assert.deepEqual(brief.justPerformed, []);
   assert.equal(brief.resultsAlreadyDelivered, false);
+});
+
+// --- Proactive heuristics ------------------------------------------------
+//
+// The mentor's other five moves all wait for the learner to act. These check
+// the one channel that speaks about what is NOT happening.
+
+// Build a session whose learner has articulated the named reasoning flags.
+function reasoning(overrides = {}) {
+  const state = createEmptyReasoningState();
+  if (overrides.workingDiagnosis) state.working_diagnosis.stated = true;
+  if (overrides.stability) state.stability.stated = true;
+  if (overrides.dangerousAlternative) state.differential.has_dangerous_alternative = true;
+  if (overrides.managementPlan) state.management.plan_stated = true;
+  if (overrides.contingency) state.contingency.stated = true;
+  if (overrides.ownAssessment) state.consultation.own_assessment_stated = true;
+  if (overrides.disposition) state.disposition.stated = true;
+  if (overrides.observation) state.observation.active = true;
+  if (overrides.observationComplete) {
+    state.observation.active = true;
+    state.observation.goal_stated = true;
+    state.observation.reassessment_interval_stated = true;
+    state.observation.escalation_criteria_stated = true;
+  }
+  return state;
+}
+
+test("the mentor names what is missing instead of asking 'что дальше?'", () => {
+  const brief = buildMentorBrief({
+    caseData,
+    session: session({
+      phase: "diagnostic_workup",
+      completedActions: ["focused_history", "abdominal_exam"],
+      workingMemory: {
+        turnNumber: 4,
+        // The learner named a diagnosis and said nothing about stability.
+        reasoningState: reasoning({ workingDiagnosis: true, dangerousAlternative: true }),
+      },
+    }),
+    plan: plan(),
+    deterministicUpdate: update(),
+  });
+
+  const types = brief.moves.map((move) => move.type);
+  assert.ok(
+    !types.includes(MENTOR_MOVE.NEUTRAL_PROMPT),
+    "a fired heuristic must replace the neutral prompt, not sit beside it"
+  );
+  assert.ok(brief.firedHeuristicKeys.includes("hypothesis_without_stability"));
+  assert.match(renderMentorBrief(brief), /стабилен/i);
+});
+
+test("a heuristic never fires on a case that lacks the actions it names", () => {
+  // Without the guard, `not_completed` on an unknown action is vacuously true
+  // and the heuristic would fire on every single turn of every other nosology.
+  const strippedCase = { ...caseData, expected_actions: [], acceptable_alternatives: [], unnecessary_actions: [], unsafe_actions: [] };
+  const brief = buildMentorBrief({
+    caseData: strippedCase,
+    session: session({ phase: "diagnostic_workup", workingMemory: { turnNumber: 9 } }),
+    plan: plan(),
+    deterministicUpdate: update(),
+  });
+
+  assert.deepEqual(brief.firedHeuristicKeys, []);
+  assert.equal(brief.silent, true);
+});
+
+test("a blocking stop silences the heuristic - one thing at a time", () => {
+  const brief = buildMentorBrief({
+    caseData,
+    session: session({
+      completedActions: ["focused_history", "abdominal_exam"],
+      workingMemory: { turnNumber: 6 },
+    }),
+    plan: plan({
+      prerequisiteWarnings: [
+        { action_id: "open_appendectomy_here", missing: "informed_consent" },
+      ],
+    }),
+    deterministicUpdate: update({ scoringEvents: [{ action_id: "open_appendectomy_here" }] }),
+  });
+
+  assert.deepEqual(brief.firedHeuristicKeys, []);
+  assert.ok(brief.moves.some((move) => move.type === MENTOR_MOVE.PREREQUISITE_STOP));
+});
+
+test("a heuristic speaks once per session", () => {
+  const state = {
+    phase: "diagnostic_workup",
+    completedActions: ["focused_history", "abdominal_exam"],
+    workingMemory: { turnNumber: 4, firedHeuristicIds: ["analgesia_withheld"] },
+  };
+  const brief = buildMentorBrief({
+    caseData,
+    session: session(state),
+    plan: plan(),
+    deterministicUpdate: update(),
+  });
+
+  assert.deepEqual(brief.firedHeuristicKeys, []);
+  assert.equal(brief.silent, true);
+});
+
+test("with nothing to say the mentor stays silent, not chatty", () => {
+  // "Пусть молчит лучше когда нечего сказать." SURGICAL_MENTOR_LOGIC.md 19.
+  const brief = buildMentorBrief({
+    caseData,
+    session: session({ phase: "presentation", workingMemory: { turnNumber: 1 } }),
+    plan: plan(),
+    deterministicUpdate: update(),
+  });
+
+  assert.equal(brief.silent, true);
+  assert.equal(brief.moves.length, 0);
+  assert.equal(renderMentorBrief(brief), "");
+});
+
+test("the more critical remark comes first, and at most two are made", () => {
+  // Several heuristics match this state. Priority is the declared severity, not
+  // the order of lines in the file: "смотря что критичнее".
+  const brief = buildMentorBrief({
+    caseData,
+    session: session({
+      phase: "decision",
+      completedActions: ["focused_history", "abdominal_exam", "diagnosis_acute_appendicitis"],
+      workingMemory: { turnNumber: 5, reasoningState: reasoning({ workingDiagnosis: true }) },
+    }),
+    plan: plan(),
+    deterministicUpdate: update(),
+  });
+
+  const severities = brief.moves.map((move) => move.severity);
+  assert.equal(brief.moves.length, MAX_HEURISTICS_PER_TURN);
+  assert.deepEqual([...severities].sort((a, b) => b - a), severities);
+  assert.equal(severities[0], SEVERITY.IMPORTANT_OMISSION);
+});
+
+test("deterioration lets a heuristic speak a second time", () => {
+  // The author's answer to "should it re-arm": yes, when the patient gets worse
+  // and the learner does nothing for a couple of steps.
+  const deteriorating = session({
+    phase: "decision",
+    completedActions: ["focused_history", "abdominal_exam", "diagnosis_acute_appendicitis"],
+    workingMemory: {
+      turnNumber: 8,
+      // Already said everything once, including the safety remark - but at the
+      // status the patient had then.
+      firedHeuristicIds: [
+        "deterioration_unanswered@stable",
+        "hypothesis_without_stability",
+        "premature_closure",
+        "hypothesis_without_management",
+      ],
+    },
+    temporalState: { clockMinutes: 300, status: "delayed_source_control", flags: ["delay_risk"] },
+  });
+
+  const brief = buildMentorBrief({
+    caseData,
+    session: deteriorating,
+    plan: plan(),
+    deterministicUpdate: update(),
+  });
+
+  assert.ok(
+    brief.firedHeuristicKeys.includes("deterioration_unanswered@delayed_source_control"),
+    "a worsening patient must re-arm the safety-critical remark"
+  );
+  assert.equal(brief.moves[0].severity, SEVERITY.SAFETY_CRITICAL);
+});
+
+test("heuristic lines obey the same locks as any other mentor text", () => {
+  // Every line is shown to the learner verbatim when no model is configured, so
+  // it has to survive the validator on its own: no patient finding, no
+  // diagnosis, no gendered address to the learner.
+  for (const heuristic of mentorHeuristics) {
+    const verdict = validateMentorText(heuristic.mentor_line, caseData, []);
+    assert.equal(verdict.ok, true, `${heuristic.id}: ${verdict.reason}`);
+  }
+});
+
+test("senior-surgeon heuristics are opinion and cannot move the score", () => {
+  for (const heuristic of mentorHeuristics) {
+    assert.equal(
+      heuristic.eligible_for_scoring,
+      false,
+      `${heuristic.id} must not be scoreable before clinical review`
+    );
+    assert.ok(
+      ["EXPERT_OPINION_UNREVIEWED", "EXPERT_OPINION_NEEDS_SOURCE_VERIFICATION"].includes(
+        heuristic.provenance
+      ),
+      `${heuristic.id} carries an unrecognised provenance: ${heuristic.provenance}`
+    );
+    assert.ok(
+      heuristic.rationale_for_reviewer,
+      `${heuristic.id} must carry a rationale for the reviewer`
+    );
+    assert.ok(heuristic.spec_section, `${heuristic.id} must cite a section of the mentor spec`);
+    assert.ok(
+      Number.isInteger(heuristic.severity) && heuristic.severity >= 0 && heuristic.severity <= 4,
+      `${heuristic.id} must declare a severity from the spec's 0-4 scale`
+    );
+  }
+});
+
+test("heuristics gate on real engine phases", () => {
+  // The failure this guards against: gating on the case-action phase vocabulary
+  // ("diagnosis", "management") instead of the engine's temporal phases. Every
+  // unit test passed and nothing fired in a real session.
+  for (const heuristic of mentorHeuristics) {
+    for (const phase of heuristic.when.phase || []) {
+      assert.ok(
+        ENGINE_PHASES.includes(phase),
+        `${heuristic.id} gates on "${phase}", which is not an engine phase`
+      );
+    }
+  }
+});
+
+test("a heuristic fires in a real session, not only in a hand-built one", async () => {
+  // Regression. The first version of these heuristics gated on phase names taken
+  // from the case action vocabulary ("diagnosis", "management") instead of the
+  // engine's temporal phases ("diagnostic_workup", "decision"). Every unit test
+  // passed, because each one handed buildMentorBrief the same wrong name it was
+  // asserting against. Nothing fired in an actual session. Only a run through
+  // the engine can catch that class of mistake.
+  const v3Case = createV3Case();
+  let session = createV25Session({ caseData: v3Case, mode: "reference", seed: "heuristics" });
+
+  const turns = [
+    "соберу анамнез, спрошу про миграцию боли",
+    "осмотрю живот, пальпация, симптомы раздражения брюшины",
+    "оак и общий анализ мочи",
+    "тест на беременность",
+    "думаю про острый аппендицит",
+  ];
+  for (const input of turns) {
+    const result = await advanceV25Session({
+      caseData: v3Case,
+      session,
+      input,
+      options: { mentor: true },
+    });
+    session = result.session;
+  }
+
+  assert.ok(
+    session.workingMemory.firedHeuristicIds.length > 0,
+    "no heuristic spoke across a whole diagnostic workup - check the `when` gates against real engine phases"
+  );
 });

@@ -1,4 +1,5 @@
 import { coreActionsById, operativePrerequisites } from "./coreActions.js";
+import { firedKey, selectHeuristics } from "./mentorHeuristics.js";
 
 /**
  * The mentor brief: a deterministic description of what is pedagogically true
@@ -22,6 +23,11 @@ export const MENTOR_MOVE = {
   OUT_OF_SCOPE_RECOGNIZED: "out_of_scope_recognized",
   RESOURCE_BLOCKED: "resource_blocked",
   NEUTRAL_PROMPT: "neutral_prompt",
+  // Proactive moves. Everything above waits for the learner to do something;
+  // these three notice what is not happening. See mentorHeuristics.js.
+  SEQUENCE_INVERTED: "sequence_inverted",
+  OUTSTANDING_PRIORITY: "outstanding_priority",
+  CLOCK: "clock",
 };
 
 const ESCALATION_ACTION_IDS = ["call_senior_surgeon", "call_intensive_care"];
@@ -36,6 +42,8 @@ const PREREQUISITE_TEMPLATES = {
   checklist_not_performed:
     "Контрольный лист безопасности до разреза ещё не выполнен.",
   theatre_not_notified: "Операционная бригада ещё не оповещена.",
+  prophylaxis_not_given:
+    "Стоп. Антибиотикопрофилактика до разреза не введена. Это шаг перед операцией, а не после неё.",
 };
 
 const PREREQUISITE_FALLBACK = "Перед этим шагом остаётся незакрытое условие.";
@@ -226,13 +234,42 @@ export function buildMentorBrief({
     });
   }
 
-  if (moves.length === 0) {
-    moves.push({
-      type: MENTOR_MOVE.NEUTRAL_PROMPT,
-      template: deterministicUpdate.neutralPrompt || plan.plannerPrompt || "Что делаешь дальше?",
-      evidence: [],
+  // 6. What is NOT happening. See mentorHeuristics.js.
+  //
+  // Yields to a blocking stop: when the operation is being attempted without
+  // consent, that is the only thing worth saying this turn.
+  const firedHeuristicKeys = [];
+  if (blockingStops.length === 0) {
+    const selected = selectHeuristics({
+      caseData,
+      session,
+      attempted,
+      alreadyFired: session.workingMemory?.firedHeuristicIds || [],
     });
+    const status = session.temporalState?.status || "stable";
+    for (const heuristic of selected) {
+      firedHeuristicKeys.push(firedKey(heuristic, { status }));
+      moves.push({
+        type: MENTOR_MOVE[heuristic.type.toUpperCase()] || heuristic.type,
+        heuristic_id: heuristic.id,
+        severity: heuristic.severity,
+        hint_level: heuristic.hint_level,
+        spec_section: heuristic.spec_section,
+        template: heuristic.mentor_line,
+        provenance: heuristic.provenance,
+        evidence: [],
+      });
+    }
   }
+
+  // Silence when there is nothing to say.
+  //
+  // Asked whether "Что делаешь дальше?" every turn beats saying nothing, the
+  // author's answer was "пусть молчит лучше когда нечего сказать" - and
+  // SURGICAL_MENTOR_LOGIC.md section 19 says the same: do not stop the learner
+  // for every imperfect phrase. So the mentor produces no text at all, and the
+  // engine keeps its own operational prompt instead of having it replaced.
+  const silent = moves.length === 0;
 
   // What the deterministic layer already did this turn, by name only.
   //
@@ -253,6 +290,11 @@ export function buildMentorBrief({
   return {
     moves,
     justPerformed,
+    silent,
+    // The engine folds these into working memory so a heuristic speaks once per
+    // session. A supervisor who repeats the same remark every turn stops being
+    // heard after the second time. Deterioration re-arms; see firedKey.
+    firedHeuristicKeys,
     resultsAlreadyDelivered: (deterministicUpdate.findingsRevealed || []).length > 0,
     // Invariant asserted by tests: the brief carries verdicts, not findings.
     containsPatientFacts: false,

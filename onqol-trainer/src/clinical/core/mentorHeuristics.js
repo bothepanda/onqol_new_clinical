@@ -1,0 +1,535 @@
+// Senior-surgeon heuristics: what a supervisor notices that no source states.
+//
+// SOURCE
+//
+// This file is the machine-readable half of SURGICAL_MENTOR_LOGIC.md, which sits
+// next to it and is authored by the surgeon. That document defines how a mentor
+// thinks; this file encodes the part a deterministic engine can actually detect.
+// Every entry carries `spec_section` pointing back at it, so a reviewer can read
+// the claim and its rationale in the author's own words.
+//
+// Rules here fire on Reasoning State (what the learner articulated), on intent
+// types, on the clock, and on core-library action ids. They may NOT name an id
+// owned by a disease card: a rule that reads `diagnosis_acute_appendicitis` is
+// not a rule about reasoning, it is a rule about appendicitis, and it belongs in
+// that disease's mentorRules.js. A test enforces this, because it is the one
+// property that decides whether adding cholecystitis is a new file or a rewrite.
+//
+// WHY THIS FILE EXISTS
+//
+// Every mentor move before it was reactive. `prerequisite_stop` needs the learner
+// to reach for the knife; `escalation_*` needs them to call for help. A learner
+// who quietly drifts triggered nothing, and the mentor fell through to "Что
+// делаешь дальше?" turn after turn. What separates a senior surgeon is noticing
+// what is *not* happening - and the brief carried no channel for that, so no
+// amount of "think like a senior surgeon" in the prompt could produce it.
+//
+// PROVENANCE DISCIPLINE
+//
+// Most of this is expert opinion. That is a legitimate source type and often the
+// only place this knowledge lives, because it is transmitted at the operating
+// table rather than written down. But it must be *labelled* as opinion, never
+// laundered into looking like a guideline. Hence `provenance` on every entry and
+// `eligible_for_scoring: false` throughout: the mentor may say these things, and
+// they may not move a single point until a reviewer signs them off.
+//
+// EDITING THIS FILE
+//
+// Two rules only:
+//   1. `mentor_line` is shown to the learner verbatim when no model is
+//      configured. Write it the way you would say it out loud to a resident
+//      standing next to you.
+//   2. `mentor_line` may name actions and reasoning. It may NOT assert a patient
+//      finding, a vital sign, a pain score or the diagnosis - even one the app
+//      has already printed, because this file cannot know what was revealed.
+//      "Обезболивание ещё не назначено" is fine. "Пациентка жалуется на сильную
+//      боль" is not. A test enforces this.
+//
+// Russian past-tense verbs are gendered, so `mentor_line` must not use them about
+// the learner ("ты назначил"/"ты назначила"). Present tense, infinitives or
+// verbal nouns. A test enforces this too.
+
+import { reasoningFlags } from "./reasoningState.js";
+
+const AUTHORED = "EXPERT_OPINION_UNREVIEWED";
+const AUTHORED_WITH_SOURCE = "EXPERT_OPINION_NEEDS_SOURCE_VERIFICATION";
+
+/**
+ * Error severity, from SURGICAL_MENTOR_LOGIC.md section 17.
+ *
+ * This is what orders the mentor's mouth. Asked which of two remarks comes
+ * first, the author's answer was "смотря что критичнее" - so priority is a
+ * declared clinical property of each heuristic, not the order of lines in a
+ * file.
+ */
+export const SEVERITY = {
+  ACCEPTABLE_VARIATION: 0,
+  MINOR_GAP: 1,
+  REASONING_ERROR: 2,
+  IMPORTANT_OMISSION: 3,
+  SAFETY_CRITICAL: 4,
+};
+
+/**
+ * Hint ladder, from SURGICAL_MENTOR_LOGIC.md section 18. Use the minimum help
+ * that works: 1 open prompt, 2 directional, 3 focused clue, 4 explicit teaching.
+ * Safety-critical situations may jump straight to 4.
+ */
+export const HINT = { OPEN: 1, DIRECTIONAL: 2, FOCUSED: 3, EXPLICIT: 4 };
+
+/**
+ * @typedef {Object} MentorHeuristic
+ * @property {string} id
+ * @property {string} type                    becomes the mentor move type
+ * @property {number} severity                SEVERITY.*; orders what gets said
+ * @property {number} hint_level              HINT.*
+ * @property {string} spec_section            section of SURGICAL_MENTOR_LOGIC.md
+ * @property {Object} when                    conjunctive; all present keys must hold
+ * @property {string[]} [when.attempted]      learner went for any of these THIS turn
+ * @property {string[]} [when.completed]      all of these are already done
+ * @property {string[]} [when.not_completed]  none of these is done
+ * @property {string[]} [when.phase]          engine phase is one of these
+ * @property {string[]} [when.status]         temporal status is one of these
+ * @property {string[]} [when.flags]          all of these temporal flags are set
+ * @property {number}  [when.min_turn]        not before this turn number
+ * @property {number}  [when.min_clock_minutes] not before this much simulated time
+ * @property {boolean} [rearm_on_deterioration] may speak a second time if the
+ *                     patient's status changes; see selectHeuristics
+ * @property {string} mentor_line             shown verbatim without a model
+ * @property {string} rationale_for_reviewer
+ * @property {string} provenance
+ * @property {boolean} eligible_for_scoring
+ */
+
+/**
+ * Engine phases, from temporalPatientModel.js. Named here because the first
+ * version of this file used the *case action* phase vocabulary ("diagnosis",
+ * "management") by mistake, every unit test passed, and nothing ever fired in a
+ * real session.
+ */
+export const ENGINE_PHASES = ["presentation", "diagnostic_workup", "decision", "post_source_control"];
+
+/** @type {MentorHeuristic[]} */
+export const mentorHeuristics = [
+  // --- Безопасность: пациенту хуже, а план не меняется --------------------
+  {
+    // "Если пациенту становится хуже, но резидент ничего не делает пару шагов,
+    // то надо напомнить." The only heuristic allowed to speak twice.
+    //
+    // Deterioration is a disease-configured signal now, not a side effect of the
+    // ED clock: crossing four hours no longer worsens anybody by itself.
+    id: "deterioration_unanswered",
+    type: "deterioration_unanswered",
+    severity: SEVERITY.SAFETY_CRITICAL,
+    hint_level: HINT.EXPLICIT,
+    spec_section: "3. Stability comes before diagnosis / 25. Time and consequences",
+    when: {
+      flags: ["delay_risk"],
+      reasoning_none: ["management_plan_stated"],
+    },
+    rearm_on_deterioration: true,
+    mentor_line:
+      "Картина меняется, а план — нет. Что сейчас опаснее всего в ближайший час?",
+    rationale_for_reviewer:
+      "Ухудшение без изменения плана — единственная категория, где наставник обязан прервать сократический режим (спека, раздел 3: patient safety overrides Socratic teaching). Проверить: достаточно ли флага delay_risk как признака ухудшения, или нужен явный порог по витальным.",
+    provenance: AUTHORED,
+    eligible_for_scoring: false,
+  },
+
+  // --- Стабильность раньше диагноза ---------------------------------------
+  {
+    // Was `diagnosis_without_severity`, gated on diagnosis_acute_appendicitis
+    // plus recognize_sepsis. That demanded the learner say "сепсис" to prove
+    // they had thought about severity, and it only worked for one disease.
+    id: "hypothesis_without_stability",
+    type: "outstanding_priority",
+    severity: SEVERITY.IMPORTANT_OMISSION,
+    hint_level: HINT.FOCUSED,
+    spec_section: "3. Stability comes before diagnosis / 16. Drift 6",
+    when: {
+      reasoning_all: ["working_diagnosis_stated"],
+      reasoning_none: ["stability_stated"],
+    },
+    mentor_line:
+      "Название болезни уже есть. Мне сейчас важнее другое: пациент стабилен или нет, и по каким признакам?",
+    rationale_for_reviewer:
+      "Резидент называет заболевание и не оценивает физиологию. Срабатывает на том, что резидент сказал про стабильность, а не на том, произнёс ли он слово «сепсис».",
+    provenance: AUTHORED,
+    eligible_for_scoring: false,
+  },
+  {
+    // Was `diagnosis_without_action`, gated on four appendicitis action ids.
+    id: "hypothesis_without_management",
+    type: "outstanding_priority",
+    severity: SEVERITY.REASONING_ERROR,
+    hint_level: HINT.OPEN,
+    spec_section: "9. Management must follow diagnosis / 16. Drift 8",
+    when: {
+      reasoning_all: ["working_diagnosis_stated"],
+      reasoning_none: ["management_plan_stated"],
+      min_turn: 4,
+    },
+    mentor_line: "Хорошо, диагноз есть. И что ты теперь с этим пациентом делаешь?",
+    rationale_for_reviewer:
+      "Рассуждение заканчивается диагнозом. Каждый диагноз должен переходить в решение. Порог min_turn даёт резиденту ход на то, чтобы дойти до тактики самому.",
+    provenance: AUTHORED,
+    eligible_for_scoring: false,
+  },
+  {
+    // Was `premature_closure`, gated on differential_ectopic and
+    // pelvic_gynecologic_screen. The universal half is "no dangerous
+    // alternative was reasoned about"; the appendicitis-specific half (ectopic
+    // pregnancy in this patient profile) lives in the disease module.
+    id: "premature_closure",
+    type: "outstanding_priority",
+    severity: SEVERITY.IMPORTANT_OMISSION,
+    hint_level: HINT.DIRECTIONAL,
+    spec_section: "5. Working diagnosis and dangerous alternatives / 16. Drift 2",
+    when: {
+      reasoning_all: ["working_diagnosis_stated"],
+      reasoning_none: ["dangerous_alternative_stated"],
+    },
+    mentor_line: "Диагноз назван быстро. Что здесь нельзя пропустить, даже если это менее вероятно?",
+    rationale_for_reviewer:
+      "«Боль справа + лейкоцитоз = аппендицит» — самое типичное преждевременное закрытие. Теперь срабатывает на отсутствии рассуждения об опасной альтернативе, а не на невыполненном действии: резидент, назвавший альтернативу словами, больше не наказывается.",
+    provenance: AUTHORED,
+    eligible_for_scoring: false,
+  },
+  {
+    id: "unranked_differential",
+    type: "outstanding_priority",
+    severity: SEVERITY.REASONING_ERROR,
+    hint_level: HINT.DIRECTIONAL,
+    spec_section: "16. Drift 3: unranked differential",
+    when: {
+      reasoning_all: ["differential_stated"],
+      reasoning_none: ["differential_ranked"],
+    },
+    mentor_line: "Список есть. Что из этого первое по вероятности, а что — самое опасное?",
+    rationale_for_reviewer:
+      "Проблема не в маленьком дифференциале, а в отсутствии приоритетов. Ранжирование — то, что отличает мышление от перечисления.",
+    provenance: AUTHORED,
+    eligible_for_scoring: false,
+  },
+
+  // --- Исследования: каждый тест отвечает на вопрос ------------------------
+  {
+    // Replaces the universal `ct_before_ultrasound` rule, which asserted "УЗИ
+    // ОБП и ОМТ всегда перед КТ" for every nosology and patient group. That is
+    // a reviewed disease-level sequence at best; as a universal law it would
+    // break the moment a second disease arrives. The portable rule is the one
+    // that asks what question the scan answers.
+    id: "investigation_without_purpose",
+    type: "outstanding_priority",
+    severity: SEVERITY.REASONING_ERROR,
+    hint_level: HINT.OPEN,
+    spec_section: "7. Every test needs a purpose / 16. Drift 4",
+    when: {
+      reasoning_all: ["investigation_without_stated_purpose"],
+    },
+    mentor_line:
+      "Какой клинический вопрос ты хочешь закрыть этим исследованием и изменит ли результат тактику?",
+    rationale_for_reviewer:
+      "Исследование имеет смысл, если оно отвечает на конкретный вопрос или меняет тактику. Срабатывает на названном резидентом обосновании, а не на количестве назначенных тестов — считать тесты и звать это shotgun-диагностикой прямо запрещено планом V3.1.",
+    provenance: AUTHORED,
+    eligible_for_scoring: false,
+  },
+  {
+    id: "imaging_before_examination",
+    type: "sequence_inverted",
+    severity: SEVERITY.REASONING_ERROR,
+    hint_level: HINT.DIRECTIONAL,
+    spec_section: "8. Do not let testing replace thinking",
+    when: {
+      attempted_intent: ["request_test"],
+      not_completed_intent: ["request_examination"],
+    },
+    mentor_line: "А что мы ищем в животе? Может, сначала пальпация?",
+    rationale_for_reviewer:
+      "Автор: «мы всегда движемся от менее инвазивного теста к более. Иногда руки скажут тебе больше». Сформулировано через типы намерений, а не через id конкретных исследований, поэтому переносится на любую нозологию.",
+    provenance: AUTHORED,
+    eligible_for_scoring: false,
+  },
+  {
+    id: "waiting_for_every_result",
+    type: "outstanding_priority",
+    severity: SEVERITY.REASONING_ERROR,
+    hint_level: HINT.OPEN,
+    spec_section: "16. Drift 5: waiting for every result",
+    when: {
+      reasoning_all: ["working_diagnosis_stated"],
+      reasoning_none: ["management_plan_stated"],
+      min_clock_minutes: 120,
+    },
+    mentor_line:
+      "Что этому пациенту нужно уже сейчас, независимо от того, что покажет исследование?",
+    rationale_for_reviewer:
+      "Резидент воспринимает диагностику и лечение как последовательные этапы. В неотложной хирургии они идут параллельно. Порог по часам, а не по действию ожидания, — чтобы правило не зависело от того, есть ли в кейсе действие «ждать УЗИ».",
+    provenance: AUTHORED,
+    eligible_for_scoring: false,
+  },
+
+  // --- Наблюдение, план Б, переоценка, маршрут ------------------------------
+  {
+    // Was gated on `active_observation` plus `serial_reexamination`. The plan is
+    // explicit that serial re-examination alone does not prove an observation
+    // has an endpoint.
+    id: "observation_without_endpoint",
+    type: "outstanding_priority",
+    severity: SEVERITY.REASONING_ERROR,
+    hint_level: HINT.FOCUSED,
+    spec_section: "11. Observation is an active plan / 16. Drift 7",
+    when: {
+      reasoning_all: ["observation_active"],
+      reasoning_none: ["observation_plan_complete"],
+    },
+    mentor_line: "Наблюдаем что, до какого момента, и что должно произойти, чтобы решение поменялось?",
+    rationale_for_reviewer:
+      "«Оставим под наблюдением» без цели, интервала пересмотра и критерия эскалации — псевдотактика. Формулировка безличная намеренно: «чтобы ты поменяла» приписало бы резиденту пол.",
+    provenance: AUTHORED,
+    eligible_for_scoring: false,
+  },
+  {
+    id: "no_contingency_plan",
+    type: "outstanding_priority",
+    severity: SEVERITY.REASONING_ERROR,
+    hint_level: HINT.OPEN,
+    spec_section: "13. Every plan needs an exit condition / 16. Drift 9",
+    when: {
+      reasoning_all: ["management_plan_stated"],
+      reasoning_none: ["contingency_stated"],
+    },
+    mentor_line: "План есть. Что заставит тебя его поменять?",
+    rationale_for_reviewer:
+      "Один из самых частых вопросов наставника по спеке. У любого плана должны быть критерии отказа и эскалации.",
+    provenance: AUTHORED,
+    eligible_for_scoring: false,
+  },
+  {
+    id: "consultation_replacing_reasoning",
+    type: "outstanding_priority",
+    severity: SEVERITY.MINOR_GAP,
+    hint_level: HINT.EXPLICIT,
+    spec_section: "22. Consultation and escalation / 16. Drift 10",
+    when: {
+      reasoning_none: ["consultation_own_assessment_stated"],
+      attempted: ["call_senior_surgeon", "call_intensive_care"],
+    },
+    mentor_line:
+      "Позови. Но сначала скажи мне: что ты сам думаешь, что уже сделано и какой вопрос ты задаёшь консультанту?",
+    rationale_for_reviewer:
+      "Консультация используется вместо собственного клинического решения. Дополняет, а не заменяет ход escalation_premature: тот про момент вызова, этот про содержание доклада.",
+    provenance: AUTHORED,
+    eligible_for_scoring: false,
+  },
+
+  // --- Часы приёмного отделения --------------------------------------------
+  {
+    // Fires on the ED flow checkpoint, not on the absence of an appendectomy.
+    // Calling a senior is not a disposition, and the plan says so explicitly.
+    id: "ed_clock_disposition",
+    type: "clock",
+    severity: SEVERITY.IMPORTANT_OMISSION,
+    hint_level: HINT.DIRECTIONAL,
+    spec_section: "15. Emergency department clock / 14. Disposition",
+    when: {
+      flags: ["ed_disposition_checkpoint"],
+      reasoning_none: ["disposition_stated", "observation_plan_complete"],
+    },
+    mentor_line:
+      "Мы уже долго в приёмном. Куда идёт пациент дальше? Если продолжаем наблюдение, чего конкретно ждём и когда пересматриваем?",
+    rationale_for_reviewer:
+      "NEEDS_SOURCE_VERIFICATION. Автор: стандарт приёмных отделений РК не устанавливает универсального правила «через 4 часа пациент обязан уйти»; для жёлтой зоны допускается наблюдение до 24 часов. Модель NHS England использует 0–4 часа как core ED care с целевым исходом admit/transfer/discharge у ≥95%. Сверить обе строки; порог 240 минут взят из второй. Наблюдение принимается как маршрут только с целью, интервалом и критерием выхода.",
+    provenance: AUTHORED_WITH_SOURCE,
+    eligible_for_scoring: false,
+  },
+
+];
+
+export const mentorHeuristicsById = new Map(
+  mentorHeuristics.map((heuristic) => [heuristic.id, heuristic])
+);
+
+/**
+ * How many heuristics may speak in one turn.
+ *
+ * SURGICAL_MENTOR_LOGIC.md step 4 says "find the single highest-value teaching
+ * point; do not correct everything at once". Asked directly, the author said
+ * "бывает что говорить много вещей, это же человек". Two is the compromise:
+ * enough to sound like a person, few enough that the learner keeps reading.
+ * One number, one place to change it.
+ */
+export const MAX_HEURISTICS_PER_TURN = 2;
+
+/**
+ * Select the heuristics for this turn, most severe first.
+ *
+ * @param {object} params
+ * @param {object} params.caseData
+ * @param {object} params.session          session state AFTER the deterministic update
+ * @param {Set<string>} params.attempted   action ids the learner went for this turn
+ * @param {string[]} params.alreadyFired   fired keys from working memory
+ * @param {MentorHeuristic[]} [params.heuristics]
+ * @returns {MentorHeuristic[]}
+ */
+export function selectHeuristics({
+  caseData,
+  session,
+  attempted,
+  alreadyFired = [],
+  heuristics = null,
+}) {
+  // Core rules describe reasoning patterns and may name only core-library action
+  // ids or intent types. Disease-specific coaching travels with the case in
+  // `mentor_rules`, so adding cholecystitis never means editing this file.
+  const active = heuristics || [...mentorHeuristics, ...(caseData.mentor_rules || [])];
+  const temporal = session.temporalState || {};
+  const context = {
+    attempted,
+    completed: new Set(session.completedActions || []),
+    phase: session.phase,
+    turnNumber: session.workingMemory?.turnNumber || 0,
+    clockMinutes: temporal.clockMinutes || 0,
+    status: temporal.status || "stable",
+    flags: new Set([
+      ...(temporal.flags || []),
+      ...(temporal.flow?.edDispositionCheckpointReached ? ["ed_disposition_checkpoint"] : []),
+    ]),
+    reasoning: reasoningFlags(session.workingMemory?.reasoningState),
+    // Intent types let a core rule say "imaging was ordered before anyone
+    // examined the patient" without naming ct_abdomen or abdominal_exam, which
+    // are appendicitis ids. This is what makes the rule portable.
+    attemptedIntents: intentsOf(caseData, attempted),
+    completedIntents: intentsOf(caseData, new Set(session.completedActions || [])),
+  };
+  const fired = new Set(alreadyFired);
+  const known = knownActionIds(caseData);
+
+  const eligible = active.filter((heuristic) => {
+    if (fired.has(firedKey(heuristic, context))) return false;
+    // A heuristic naming an action this case does not carry would make
+    // `not_completed` vacuously true and fire on every single turn of every
+    // other nosology. Skip rather than nag.
+    if (!referencesOnlyKnownActions(heuristic, known)) return false;
+    return matches(heuristic.when, context);
+  });
+
+  // Severity first, then file order. "Смотря что критичнее."
+  eligible.sort((a, b) => b.severity - a.severity);
+  return eligible.slice(0, MAX_HEURISTICS_PER_TURN);
+}
+
+/**
+ * The key under which a fired heuristic is remembered.
+ *
+ * Normally the id, so each speaks once per session - a supervisor who repeats
+ * the same remark every turn stops being heard. A heuristic marked
+ * `rearm_on_deterioration` is keyed by id AND patient status, so when the
+ * patient's state changes it is allowed to speak again. That is the author's
+ * answer to "should it re-arm": yes, when the patient gets worse.
+ */
+export function firedKey(heuristic, context) {
+  return heuristic.rearm_on_deterioration ? `${heuristic.id}@${context.status}` : heuristic.id;
+}
+
+function matches(when = {}, context) {
+  if (when.min_turn != null && context.turnNumber < when.min_turn) return false;
+  if (when.min_clock_minutes != null && context.clockMinutes < when.min_clock_minutes) return false;
+  if (when.phase && !when.phase.includes(context.phase)) return false;
+  if (when.status && !when.status.includes(context.status)) return false;
+  if (when.flags && !when.flags.every((flag) => context.flags.has(flag))) return false;
+  if (when.attempted && !when.attempted.some((id) => context.attempted.has(id))) return false;
+  if (when.completed && !when.completed.every((id) => context.completed.has(id))) return false;
+  if (when.not_completed && when.not_completed.some((id) => context.completed.has(id))) return false;
+  // Reasoning predicates. A closed flag vocabulary rather than dotted paths into
+  // the state object, so a typo fails a test instead of quietly never matching.
+  if (when.reasoning_all && !when.reasoning_all.every((flag) => context.reasoning.has(flag))) return false;
+  if (when.reasoning_none && when.reasoning_none.some((flag) => context.reasoning.has(flag))) return false;
+  if (when.attempted_intent && !when.attempted_intent.some((type) => context.attemptedIntents.has(type))) {
+    return false;
+  }
+  if (when.not_completed_intent && when.not_completed_intent.some((type) => context.completedIntents.has(type))) {
+    return false;
+  }
+  return true;
+}
+
+function intentsOf(caseData, actionIds) {
+  const byId = actionIndex(caseData);
+  const intents = new Set();
+  for (const id of actionIds) {
+    const intent = byId.get(id)?.intent_type;
+    if (intent) intents.add(intent);
+  }
+  return intents;
+}
+
+function actionIndex(caseData) {
+  const index = new Map();
+  for (const action of [
+    ...(caseData.expected_actions || []),
+    ...(caseData.acceptable_alternatives || []),
+    ...(caseData.unnecessary_actions || []),
+    ...(caseData.unsafe_actions || []),
+  ]) {
+    index.set(action.id, action);
+  }
+  return index;
+}
+
+function knownActionIds(caseData) {
+  return new Set(
+    [
+      ...(caseData.expected_actions || []),
+      ...(caseData.acceptable_alternatives || []),
+      ...(caseData.unnecessary_actions || []),
+      ...(caseData.unsafe_actions || []),
+    ].map((action) => action.id)
+  );
+}
+
+function referencesOnlyKnownActions(heuristic, known) {
+  const referenced = [
+    ...(heuristic.when.attempted || []),
+    ...(heuristic.when.completed || []),
+    ...(heuristic.when.not_completed || []),
+  ];
+  return referenced.every((id) => known.has(id));
+}
+
+// --- WHAT REASONING STATE MADE DETECTABLE ---------------------------------
+//
+// Before Reasoning State this table could only see actions and the clock, so the
+// drifts that are about *how* a resident reasons had no proxy at all and were
+// listed here as absent. Most are now real rules above:
+//
+//   Drift 2  premature closure        -> premature_closure
+//   Drift 3  unranked differential    -> unranked_differential
+//   Drift 4  testing without purpose  -> investigation_without_purpose
+//   Drift 5  waiting for everything   -> waiting_for_every_result
+//   Drift 6  diagnosis without severity -> hypothesis_without_stability
+//   Drift 7  observation without end  -> observation_without_endpoint
+//   Drift 8  diagnosis without action -> hypothesis_without_management
+//   Drift 9  no contingency plan      -> no_contingency_plan
+//   Drift 10 consultation replacing   -> consultation_replacing_reasoning
+//            reasoning                   (complements escalation_premature:
+//                                        that one judges the moment, this one
+//                                        the content of the hand-over)
+//
+// --- STILL NOT DETECTABLE --------------------------------------------------
+//
+//   Drift 1  endless data gathering   - needs "enough data to decide" as a
+//                                       declared, reviewed bar. Counting tests
+//                                       is not it, and guessing a threshold is
+//                                       exactly the unreviewed clinical content
+//                                       this project refuses to ship.
+//
+// Reasoning State records that a claim was made; it never validates it. A
+// resident who states a purpose for every test satisfies
+// investigation_without_purpose whether or not the purpose was a good one. These
+// rules coach; they do not grade, which is why every one of them is
+// `eligible_for_scoring: false`.
+//
+// The four core questions (spec section 1) are not heuristics at all: they are
+// what the mentor falls back to when reasoning is unclear. That is a matter for
+// the mentor prompt, not for this table.

@@ -5,6 +5,7 @@ import {
   extractOpenAIResponseText,
   requestOpenAI,
 } from "../../../server/openaiGateway.mjs";
+import { DISPOSITION_DESTINATIONS, STABILITY_ASSESSMENTS } from "../core/reasoningState.js";
 import {
   createOpenAIBackendClient,
   getOpenAIBackendStatus,
@@ -19,6 +20,39 @@ test("OpenAI router request uses Luna and strict structured output", () => {
   assert.equal(request.text.format.type, "json_schema");
   assert.equal(request.text.format.strict, true);
   assert.equal(request.text.format.schema.additionalProperties, false);
+});
+
+test("the router schema can actually carry the reasoning the prompt asks for", () => {
+  // Structured output is strict with additionalProperties:false, so a field the
+  // schema does not name cannot be returned however clearly the prompt requests
+  // it. Reasoning extraction was silently empty in a live session for exactly
+  // this reason: the prompt had been extended and the schema had not.
+  const schema = buildOpenAIRequest({ task: "router", prompt }).text.format.schema;
+  assert.ok(schema.required.includes("reasoning"));
+
+  const reasoning = schema.properties.reasoning;
+  for (const field of [
+    "stability",
+    "working_diagnosis",
+    "differential",
+    "test_reasoning",
+    "management",
+    "observation",
+    "contingency_stated",
+    "disposition",
+    "consultation",
+  ]) {
+    assert.ok(reasoning.properties[field], `router schema cannot return reasoning.${field}`);
+    assert.ok(reasoning.required.includes(field), `reasoning.${field} must be required under strict mode`);
+  }
+
+  // Every enum the client normalises against must be expressible.
+  for (const value of STABILITY_ASSESSMENTS) {
+    assert.ok(reasoning.properties.stability.properties.learner_assessment.enum.includes(value));
+  }
+  for (const value of DISPOSITION_DESTINATIONS) {
+    assert.ok(reasoning.properties.disposition.properties.destination.enum.includes(value));
+  }
 });
 
 test("OpenAI simulator request uses Terra and a separate response schema", () => {

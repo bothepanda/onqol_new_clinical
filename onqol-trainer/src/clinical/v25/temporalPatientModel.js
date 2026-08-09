@@ -37,9 +37,30 @@ function hasAny(actions, ids) {
   return ids.some((id) => actions.includes(id));
 }
 
+/**
+ * The emergency-department disposition checkpoint.
+ *
+ * A workflow marker only. NEEDS_SOURCE_VERIFICATION: the author cites the NHS
+ * England model, which treats 0-4 hours as core ED care with admit/transfer/
+ * discharge as the target outcome, and notes that the Kazakhstan standard sets
+ * no universal four-hour rule (yellow-zone observation may run to 24 hours).
+ * Neither line has been checked against its source, so nothing user-facing may
+ * cite it as a requirement.
+ */
+export const ED_DISPOSITION_CHECKPOINT_MINUTES = 240;
+
+function temporalRuleMatches(rule, { actions, completed, clockMinutes }) {
+  const when = rule.when || {};
+  if (Number.isFinite(when.min_clock_minutes) && clockMinutes < when.min_clock_minutes) return false;
+  if (when.actions && !when.actions.some((id) => actions.includes(id))) return false;
+  if (when.completed && !when.completed.every((id) => completed.includes(id))) return false;
+  return true;
+}
+
 export function createInitialTemporalState(caseData) {
   return {
     clockMinutes: 0,
+    flow: { checkpointMinute: ED_DISPOSITION_CHECKPOINT_MINUTES, edDispositionCheckpointReached: false },
     timeFromOnsetMinutes: Math.round((caseData.patient_state.time_from_onset_hours || 0) * 60),
     phase: "presentation",
     painScore: 7,
@@ -101,13 +122,44 @@ export function projectTemporalState(caseData, previousState, actionIds) {
     status = antibioticProphylaxis ? "controlled" : "controlled_with_antibiotic_gap";
     painScore = 3;
     peritonism = "operative_finding_uncomplicated";
-  } else if (clockMinutes >= 240 || actions.includes("wait_for_ultrasound")) {
-    status = "delayed_source_control";
-    painScore = Math.min(9, painScore + 1);
-    temperatureC = Math.max(temperatureC, 38.3);
-    heartRate = Math.max(heartRate, 108);
-    peritonism = "local_more_expressive";
-    flags.add("delay_risk");
+  }
+
+  // Flow clock, not disease clock.
+  //
+  // Crossing four hours used to raise the temperature to 38.3, the heart rate to
+  // 108, worsen the peritonism and set delay_risk - turning an emergency
+  // department process target into a biological law that applies to every
+  // patient with every disease. It is a workflow signal about disposition, and
+  // nothing more. Physiology now changes only where a reviewed disease rule says
+  // it does.
+  const flow = {
+    checkpointMinute: ED_DISPOSITION_CHECKPOINT_MINUTES,
+    edDispositionCheckpointReached:
+      previousState.flow?.edDispositionCheckpointReached ||
+      clockMinutes >= ED_DISPOSITION_CHECKPOINT_MINUTES,
+  };
+
+  // Disease progression, case-configured. An unconfigured case simply does not
+  // deteriorate with time, which is the honest default: inventing a threshold
+  // here would be exactly the unreviewed clinical content this project refuses
+  // to ship.
+  if (!sourceControl) {
+    for (const rule of caseData.temporal_progression_rules || []) {
+      if (!temporalRuleMatches(rule, { actions, completed, clockMinutes })) continue;
+      const effects = rule.effects || {};
+      if (effects.status) status = effects.status;
+      if (Number.isFinite(effects.pain_delta)) {
+        painScore = Math.min(10, Math.max(0, painScore + effects.pain_delta));
+      }
+      if (Number.isFinite(effects.min_temperature_c)) {
+        temperatureC = Math.max(temperatureC, effects.min_temperature_c);
+      }
+      if (Number.isFinite(effects.min_heart_rate)) {
+        heartRate = Math.max(heartRate, effects.min_heart_rate);
+      }
+      if (effects.peritonism) peritonism = effects.peritonism;
+      for (const flag of effects.flags || []) flags.add(flag);
+    }
   }
   if (actions.includes("transfer_before_source_control")) flags.add("transfer_before_source_control");
   if (actions.includes("antibiotic_observation_course")) flags.add("antibiotic_observation_course");
@@ -128,6 +180,7 @@ export function projectTemporalState(caseData, previousState, actionIds) {
     antibioticProphylaxis,
     risk,
     status,
+    flow,
     flags: [...flags],
     lastDeltaMinutes: addedMinutes,
     timeline: actions.length

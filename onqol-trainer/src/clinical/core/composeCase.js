@@ -34,6 +34,11 @@ export function composeCaseWithCore(caseData, options = {}) {
     include = null,
     minimumAssessmentActionIds = null,
     baseEvidenceAttachments = {},
+    // Case-owned prerequisites a composition may declare on top of the core
+    // ones, with their own severity. This is how V3 makes pre-incision
+    // antibiotic prophylaxis blocking without touching the base case, so
+    // mentor-off V2.5 keeps its behaviour exactly.
+    extraOperativePrerequisites = [],
   } = options;
 
   const caseOwnedIds = new Set(
@@ -63,7 +68,7 @@ export function composeCaseWithCore(caseData, options = {}) {
   // Attach standard operative prerequisites, but only for core actions that
   // actually made it into this case. Referencing an absent action id would
   // produce a warning the learner can never satisfy.
-  const applicablePrerequisites = operativePrerequisites.filter(
+  const applicablePrerequisites = [...operativePrerequisites, ...extraOperativePrerequisites].filter(
     (prerequisite) => composedIds.has(prerequisite.action_id) || caseOwnedIds.has(prerequisite.action_id)
   );
   const prerequisiteIds = applicablePrerequisites.map((prerequisite) => prerequisite.action_id);

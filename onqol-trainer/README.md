@@ -1,5 +1,24 @@
 # ON QOL Clinical Trainer
 
+## Sharing this project
+
+Never put `.env.local` in an archive you send to anyone. `.gitignore` keeps it
+out of commits and does nothing about a zip made from the working directory —
+which is how a live OpenAI key has already left this project once.
+
+Use the packaging command, which excludes every env file, `.git`, `node_modules`
+and build output, then re-opens the archive to verify nothing env-shaped
+survived:
+
+```bash
+npm run pack:safe
+```
+
+If a key has ever been inside a shared archive, rotate it with the provider.
+Nothing in this repository can do that for you.
+
+---
+
 ON QOL now contains two product paths.
 
 ## V1 baseline

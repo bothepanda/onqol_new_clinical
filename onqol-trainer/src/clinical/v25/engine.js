@@ -11,6 +11,7 @@ import {
   resolveActionResource,
   resolveScenarioResource,
 } from "./scenarioEngine.js";
+import { createEmptyReasoningState, mergeReasoningState } from "../core/reasoningState.js";
 import { createInitialTemporalState, projectTemporalState } from "./temporalPatientModel.js";
 import { planClinicalTurn } from "./turnPlanner.js";
 import { buildMentorBrief, prerequisiteMeta } from "../core/mentorBrief.js";
@@ -55,6 +56,11 @@ function createWorkingMemory() {
     revealedConstraints: [],
     unresolvedFragments: [],
     lastLearnerMove: null,
+    // Mentor heuristics already used this session; each speaks once.
+    firedHeuristicIds: [],
+    // What the learner has articulated, cumulative. Claims, not facts: nothing
+    // in here may move the score. See core/reasoningState.js.
+    reasoningState: createEmptyReasoningState(),
   };
 }
 
@@ -146,11 +152,25 @@ function closingPrompt(session, plan, blockedOperations) {
 
 function applyPlan(caseData, session, plan, options = {}) {
   let nextSession = session;
+  const turnNumber = session.workingMemory.turnNumber + 1;
+
+  // Reasoning State merges before anything else this turn, so a mentor brief
+  // built afterwards sees what the learner articulated in this very message.
+  // It is deliberately kept out of scoringEvents: these are learner claims, not
+  // validated facts, and nothing here may move a point.
+  const reasoningDelta = plan.parsed.reasoning || null;
+  const { state: reasoningState, changed: reasoningChanged } = mergeReasoningState(
+    session.workingMemory.reasoningState,
+    reasoningDelta,
+    turnNumber
+  );
+
   let memory = {
     ...session.workingMemory,
-    turnNumber: session.workingMemory.turnNumber + 1,
+    turnNumber,
     lastLearnerMove: plan.learnerMove,
     unresolvedFragments: plan.parsed.unresolvedFragments || [],
+    reasoningState,
   };
   const replies = [];
   const scoringEvents = [];
@@ -343,6 +363,11 @@ function applyPlan(caseData, session, plan, options = {}) {
     findings_revealed: findingsRevealed,
     resources_revealed: revealedResources,
     elapsed_minutes: temporalState.clockMinutes - previousTemporalState.clockMinutes,
+    // Research/mentor metadata, kept out of parsed_actions and out of scoring on
+    // purpose: these are learner claims awaiting separate validation. Raw text
+    // stays scrubbed above; nothing here carries free text.
+    reasoning_delta: reasoningChanged ? reasoningDelta : null,
+    reasoning_state_after: reasoningState,
   });
 
   return {
@@ -362,7 +387,10 @@ export function createV25Session(options = {}) {
     generateScenario({ mode: options.mode || "real", seed: options.seed || createScenarioSeed() });
   const session = {
     session_id: options.sessionId || createUuid(),
-    product_version: "2.5",
+    // From the case, not hardcoded. A V3 session used to freeze "2.5" into every
+    // logged event while running a 3.0 case, which quietly contaminates any
+    // analysis that groups by product version.
+    product_version: caseData.product_version || "2.5",
     case_id: caseData.case_id,
     case_version: caseData.case_version,
     disease_card_id: caseData.disease_card_id,
@@ -502,6 +530,7 @@ export async function advanceV25Session({
   // hard-coded closing prompts with a pedagogical reply built from a brief that
   // contains no patient facts at all.
   let mentor = null;
+  let mentorBrief = null;
   if (options.mentor) {
     const brief = buildMentorBrief({
       caseData,
@@ -518,11 +547,17 @@ export async function advanceV25Session({
       },
       { llm: options.mentorLLM, locale: options.locale || session.locale }
     );
+    mentorBrief = brief;
 
+    // A silent mentor keeps its mouth shut but does not blank the screen: the
+    // deterministic layer's own operational prompt stays, so the turn still ends
+    // with something to answer. Only a mentor with something to say takes the
+    // closing prompt's place.
     const facts = deterministicUpdate.neutralPrompt
       ? reply.split(deterministicUpdate.neutralPrompt).join("").trim()
       : reply;
-    reply = [facts, mentor.text].filter(Boolean).join("\n\n").trim();
+    const closing = brief.silent ? deterministicUpdate.neutralPrompt : mentor.text;
+    reply = [facts, closing].filter(Boolean).join("\n\n").trim();
   }
 
   nextSession = {
@@ -532,6 +567,13 @@ export async function advanceV25Session({
     ],
     messages: [...deterministicUpdate.session.messages, { role: "assistant", content: reply }],
     turnPlans: [...deterministicUpdate.session.turnPlans, plan],
+    workingMemory: {
+      ...deterministicUpdate.session.workingMemory,
+      firedHeuristicIds: [
+        ...(deterministicUpdate.session.workingMemory?.firedHeuristicIds || []),
+        ...(mentorBrief?.firedHeuristicKeys || []),
+      ],
+    },
   };
 
   return {

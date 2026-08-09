@@ -4,6 +4,10 @@ export const acuteAppendicitisCase = {
   case_id: "app-acute-basic-001",
   case_version: "1.2.0",
   disease_card_id: "acute_appendicitis",
+  // Which disease card and retrieval package this case and its variants use.
+  // Carried on the case so the UI never names a case id literally; V2.5 and V3
+  // variants inherit it.
+  browser_content_key: "app-acute-basic-001",
   disease_card_version: "0.2.0",
   scoring_rubric_version: "1.1.0",
   router_version: "0.3.1",
@@ -430,7 +434,11 @@ export const acuteAppendicitisCase = {
       domain: "Management",
       critical: true,
       time_window: "preoperative",
-      prerequisites: ["open_appendectomy_here"],
+      // Was ["open_appendectomy_here"]: a preoperative action that required the
+      // operation to have happened first. That inverted the sequence it exists
+      // to teach and made `controlled_with_antibiotic_gap` the normal path -
+      // operate, then be asked what was forgotten. Prophylaxis stands alone.
+      prerequisites: [],
       effects_on_case: {},
       feedback_if_done: "Назначена однократная предоперационная антибиотикопрофилактика.",
       feedback_if_missed: "Не была обозначена однократная предоперационная антибиотикопрофилактика.",
@@ -656,6 +664,37 @@ export const acuteAppendicitisCase = {
       },
     ],
   },
+  // Disease progression, declared by the case rather than baked into the generic
+  // temporal engine.
+  //
+  // What moved here: the engine used to worsen this patient whenever the clock
+  // passed 240 minutes OR the learner waited for an ultrasound - the same code
+  // path, so an emergency-department process target behaved like a biological
+  // threshold for every disease. Only the second half is a clinical statement
+  // about appendicitis, and it belongs to this card.
+  //
+  // NEEDS_CLINICAL_REVIEW: the magnitudes below are carried over unchanged from
+  // the previous implementation. They were never reviewed there either; moving
+  // them did not validate them. A reviewer owns whether waiting six hours for an
+  // ultrasound produces exactly this picture.
+  temporal_progression_rules: [
+    {
+      id: "delay_awaiting_imaging",
+      when: { actions: ["wait_for_ultrasound"] },
+      effects: {
+        status: "delayed_source_control",
+        pain_delta: 1,
+        min_temperature_c: 38.3,
+        min_heart_rate: 108,
+        peritonism: "local_more_expressive",
+        flags: ["delay_risk"],
+      },
+      rationale_for_reviewer:
+        "Ожидание визуализации вместо решения откладывает контроль источника; неосложнённый аппендицит при этом прогрессирует. Величины не отрецензированы.",
+      provenance: "CARRIED_OVER_UNREVIEWED",
+      review_status: "NEEDS_CLINICAL_REVIEW",
+    },
+  ],
   references: appendicitisEvidence.references,
   resource_context: {
     level: "basic",

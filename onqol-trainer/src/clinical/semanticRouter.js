@@ -1,4 +1,5 @@
 import { buildAllowedActionMap } from "./schemas/caseSchema.js";
+import { DISPOSITION_DESTINATIONS, normalizeReasoningDelta } from "./core/reasoningState.js";
 
 export const ROUTER_INTENT_TYPES = [
   "request_history",
@@ -69,6 +70,18 @@ export function buildSemanticRouterPrompt({ input, caseData, session, locale = "
       "Broad requests should map to the relevant available sub-concepts.",
       "If part of the message is unclear, return unknown only for that part.",
       "Return JSON only, with no Markdown.",
+      "",
+      "SECOND JOB: REASONING EXTRACTION.",
+      "Alongside intents, report what the learner explicitly articulated, in the `reasoning` object.",
+      "This is transcription, not assessment. You record that a claim was made; you never judge whether it is medically right.",
+      "Extract only what the learner explicitly states or clearly commits to.",
+      "Do not infer medical correctness. Do not decide a diagnosis is right, a test is indicated, or a patient is truly stable.",
+      "Do not infer stability from vital signs, from the case, or from the conversation: only the learner saying so counts.",
+      "Do not infer a test rationale merely because the rationale would be medically obvious.",
+      "Do not infer a dangerous alternative unless the learner names it or clearly frames something as needing to be excluded.",
+      "Do not infer a contingency plan from generic words such as \"наблюдаем\" - a contingency needs a stated trigger for changing course.",
+      "Reasoning fields never create an action. If the learner discusses a test without requesting it, that belongs in reasoning only.",
+      "When uncertain, return false or null. A guess here is worse than a gap.",
     ].join("\n"),
     user: JSON.stringify(
       {
@@ -98,6 +111,49 @@ export function buildSemanticRouterPrompt({ input, caseData, session, locale = "
             },
           ],
           unresolved_fragments: [],
+          reasoning: {
+            stability: { stated: "boolean", learner_assessment: "stable | unstable | uncertain | null" },
+            problem_representation_stated: "boolean",
+            working_diagnosis: {
+              stated: "boolean",
+              concept_id: "allowed_concept_id | null",
+              uncertainty_stated: "boolean",
+            },
+            differential: {
+              stated: "boolean",
+              ranked: "boolean",
+              has_dangerous_alternative: "boolean",
+              concept_ids: [],
+            },
+            test_reasoning: [
+              {
+                concept_id: "allowed_concept_id",
+                purpose_stated: "boolean",
+                management_consequence_stated: "boolean",
+              },
+            ],
+            management: {
+              plan_stated: "boolean",
+              urgency_stated: "boolean",
+              rationale_stated: "boolean",
+            },
+            observation: {
+              active: "boolean",
+              goal_stated: "boolean",
+              reassessment_interval_stated: "boolean",
+              escalation_criteria_stated: "boolean",
+            },
+            reassessment_stated: "boolean",
+            contingency_stated: "boolean",
+            disposition: {
+              stated: "boolean",
+              destination: DISPOSITION_DESTINATIONS.join(" | ") + " | null",
+            },
+            consultation: {
+              own_assessment_stated: "boolean",
+              consultation_question_stated: "boolean",
+            },
+          },
         },
       },
       null,
@@ -166,11 +222,26 @@ export function validateRouterOutput(routerPayload, caseData, options = {}) {
     }
   }
 
+  // Reasoning is a strictly additive, strictly optional channel. It is
+  // normalised against the same allowed-concept set as actions, and any failure
+  // to produce a usable object costs the turn its reasoning signal - never the
+  // turn itself. A reasoning field can never create a completed action: nothing
+  // below touches `actions`.
+  let reasoning;
+  try {
+    reasoning = normalizeReasoningDelta(parsed.reasoning, {
+      allowedConceptIds: new Set([...allowed.keys(), ...Object.keys(conceptMap)]),
+    });
+  } catch {
+    reasoning = null;
+  }
+
   return {
     intents,
     actions,
     invalidConcepts,
     recognizedButUndefined,
+    reasoning,
     unresolvedFragments: parsed.unresolved_fragments || [],
     unknownText: intents.some((intent) => intent.type === "unknown") ? "unresolved_intent" : "",
     source: "semantic_router",
@@ -183,6 +254,7 @@ export async function routeUserInput(input, caseData, session, options = {}) {
       intents: [{ type: "management", concept_id: "end_case", confidence: 1 }],
       actions: [{ id: "end_case", source: "command", confidence: 1 }],
       invalidConcepts: [],
+      reasoning: null,
       unknownText: "",
       source: "command",
     };

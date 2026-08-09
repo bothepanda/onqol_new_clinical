@@ -21,6 +21,10 @@ const STORAGE_KEYS = Object.freeze({
   sessions: "onqol_simulation_sessions_v1",
   eventAnalytics: "onqol_simulation_event_analytics_v1",
   eventRawText: "onqol_simulation_event_raw_text_v1",
+  // Full engine-session snapshots, for resuming and for exporting a run.
+  // Previously the trainer component wrote these to its own localStorage key,
+  // which meant two persistence paths and no seam to put a server behind.
+  sessionSnapshots: "onqol_simulation_session_snapshots_v1",
 });
 
 const IMMUTABLE_SESSION_FIELDS = Object.freeze([
@@ -75,6 +79,22 @@ export class SimulationRepository {
 
   completeSession() {
     throw new Error("SimulationRepository.completeSession() is not implemented.");
+  }
+
+  /**
+   * Store a full engine session.
+   *
+   * The seam a server-backed implementation would replace. It exists so the
+   * trainer component never touches storage itself; today the only
+   * implementation is local, and nothing about this makes the pilot's logging
+   * centralised or multi-user.
+   */
+  saveSession() {
+    throw new Error("SimulationRepository.saveSession() is not implemented.");
+  }
+
+  exportSession() {
+    throw new Error("SimulationRepository.exportSession() is not implemented.");
   }
 }
 
@@ -179,6 +199,17 @@ export class BrowserSimulationRepository extends SimulationRepository {
     const rawTextByEvent = readJson(this.storage, STORAGE_KEYS.eventRawText, {});
     delete rawTextByEvent[eventId];
     this.storage.setItem(STORAGE_KEYS.eventRawText, JSON.stringify(rawTextByEvent));
+  }
+
+  saveSession(session) {
+    const snapshots = readJson(this.storage, STORAGE_KEYS.sessionSnapshots, {});
+    snapshots[session.session_id] = session;
+    this.storage.setItem(STORAGE_KEYS.sessionSnapshots, JSON.stringify(snapshots));
+    return session;
+  }
+
+  exportSession(sessionId) {
+    return readJson(this.storage, STORAGE_KEYS.sessionSnapshots, {})[sessionId] || null;
   }
 
   exportResearchData({ includeRawText = false } = {}) {

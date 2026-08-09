@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { createV3Case } from "./clinical/v3/caseFactory.js";
+import { selectV3Case } from "./clinical/v3/createCase.js";
 import ReactMarkdown from "react-markdown";
 import { getBrowserContentForCase } from "./clinical/browserContentRegistry.js";
-import { getOrCreateAnonymousUserId } from "./clinical/simulationRepository.js";
+import {
+  createSimulationRepository,
+  getOrCreateAnonymousUserId,
+} from "./clinical/simulationRepository.js";
 import { createV25Case } from "./clinical/v25/caseFactory.js";
 import {
   advanceV25Session,
@@ -230,12 +233,18 @@ function SessionSidebar({ session, caseData, locale, onDownload }) {
   );
 }
 
+// One persistence path, behind an interface.
+//
+// This used to write straight to localStorage under its own key while
+// simulationRepository.js kept a separate versioned store, so the app had two
+// unrelated ways of remembering a run and no seam to put a server behind. The
+// implementation is still local-only: nothing here makes the pilot's logging
+// centralised or multi-user, and it should not be described that way.
+const sessionRepository = createSimulationRepository();
+
 function persistSession(session) {
   try {
-    const key = "onqol_v25_sessions";
-    const existing = JSON.parse(localStorage.getItem(key) || "{}");
-    existing[session.session_id] = session;
-    localStorage.setItem(key, JSON.stringify(existing));
+    sessionRepository.saveSession(session);
   } catch {
     // Local persistence is best-effort in the vertical slice.
   }
@@ -279,10 +288,17 @@ export default function V25Trainer({ mentor = true }) {
   }, []);
 
   function start(mode) {
+    const seedOverride = new URLSearchParams(window.location.search).get("seed")?.trim();
     // The mentor needs the core library: consent, anaesthesia, escalation and
     // the prerequisite graph all live there, not in the disease card.
-    const nextCase = mentor ? createV3Case(locale) : createV25Case(locale);
-    const seedOverride = new URLSearchParams(window.location.search).get("seed")?.trim();
+    //
+    // V3 goes through the registry, so adding a second disease is a disease
+    // module plus a registry entry - not an edit to this component. With one
+    // reviewed case the selection returns the same case every time, which is the
+    // honest outcome rather than faked variety.
+    const nextCase = mentor
+      ? selectV3Case({ locale, seed: seedOverride || undefined }).caseData
+      : createV25Case(locale);
     const nextSession = createV25Session({
       caseData: nextCase,
       mode,
@@ -316,7 +332,12 @@ export default function V25Trainer({ mentor = true }) {
       const mentorLLM = mentor && openAIStatus.configured
         ? createOpenAIBackendClient({ task: "mentor" })
         : null;
-      const browserContent = getBrowserContentForCase("app-acute-basic-001");
+      // From the active case, never a literal id. A second disease would
+      // otherwise be handed appendicitis's disease card and retrieval package
+      // with nothing on screen saying so.
+      const browserContent = getBrowserContentForCase(
+        caseData.browser_content_key || caseData.case_id
+      );
       const result = await advanceV25Session({
         caseData,
         session,
