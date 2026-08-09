@@ -291,14 +291,23 @@ export const PHENOTYPES = Object.freeze({
     presentation: Object.freeze({
       hours_from_onset: range(3, 8),
       pain_score: range(3, 6),
-      pain_sites_ru: ["околопупочной области", "внизу живота справа"],
-      history_fixed_ru: ["миграция боли неубедительна", "аппетита нет"],
+      pain_sites_ru: ["в околопупочной области", "в нижних отделах живота справа"],
+      // "чёткого перемещения боли не отмечает" - owner, 09.08.2026. Neither
+      // "миграция боли неубедительна" (jargon) nor "боль не перемещалась" (a
+      // firm negative, which destroys the ambiguity this phenotype exists for).
+      history_fixed_ru: ["чёткого перемещения боли не отмечает", "аппетита нет"],
       history_optional_ru: ["была тошнота"],
-      examination_fixed_ru: ["локальная болезненность без убедительного мышечного дефанса"],
-      examination_variants_ru: [
-        "перитонеальные признаки отрицательные",
-        "перитонеальные признаки сомнительные",
-      ],
+      examination_slots: Object.freeze({
+        contour: "обычный",
+        palpation: "мягкий",
+        tenderness: "локальная умеренная",
+        guarding: "нет",
+        peristalsis: "выслушивается",
+      }),
+      // Two readings of "перитонеальные признаки отрицательные или сомнительные".
+      examination_slot_choices: Object.freeze({
+        rebound: ["отрицательный", "сомнительный"],
+      }),
       authored_source_ru: Object.freeze({
         story:
           "Околопупочная или ранняя боль справа внизу, миграция неубедительна, анорексия, тошнота возможна",
@@ -308,9 +317,14 @@ export const PHENOTYPES = Object.freeze({
       split_status: "MECHANICAL_SPLIT_NEEDS_CONFIRMATION",
     }),
     imaging: Object.freeze({
-      ultrasound_ru: "Отрицательное или неубедительное допустимо",
-      ct_ru: "Ранние признаки воспаления без осложнений",
-      operative_truth_ru: "Воспалённый аппендикс без некроза, перфорации и абсцесса",
+      ultrasound_variants_ru: [
+        "Убедительных УЗ-признаков острого аппендицита не выявлено.",
+        "Аппендикс достоверно не визуализирован, исследование неинформативно.",
+      ],
+      ct_ru:
+        "КТ-признаки острого аппендицита без признаков перфорации, абсцесса или другой локальной осложнённости.",
+      operative_truth_ru:
+        "Аппендикс воспалительно изменён, без признаков некроза, перфорации и абсцесса.",
     }),
     clinical_review_status: "pending",
   }),
@@ -322,18 +336,44 @@ export const PHENOTYPES = Object.freeze({
     presentation: Object.freeze({
       hours_from_onset: range(6, 14),
       pain_score: range(5, 8),
-      pain_sites_ru: ["правой подвздошной области"],
+      pain_sites_ru: ["в правой подвздошной области"],
       history_fixed_ru: [
-        "боль мигрировала в правую подвздошную область",
-        "боль сильнее при движении и кашле",
+        // Pain that "moved" has to have moved FROM somewhere - owner, 09.08.2026.
+        // Migration is the classic phenotype's signature, and it only reads as
+        // migration if the starting point is named.
+        "боль началась около пупка и переместилась в правую подвздошную область",
+        "боль усиливается при движении и кашле",
         "аппетита нет",
       ],
-      history_counted_ru: Object.freeze({ template: "рвота, {n} {эпизод}", range: range(1, 2) }),
-      examination_fixed_ru: ["локальная болезненность в правой подвздошной области"],
-      examination_variants_ru: [
-        "защитное мышечное напряжение",
-        "локальные перитонеальные признаки справа внизу",
-      ],
+      // One episode is not "рвота, 1 эпизод" in speech - a patient says it
+      // happened once. The counted form only appears from two.
+      history_counted_ru: Object.freeze({
+        template: "рвота была {n} {раз}",
+        singular_ru: "рвота была однократно",
+        range: range(1, 2),
+      }),
+      examination_slots: Object.freeze({
+        contour: "обычный",
+        // Soft wall with local guarding is exactly how the owner's own sample
+        // examination reads: "при пальпации мягкий, локально болезненный ...
+        // определяется локальное защитное напряжение мышц".
+        palpation: "мягкий",
+        tenderness: "локальная",
+        max_point: "точка Мак-Бурнея",
+        // The localisation is named once, by `tenderness`; the guarding line no
+        // longer repeats it (owner, 09.08.2026).
+        guarding: "локальное",
+        rebound: "положительный локально",
+        peristalsis: "выслушивается",
+      }),
+      // Rovsing is drawn, not fixed: it is a supporting sign, and a sign that is
+      // positive in every single classic patient becomes the key that hands the
+      // learner the diagnosis. Owner, 09.08.2026 - the classic picture is absent
+      // in a substantial share of real patients.
+      examination_slot_choices: Object.freeze({
+        rovsing: ["положительный", "отрицательный"],
+        percussion: ["есть", "нет"],
+      }),
       authored_source_ru: Object.freeze({
         story:
           "Миграция в правую подвздошную область, боль сильнее при движении и кашле, анорексия, 1-2 эпизода рвоты",
@@ -343,9 +383,15 @@ export const PHENOTYPES = Object.freeze({
       split_status: "MECHANICAL_SPLIT_NEEDS_CONFIRMATION",
     }),
     imaging: Object.freeze({
-      ultrasound_ru: "Воспалённый несжимаемый аппендикс или limited visualization",
-      ct_ru: "Воспаление без абсцесса и перфорации",
-      operative_truth_ru: "Неосложнённый аппендицит",
+      ultrasound_variants_ru: [
+        "Визуализируется увеличенный в диаметре несжимаемый аппендикс с признаками воспаления.",
+        "Аппендикс визуализирован не полностью, исследование неинформативно.",
+      ],
+      // Owner left the classic CT blank in WORDING_REVIEW.md; this follows the
+      // wording she gave the other four. Open question 6.
+      ct_ru: "КТ-признаки острого аппендицита без признаков перфорации и абсцесса.",
+      operative_truth_ru:
+        "Воспалительно изменённый аппендикс без признаков перфорации и абсцесса.",
     }),
     clinical_review_status: "pending",
   }),
@@ -357,11 +403,26 @@ export const PHENOTYPES = Object.freeze({
     presentation: Object.freeze({
       hours_from_onset: range(8, 24),
       pain_score: range(4, 8),
-      pain_sites_ru: ["надлобковой области", "глубоко в тазу"],
-      history_fixed_ru: ["тенезмы"],
+      // "в нижних отделах живота" was pulled back on 09.08.2026: it had drifted
+      // into the early phenotype's site and half the pelvic patients lost the
+      // localisation that makes this phenotype what it is.
+      pain_sites_ru: ["в надлонной области", "глубоко внизу живота"],
+      history_fixed_ru: ["частые болезненные позывы к дефекации"],
       history_variants_ru: ["учащённое мочеиспускание", "дискомфорт при мочеиспускании"],
-      examination_fixed_ru: ["максимум болезненности ниже типичной точки"],
-      examination_variants_ru: ["классического дефанса нет", "дефанс выражен слабо"],
+      examination_slots: Object.freeze({
+        contour: "обычный",
+        // MZ RK protocol: in a pelvic appendix the abdomen stays soft and the
+        // obturator (Cope) sign may appear. Owner, 09.08.2026.
+        palpation: "мягкий",
+        max_point: "ниже",
+        peristalsis: "выслушивается",
+      }),
+      examination_slot_choices: Object.freeze({
+        guarding: ["нет", "слабое"],
+        // The anatomy makes this the phenotype the obturator sign belongs to;
+        // scattering it across the others would be decoration.
+        obturator: ["положительный", "отрицательный"],
+      }),
       authored_source_ru: Object.freeze({
         story:
           "Надлобковая или глубокая тазовая боль, тенезмы, учащённое мочеиспускание или дискомфорт",
@@ -371,9 +432,11 @@ export const PHENOTYPES = Object.freeze({
       split_status: "MECHANICAL_SPLIT_NEEDS_CONFIRMATION",
     }),
     imaging: Object.freeze({
-      ultrasound_ru: "Аппендикс может не визуализироваться, тазовые органы оцениваются отдельно",
-      ct_ru: "Тазовое расположение и воспаление без абсцесса",
-      operative_truth_ru: "Тазовый воспалённый аппендикс, небольшой реактивный выпот допустим",
+      ultrasound_ru: "Аппендикс достоверно не визуализирован; органы малого таза оценены отдельно.",
+      ct_ru:
+        "Аппендикс расположен в малом тазу, увеличен и воспалительно изменён; признаков абсцесса нет.",
+      operative_truth_ru:
+        "Аппендикс расположен в малом тазу, воспалительно изменён; в малом тазу небольшое количество реактивного выпота.",
     }),
     clinical_review_status: "pending",
   }),
@@ -385,13 +448,26 @@ export const PHENOTYPES = Object.freeze({
     presentation: Object.freeze({
       hours_from_onset: range(10, 30),
       pain_score: range(4, 8),
-      pain_sites_ru: ["правом фланке", "пояснице справа", "правом подреберье"],
-      history_variants_ru: ["усиливается при ходьбе", "усиливается при разгибании бедра"],
-      examination_fixed_ru: [
-        "передние перитонеальные признаки слабые",
-        "болезненность латеральнее обычной точки",
-      ],
-      examination_optional_ru: ["psoas sign положительный"],
+      pain_sites_ru: ["в правом боку", "в пояснице справа", "в правом подреберье"],
+      // The second "боль" is gone - the site line already opens with it.
+      history_variants_ru: ["усиливается при ходьбе", "усиливается при разгибании правого бедра"],
+      examination_slots: Object.freeze({
+        contour: "обычный",
+        // The anterior wall is quiet: this is the phenotype's whole point, and
+        // it is now said by the peritoneal sign rather than by a summary line.
+        // MZ RK protocol: in a retrocecal/retroperitoneal appendix the anterior
+        // wall may show neither guarding nor a Blumberg sign. Owner, 09.08.2026.
+        rebound: "отрицательный",
+        guarding: "нет",
+        // Follows this patient's site, whichever of the three they drew.
+        max_point: "по локализации боли",
+        peristalsis: "выслушивается",
+      }),
+      // Drawn, not fixed: one special test should not be positive in 100 % of
+      // retrocecal patients.
+      examination_slot_choices: Object.freeze({
+        psoas: ["положительный", "отрицательный"],
+      }),
       authored_source_ru: Object.freeze({
         story:
           "Правый фланк, поясница или правое подреберье, усиление при ходьбе или разгибании бедра",
@@ -400,9 +476,12 @@ export const PHENOTYPES = Object.freeze({
       split_status: "MECHANICAL_SPLIT_NEEDS_CONFIRMATION",
     }),
     imaging: Object.freeze({
-      ultrasound_ru: "Ограничение кишечным газом и глубиной",
-      ct_ru: "Ретроцекальное расположение, morphology фиксирована seed",
-      operative_truth_ru: "Ретроцекальный воспалённый аппендикс",
+      ultrasound_ru:
+        "Аппендикс достоверно не визуализирован, кишечные газы в большом количестве.",
+      // Was "Ретроцекальное расположение, morphology фиксирована seed" - a
+      // developer's note printed to the learner as a radiology report.
+      ct_ru: "Аппендикс расположен ретроцекально, увеличен и воспалительно изменён.",
+      operative_truth_ru: "Аппендикс расположен ретроцекально, воспалительно изменён.",
     }),
     clinical_review_status: "pending",
   }),
@@ -415,9 +494,27 @@ export const PHENOTYPES = Object.freeze({
       hours_from_onset: range(24, 72),
       pain_score: range(7, 10),
       pain_sites_ru: ["по всему животу"],
-      history_fixed_ru: ["повторная рвота", "слабость", "жажда", "снижение диуреза"],
-      examination_fixed_ru: ["распространённые перитонеальные признаки"],
-      examination_optional_ru: ["признаки гипоперфузии"],
+      history_fixed_ru: [
+        "многократная рвота",
+        "выраженная слабость",
+        "жажда",
+        // "мочи стало меньше", not "мочеиспускание стало реже": the carried fact
+        // is reduced volume, and frequency is a different claim (owner, 09.08.2026).
+        "мочи стало меньше",
+      ],
+      examination_slots: Object.freeze({
+        contour: "вздут",
+        // No `palpation` slot: the guarding line already says the wall is rigid,
+        // and saying it twice was the reason the two slots were split.
+        tenderness: "разлитая",
+        guarding: "распространённое",
+        rebound: "положительный во всех отделах",
+        percussion: "диффузная",
+        peristalsis: "ослаблена",
+      }),
+      // Hypoperfusion is a circulatory finding, not an abdominal slot: it stays
+      // as a free line appended after the examination.
+      examination_extra_ru: ["признаки периферической гипоперфузии"],
       authored_source_ru: Object.freeze({
         story: "Диффузная боль, повторная рвота, слабость, жажда, снижение диуреза",
         examination: "Распространённые перитонеальные признаки и возможная гипоперфузия",
@@ -426,9 +523,11 @@ export const PHENOTYPES = Object.freeze({
     }),
     imaging: Object.freeze({
       ultrasound_ru:
-        "Свободная жидкость возможна, неполное исследование не должно задерживать urgent pathway",
-      ct_ru: "Перфорация, свободная жидкость/газ и распространённое воспаление",
-      operative_truth_ru: "Перфорация с гнойной контаминацией и распространённым перитонитом",
+        "Определяется свободная жидкость в брюшной полости; визуализация аппендикса ограничена.",
+      ct_ru:
+        "КТ-признаки перфорации аппендикса: свободная жидкость и/или свободный газ, выраженные воспалительные изменения окружающих тканей.",
+      operative_truth_ru:
+        "Перфорация аппендикса, гнойный экссудат в брюшной полости, разлитой перитонит.",
     }),
     clinical_review_status: "pending",
   }),

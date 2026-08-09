@@ -35,6 +35,7 @@ import {
 import { SCORING_CONTRACT, WHO_CHECKPOINTS, scorableByDomain } from "../v35/scoringContract.js";
 import { selectV35Case, selectionEvent } from "../v35/sessionSelector.js";
 import { buildV35Case } from "../v35/createCase.js";
+import { EXAM_SLOTS, examSlot, statesFor, renderExamination } from "../v35/examSlots.js";
 import { localeReadiness } from "../v35/locale.js";
 
 const v3Case = createV3Case();
@@ -609,8 +610,14 @@ test("the phenotype keeps localisation and owns no physiology", () => {
 
   // Localisation is what a phenotype is for, and it is held as variants rather
   // than as one sentence containing "или".
-  assert.ok(PHENOTYPES.retrocecal.presentation.examination_optional_ru.some((line) => /psoas/i.test(line)));
-  assert.ok(PHENOTYPES.pelvic.presentation.pain_sites_ru.some((site) => /тазу|надлобков/i.test(site)));
+  // Since 09.08.2026 the examination is declared as slot STATES; the prose lives
+  // in examSlots.js. The psoas sign is still the retrocecal phenotype's marker.
+  assert.ok(
+    PHENOTYPES.retrocecal.presentation.examination_slot_choices.psoas.includes("положительный")
+  );
+  // "надлонной области" since the owner's rewording of 09.08.2026; it replaced
+  // "надлобковой области" and "глубоко в тазу".
+  assert.ok(PHENOTYPES.pelvic.presentation.pain_sites_ru.some((site) => /надлонн|тазу/i.test(site)));
   assert.equal(PHENOTYPES.retrocecal.presentation.pain_sites_ru.length, 3);
   assert.equal(PHENOTYPES.retrocecal.presentation.split_status, "MECHANICAL_SPLIT_NEEDS_CONFIRMATION");
   // The surgeon's original sentence is kept beside the split so it can be checked.
@@ -769,7 +776,9 @@ test("INVARIANT: nothing a learner sees before the debrief names the diagnosis",
   // The preset title still exists, where faculty can read it.
   const { caseData } = buildV35Case({ seed: "leak-faculty", requestedPresetId: "APP-004" });
   assert.match(caseData.faculty_title_ru, /Ретроцекальный/);
-  assert.match(caseData.title, /^Боль в /);
+  // Not /^Боль в /: pain sites carry their own preposition since 09.08.2026, and
+  // the pelvic phenotype's "глубоко внизу живота" does not take "в".
+  assert.match(caseData.title, /^Боль /);
 });
 
 test("a patient has one pain site, not a menu of them", () => {
@@ -796,13 +805,27 @@ test("a patient has one pain site, not a menu of them", () => {
 test("an explicit negative never contradicts what the case already asserts", () => {
   // The pelvic phenotype reports urinary symptoms; the card's fixed negatives
   // said "Дизурии нет". One patient, two opposite statements.
+  let triggered = 0;
   for (let index = 0; index < 80; index += 1) {
     const { caseData } = buildV35Case({ seed: `neg-${index}`, requestedPresetId: "APP-003" });
     const history = caseData.available_findings.focused_history.text.toLowerCase();
-    if (history.includes("мочеиспуск") || history.includes("тенезм")) {
-      assert.ok(!history.includes("дизурии нет"), `противоречие: ${history}`);
+    // Match the SYMPTOM, not the stem: after the rewording the negative itself
+    // reads "нарушений мочеиспускания нет", so a stem test would fire on the
+    // negative and pass vacuously.
+    const urinarySymptom =
+      history.includes("учащённое мочеиспускание") ||
+      history.includes("дискомфорт при мочеиспускании") ||
+      history.includes("позывы к дефекации");
+    if (urinarySymptom) {
+      triggered += 1;
+      assert.ok(
+        !history.includes("нарушений мочеиспускания нет"),
+        `противоречие: ${history}`
+      );
     }
   }
+  // A guard that never fires proves nothing.
+  assert.ok(triggered > 0, "ни один тазовый пациент не назвал мочевой симптом");
 });
 
 test("end to end: effective_seed + content_version + preset rebuild the case exactly", () => {
@@ -874,4 +897,68 @@ test("unvalidated numbers are pending, and say which part was reviewed", () => {
 test("the manifest declares a content version, not just a label", () => {
   assert.match(V35_CONTENT_VERSION, /^3\.5\.\d+$/);
   assert.equal(v35Manifest.content_version, V35_CONTENT_VERSION);
+});
+
+test("the examination is slot states plus one dictionary, and the phenotype owns no prose", () => {
+  // The point of the split: a phenotype that still carried sentences would print
+  // the same finding twice once the slots were switched on.
+  for (const phenotype of Object.values(PHENOTYPES)) {
+    const p = phenotype.presentation;
+    for (const dead of ["examination_fixed_ru", "examination_variants_ru", "examination_optional_ru"]) {
+      assert.equal(p[dead], undefined, `${phenotype.phenotype_id} всё ещё несёт прозу осмотра: ${dead}`);
+    }
+    assert.ok(p.examination_slots, `${phenotype.phenotype_id} не объявил слоты осмотра`);
+
+    // Every declared state must exist in the dictionary - base and variants.
+    const declared = Object.entries(p.examination_slots).map(([id, state]) => [id, [state]]);
+    const drawn = Object.entries(p.examination_slot_choices || {});
+    for (const [slotId, states] of [...declared, ...drawn]) {
+      assert.ok(examSlot(slotId), `${phenotype.phenotype_id}: неизвестный слот "${slotId}"`);
+      for (const state of states) {
+        assert.ok(
+          statesFor(slotId).includes(state),
+          `${phenotype.phenotype_id}: слот "${slotId}" не знает состояния "${state}"`
+        );
+      }
+      assert.equal(
+        p.examination_slots[slotId] !== undefined && drawn.some(([id]) => id === slotId),
+        false,
+        `${phenotype.phenotype_id}: слот "${slotId}" объявлен и фиксированным, и разыгрываемым`
+      );
+    }
+  }
+});
+
+test("a slot the phenotype did not speak about prints nothing", () => {
+  // The rule that keeps the trainer from shipping plausible invented negatives:
+  // an unassigned sign is silent, not "отрицательный".
+  const text = renderExamination({ contour: "обычный" }, "в правой подвздошной области");
+  assert.equal(text, "Живот обычной формы, симметричный, не вздут, участвует в акте дыхания.");
+  for (const slot of EXAM_SLOTS) {
+    if (slot.id === "contour") continue;
+    for (const phrase of Object.values(slot.states)) {
+      assert.ok(!text.includes(phrase.slice(0, 20)), `молчащий слот ${slot.id} всё же напечатан`);
+    }
+  }
+  // And an unknown state is a failure, not a silent skip.
+  assert.throws(() => renderExamination({ rovsing: "может быть" }, "в правой подвздошной области"));
+});
+
+test("no English sign name reaches the learner", () => {
+  // Owner's instruction, 09.08.2026: Russian terminology in the patient text.
+  const forbidden = [/psoas/i, /obturator/i, /rebound/i, /rovsing/i, /guarding/i, /tenderness/i];
+  for (const presetId of ["APP-001", "APP-002", "APP-003", "APP-004"]) {
+    for (let index = 0; index < 40; index += 1) {
+      const { caseData } = buildV35Case({ seed: `ru-${index}`, requestedPresetId: presetId });
+      const learnerFacing = [
+        caseData.title,
+        caseData.initial_presentation.text,
+        caseData.available_findings.focused_history.text,
+        caseData.available_findings.abdominal_exam.text,
+      ].join(" ");
+      for (const pattern of forbidden) {
+        assert.ok(!pattern.test(learnerFacing), `${presetId}: английский термин ${pattern}`);
+      }
+    }
+  }
 });

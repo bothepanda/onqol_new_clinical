@@ -198,7 +198,8 @@ function SessionSidebar({ session, caseData, locale, onDownload }) {
         </div>
         <div className="v25-vitals">
           <span>HR <b>{session.temporalState.heartRate}</b></span>
-          <span>T <b>{session.temporalState.temperatureC.toFixed(1)}</b></span>
+          {/* Decimal comma, same as the handoff and the labs. */}
+          <span>T <b>{session.temporalState.temperatureC.toFixed(1).replace(".", ",")}</b></span>
           <span>PAIN <b>{session.temporalState.painScore}/10</b></span>
         </div>
       </section>

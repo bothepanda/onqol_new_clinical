@@ -36,7 +36,16 @@ import { PATH_STATES, PATH_STATE_IDS, STABLE_PATH, pathStatesById } from "./path
 import { ACTION_CONTRACTS, contractsById, resolvableActionIds } from "./actionContracts.js";
 import { REASONING_FLAGS } from "../core/reasoningState.js";
 
-export const V35_CONTENT_VERSION = "3.5.3";
+// 3.5.4: owner's rewording of the whole learner-visible surface (WORDING_REVIEW.md).
+// The version bumps because a seed replayed under 3.5.3 produces different text -
+// and, where a variant list grew, a different patient.
+// 3.5.5: the examination becomes declared slot states + one prose dictionary
+// (examSlots.js), and the owner's answers to the nine open wording questions.
+// 3.5.6: the owner's signed slot table - Rovsing to the classic phenotype only,
+// the obturator sign to the pelvic one, percussion tenderness to classic and
+// late, and the deliberate blanks left blank.
+// 3.5.7: named signs print the finding only, not the manoeuvre (owner, 10.08.2026).
+export const V35_CONTENT_VERSION = "3.5.7";
 
 /** The counts addendum 14 requires. Named so a failure says which one. */
 export const REQUIRED_COUNTS = Object.freeze({

@@ -34,11 +34,48 @@ import { createV25Case } from "../v25/caseFactory.js";
 import { composeV3Case } from "../v3/createCase.js";
 import { getDiseaseModule } from "../v3/diseaseModules.js";
 import { PHENOTYPES } from "./phenotypes.js";
+import { renderExamination } from "./examSlots.js";
 import { selectV35Case } from "./sessionSelector.js";
 import { V35_CONTENT_VERSION } from "./manifest.js";
 
 const CARRIED = "CARRIED_OVER_UNREVIEWED";
 const GENERATED = "GENERATED_FROM_AUTHORED_RANGE";
+const REWORDED = "reworded_by_owner_20260809_clinical_content_unchanged";
+
+/**
+ * Owner's rewording of text carried from the fixed card, 09.08.2026.
+ *
+ * These live here rather than in cases/acuteAppendicitis.js on purpose: the
+ * fixed card is the V2.5/V3 regression stand, and rewording it would move the
+ * baseline the comparison is measured against. Only the wording changes - every
+ * clinical assertion is the same one the card already made.
+ */
+const V35_REWORDED_CARRIED = Object.freeze({
+  urinalysis: Object.freeze({
+    text: "В моче лейкоцитов и нитритов нет, эритроциты 0–1 в поле зрения.",
+  }),
+  biochemistry: Object.freeze({
+    text:
+      "Креатинин 72 мкмоль/л, мочевина 4,8 ммоль/л, общий билирубин 12 мкмоль/л, " +
+      "АЛТ 22 Ед/л, АСТ 19 Ед/л.",
+  }),
+  abdominal_ultrasound: Object.freeze({
+    text: "УЗИ в настоящее время недоступно; врач УЗД будет с 09:00.",
+  }),
+  pelvic_ultrasound: Object.freeze({
+    text: "УЗИ в настоящее время недоступно; врач УЗД будет с 09:00.",
+  }),
+  ct_abdomen: Object.freeze({ text: "КТ в данном стационаре недоступна." }),
+  pelvic_gynecologic_screen: Object.freeze({
+    text:
+      // The last sentence is deliberately NOT softened, owner 09.08.2026:
+      // pregnancy changes the diagnostic and imaging pathway in acute abdominal
+      // pain, so the screen must be unable to read as a substitute for the test.
+      "Патологических выделений и маточного кровотечения нет. При смещении шейки матки " +
+      "выраженной болезненности не отмечается. Эти данные не исключают беременность " +
+      "и не заменяют тест на β-ХГЧ.",
+  }),
+});
 
 /** Actions that exist only when a modifier switches them on. */
 const MODIFIER_GATED_ACTION_IDS = Object.freeze([
@@ -75,18 +112,37 @@ function composePresentation(phenotype, seed) {
     ...maybe(p.history_optional_ru),
   ];
   if (p.history_counted_ru) {
-    const { template, range: countRange } = p.history_counted_ru;
+    const { template, singular_ru, range: countRange } = p.history_counted_ru;
     const count = countRange.min + Math.floor(next() * (countRange.max - countRange.min + 1));
-    details.push(template.replace("{n}", count).replace("{эпизод}", episodeWord(count)));
+    details.push(
+      count === 1 && singular_ru
+        ? singular_ru
+        : template.replace("{n}", count).replace("{раз}", timesWord(count))
+    );
   }
 
-  const examination = [
-    ...(p.examination_fixed_ru || []),
-    ...(p.examination_variants_ru ? [pick(p.examination_variants_ru)] : []),
-    ...maybe(p.examination_optional_ru),
-  ];
+  // The examination is nine declared SLOTS plus this phenotype's variant overlay;
+  // every word of it lives in examSlots.js. See the header there for why the
+  // phenotype stopped carrying prose.
+  // Each choice is drawn INDEPENDENTLY. They used to be one overlay picked as a
+  // block, which silently correlated unrelated signs: a classic patient could
+  // not have a positive Rovsing and a percussion finding at the same time.
+  const slotStates = { ...(p.examination_slots || {}) };
+  for (const [slotId, states] of Object.entries(p.examination_slot_choices || {})) {
+    slotStates[slotId] = pick(states);
+  }
+
+  // Imaging reports vary the same way the presentation does: a report that is
+  // "не визуализирован" for one patient and diagnostic for the next is the
+  // whole point of an equivocal phenotype. Single-string phenotypes fall
+  // through unchanged.
+  const imaging = phenotype.imaging;
+  const ultrasound = imaging.ultrasound_variants_ru
+    ? pick(imaging.ultrasound_variants_ru)
+    : imaging.ultrasound_ru;
 
   return {
+    ultrasound_ru: ultrasound,
     pain_site_ru: site,
     // The handoff carries the COMPLAINT, not the history. An ambulance crew
     // hands over "pain here, this long"; migration, anorexia and vomiting are
@@ -94,17 +150,27 @@ function composePresentation(phenotype, seed) {
     // handoff both duplicated the site ("боль в правой подвздошной области,
     // боль мигрировала в правую подвздошную область") and gave away for free
     // what asking is supposed to earn.
-    complaint_ru: `боль в ${site}`,
+    // Sites carry their own preposition ("в правой подвздошной области",
+    // "глубоко внизу живота"), because not every site takes "в".
+    complaint_ru: `боль ${site}`,
     // Skip the opening site line when a detail already states it: the classic
-    // phenotype's "боль мигрировала в правую подвздошную область" IS the site,
+    // phenotype's "боль началась около пупка и переместилась..." IS the site,
     // and printing both read as two separate complaints.
     history_ru: sentence(
       details.some((detail) => mentionsSite(detail, site))
         ? details
-        : [`боль в ${site}`, ...details]
+        : [`боль ${site}`, ...details]
     ),
     details_ru: details,
-    examination_ru: sentence(examination),
+    examination_ru: [
+      renderExamination(slotStates, site),
+      ...(p.examination_extra_ru || []).map(
+        (line) => line.charAt(0).toUpperCase() + line.slice(1) + "."
+      ),
+    ]
+      .filter(Boolean)
+      .join(" "),
+    examination_slots: slotStates,
   };
 }
 
@@ -142,7 +208,13 @@ function mentionsSite(fragment, site) {
  */
 const CARRIED_NEGATIVES = Object.freeze([
   Object.freeze({ text: "Диареи нет", contradicted_by: ["диаре", "жидк"] }),
-  Object.freeze({ text: "Дизурии нет", contradicted_by: ["мочеиспуск", "дизур", "тенезм"] }),
+  Object.freeze({
+    text: "Нарушений мочеиспускания нет",
+    // "тенезм" stays in the stem list although the pelvic phenotype no longer
+    // uses the word: the stems gate the negative, and dropping one silently
+    // widens what may be asserted.
+    contradicted_by: ["мочеиспуск", "дизур", "тенезм", "дефекац"],
+  }),
 ]);
 
 function explicitNegatives(details) {
@@ -152,14 +224,35 @@ function explicitNegatives(details) {
   ).map((negative) => negative.text);
 }
 
-/** 1 эпизод, 2 эпизода, 5 эпизодов. */
-function episodeWord(count) {
+/** 1 раз, 2 раза, 5 раз. */
+function timesWord(count) {
   const tens = count % 100;
-  if (tens >= 11 && tens <= 14) return "эпизодов";
+  if (tens >= 11 && tens <= 14) return "раз";
   const units = count % 10;
-  if (units === 1) return "эпизод";
-  if (units >= 2 && units <= 4) return "эпизода";
-  return "эпизодов";
+  if (units >= 2 && units <= 4) return "раза";
+  return "раз";
+}
+
+/**
+ * A measured decimal, Russian style: 8,8 and 13,0 - not 8.8 and 13.
+ *
+ * Same reasoning as the temperature: a bare "13" reads as a rounded-off number
+ * next to a "12,5" that was measured.
+ */
+function decimal(value) {
+  return Number(value).toFixed(1).replace(".", ",");
+}
+
+/**
+ * Genitive after "в течение": 1 часа, 2 часов, 23 часов.
+ *
+ * NOT the nominative set (1 час, 2 часа, 5 часов) - "в течение" governs the
+ * genitive, so only a count ending in one takes the singular.
+ */
+function hourWord(count) {
+  const tens = count % 100;
+  const units = count % 10;
+  return units === 1 && tens !== 11 ? "часа" : "часов";
 }
 
 /** Join fragments into one sentence, capitalised and full-stopped. */
@@ -177,7 +270,7 @@ function sentence(parts) {
  * what the learner can see for themselves, naming the disease is the answer.
  */
 function presentationTitle(composed) {
-  return composed.pain_site_ru ? `Боль в ${composed.pain_site_ru}` : "Боль в животе";
+  return composed.pain_site_ru ? `Боль ${composed.pain_site_ru}` : "Боль в животе";
 }
 
 /** Russian needs three forms: 21 год, 22 года, 25 лет. */
@@ -197,15 +290,19 @@ function handoffText(patient, composed) {
     `${female ? "Женщина" : "Мужчина"}, ${who.age} ${yearsWord(who.age)}.`,
     `${female ? "Доставлена" : "Доставлен"} в приёмное отделение.`,
     `Жалобы: ${composed.complaint_ru}.`,
-    `Давность ${story.hours_from_onset} ч. Боль ${story.pain_score} из 10.`,
+    `Боль беспокоит в течение ${story.hours_from_onset} ${hourWord(story.hours_from_onset)}.`,
+    `Интенсивность боли — ${story.pain_score} из 10.`,
     // Temperature always to one decimal: "38 °C" reads as a rounded-off number,
     // "38.0 °C" as a measured one.
-    `Температура ${vitals.temperature_c.toFixed(1)} °C, ЧСС ${vitals.heart_rate}/мин,`,
+    // Decimal comma throughout: the labs already print 13,8 and 4,8, and one
+    // line in dot notation reads as a different document.
+    `Температура ${vitals.temperature_c.toFixed(1).replace(".", ",")} °C, ЧСС ${vitals.heart_rate}/мин,`,
     // Systolic only. The diastolic used to be printed as systolic * 0.62, which
     // is plausible for a normotensive patient and wrong exactly where it would
     // matter - see DIASTOLIC_STATUS in patientGenerator.js. A number nobody
-    // measured must not appear next to numbers that were.
-    `АД сист. ${vitals.systolic_bp} мм рт. ст.,`,
+    // measured must not appear next to numbers that were. Owner's decision,
+    // 09.08.2026: do not generate it either - print only what was measured.
+    `сАД ${vitals.systolic_bp} мм рт. ст.,`,
     `ЧД ${vitals.respiratory_rate}/мин.`,
     "С чего начнёшь?",
   ].join(" ");
@@ -229,9 +326,9 @@ function buildFindings(baseCase, patient, phenotype, pregnancyPossible, composed
   const negatives = explicitNegatives(composed.details_ru || []);
   if (negatives.length) historyLines.push(negatives.join(". ") + ".");
   if (pregnancyPossible) {
-    historyLines.push("Последняя менструация 24 дня назад, задержки не отмечает.");
+    historyLines.push("Последняя менструация была 24 дня назад, задержки не было.");
   }
-  historyLines.push("Аллергий на лекарства не знает.");
+  historyLines.push("Лекарственную аллергию отрицает.");
 
   findings.focused_history = {
     title: base.focused_history.title,
@@ -255,30 +352,36 @@ function buildFindings(baseCase, patient, phenotype, pregnancyPossible, composed
     // derived from the two - so the numbers agree with each other rather than
     // being three independent draws pasted into one line.
     text:
-      `Hb ${patient.labs.haemoglobin} г/л, ` +
-      `лейкоциты ${patient.labs.wbc} x 10^9/л, ` +
+      `Гемоглобин ${patient.labs.haemoglobin} г/л, ` +
+      `лейкоциты ${decimal(patient.labs.wbc)} × 10^9/л, ` +
       `нейтрофилы ${patient.labs.neutrophil_percent}% ` +
-      `(абс. ${patient.labs.absolute_neutrophil_count} x 10^9/л), ` +
-      `тромбоциты ${patient.labs.platelets} x 10^9/л.`,
+      `(абс. ${decimal(patient.labs.absolute_neutrophil_count)} × 10^9/л), ` +
+      `тромбоциты ${patient.labs.platelets} × 10^9/л.`,
     provenance: GENERATED,
     review_status: "synthetic_case_fact_needs_external_review",
   };
 
   findings.crp = {
     title: base.crp.title,
-    text: `CRP ${patient.labs.crp} мг/л.`,
+    text: `С-реактивный белок ${patient.labs.crp} мг/л.`,
     provenance: GENERATED,
     review_status: "synthetic_case_fact_needs_external_review",
   };
 
   for (const id of ["urinalysis", "biochemistry", "abdominal_ultrasound", "ct_abdomen"]) {
     if (!base[id]) continue;
-    findings[id] = { ...base[id], provenance: CARRIED };
+    // V3.5 rewording, owner 09.08.2026. Applied here and NOT in the fixed card:
+    // `createV3Case()` is the regression stand the V2.5 comparison runs against,
+    // and a baseline that moves is not a baseline.
+    const reworded = V35_REWORDED_CARRIED[id];
+    findings[id] = reworded
+      ? { ...base[id], ...reworded, provenance: CARRIED, review_status: REWORDED }
+      : { ...base[id], provenance: CARRIED };
   }
   // Imaging descriptions are phenotype-specific and authored (addendum 4.3).
   findings.abdominal_ultrasound = {
     ...findings.abdominal_ultrasound,
-    text: phenotype.imaging.ultrasound_ru,
+    text: composed.ultrasound_ru,
     provenance: GENERATED,
   };
   findings.ct_abdomen = {
@@ -292,12 +395,24 @@ function buildFindings(baseCase, patient, phenotype, pregnancyPossible, composed
       title: base.pregnancy_test.title,
       // Frozen before the session; requesting the test reveals it, never creates
       // it. `hidden.pregnancy_present` was decided by the generator.
-      text: patient.hidden.pregnancy_present ? "Мочевой beta-hCG положительный." : "Мочевой beta-hCG отрицательный.",
+      text: patient.hidden.pregnancy_present
+        ? "Тест мочи на β-ХГЧ положительный."
+        : "Тест мочи на β-ХГЧ отрицательный.",
       provenance: GENERATED,
       review_status: "synthetic_case_fact_needs_external_review",
     };
-    findings.pelvic_gynecologic_screen = { ...base.pelvic_gynecologic_screen, provenance: CARRIED };
-    findings.pelvic_ultrasound = { ...base.pelvic_ultrasound, provenance: CARRIED };
+    findings.pelvic_gynecologic_screen = {
+      ...base.pelvic_gynecologic_screen,
+      ...V35_REWORDED_CARRIED.pelvic_gynecologic_screen,
+      provenance: CARRIED,
+      review_status: REWORDED,
+    };
+    findings.pelvic_ultrasound = {
+      ...base.pelvic_ultrasound,
+      ...V35_REWORDED_CARRIED.pelvic_ultrasound,
+      provenance: CARRIED,
+      review_status: REWORDED,
+    };
   }
 
   return findings;
