@@ -137,6 +137,26 @@ function quantisationSlack(rangeSpec, decimals) {
 const LOAD_REPORTED_DECIMALS = 3;
 const LOAD_ROUNDING_SLACK = 10 ** -LOAD_REPORTED_DECIMALS / 2;
 
+/**
+ * Who a preset presents when no modifier constrains demographics.
+ *
+ * NEEDS_CLINICAL_REVIEW, and the open question is named in `review_flag`.
+ */
+export const DEFAULT_DEMOGRAPHICS = Object.freeze({
+  male: Object.freeze({ min: 18, max: 70 }),
+  // 46 is the floor because MOD-PREGNANCY-POSSIBLE declares reproductive age as
+  // 18-45. Below it, the case would owe the learner a pregnancy branch it does
+  // not have.
+  female_without_pregnancy_branch: Object.freeze({ min: 46, max: 75 }),
+  review_flag: Object.freeze({
+    id: "presets_without_pregnancy_modifier_never_show_a_young_woman",
+    question_ru:
+      "APP-001, APP-003 и APP-004 не объявляют MOD-PREGNANCY-POSSIBLE, поэтому не могут выдать женщину 18-45 лет: иначе в кейсе не было бы ветви исключения беременности. Но аппендицит у молодых женщин част. Добавить модификатор в default_modifiers этих пресетов (тогда ветвь ХГЧ появится везде), или оставить как есть и признать, что три из четырёх пресетов тренируют другую популяцию?",
+    status: "NEEDS_CLINICAL_REVIEW",
+  }),
+  clinical_review_status: "pending",
+});
+
 /** Place a position in [0,1] inside a range, rounded to `decimals`. */
 function at(rangeSpec, position, decimals = 0) {
   const raw = rangeSpec.min + (rangeSpec.max - rangeSpec.min) * clamp01(position);
@@ -209,9 +229,27 @@ export function generatePatient(casePresetId, seed) {
   //    modifier constrains them. No modifier means no gynaecological layer -
   //    and the absence of the actions, not their presence at zero weight.
   const demographic = modifiers.find((modifier) => modifier.demographics)?.demographics;
-  const sex = demographic?.sex ?? (random() < 0.5 ? "male" : "female");
-  const ageRange = demographic?.age ?? { min: 18, max: 65 };
-  const age = at(ageRange, random());
+  let sex;
+  let age;
+  if (demographic) {
+    sex = demographic.sex;
+    age = at(demographic.age, random());
+  } else {
+    // No reproductive-potential modifier means this case has no pregnancy safety
+    // branch - so it must not produce a patient who would need one. A woman of
+    // reproductive age with no beta-hCG in the case would teach the exact
+    // omission the trainer exists to prevent.
+    //
+    // The consequence is a real content limitation, not a neutral default:
+    // presets without the modifier never present a young woman, and appendicitis
+    // in young women is common. Flagged in DEFAULT_DEMOGRAPHICS for a reviewer
+    // rather than papered over.
+    sex = random() < 0.5 ? "male" : "female";
+    age =
+      sex === "female"
+        ? at(DEFAULT_DEMOGRAPHICS.female_without_pregnancy_branch, random())
+        : at(DEFAULT_DEMOGRAPHICS.male, random());
+  }
 
   const enabledActionIds = [
     ...new Set(modifiers.flatMap((modifier) => modifier.enables_action_ids || [])),
@@ -332,6 +370,18 @@ export function coherenceViolations(patient) {
     violations.push({
       rule: "pregnancy_status_without_modifier",
       detail: "статус беременности задан пациенту без модификатора возможной беременности",
+    });
+  }
+  // And the converse, which matters more: a case with no pregnancy branch must
+  // not present a patient who needs one.
+  if (
+    !pregnancyEnabled &&
+    patient.demographics.sex === "female" &&
+    patient.demographics.age <= 45
+  ) {
+    violations.push({
+      rule: "reproductive_age_woman_without_pregnancy_branch",
+      detail: `женщина ${patient.demographics.age} лет в кейсе без ветви исключения беременности`,
     });
   }
 

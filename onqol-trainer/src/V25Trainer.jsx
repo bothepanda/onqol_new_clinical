@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { selectV3Case } from "./clinical/v3/createCase.js";
+import { buildV35Case } from "./clinical/v35/createCase.js";
 import ReactMarkdown from "react-markdown";
 import { getBrowserContentForCase } from "./clinical/browserContentRegistry.js";
 import {
@@ -273,6 +273,10 @@ export default function V25Trainer({ mentor = true }) {
   const learnerId = useMemo(() => getOrCreateAnonymousUserId(), []);
   const bottomRef = useRef(null);
   const textareaRef = useRef(null);
+  // Immediate repeat avoidance: which preset the last session used. Held in the
+  // component rather than in the generator, which must stay a pure function of
+  // its seed.
+  const lastPresetIdRef = useRef(null);
   const t = UI[locale];
 
   useEffect(() => {
@@ -296,13 +300,25 @@ export default function V25Trainer({ mentor = true }) {
     // module plus a registry entry - not an edit to this component. With one
     // reviewed case the selection returns the same case every time, which is the
     // honest outcome rather than faked variety.
-    const nextCase = mentor
-      ? selectV3Case({ locale, seed: seedOverride || undefined }).caseData
-      : createV25Case(locale);
+    // One seed for the whole session: the same string reproduces the patient,
+    // the facility and the shift. ONQOL_NORTH_STAR.md: "Каждый пациент
+    // воспроизводим по seed."
+    const sessionSeed = seedOverride || createScenarioSeed(mode === "real" ? "real" : "reference");
+    // V3.5 builds the patient from the case presets; V2.5 keeps its single fixed
+    // patient so the mentor-off comparison stays a stable baseline.
+    const built = mentor
+      ? buildV35Case({
+          seed: sessionSeed,
+          locale,
+          previousPresetId: lastPresetIdRef.current,
+        })
+      : null;
+    if (built) lastPresetIdRef.current = built.selection.case_preset_id;
+    const nextCase = built ? built.caseData : createV25Case(locale);
     const nextSession = createV25Session({
       caseData: nextCase,
       mode,
-      seed: seedOverride || createScenarioSeed(mode === "real" ? "real" : "reference"),
+      seed: sessionSeed,
       locale,
       learnerId: `anon:${learnerId}`,
       institutionId: "synthetic-pilot",

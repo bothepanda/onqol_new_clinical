@@ -88,7 +88,12 @@ export const V35_MODIFIERS = Object.freeze({
     // What the modifier switches ON. Without it these actions do not belong to
     // the case at all - not "present but worth zero". A patient who cannot be
     // pregnant is not being tested on beta-hCG.
-    enables_action_ids: ["pregnancy_test", "pelvic_gynecologic_screen", "pelvic_ultrasound"],
+    enables_action_ids: [
+      "pregnancy_test",
+      "pelvic_gynecologic_screen",
+      "pelvic_ultrasound",
+      "gynecology_consult",
+    ],
     enables_dangerous_alternatives: ["differential_ectopic"],
     // V3.5 authors no physiological delta for this modifier, and none is
     // invented. It changes what must be done, not what the patient's pulse is.

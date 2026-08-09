@@ -58,15 +58,20 @@ function temporalRuleMatches(rule, { actions, completed, clockMinutes }) {
 }
 
 export function createInitialTemporalState(caseData) {
+  // A generated case carries its own opening vitals. Without this the sidebar
+  // showed 37.8/96/118 while the handoff above it read something else, and the
+  // learner had two different patients on one screen. The literals stay as the
+  // fallback for the fixed V2.5/V3 card, which has no generated vitals.
+  const opening = caseData.patient_state?.opening_vitals || {};
   return {
     clockMinutes: 0,
     flow: { checkpointMinute: ED_DISPOSITION_CHECKPOINT_MINUTES, edDispositionCheckpointReached: false },
     timeFromOnsetMinutes: Math.round((caseData.patient_state.time_from_onset_hours || 0) * 60),
     phase: "presentation",
-    painScore: 7,
-    temperatureC: 37.8,
-    heartRate: 96,
-    systolicBp: 118,
+    painScore: opening.pain_score ?? 7,
+    temperatureC: opening.temperature_c ?? 37.8,
+    heartRate: opening.heart_rate ?? 96,
+    systolicBp: opening.systolic_bp ?? 118,
     peritonism: "local",
     sourceControl: false,
     antibioticProphylaxis: false,
