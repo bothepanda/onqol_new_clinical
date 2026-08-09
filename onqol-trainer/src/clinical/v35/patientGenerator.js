@@ -43,8 +43,8 @@
 
 import {
   BASE_ADULT_AGE,
-  PHENOTYPES,
   POPULATION_BLOOD,
+  physiologyEnvelopeFor,
   PREGNANCY_BRANCH_RULE,
   V35_MODIFIERS,
   resolvePreset,
@@ -77,36 +77,57 @@ import {
 export const MORPHOLOGY_PROFILES = Object.freeze({
   uncomplicated_inflammation: Object.freeze({
     morphology: "uncomplicated_inflammation",
-    inflammatory_burden: Object.freeze({ centre: 0.5, spread: 0.5 }),
-    organ_dysfunction: Object.freeze({ possible: false, centre: 0, spread: 0 }),
+    inflammatory_burden_prior: Object.freeze({ min: 0.05, max: 0.75 }),
+    organ_dysfunction_prior: Object.freeze({ min: 0, max: 0.15 }),
     haemodynamic_states: ["stable", "pain_sympathetic"],
   }),
   abscess: Object.freeze({
     morphology: "abscess",
-    // Contained: high inflammatory burden, patient not failing.
-    inflammatory_burden: Object.freeze({ centre: 0.72, spread: 0.28 }),
-    organ_dysfunction: Object.freeze({ possible: false, centre: 0, spread: 0 }),
+    // A walled-off collection is USUALLY physiologically stable. Usually is not
+    // never: the surgeon struck out the previous "organ dysfunction impossible"
+    // rule, so the prior starts at zero and reaches well above it.
+    inflammatory_burden_prior: Object.freeze({ min: 0.45, max: 0.95 }),
+    organ_dysfunction_prior: Object.freeze({ min: 0, max: 0.45 }),
     haemodynamic_states: ["stable", "pain_sympathetic", "compensated"],
   }),
   gangrene_necrosis: Object.freeze({
     morphology: "gangrene_necrosis",
-    inflammatory_burden: Object.freeze({ centre: 0.7, spread: 0.3 }),
-    organ_dysfunction: Object.freeze({ possible: true, centre: 0.2, spread: 0.2 }),
+    inflammatory_burden_prior: Object.freeze({ min: 0.5, max: 0.95 }),
+    organ_dysfunction_prior: Object.freeze({ min: 0, max: 0.6 }),
     haemodynamic_states: ["pain_sympathetic", "compensated"],
   }),
   perforation: Object.freeze({
     morphology: "perforation",
-    inflammatory_burden: Object.freeze({ centre: 0.75, spread: 0.25 }),
-    organ_dysfunction: Object.freeze({ possible: true, centre: 0.35, spread: 0.3 }),
+    inflammatory_burden_prior: Object.freeze({ min: 0.55, max: 1 }),
+    organ_dysfunction_prior: Object.freeze({ min: 0.05, max: 0.8 }),
     haemodynamic_states: ["compensated", "hypovolaemic"],
   }),
   diffuse_peritonitis: Object.freeze({
     morphology: "diffuse_peritonitis",
-    inflammatory_burden: Object.freeze({ centre: 0.8, spread: 0.2 }),
-    organ_dysfunction: Object.freeze({ possible: true, centre: 0.55, spread: 0.35 }),
+    // Not a fixed dysfunction either: a young patient with reserve can hold a
+    // peritonitis physiologically for a while, and an old one cannot.
+    inflammatory_burden_prior: Object.freeze({ min: 0.6, max: 1 }),
+    organ_dysfunction_prior: Object.freeze({ min: 0.1, max: 0.95 }),
     haemodynamic_states: ["compensated", "hypovolaemic", "vasodilatory"],
   }),
-  provenance: "MECHANISM_REVIEWED_PROFILES_PROVISIONAL",
+  provenance: "MECHANISM_REVIEWED_PRIORS_PROVISIONAL",
+  clinical_review_status: "pending",
+  eligible_for_scoring: false,
+});
+
+/**
+ * Physiologic reserve: how much a patient absorbs before the numbers move.
+ *
+ * Named in the surgeon's list of physiology drivers. Reserve falls with age,
+ * which is why an older patient shows a smaller heart-rate response to the same
+ * inflammatory burden. Drawn per patient and applied to the physiological
+ * variables, not to the burden itself - the disease is the same, the response
+ * to it is not.
+ */
+export const PHYSIOLOGIC_RESERVE = Object.freeze({
+  age_reference: Object.freeze({ full_reserve_below: 40, low_reserve_above: 75 }),
+  // How much reserve damps the physiological response, at its strongest.
+  max_damping: 0.15,
   clinical_review_status: "pending",
   eligible_for_scoring: false,
 });
@@ -371,10 +392,9 @@ export function latentClinicalState({ morphology, hoursFromOnset, trajectoryId, 
   const profile = MORPHOLOGY_PROFILES[morphology];
   if (!profile) throw new Error(`No morphology profile declared for "${morphology}".`);
 
-  // Mean of two uniforms: a triangular distribution whose 5th and 95th
-  // percentiles sit at about 0.16 and 0.84 of its width. The shape the surgeon
-  // asked for - the central band carries the bulk, edges reachable but rare.
+  // Mean of two uniforms: triangular, p5/p95 at about 0.16/0.84 of the width.
   const triangular = () => (draw() + draw()) / 2;
+  const fromPrior = (prior) => prior.min + (prior.max - prior.min) * triangular();
 
   const timeTerm =
     (clamp01(hoursFromOnset / LOAD_COMPOSITION.time_reference_hours) - 0.5) *
@@ -382,22 +402,14 @@ export function latentClinicalState({ morphology, hoursFromOnset, trajectoryId, 
     LOAD_COMPOSITION.time_shift;
   const trajectoryTerm = LOAD_COMPOSITION.trajectory_shift[trajectoryId] ?? 0;
 
-  const burdenCentre = clamp01(
-    profile.inflammatory_burden.centre + timeTerm + trajectoryTerm
-  );
+  // The morphology supplies a PRIOR RANGE, not a centre. Time and trajectory
+  // move the draw; they do not replace it.
   const inflammatoryBurden = clamp01(
-    burdenCentre + (triangular() - 0.5) * 2 * profile.inflammatory_burden.spread
+    fromPrior(profile.inflammatory_burden_prior) + timeTerm + trajectoryTerm
   );
-
-  // Organ dysfunction is a SEPARATE latent, not a slice of the burden. A
-  // contained abscess can be florid on paper and physiologically intact.
-  const organDysfunction = profile.organ_dysfunction.possible
-    ? clamp01(
-        profile.organ_dysfunction.centre +
-          trajectoryTerm +
-          (triangular() - 0.5) * 2 * profile.organ_dysfunction.spread
-      )
-    : 0;
+  const organDysfunction = clamp01(
+    fromPrior(profile.organ_dysfunction_prior) + trajectoryTerm
+  );
 
   return {
     morphology, // categorical truth, carried through untouched
@@ -406,6 +418,16 @@ export function latentClinicalState({ morphology, hoursFromOnset, trajectoryId, 
     trajectory_id: trajectoryId,
     hours_from_onset: hoursFromOnset,
   };
+}
+
+/**
+ * How much this patient's reserve damps the physiological response.
+ * Returns a multiplier in (0, 1]: 1 is a full response, lower is blunted.
+ */
+export function reserveDamping(age) {
+  const { full_reserve_below: young, low_reserve_above: old } = PHYSIOLOGIC_RESERVE.age_reference;
+  const fraction = clamp01((age - young) / (old - young));
+  return 1 - fraction * PHYSIOLOGIC_RESERVE.max_damping;
 }
 
 /**
@@ -450,14 +472,36 @@ export function haemodynamicStateFor(casePresetId, draw) {
  * @param {string} seed
  * @returns {object} a frozen patient: hidden truth plus the inputs that made it
  */
-export function generatePatient(casePresetId, seed) {
+export function generatePatient(casePresetId, seed, options = {}) {
   const { preset, phenotype, modifiers } = resolvePreset(casePresetId);
-  const random = mulberry32(hashSeed(`${casePresetId}:${seed}`));
+  // TWO STREAMS, and the split is the point.
+  //
+  // The PHYSIOLOGY stream is keyed on the seed alone, so it does not know which
+  // preset asked. Two presets given the same seed and the same disease time
+  // therefore draw the same burden, the same reserve, the same residuals - and
+  // produce the same patient physiologically. That is what makes the matched
+  // counterfactual exact rather than approximately equal, and it is why a
+  // phenotype cannot influence physiology even accidentally.
+  //
+  // The PRESENTATION stream is keyed on the preset as well, because the onset
+  // window genuinely belongs to the phenotype: a retrocecal appendix is found
+  // later, and that lateness then drives physiology through the shared time
+  // term - once, visibly.
+  const random = mulberry32(hashSeed(`physiology:${seed}`));
+  const presentationRandom = mulberry32(hashSeed(`presentation:${casePresetId}:${seed}`));
 
   // 1. Absolute time from onset, drawn inside the phenotype's authored window.
   //    The WINDOW is phenotype-specific; the HOURS are then used on a scale
   //    shared by every phenotype, so time is counted once.
-  const hoursFromOnset = at(phenotype.presentation.hours_from_onset, random());
+  // `hoursFromOnset` may be pinned. Two uses, both legitimate: faculty preview
+  // of a specific point in the disease, and the matched counterfactual, where
+  // holding time fixed is the whole experiment. The draw still happens either
+  // way, so the random stream stays aligned and the rest of the patient is
+  // unchanged - which is what makes the comparison exact rather than approximate.
+  const drawnHours = at(phenotype.presentation.hours_from_onset, presentationRandom());
+  const hoursFromOnset = Number.isFinite(options.hoursFromOnset)
+    ? options.hoursFromOnset
+    : drawnHours;
 
   // 2. The latent clinical state: inflammatory burden and organ dysfunction as
   //    separate variables, morphology carried through as a category.
@@ -473,9 +517,29 @@ export function generatePatient(casePresetId, seed) {
   //    small residual - the remainder after the shared state has placed it.
   const jitter = () => (random() - 0.5) * 2 * LOAD_COMPOSITION.per_variable_jitter;
   const positioned = (rangeSpec, decimals) => at(rangeSpec, load + jitter(), decimals);
-  const ranges = phenotype.authoring_ranges;
+  // Physiology envelope belongs to the morphology; the phenotype supplies only
+  // the onset window and the presentation text.
+  const ranges = physiologyEnvelopeFor(preset.morphology);
 
-  // 4. Pressure and rate from ONE haemodynamic state, generated together.
+  // 4. Demographics first: physiologic reserve depends on age, and reserve damps
+  //    the physiological response. Drawn before any vital sign is placed.
+  // Both draws happen unconditionally, then a declaring modifier overrides them.
+  // Drawing only when undeclared would make the stream consume a different
+  // number of values depending on the preset's modifiers, which silently
+  // desynchronises the physiology stream between presets - and the matched
+  // counterfactual would then differ by a rounding step for no clinical reason.
+  const drawnSex = random() < 0.5 ? "male" : "female";
+  const drawnAgePosition = random();
+  const declared = modifiers.find((modifier) => modifier.demographics)?.demographics;
+  const sex = declared?.sex ?? drawnSex;
+  const age = at(declared?.age ?? BASE_ADULT_AGE, drawnAgePosition);
+  const reserve = reserveDamping(age);
+  // Reserve blunts the response to the same burden: an older patient shows less
+  // tachycardia and less fever for the same disease.
+  const responded = load * reserve;
+  const respond = (rangeSpec, decimals) => at(rangeSpec, responded + jitter(), decimals);
+
+  // 5. Pressure and rate from ONE haemodynamic state, generated together.
   //
   //    Systolic first, because landing inside the authored envelope is the hard
   //    constraint. Pulse pressure then comes from the state, narrowed where a
@@ -484,7 +548,7 @@ export function generatePatient(casePresetId, seed) {
   //    ceiling - so an incompatible pair is never built, rather than built and
   //    rejected.
   const state = haemodynamicStateFor(preset.case_preset_id, random);
-  const systolic = at(ranges.systolic_bp, 1 - clamp01(load + jitter()), REPORTED_DECIMALS.systolic_bp);
+  const systolic = at(ranges.systolic_bp, 1 - clamp01(responded + jitter()), REPORTED_DECIMALS.systolic_bp);
   // MAP = SBP - 2*PP/3 >= floor  =>  PP <= 1.5 * (SBP - floor)
   const maxPulseForMap = 1.5 * (systolic - state.min_mean_arterial_pressure);
   const pulsePressure = at(
@@ -499,23 +563,17 @@ export function generatePatient(casePresetId, seed) {
   );
   const heartRate = at(
     { min: ranges.heart_rate.min, max: Math.max(ranges.heart_rate.min, heartRateCeiling) },
-    load + jitter(),
+    responded + jitter(),
     REPORTED_DECIMALS.heart_rate
   );
 
   const vitals = Object.freeze({
     heart_rate: heartRate,
-    temperature_c: positioned(ranges.temperature_c, REPORTED_DECIMALS.temperature_c),
+    temperature_c: respond(ranges.temperature_c, REPORTED_DECIMALS.temperature_c),
     ...pressures,
     haemodynamic_state: state.state_id,
-    respiratory_rate: positioned(ranges.respiratory_rate, REPORTED_DECIMALS.respiratory_rate),
+    respiratory_rate: respond(ranges.respiratory_rate, REPORTED_DECIMALS.respiratory_rate),
   });
-
-  // 5. Demographics. One adult population, not one per sex. Drawn before the
-  //    labs because haemoglobin is sexed.
-  const declared = modifiers.find((modifier) => modifier.demographics)?.demographics;
-  const sex = declared?.sex ?? (random() < 0.5 ? "male" : "female");
-  const age = at(declared?.age ?? BASE_ADULT_AGE, random());
 
   // White count and neutrophil fraction come from the same burden, and the
   // absolute count is DERIVED from them - never drawn separately, which is how a
@@ -585,6 +643,11 @@ export function generatePatient(casePresetId, seed) {
       // "severity" number: morphology is categorical, burden and organ
       // dysfunction are their own variables.
       latent_state: latent,
+      physiologic_reserve: Math.round(reserve * 1000) / 1000,
+      // Burden after reserve has damped it. The vital signs were placed at THIS
+      // position, so coherence must be judged against it: an older patient's
+      // blunted response is the model working, not a cluster falling apart.
+      physiologic_response: Math.round(responded * 1000) / 1000,
       physiologic_load: latent.inflammatory_burden,
       pregnancy_present: enabledActionIds.includes("pregnancy_test") ? false : null,
     }),
@@ -677,7 +740,7 @@ export function coherenceViolations(patient) {
   }
 
   // The cluster must hang together: every variable sits near the shared load.
-  const ranges = PHENOTYPES[patient.composition.phenotype_id].authoring_ranges;
+  const ranges = physiologyEnvelopeFor(patient.hidden.morphology);
   const positionOf = (value, rangeSpec) =>
     rangeSpec.max === rangeSpec.min ? 0 : (value - rangeSpec.min) / (rangeSpec.max - rangeSpec.min);
   // Heart rate is placed inside the range the STATE allows, not the whole
@@ -703,7 +766,11 @@ export function coherenceViolations(patient) {
       LOAD_COMPOSITION.per_variable_jitter +
       quantisationSlack(rangeSpec, REPORTED_DECIMALS[key]) +
       LOAD_ROUNDING_SLACK;
-    const drift = Math.abs(positionOf(value, rangeSpec) - patient.hidden.physiologic_load);
+    // Vitals were placed after reserve damping; labs track the burden itself.
+    const reference = ["heart_rate", "temperature_c", "respiratory_rate"].includes(key)
+      ? patient.hidden.physiologic_response ?? patient.hidden.physiologic_load
+      : patient.hidden.physiologic_load;
+    const drift = Math.abs(positionOf(value, rangeSpec) - reference);
     if (drift > tolerance) {
       violations.push({
         rule: "cluster_variables_track_one_load",

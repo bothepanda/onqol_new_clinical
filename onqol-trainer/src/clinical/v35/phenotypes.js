@@ -15,24 +15,25 @@
 // phenotype and a modifier welded together. Unwelded here, so that the second
 // nosology reuses the layers instead of copying the presets.
 //
-// WHAT A RANGE IS
+// WHAT A PHENOTYPE OWNS, AND WHAT IT DOES NOT
 //
-// Addendum 4.2, verbatim: "Эти диапазоны нужны только для генерации
-// правдоподобного синтетического пациента. Они не дают баллы и не используются
-// как diagnostic cutoffs до clinical review."
+// It owns LOCALISATION: where the pain is, what the history sounds like, what
+// the abdomen feels like, whether a psoas sign appears, what the urinalysis
+// shows, whether the appendix is visible on ultrasound, and where it is found on
+// CT and at operation.
 //
-// A range is the envelope of patients a phenotype may contain. It is not a
-// threshold for intervention, and `authoring_ranges` is named so that any rule
-// wanting to read one as a cutoff has to rename it first - which is a reviewable
-// diff rather than a silent reinterpretation.
+// It owns NO PHYSIOLOGY. Heart rate, temperature, pressure, white count and CRP
+// are produced by morphology, absolute disease time, inflammatory burden,
+// trajectory, modifiers and physiologic reserve - see PHYSIOLOGY_ENVELOPES and
+// patientGenerator.js. Per-phenotype physiology envelopes were removed on
+// 09.08.2026: they made a retrocecal appendix a sicker patient by definition,
+// and they counted disease time twice, once as a window position and again as a
+// higher envelope.
 //
-// THE ENVELOPE IS NOT A SEVERITY ORDER
-//
-// APP-004's authored heart-rate envelope (88-112) sits higher than APP-002's
-// (86-104). That is the addendum's authoring, and it is FLAGGED, not encoded as
-// a rule: a retrocecal appendix is in a different place, which is not the same
-// as a sicker patient. The generator never derives physiological load from the
-// phenotype for exactly this reason - see patientGenerator.js.
+// The remaining phenotype numbers - the onset window and the pain score - are
+// presentation facts, not physiology: a retrocecal appendix genuinely is found
+// later because its signs are subtle, and that lateness now drives physiology
+// through the shared time term rather than through a private envelope.
 
 const range = (min, max) => Object.freeze({ min, max });
 
@@ -164,6 +165,63 @@ export const POPULATION_BLOOD = Object.freeze({
   eligible_for_scoring: false,
 });
 
+
+/**
+ * Physiology belongs to the MORPHOLOGY, not to the phenotype.
+ *
+ * Surgeon's instruction, 09.08.2026: remove phenotype-specific envelopes for
+ * CRP, white count, temperature, heart rate and haemodynamics. Those are
+ * produced by morphology, absolute disease time, inflammatory burden,
+ * trajectory, modifiers and physiologic reserve. Where the appendix sits changes
+ * where it hurts and what imaging shows - not how high the CRP goes.
+ *
+ * WHERE THESE NUMBERS COME FROM
+ *
+ * The union of the ranges the surgeon authored across the four uncomplicated
+ * presentations (addendum 4.2). Nothing is invented and nothing is narrowed: the
+ * lower edge is early_subtle's, the upper edge is retrocecal's, and absolute
+ * disease time is what now moves a patient between them - which is exactly the
+ * difference those separate envelopes were encoding.
+ *
+ * A CRP of 140 therefore remains reachable, as a rare high-burden uncomplicated
+ * patient, and no longer arrives because a case was labelled retrocecal.
+ */
+export const PHYSIOLOGY_ENVELOPES = Object.freeze({
+  uncomplicated: Object.freeze({
+    applies_to_morphologies: ["uncomplicated_inflammation"],
+    heart_rate: range(72, 112),
+    temperature_c: range(36.7, 38.5),
+    systolic_bp: range(100, 140),
+    respiratory_rate: range(14, 24),
+    wbc: range(8, 18),
+    neutrophil_percent: range(65, 90),
+    crp: range(2, 140),
+    derived_from: "union of authored ranges for early_subtle, classic, pelvic, retrocecal",
+    clinical_review_status: "reviewed_provisional",
+  }),
+  complicated: Object.freeze({
+    applies_to_morphologies: ["abscess", "gangrene_necrosis", "perforation", "diffuse_peritonitis"],
+    heart_rate: range(88, 140),
+    temperature_c: range(37.4, 39.5),
+    systolic_bp: range(80, 130),
+    respiratory_rate: range(16, 34),
+    wbc: range(11, 24),
+    neutrophil_percent: range(75, 95),
+    crp: range(40, 350),
+    derived_from: "late_complicated authored ranges, widened downward to meet the uncomplicated set",
+    clinical_review_status: "pending",
+  }),
+  eligible_for_scoring: false,
+});
+
+/** Which envelope a morphology uses. */
+export function physiologyEnvelopeFor(morphology) {
+  for (const envelope of [PHYSIOLOGY_ENVELOPES.uncomplicated, PHYSIOLOGY_ENVELOPES.complicated]) {
+    if (envelope.applies_to_morphologies.includes(morphology)) return envelope;
+  }
+  throw new Error(`No physiology envelope declared for morphology "${morphology}".`);
+}
+
 /**
  * Phenotype cards. Authoring data from addendum 4.1-4.3, copied verbatim.
  *
@@ -171,7 +229,7 @@ export const POPULATION_BLOOD = Object.freeze({
  * @property {string} phenotype_id
  * @property {string[]} compatible_morphologies
  * @property {object} presentation      hours_from_onset, pain_score, RU text
- * @property {object} authoring_ranges  the envelope, never a cutoff
+ * @property {object} presentation      onset window, pain, story, examination
  * @property {object} imaging
  */
 export const PHENOTYPES = Object.freeze({
@@ -186,16 +244,6 @@ export const PHENOTYPES = Object.freeze({
         "Околопупочная или ранняя боль справа внизу, миграция неубедительна, анорексия, тошнота возможна",
       examination_ru:
         "Локальная болезненность без убедительного дефанса, перитонеальные признаки отрицательные или сомнительные",
-    }),
-    authoring_ranges: Object.freeze({
-      heart_rate: range(72, 96),
-      temperature_c: range(36.7, 37.7),
-      systolic_bp: range(105, 140),
-      respiratory_rate: range(14, 20),
-      wbc: range(8, 13),
-      // Generated jointly with WBC from the shared burden, then ANC is derived.
-      neutrophil_percent: range(65, 82),
-      crp: range(2, 35),
     }),
     imaging: Object.freeze({
       ultrasound_ru: "Отрицательное или неубедительное допустимо",
@@ -217,16 +265,6 @@ export const PHENOTYPES = Object.freeze({
       examination_ru:
         "Локальная болезненность, защитное напряжение или локальные перитонеальные признаки",
     }),
-    authoring_ranges: Object.freeze({
-      heart_rate: range(86, 104),
-      temperature_c: range(37.3, 38.1),
-      systolic_bp: range(105, 135),
-      respiratory_rate: range(16, 22),
-      wbc: range(11, 16),
-      // Generated jointly with WBC from the shared burden, then ANC is derived.
-      neutrophil_percent: range(72, 88),
-      crp: range(20, 80),
-    }),
     imaging: Object.freeze({
       ultrasound_ru: "Воспалённый несжимаемый аппендикс или limited visualization",
       ct_ru: "Воспаление без абсцесса и перфорации",
@@ -247,16 +285,6 @@ export const PHENOTYPES = Object.freeze({
       examination_ru:
         "Максимум болезненности ниже типичной точки, классический дефанс может отсутствовать",
     }),
-    authoring_ranges: Object.freeze({
-      heart_rate: range(82, 106),
-      temperature_c: range(37.1, 38.2),
-      systolic_bp: range(100, 135),
-      respiratory_rate: range(16, 22),
-      wbc: range(10, 16),
-      // Generated jointly with WBC from the shared burden, then ANC is derived.
-      neutrophil_percent: range(70, 88),
-      crp: range(20, 100),
-    }),
     imaging: Object.freeze({
       ultrasound_ru: "Аппендикс может не визуализироваться, тазовые органы оцениваются отдельно",
       ct_ru: "Тазовое расположение и воспаление без абсцесса",
@@ -276,32 +304,10 @@ export const PHENOTYPES = Object.freeze({
         "Правый фланк, поясница или правое подреберье, усиление при ходьбе или разгибании бедра",
       examination_ru: "Слабые передние признаки, латеральная болезненность, psoas sign возможен",
     }),
-    authoring_ranges: Object.freeze({
-      heart_rate: range(88, 112),
-      temperature_c: range(37.4, 38.5),
-      systolic_bp: range(100, 135),
-      respiratory_rate: range(16, 24),
-      wbc: range(11, 18),
-      // Generated jointly with WBC from the shared burden, then ANC is derived.
-      neutrophil_percent: range(72, 90),
-      crp: range(40, 140),
-    }),
     imaging: Object.freeze({
       ultrasound_ru: "Ограничение кишечным газом и глубиной",
       ct_ru: "Ретроцекальное расположение, morphology фиксирована seed",
       operative_truth_ru: "Ретроцекальный воспалённый аппендикс",
-    }),
-    // Raised by the owner, 09.08.2026. The authored envelope for this phenotype
-    // is higher than the classic one across every inflammatory variable, which
-    // asserts that a retrocecal position is itself more severe. Position and
-    // severity are different claims. The generator does not encode the
-    // implication; a reviewer decides whether the envelope stays.
-    review_flag: Object.freeze({
-      id: "retrocecal_envelope_implies_greater_severity",
-      question_ru:
-        "Ретроцекальная локализация сама по себе не означает более тяжёлую физиологию. Диапазоны ЧСС 88-112, T 37.4-38.5, WBC 11-18 и CRP 40-140 выше классических. Это авторское решение о более позднем обращении (10-30 часов против 6-14), или диапазоны надо сблизить с классическими?",
-      raised_by: "owner",
-      status: "NEEDS_CLINICAL_REVIEW",
     }),
     clinical_review_status: "pending",
   }),
@@ -315,25 +321,6 @@ export const PHENOTYPES = Object.freeze({
       pain_score: range(7, 10),
       story_ru: "Диффузная боль, повторная рвота, слабость, жажда, снижение диуреза",
       examination_ru: "Распространённые перитонеальные признаки и возможная гипоперфузия",
-    }),
-    authoring_ranges: Object.freeze({
-      heart_rate: range(105, 140),
-      temperature_c: range(38.0, 39.5),
-      systolic_bp: range(80, 110),
-      respiratory_rate: range(22, 34),
-      wbc: range(14, 24),
-      // Generated jointly with WBC from the shared burden, then ANC is derived.
-      neutrophil_percent: range(80, 95),
-      crp: range(120, 350),
-    }),
-    // Addendum 4.2 allows an alternative low branch in a compatible severe seed.
-    // Declared as a branch, never merged into the range above: a generator must
-    // choose it explicitly rather than interpolate through normal values.
-    severe_alternative_branch: Object.freeze({
-      temperature_c_below: 36.0,
-      wbc: "leukopenia",
-      requires_morphology: ["diffuse_peritonitis"],
-      clinical_review_status: "pending",
     }),
     imaging: Object.freeze({
       ultrasound_ru:

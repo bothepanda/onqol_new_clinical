@@ -28,6 +28,7 @@ import {
   TRAJECTORY_IDS,
   V35_MODIFIERS,
   learnerSelectablePresets,
+  physiologyEnvelopeFor,
 } from "./phenotypes.js";
 import { ALTERNATIVE_DISEASES } from "./alternatives.js";
 import { localeReadiness } from "./locale.js";
@@ -224,19 +225,34 @@ export function validateV35Manifest(caseData = null) {
     }
   }
 
-  // --- every phenotype a learner can reach has usable ranges --------------
-  const reachable = new Set(
+  // --- every reachable morphology has a usable physiology envelope --------
+  // Physiology belongs to the morphology now, so this checks the envelope the
+  // generator will actually read rather than a per-phenotype table.
+  const reachableMorphologies = new Set(
     CASE_PRESETS.filter((preset) => preset.runtime_status === "learner_active").map(
-      (preset) => preset.phenotype_id
+      (preset) => preset.morphology
     )
   );
-  for (const phenotypeId of reachable) {
-    const ranges = PHENOTYPES[phenotypeId]?.authoring_ranges;
-    for (const field of ["heart_rate", "temperature_c", "systolic_bp", "respiratory_rate", "wbc", "crp"]) {
-      const declared = ranges?.[field];
+  for (const morphology of reachableMorphologies) {
+    let envelope;
+    try {
+      envelope = physiologyEnvelopeFor(morphology);
+    } catch {
+      errors.push(`morphology "${morphology}" has no physiology envelope`);
+      continue;
+    }
+    for (const field of ["heart_rate", "temperature_c", "systolic_bp", "respiratory_rate", "wbc", "neutrophil_percent", "crp"]) {
+      const declared = envelope[field];
       if (!declared || !(declared.min <= declared.max)) {
-        errors.push(`phenotype "${phenotypeId}" has no usable range for ${field}`);
+        errors.push(`physiology envelope for "${morphology}" has no usable range for ${field}`);
       }
+    }
+  }
+
+  // A phenotype must not smuggle physiology back in.
+  for (const [phenotypeId, phenotype] of Object.entries(PHENOTYPES)) {
+    if (phenotype.authoring_ranges) {
+      errors.push(`phenotype "${phenotypeId}" declares physiology, which belongs to the morphology`);
     }
   }
 

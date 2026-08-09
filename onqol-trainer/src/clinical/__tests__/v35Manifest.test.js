@@ -14,6 +14,7 @@ import {
   PHENOTYPE_IDS,
   POPULATION_BLOOD,
   V35_MODIFIERS,
+  physiologyEnvelopeFor,
   learnerSelectablePresets,
   presetsById,
   resolvePreset,
@@ -195,18 +196,27 @@ test("morphology is categorical truth, not a point on a severity line", () => {
   for (const id of ["uncomplicated_inflammation", "abscess", "perforation", "diffuse_peritonitis"]) {
     const profile = MORPHOLOGY_PROFILES[id];
     assert.equal(profile.morphology, id, "the category is carried, not converted to a number");
-    assert.ok(profile.inflammatory_burden);
-    assert.ok(profile.organ_dysfunction);
+    assert.ok(profile.inflammatory_burden_prior);
+    assert.ok(profile.organ_dysfunction_prior);
   }
 
-  // A contained abscess carries a high inflammatory burden and NO organ
-  // dysfunction - which a single severity scalar cannot express.
-  assert.equal(MORPHOLOGY_PROFILES.abscess.organ_dysfunction.possible, false);
+  // Priors are RANGES, not fixed values. A contained abscess is usually
+  // physiologically stable - usually, not always, so its organ-dysfunction prior
+  // starts at zero and reaches well above it rather than being ruled out.
+  const abscess = MORPHOLOGY_PROFILES.abscess;
+  assert.equal(abscess.organ_dysfunction_prior.min, 0);
+  assert.ok(abscess.organ_dysfunction_prior.max > 0, "dysfunction must not be impossible");
+
+  // Peritonitis does not carry a fixed dysfunction either.
+  const peritonitis = MORPHOLOGY_PROFILES.diffuse_peritonitis;
+  assert.ok(peritonitis.organ_dysfunction_prior.max > peritonitis.organ_dysfunction_prior.min);
+
+  // Priors overlap: these are not points on one line.
   assert.ok(
-    MORPHOLOGY_PROFILES.abscess.inflammatory_burden.centre >
-      MORPHOLOGY_PROFILES.uncomplicated_inflammation.inflammatory_burden.centre
+    abscess.inflammatory_burden_prior.min <
+      MORPHOLOGY_PROFILES.uncomplicated_inflammation.inflammatory_burden_prior.max,
+    "morphology priors must overlap, not partition a scale"
   );
-  assert.equal(MORPHOLOGY_PROFILES.diffuse_peritonitis.organ_dysfunction.possible, true);
 });
 
 test("the latent state keeps burden, organ dysfunction and trajectory apart", () => {
@@ -218,7 +228,7 @@ test("the latent state keeps burden, organ dysfunction and trajectory apart", ()
     draw,
   });
   assert.equal(latent.morphology, "uncomplicated_inflammation");
-  assert.equal(latent.organ_dysfunction, 0, "uncomplicated inflammation has none");
+  assert.ok(latent.organ_dysfunction >= 0 && latent.organ_dysfunction <= 0.15);
   assert.equal(latent.hours_from_onset, 13);
   assert.ok(latent.inflammatory_burden > 0 && latent.inflammatory_burden < 1);
 
@@ -251,7 +261,7 @@ test("the burden distribution puts p5-p95 in the central band of the envelope", 
     burdens.push(
       latentClinicalState({
         morphology: "uncomplicated_inflammation",
-        hoursFromOnset: draw() * 24,
+        hoursFromOnset: draw() * 48,
         trajectoryId: "TRJ-STABLE",
         draw,
       }).inflammatory_burden
@@ -260,8 +270,34 @@ test("the burden distribution puts p5-p95 in the central band of the envelope", 
   burdens.sort((a, b) => a - b);
   const p5 = burdens[Math.floor(burdens.length * 0.05)];
   const p95 = burdens[Math.floor(burdens.length * 0.95)];
-  assert.ok(p5 > 0.05 && p5 < 0.25, `p5 was ${p5.toFixed(3)}`);
-  assert.ok(p95 > 0.72 && p95 < 0.95, `p95 was ${p95.toFixed(3)}`);
+  // Priors plus the time term: the band must stay well inside 0..1 with rare
+  // extremes rather than piling up at either edge.
+  assert.ok(p5 > 0.02 && p5 < 0.3, `p5 was ${p5.toFixed(3)}`);
+  assert.ok(p95 > 0.55 && p95 < 0.98, `p95 was ${p95.toFixed(3)}`);
+});
+
+test("at matched hidden inputs and sub-seed, physiology is identical across phenotypes", () => {
+  // The surgeon's requirement, exactly: same morphology, same absolute disease
+  // time, same trajectory, same modifiers, same physiology sub-seed. Only
+  // phenotype_id differs. Every delta must be zero.
+  const seed = "matched-counterfactual";
+  const hours = 13;
+  const reference = generatePatient("APP-002", seed, { hoursFromOnset: hours });
+
+  for (const presetId of ["APP-003", "APP-004"]) {
+    const other = generatePatient(presetId, seed, { hoursFromOnset: hours });
+
+    assert.equal(other.hidden.latent_state.inflammatory_burden, reference.hidden.latent_state.inflammatory_burden);
+    assert.equal(other.hidden.latent_state.organ_dysfunction, reference.hidden.latent_state.organ_dysfunction);
+    for (const key of ["heart_rate", "temperature_c", "systolic_bp", "diastolic_bp", "mean_arterial_pressure"]) {
+      assert.equal(other.vitals[key], reference.vitals[key], `Δ${key} != 0 для ${presetId}`);
+    }
+    for (const key of ["wbc", "crp", "neutrophil_percent"]) {
+      assert.equal(other.labs[key], reference.labs[key], `Δ${key} != 0 для ${presetId}`);
+    }
+    const si = (p) => p.vitals.heart_rate / p.vitals.systolic_bp;
+    assert.equal(si(other), si(reference), `ΔШИ != 0 для ${presetId}`);
+  }
 });
 
 test("the phenotype never changes physiology at matched inputs", () => {
@@ -336,7 +372,15 @@ test("neutrophils are generated with the white count, and ANC is derived", () =>
     assert.equal(patient.labs.absolute_neutrophil_count, expected);
     // High white count and low neutrophil fraction in the same patient is what
     // independent draws produce; the shared burden must prevent it.
-    if (patient.labs.wbc > 14) assert.ok(patient.labs.neutrophil_percent > 78);
+    // Both sit at the same place in their own envelopes, within the residual.
+    // That is the real claim: they are one patient, not two draws.
+    const envelope = physiologyEnvelopeFor(patient.hidden.morphology);
+    const positionOf = (value, r) => (value - r.min) / (r.max - r.min);
+    const drift = Math.abs(
+      positionOf(patient.labs.wbc, envelope.wbc) -
+        positionOf(patient.labs.neutrophil_percent, envelope.neutrophil_percent)
+    );
+    assert.ok(drift < 0.3, `WBC и нейтрофилы разошлись на ${drift.toFixed(2)}`);
   }
 });
 
@@ -355,16 +399,15 @@ test("haemoglobin and platelets belong to the population, not to the appendix", 
       assert.ok(patient.labs.platelets >= 150 && patient.labs.platelets <= 400);
     }
   }
-  // No phenotype declares a haemoglobin range any more.
+  // No phenotype declares physiology at all any more.
   for (const phenotype of Object.values(PHENOTYPES)) {
-    assert.equal(phenotype.authoring_ranges.haemoglobin, undefined);
-    assert.equal(phenotype.authoring_ranges.platelets, undefined);
+    assert.equal(phenotype.authoring_ranges, undefined, `${phenotype.phenotype_id}`);
   }
 });
 
 test("every generated value stays inside the authored envelope, over a large sample", () => {
   for (const preset of learnerSelectablePresets()) {
-    const ranges = PHENOTYPES[preset.phenotype_id].authoring_ranges;
+    const ranges = physiologyEnvelopeFor(preset.morphology);
     for (let index = 0; index < 200; index += 1) {
       const patient = generatePatient(preset.case_preset_id, `envelope-${index}`);
       for (const [key, bounds] of Object.entries(ranges)) {
@@ -459,22 +502,40 @@ test("a modifier changes what must be done, not the patient's physiology", () =>
 
 // --- review flags ----------------------------------------------------------
 
-test("the retrocecal envelope is flagged for review, not silently trusted", () => {
-  // Raised by the owner: retrocecal position is not itself greater severity.
-  const flag = PHENOTYPES.retrocecal.review_flag;
-  assert.equal(flag.status, "NEEDS_CLINICAL_REVIEW");
-  assert.match(flag.question_ru, /тяжёл|диапазон/i);
+test("the retrocecal review flag is gone, because its cause is gone", () => {
+  // The flag asked whether a retrocecal envelope higher than the classic one was
+  // a decision about later presentation or about severity. There is no longer a
+  // per-phenotype envelope to ask about: lateness now drives physiology through
+  // the shared absolute-time term, once.
+  assert.equal(PHENOTYPES.retrocecal.review_flag, undefined);
+  assert.equal(PHENOTYPES.retrocecal.authoring_ranges, undefined);
 
-  // The envelope is higher than classic, which is exactly what needs deciding.
-  assert.ok(PHENOTYPES.retrocecal.authoring_ranges.heart_rate.max > PHENOTYPES.classic.authoring_ranges.heart_rate.max);
+  // And retrocecal is still the phenotype that presents late - which is a
+  // presentation fact, and the only route by which it can look sicker.
+  assert.ok(
+    PHENOTYPES.retrocecal.presentation.hours_from_onset.min >
+      PHENOTYPES.classic.presentation.hours_from_onset.min
+  );
 });
 
-test("the phenotype ranges are the addendum's, unwidened", () => {
-  assert.deepEqual(PHENOTYPES.classic.authoring_ranges.heart_rate, { min: 86, max: 104 });
-  assert.deepEqual(PHENOTYPES.classic.authoring_ranges.wbc, { min: 11, max: 16 });
-  assert.deepEqual(PHENOTYPES.early_subtle.authoring_ranges.temperature_c, { min: 36.7, max: 37.7 });
-  assert.deepEqual(PHENOTYPES.retrocecal.authoring_ranges.crp, { min: 40, max: 140 });
+test("the phenotype keeps localisation and owns no physiology", () => {
+  // Onset windows and pain scores stay: they are presentation facts.
   assert.deepEqual(PHENOTYPES.pelvic.presentation.hours_from_onset, { min: 8, max: 24 });
+  assert.deepEqual(PHENOTYPES.classic.presentation.hours_from_onset, { min: 6, max: 14 });
+  assert.deepEqual(PHENOTYPES.retrocecal.presentation.pain_score, { min: 4, max: 8 });
+
+  // Localisation is what a phenotype is for.
+  assert.match(PHENOTYPES.retrocecal.presentation.examination_ru, /psoas/i);
+  assert.match(PHENOTYPES.pelvic.presentation.story_ru, /тазов|надлобков/i);
+
+  // Physiology is not.
+  for (const phenotype of Object.values(PHENOTYPES)) {
+    assert.equal(phenotype.authoring_ranges, undefined);
+  }
+  // The shared envelope spans what the four presentations used to hold apart.
+  const uncomplicated = physiologyEnvelopeFor("uncomplicated_inflammation");
+  assert.deepEqual(uncomplicated.crp, { min: 2, max: 140 });
+  assert.deepEqual(uncomplicated.heart_rate, { min: 72, max: 112 });
 });
 
 // --- scoring contract (surgeon review section 1) --------------------------
