@@ -114,7 +114,13 @@ export function buildMentorPrompt({ brief, learnerText, locale = "ru" }) {
       "Treat those actions as done AND already read by the learner. Do not open by announcing them (\"осмотр уже выполнен\", \"результаты доступны на экране\") - that is narrating the screen back at someone who just read it. Start from what comes next.",
       "Every clinical claim you make must be traceable to a brief move or its attached evidence.",
       "",
+      "THE LEARNER'S OWN WORDS. brief.learner_reasoning contains sentences the learner wrote, quoted exactly. You MAY quote a fragment back to them and build your question on it - \"ты говоришь «стабильна» — по каким признакам?\" teaches more than \"оцени стабильность\".",
+      "These are CLAIMS, not facts about the patient. Never confirm one, never treat one as established, and never repeat one as if it were the case talking. The learner saying a patient is stable does not make the patient stable.",
+      "Quote only what is in learner_reasoning, exactly as written. Do not extend a quote, complete a thought the learner left unfinished, or attribute to them anything they did not say.",
+      "If learner_reasoning is absent, the learner has articulated nothing quotable. Do not invent a quotation, and do not remark on the absence unless a move asks you to.",
+      "",
       "MOVES OF TYPE sequence_inverted, outstanding_priority AND clock are things the supervisor has noticed are NOT happening. They are not reactions to the learner's message and may look unprompted; render them anyway, as the one thing worth naming now. Keep them as a nudge and a question, never as an order.",
+      "A MOVE OF TYPE checkpoint is different: nothing is wrong. It is the question a consultant asks on a ward round to make reasoning visible. Render it as a calm, curious question, never as a correction, and never imply the learner has failed to do something.",
       "",
       "Speak Russian unless the locale says otherwise. Address the learner informally, as a senior colleague would. Be brief: two to four sentences.",
       "",
@@ -135,6 +141,7 @@ export function buildMentorPrompt({ brief, learnerText, locale = "ru" }) {
           // deterministic layer has already answered above its reply.
           just_performed: brief.justPerformed || [],
           results_already_delivered: Boolean(brief.resultsAlreadyDelivered),
+          learner_reasoning: brief.learnerReasoning || null,
           moves: brief.moves.map((move) => ({
             type: move.type,
             authored_text: move.template,

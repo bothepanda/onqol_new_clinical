@@ -212,6 +212,26 @@ export const mentorHeuristics = [
     eligible_for_scoring: false,
   },
 
+  {
+    // Only detectable since the learner's own arguments are recorded. Before
+    // that the engine knew a differential existed and had no way to see that
+    // every line of reasoning ran one way.
+    id: "unchallenged_hypothesis",
+    type: "outstanding_priority",
+    severity: SEVERITY.REASONING_ERROR,
+    hint_level: HINT.DIRECTIONAL,
+    spec_section: "5. Working diagnosis and dangerous alternatives / 20. Correct answer, poor reasoning",
+    when: {
+      reasoning_all: ["hypothesis_evidence_for_stated"],
+      reasoning_none: ["hypothesis_evidence_against_stated"],
+    },
+    mentor_line: "Аргументы за я услышал. А что в этой картине НЕ укладывается в твою версию?",
+    rationale_for_reviewer:
+      "«What does not fit your diagnosis?» — прямой вопрос из спеки, раздел 5. Резидент, у которого все доводы указывают в одну сторону, обычно не взвешивал, а подтверждал уже принятое решение. Отличается от premature_closure: там альтернатива не названа вовсе, здесь она может быть названа, но ни одного довода против ведущей гипотезы не прозвучало.",
+    provenance: AUTHORED,
+    eligible_for_scoring: false,
+  },
+
   // --- Исследования: каждый тест отвечает на вопрос ------------------------
   {
     // Replaces the universal `ct_before_ultrasound` rule, which asserted "УЗИ
@@ -341,6 +361,101 @@ export const mentorHeuristics = [
     rationale_for_reviewer:
       "NEEDS_SOURCE_VERIFICATION. Автор: стандарт приёмных отделений РК не устанавливает универсального правила «через 4 часа пациент обязан уйти»; для жёлтой зоны допускается наблюдение до 24 часов. Модель NHS England использует 0–4 часа как core ED care с целевым исходом admit/transfer/discharge у ≥95%. Сверить обе строки; порог 240 минут взят из второй. Наблюдение принимается как маршрут только с целью, интервалом и критерием выхода.",
     provenance: AUTHORED_WITH_SOURCE,
+    eligible_for_scoring: false,
+  },
+
+  // --- Чекпоинты рассуждения ------------------------------------------------
+  //
+  // Everything above reacts to a defect: something is missing, inverted or
+  // unsafe. These three do not. They are the mentor asking, two or three times
+  // in a case, the questions that make reasoning visible - the same questions a
+  // consultant asks on a ward round when nothing at all is wrong.
+  //
+  // WHY NOT A QUESTIONNAIRE. The obvious implementation is a form at the end of
+  // the case. It measures what the learner can reconstruct afterwards, which is
+  // a different skill from reasoning while the patient is in front of them, and
+  // it interrupts the fiction the rest of the engine works to maintain. Asked in
+  // dialogue, the answer is routed by the same extractor as everything else and
+  // lands in Reasoning State without a second pipeline.
+  //
+  // SEVERITY 1 ON PURPOSE. A checkpoint must never outrank a real finding: if
+  // the patient is deteriorating or the learner is reaching for the knife
+  // without consent, that is what gets said. Checkpoints fill silence, they do
+  // not compete for it.
+  //
+  // Each speaks once per session (the default in firedKey), and at most two
+  // moves reach the learner per turn, so the ceiling is three checkpoints in a
+  // case - which is what the author asked for.
+  //
+  // They gate on the CONTENT flags (`multiple_hypotheses_stated`), not the
+  // presence flags (`differential_stated`), so a checkpoint stays quiet for a
+  // learner who has already done the thing it would have asked for.
+  //
+  // GATED ON THE CLOCK, NOT ONLY ON TURNS. `min_turn` counts messages, and a
+  // message can be "привет" or "не знаю". Simulated minutes only advance when an
+  // action is actually performed, so the clock is the portable way to say "the
+  // learner has done some work on this patient". Before that there is nothing to
+  // summarise and no hypothesis to rank, and asking anyway would reintroduce
+  // "the mentor always has something to say" - which the author deliberately
+  // removed in V3.1. A checkpoint fills a silence in real work; it does not
+  // break a silence that exists because no work has happened.
+  {
+    id: "checkpoint_problem_representation",
+    type: "checkpoint",
+    severity: SEVERITY.MINOR_GAP,
+    hint_level: HINT.OPEN,
+    spec_section: "4. Define the actual clinical problem / 1. Core mentor loop",
+    when: {
+      min_turn: 3,
+      // Roughly a history and an examination. Enough collected to have something
+      // to compress.
+      min_clock_minutes: 15,
+      reasoning_none: ["problem_representation_stated"],
+    },
+    mentor_line:
+      "Останови на секунду. Сформулируй одной фразой, кто перед тобой и в чём проблема — без диагноза, только суть.",
+    rationale_for_reviewer:
+      "Problem representation — первый из трёх навыков клинического мышления (Cuddy 2025, Deschênes 2025): сжать данные в смысловое резюме до того, как называть болезнь. Отличается от heuristic-а premature_closure тем, что не ждёт ошибки: резидент может не совершить ни одной, и всё равно ни разу не сформулировать пациента. Порог в три хода даёт время собрать хоть что-то, чтобы вопрос не пришёл на пустом месте.",
+    provenance: AUTHORED,
+    eligible_for_scoring: false,
+  },
+  {
+    id: "checkpoint_hypotheses",
+    type: "checkpoint",
+    severity: SEVERITY.MINOR_GAP,
+    hint_level: HINT.OPEN,
+    spec_section: "5. Working diagnosis and dangerous alternatives / 6. Probability",
+    when: {
+      min_turn: 5,
+      // First investigations are back. Ranking hypotheses before any data is a
+      // guessing exercise, not reasoning.
+      min_clock_minutes: 45,
+      reasoning_none: ["multiple_hypotheses_stated"],
+    },
+    mentor_line:
+      "Назови гипотезы, которые сейчас лидируют. И скажи, какая из них опаснее всего, даже если она не самая вероятная.",
+    rationale_for_reviewer:
+      "Hypothesis generation с ранжированием — второй навык. Пересекается с unranked_differential и premature_closure, но те требуют, чтобы резидент уже что-то назвал: они молчат, если он не назвал ничего. Этот спрашивает. Ответ раскладывается в differential.items с rank и dangerous, то есть чекпоинт не только учит, но и наполняет измерение.",
+    provenance: AUTHORED,
+    eligible_for_scoring: false,
+  },
+  {
+    id: "checkpoint_what_changes_the_plan",
+    type: "checkpoint",
+    severity: SEVERITY.MINOR_GAP,
+    hint_level: HINT.OPEN,
+    spec_section: "7. Every test needs a purpose / 13. Every plan needs an exit condition",
+    when: {
+      min_turn: 7,
+      min_clock_minutes: 60,
+      reasoning_all: ["leading_hypothesis_named"],
+      reasoning_none: ["contingency_trigger_named"],
+    },
+    mentor_line:
+      "Последний вопрос по ходу: какой результат заставит тебя поменять решение — и что ты делаешь, если он придёт именно таким?",
+    rationale_for_reviewer:
+      "Diagnostic justification — третий навык: не «зачем этот анализ», а «что изменится от ответа». Отличается от no_contingency_plan: тот срабатывает на полном отсутствии плана Б, этот — когда план Б назван общими словами («если станет хуже»), но ни разу не привязан к конкретному исследованию. Требует уже названной ведущей гипотезы: без неё вопрос преждевременный.",
+    provenance: AUTHORED,
     eligible_for_scoring: false,
   },
 

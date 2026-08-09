@@ -9,10 +9,11 @@ import {
   mergeReasoningState,
   normalizeReasoningDelta,
   reasoningFlags,
+  reasoningTrajectory,
   REASONING_FLAGS,
 } from "../core/reasoningState.js";
 import { buildMentorBrief } from "../core/mentorBrief.js";
-import { mentorHeuristics, selectHeuristics } from "../core/mentorHeuristics.js";
+import { firedKey, mentorHeuristics, selectHeuristics } from "../core/mentorHeuristics.js";
 import { appendicitisMentorRules } from "../diseases/appendicitis/mentorRules.js";
 import {
   ED_DISPOSITION_CHECKPOINT_MINUTES,
@@ -140,6 +141,19 @@ test("every declared reasoning flag is produced by the flattener", () => {
   everything.consultation.own_assessment_stated = true;
   everything.consultation.consultation_question_stated = true;
   everything.investigations.items = [{ action_id: "cbc", purpose_stated: false }];
+  everything.working_diagnosis.concept_id = "diagnosis_acute_appendicitis";
+  everything.differential.items = [
+    {
+      concept_id: "differential_ectopic",
+      rank: 2,
+      dangerous: true,
+      evidence_for: ["женщина репродуктивного возраста"],
+      evidence_against: ["хгч отрицательный"],
+      updated_turn: 1,
+    },
+  ];
+  everything.contingency.trigger_concept_ids = ["pregnancy_test"];
+  everything.investigations.items[0].justification = "чтобы исключить беременность";
 
   const flags = reasoningFlags(everything);
   for (const flag of REASONING_FLAGS) {
@@ -209,7 +223,371 @@ test("a later explicit statement supersedes an earlier enum value", () => {
   assert.equal(second.stability.updated_turn, 3);
 });
 
+// --- 12.2b hypothesis records --------------------------------------------
+
+test("a ranked differential records which hypothesis is dangerous, not just that one is", () => {
+  // "Наиболее вероятен аппендицит; на втором месте внематочная — её пропустить
+  //  нельзя."
+  const delta = normalizeReasoningDelta(
+    {
+      working_diagnosis: { stated: true, concept_id: "diagnosis_acute_appendicitis" },
+      differential: {
+        stated: true,
+        items: [
+          { concept_id: "diagnosis_acute_appendicitis", rank: 1 },
+          { concept_id: "differential_ectopic", rank: 2, dangerous: true },
+        ],
+      },
+    },
+    { allowedConceptIds: new Set(["diagnosis_acute_appendicitis", "differential_ectopic"]) }
+  );
+
+  // Ranking and danger are inferred from the items, without the router having to
+  // set the summary flags as well.
+  assert.equal(delta.differential.ranked, true);
+  assert.equal(delta.differential.has_dangerous_alternative, true);
+
+  const state = mergeReasoningState(null, delta, 1).state;
+  const dangerous = state.differential.items.filter((item) => item.dangerous);
+  assert.deepEqual(
+    dangerous.map((item) => item.concept_id),
+    ["differential_ectopic"],
+    "the mentor must be able to ask about the specific alternative, not a boolean"
+  );
+
+  const flags = reasoningFlags(state);
+  assert.ok(flags.has("leading_hypothesis_named"));
+  assert.ok(flags.has("multiple_hypotheses_stated"));
+  assert.ok(flags.has("dangerous_alternative_named"));
+});
+
+test("a reordered differential is a change of mind, and is not frozen at the first answer", () => {
+  const allowed = { allowedConceptIds: new Set(["diagnosis_acute_appendicitis", "differential_ectopic"]) };
+  const first = mergeReasoningState(
+    null,
+    normalizeReasoningDelta(
+      { differential: { stated: true, items: [{ concept_id: "differential_ectopic", rank: 3 }] } },
+      allowed
+    ),
+    1
+  ).state;
+
+  // Later the learner promotes it: "теперь внематочная для меня первая."
+  const second = mergeReasoningState(
+    first,
+    normalizeReasoningDelta(
+      { differential: { items: [{ concept_id: "differential_ectopic", rank: 1, dangerous: true }] } },
+      allowed
+    ),
+    4
+  ).state;
+
+  const ectopic = second.differential.items.find((item) => item.concept_id === "differential_ectopic");
+  assert.equal(ectopic.rank, 1, "rank supersedes: reordering is the reasoning change worth seeing");
+  assert.equal(ectopic.dangerous, true, "danger latches once flagged");
+  assert.equal(ectopic.updated_turn, 4);
+  assert.equal(second.differential.items.length, 1, "the same hypothesis is not duplicated");
+});
+
+test("a contingency trigger records the investigation and never the imagined result", () => {
+  const delta = normalizeReasoningDelta(
+    {
+      contingency: {
+        stated: true,
+        // A well-behaved router sends ids; a sloppy one may send prose or an
+        // unknown concept. Neither may reach the state.
+        trigger_concept_ids: ["pregnancy_test", "положительный", "invented_test"],
+      },
+    },
+    { allowedConceptIds: new Set(["pregnancy_test"]) }
+  );
+
+  assert.deepEqual(delta.contingency.trigger_concept_ids, ["pregnancy_test"]);
+
+  const state = mergeReasoningState(null, delta, 2).state;
+  assert.equal(state.contingency.stated, true);
+  assert.ok(reasoningFlags(state).has("contingency_trigger_named"));
+  assert.ok(reasoningFlags(state).has("contingency_stated"));
+});
+
+test("the older flat reasoning payload still works", () => {
+  // The router is a model. A payload shaped like the pre-checkpoint schema must
+  // degrade to "named, unranked", never to nothing.
+  const delta = normalizeReasoningDelta(
+    {
+      differential: { stated: true, concept_ids: ["differential_ectopic"] },
+      contingency_stated: true,
+    },
+    { allowedConceptIds: new Set(["differential_ectopic"]) }
+  );
+
+  assert.deepEqual(delta.differential.concept_ids, ["differential_ectopic"]);
+  assert.deepEqual(delta.differential.items, [
+    {
+      concept_id: "differential_ectopic",
+      rank: null,
+      dangerous: false,
+      evidence_for: [],
+      evidence_against: [],
+    },
+  ]);
+  assert.equal(delta.differential.ranked, false);
+  assert.equal(delta.contingency.stated, true);
+  assert.deepEqual(delta.contingency.trigger_concept_ids, []);
+});
+
+test("a session saved before hypothesis records existed can still be resumed", () => {
+  // Persistence is behind a repository interface; a state restored from an older
+  // save has no `items` and no `trigger_concept_ids`.
+  const legacy = createEmptyReasoningState();
+  delete legacy.differential.items;
+  delete legacy.contingency.trigger_concept_ids;
+  legacy.differential.concept_ids = ["differential_ectopic"];
+  legacy.differential.stated = true;
+
+  const merged = mergeReasoningState(
+    legacy,
+    normalizeReasoningDelta({ management: { plan_stated: true } }),
+    2
+  ).state;
+
+  assert.deepEqual(
+    merged.differential.items.map((item) => item.concept_id),
+    ["differential_ectopic"],
+    "the older shape is rebuilt, not thrown away"
+  );
+  assert.deepEqual(merged.contingency.trigger_concept_ids, []);
+});
+
+// --- 12.2d the quote guard ------------------------------------------------
+
+const LEARNER_MESSAGE =
+  "Женщина репродуктивного возраста, 12 часов мигрирующей боли с локальным " +
+  "перитонизмом справа внизу, гемодинамически стабильна. Наиболее вероятен " +
+  "аппендицит: миграция боли и перитонизм за него. Против — беременность пока " +
+  "не исключена, поэтому нужен ХГЧ. Если ХГЧ положительный, зову гинеколога.";
+
+test("a quote is kept only when the learner actually wrote it", () => {
+  const delta = normalizeReasoningDelta(
+    {
+      problem_representation_verbatim: "12 часов мигрирующей боли с локальным перитонизмом",
+      differential: {
+        stated: true,
+        items: [
+          {
+            concept_id: "diagnosis_acute_appendicitis",
+            rank: 1,
+            evidence_for: ["миграция боли и перитонизм за него"],
+            evidence_against: ["беременность пока не исключена"],
+          },
+        ],
+      },
+      test_reasoning: [{ concept_id: "pregnancy_test", justification: "нужен ХГЧ" }],
+    },
+    {
+      allowedConceptIds: new Set(["diagnosis_acute_appendicitis", "pregnancy_test"]),
+      learnerText: LEARNER_MESSAGE,
+    }
+  );
+
+  assert.equal(
+    delta.problem_representation.verbatim,
+    "12 часов мигрирующей боли с локальным перитонизмом"
+  );
+  assert.equal(delta.problem_representation.stated, true, "a surviving quote proves the summary");
+  assert.deepEqual(delta.differential.items[0].evidence_for, ["миграция боли и перитонизм за него"]);
+  assert.deepEqual(delta.differential.items[0].evidence_against, ["беременность пока не исключена"]);
+  assert.equal(delta.investigations[0].justification, "нужен ХГЧ");
+  assert.ok(reasoningFlags(mergeReasoningState(null, delta, 1).state).has("investigation_justified"));
+});
+
+test("a paraphrase or an invented quote is discarded, not stored", () => {
+  const delta = normalizeReasoningDelta(
+    {
+      // A summary of what the learner said, in the model's own words.
+      problem_representation_verbatim:
+        "The learner summarised a stable woman with migratory right lower quadrant pain",
+      differential: {
+        items: [
+          {
+            concept_id: "diagnosis_acute_appendicitis",
+            // Plausible, clinically sensible, and never typed by the learner.
+            evidence_for: ["лейкоцитоз 13,8 и температура 37,8"],
+            evidence_against: ["беременность пока не исключена"],
+          },
+        ],
+      },
+      test_reasoning: [
+        { concept_id: "pregnancy_test", justification: "чтобы исключить внематочную беременность" },
+      ],
+    },
+    {
+      allowedConceptIds: new Set(["diagnosis_acute_appendicitis", "pregnancy_test"]),
+      learnerText: LEARNER_MESSAGE,
+    }
+  );
+
+  assert.equal(delta.problem_representation.verbatim, null);
+  assert.equal(delta.problem_representation.stated, false);
+  assert.deepEqual(
+    delta.differential.items[0].evidence_for,
+    [],
+    "a fabricated finding must never reach a field the mentor may quote"
+  );
+  // The one line that really was written survives, so the guard filters rather
+  // than discarding the whole payload.
+  assert.deepEqual(delta.differential.items[0].evidence_against, ["беременность пока не исключена"]);
+  assert.equal(delta.investigations[0].justification, null);
+});
+
+test("quoting tolerates case and spacing but not rewriting", () => {
+  const options = { allowedConceptIds: new Set(["pregnancy_test"]), learnerText: LEARNER_MESSAGE };
+
+  const folded = normalizeReasoningDelta(
+    { problem_representation_verbatim: "  ГЕМОДИНАМИЧЕСКИ   стабильна  " },
+    options
+  );
+  assert.equal(folded.problem_representation.verbatim, "ГЕМОДИНАМИЧЕСКИ   стабильна");
+
+  const reordered = normalizeReasoningDelta(
+    { problem_representation_verbatim: "стабильна гемодинамически" },
+    options
+  );
+  assert.equal(reordered.problem_representation.verbatim, null, "reordered words are not a quote");
+});
+
+test("a trigger the learner phrased without naming a test still survives as their words", () => {
+  const text = "наблюдаю, но если появится напряжение всего живота — иду в операционную";
+  const delta = normalizeReasoningDelta(
+    { contingency: { trigger_verbatim: ["если появится напряжение всего живота"] } },
+    { allowedConceptIds: new Set(["pregnancy_test"]), learnerText: text }
+  );
+
+  assert.deepEqual(delta.contingency.trigger_concept_ids, [], "no investigation was named");
+  assert.deepEqual(delta.contingency.trigger_verbatim, ["если появится напряжение всего живота"]);
+  assert.equal(delta.contingency.stated, true);
+  assert.ok(reasoningFlags(mergeReasoningState(null, delta, 1).state).has("contingency_trigger_named"));
+});
+
+test("a re-summarised patient supersedes the earlier formulation", () => {
+  const first = mergeReasoningState(
+    null,
+    normalizeReasoningDelta(
+      { problem_representation_verbatim: "боль справа внизу" },
+      { learnerText: "боль справа внизу" }
+    ),
+    1
+  ).state;
+  const second = mergeReasoningState(
+    first,
+    normalizeReasoningDelta(
+      { problem_representation_verbatim: "стабильная пациентка с локальным перитонизмом" },
+      { learnerText: "теперь скажу иначе: стабильная пациентка с локальным перитонизмом" }
+    ),
+    5
+  ).state;
+
+  assert.equal(second.problem_representation.verbatim, "стабильная пациентка с локальным перитонизмом");
+  assert.equal(second.problem_representation.updated_turn, 5);
+});
+
+// --- 12.2c trajectory -----------------------------------------------------
+
+test("the trajectory records when each piece of reasoning first appeared", async () => {
+  const { session } = await playV3([
+    "анамнез",
+    "осмотр живота",
+    "рабочий диагноз — острый аппендицит",
+  ]);
+  const trajectory = reasoningTrajectory(session.eventLog);
+
+  assert.ok(trajectory instanceof Map);
+  for (const turn of trajectory.values()) {
+    assert.ok(Number.isFinite(turn) && turn >= 1, "every entry names the turn it first appeared");
+  }
+  // Never articulated is absent, and absence is the answer to "what did this
+  // learner never say out loud".
+  assert.equal(trajectory.has("disposition_stated"), false);
+});
+
 // --- 12.3 no-facts invariant ---------------------------------------------
+
+test("the mentor is handed the learner's own words, and never a case-owned fact", () => {
+  // The restated invariant. Previously: the brief carries no patient facts at
+  // all. Now: no CASE-OWNED patient facts, and the learner's own quoted
+  // sentences are allowed - the position ONQOL_NORTH_STAR.md takes, where the
+  // mentor sees the learner's data, actions and argumentation.
+  const learnerText =
+    "стабильная пациентка с локальным перитонизмом справа внизу, думаю на аппендицит";
+  const state = mergeReasoningState(
+    null,
+    normalizeReasoningDelta(
+      {
+        problem_representation_verbatim: "стабильная пациентка с локальным перитонизмом",
+        working_diagnosis: { stated: true, concept_id: "diagnosis_acute_appendicitis" },
+        differential: {
+          stated: true,
+          items: [
+            {
+              concept_id: "diagnosis_acute_appendicitis",
+              rank: 1,
+              evidence_for: ["думаю на аппендицит"],
+            },
+          ],
+        },
+      },
+      { allowedConceptIds: new Set(["diagnosis_acute_appendicitis"]), learnerText }
+    ),
+    1
+  ).state;
+
+  const brief = buildMentorBrief({
+    caseData: v3Case,
+    session: {
+      phase: "decision",
+      locale: "ru",
+      completedActions: ["focused_history", "abdominal_exam"],
+      revealedFindings: [],
+      temporalState: { clockMinutes: 60, status: "stable", flags: [] },
+      workingMemory: { turnNumber: 5, reasoningState: state },
+    },
+    plan: { prerequisiteWarnings: [], parsed: { recognizedButUndefined: [] }, plannerPrompt: "?" },
+    deterministicUpdate: { scoringEvents: [], blockedOperations: [], neutralPrompt: "?" },
+  });
+
+  // The learner's sentence is there, and it is labelled as a claim.
+  assert.equal(brief.learnerReasoning.patient_summary, "стабильная пациентка с локальным перитонизмом");
+  assert.match(brief.learnerReasoning.note, /claims, not verified facts/i);
+
+  // Nothing the case owns is.
+  const serialized = JSON.stringify(brief);
+  for (const group of [v3Case.hidden_findings || {}, v3Case.available_findings || {}]) {
+    for (const [findingId, finding] of Object.entries(group)) {
+      assert.ok(!serialized.includes(finding.text), `brief leaked ${findingId}`);
+    }
+  }
+  assert.equal(brief.containsPatientFacts, false);
+});
+
+test("a learner who has articulated nothing gives the mentor nothing to quote", () => {
+  const brief = buildMentorBrief({
+    caseData: v3Case,
+    session: {
+      phase: "presentation",
+      locale: "ru",
+      completedActions: [],
+      revealedFindings: [],
+      temporalState: { clockMinutes: 0, status: "stable", flags: [] },
+      workingMemory: { turnNumber: 1, reasoningState: createEmptyReasoningState() },
+    },
+    plan: { prerequisiteWarnings: [], parsed: { recognizedButUndefined: [] }, plannerPrompt: "?" },
+    deterministicUpdate: { scoringEvents: [], blockedOperations: [], neutralPrompt: "?" },
+  });
+
+  // Null rather than an empty shell: a mentor handed empty arrays remarks on
+  // the emptiness, which is the heuristics' job.
+  assert.equal(brief.learnerReasoning, null);
+});
 
 test("reasoning state reaches the mentor without carrying a patient fact", () => {
   const session = {
@@ -319,6 +697,133 @@ test("core heuristics name no disease-owned action id", () => {
       assert.ok(coreLibraryIds.has(id), `core heuristic ${heuristic.id} names disease-owned action "${id}"`);
     }
   }
+});
+
+// --- 12.5b reasoning checkpoints -----------------------------------------
+
+const CHECKPOINT_IDS = [
+  "checkpoint_problem_representation",
+  "checkpoint_hypotheses",
+  "checkpoint_what_changes_the_plan",
+];
+
+test("checkpoints ask their question on a disease the core has never heard of", () => {
+  const selected = selectHeuristics({
+    caseData: syntheticCase,
+    session: syntheticSession(createEmptyReasoningState()),
+    attempted: new Set(),
+    heuristics: mentorHeuristics,
+  });
+
+  // A learner six turns in who has articulated nothing gets asked, not scolded.
+  assert.ok(
+    selected.some((heuristic) => CHECKPOINT_IDS.includes(heuristic.id)) ||
+      selected.length === 2,
+    `expected a checkpoint or a full turn of higher-severity moves, got ${JSON.stringify(
+      selected.map((h) => h.id)
+    )}`
+  );
+  assert.equal(JSON.stringify(selected).includes("appendicit"), false);
+});
+
+test("a checkpoint stays quiet once the learner has done the thing it would ask for", () => {
+  const articulated = mergeReasoningState(
+    null,
+    normalizeReasoningDelta(
+      {
+        problem_representation_stated: true,
+        working_diagnosis: { stated: true, concept_id: "generic_diagnosis" },
+        differential: {
+          stated: true,
+          items: [
+            { concept_id: "generic_diagnosis", rank: 1 },
+            { concept_id: "generic_alternative", rank: 2, dangerous: true },
+          ],
+        },
+        contingency: { stated: true, trigger_concept_ids: ["generic_test"] },
+      },
+      {
+        allowedConceptIds: new Set(["generic_diagnosis", "generic_alternative", "generic_test"]),
+      }
+    ),
+    1
+  ).state;
+
+  // Late enough in the case that all three checkpoints are otherwise eligible.
+  const selected = selectHeuristics({
+    caseData: syntheticCase,
+    session: syntheticSession(articulated, {
+      temporalState: { clockMinutes: 180, status: "stable", flags: [] },
+      workingMemory: { turnNumber: 9, reasoningState: articulated },
+    }),
+    attempted: new Set(),
+    heuristics: mentorHeuristics,
+  });
+
+  for (const heuristic of selected) {
+    assert.ok(
+      !CHECKPOINT_IDS.includes(heuristic.id),
+      `${heuristic.id} asked for something the learner already articulated`
+    );
+  }
+});
+
+test("a checkpoint does not break a silence caused by no work having happened", () => {
+  // The mentor was deliberately allowed to stay silent in V3.1. A checkpoint
+  // gated only on turn count would have reintroduced "always something to say"
+  // through the back door: three messages of "не знаю" are not clinical work.
+  const idle = selectHeuristics({
+    caseData: syntheticCase,
+    session: syntheticSession(createEmptyReasoningState(), {
+      completedActions: [],
+      temporalState: { clockMinutes: 0, status: "stable", flags: [] },
+      workingMemory: { turnNumber: 9, reasoningState: createEmptyReasoningState() },
+    }),
+    attempted: new Set(),
+    heuristics: mentorHeuristics,
+  });
+
+  assert.deepEqual(
+    idle.filter((heuristic) => CHECKPOINT_IDS.includes(heuristic.id)).map((h) => h.id),
+    []
+  );
+});
+
+test("a checkpoint never outranks a real clinical finding", () => {
+  // Severity orders the mentor's mouth. Nothing about a checkpoint may push a
+  // safety or omission move out of the two available slots.
+  const checkpoints = mentorHeuristics.filter((h) => CHECKPOINT_IDS.includes(h.id));
+  assert.equal(checkpoints.length, CHECKPOINT_IDS.length);
+
+  for (const checkpoint of checkpoints) {
+    assert.equal(checkpoint.type, "checkpoint");
+    assert.equal(checkpoint.severity, 1, "checkpoints sit at MINOR_GAP so real moves win");
+    assert.equal(checkpoint.eligible_for_scoring, false);
+    assert.deepEqual(checkpoint.when.attempted, undefined, "a checkpoint names no action id");
+    assert.deepEqual(checkpoint.when.completed, undefined);
+    assert.deepEqual(checkpoint.when.not_completed, undefined);
+  }
+});
+
+test("each checkpoint speaks once per session", () => {
+  const session = syntheticSession(createEmptyReasoningState());
+  const first = selectHeuristics({
+    caseData: syntheticCase,
+    session,
+    attempted: new Set(),
+    heuristics: mentorHeuristics,
+  });
+  const firstCheckpoint = first.find((heuristic) => CHECKPOINT_IDS.includes(heuristic.id));
+  if (!firstCheckpoint) return; // outranked this turn; nothing to assert
+
+  const again = selectHeuristics({
+    caseData: syntheticCase,
+    session,
+    attempted: new Set(),
+    alreadyFired: [firedKey(firstCheckpoint, { status: "stable" })],
+    heuristics: mentorHeuristics,
+  });
+  assert.ok(!again.some((heuristic) => heuristic.id === firstCheckpoint.id));
 });
 
 // --- 12.6 CT rule regression ---------------------------------------------

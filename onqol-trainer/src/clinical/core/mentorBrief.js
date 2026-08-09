@@ -6,9 +6,17 @@ import { firedKey, selectHeuristics } from "./mentorHeuristics.js";
  * on this turn.
  *
  * This is the whole safety argument for letting the mentor speak freely. The
- * brief contains action ids, verdicts and authored template text - and no
- * patient facts at all. The mentor agent receives the brief and nothing else,
- * so it cannot leak a finding it was never given, however badly it behaves.
+ * brief contains action ids, verdicts, authored template text - and no
+ * CASE-OWNED patient facts. The mentor agent receives the brief and nothing
+ * else, so it cannot leak a finding it was never given, however badly it
+ * behaves.
+ *
+ * It does carry `learnerReasoning`: sentences the learner wrote themselves,
+ * quoted exactly and checked against their message before they got here (see
+ * core/reasoningState.js). Those are claims the learner has already made out
+ * loud, so repeating one back cannot tell them anything they did not know, and
+ * being able to quote a learner's own formulation is most of what supervision
+ * is. The mentor prompt is told to question them and never to endorse them.
  *
  * Compare with the patient/environment channel (`simulatorAgent.js`), which
  * does see the Case Card and is therefore restricted to copying locked text.
@@ -28,6 +36,9 @@ export const MENTOR_MOVE = {
   SEQUENCE_INVERTED: "sequence_inverted",
   OUTSTANDING_PRIORITY: "outstanding_priority",
   CLOCK: "clock",
+  // A question asked because reasoning should be made visible at this point in
+  // the case, not because anything is wrong. See mentorHeuristics.js.
+  CHECKPOINT: "checkpoint",
 };
 
 const ESCALATION_ACTION_IDS = ["call_senior_surgeon", "call_intensive_care"];
@@ -122,6 +133,55 @@ function evidenceFor(caseData, actionId) {
       recommendation: reference.recommendation,
       provenance: reference.provenance,
     }));
+}
+
+/**
+ * The learner's own sentences, pulled out of Reasoning State for the mentor.
+ *
+ * Every string here was checked against the learner's message before it was
+ * stored, so this function only reads. Empty sections are dropped rather than
+ * sent as empty arrays: a mentor handed `{evidence_against: []}` tends to
+ * remark on the emptiness, which is the heuristics' job, not the prompt's.
+ */
+function learnerReasoning(state) {
+  if (!state) return null;
+  const summary = state.problem_representation?.verbatim || null;
+  // A hypothesis is worth showing when the learner said anything about it at
+  // all: argued it, ordered it, or flagged it as the one not to miss. Dropping
+  // "внематочную исключить нельзя" because it came without an argument would
+  // hide the single most useful thing the learner said - and a diagnosis name
+  // is a concept id, not a patient fact.
+  const hypotheses = (state.differential?.items || [])
+    .filter(
+      (item) =>
+        (item.evidence_for || []).length ||
+        (item.evidence_against || []).length ||
+        item.dangerous ||
+        item.rank !== null
+    )
+    .map((item) => ({
+      concept_id: item.concept_id,
+      rank: item.rank,
+      dangerous: item.dangerous,
+      said_for: item.evidence_for || [],
+      said_against: item.evidence_against || [],
+    }));
+  const investigations = (state.investigations?.items || [])
+    .filter((item) => item.justification)
+    .map((item) => ({ action_id: item.action_id, said_why: item.justification }));
+  const changesThePlan = state.contingency?.trigger_verbatim || [];
+
+  if (!summary && !hypotheses.length && !investigations.length && !changesThePlan.length) {
+    return null;
+  }
+  return {
+    note:
+      "Quoted from the learner's own messages. These are their claims, not verified facts about the patient.",
+    ...(summary ? { patient_summary: summary } : {}),
+    ...(hypotheses.length ? { hypotheses } : {}),
+    ...(investigations.length ? { investigations } : {}),
+    ...(changesThePlan.length ? { would_change_the_plan: changesThePlan } : {}),
+  };
 }
 
 /**
@@ -290,6 +350,7 @@ export function buildMentorBrief({
   return {
     moves,
     justPerformed,
+    learnerReasoning: learnerReasoning(session.workingMemory?.reasoningState),
     silent,
     // The engine folds these into working memory so a heuristic speaks once per
     // session. A supervisor who repeats the same remark every turn stops being

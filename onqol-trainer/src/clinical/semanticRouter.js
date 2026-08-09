@@ -80,6 +80,17 @@ export function buildSemanticRouterPrompt({ input, caseData, session, locale = "
       "Do not infer a test rationale merely because the rationale would be medically obvious.",
       "Do not infer a dangerous alternative unless the learner names it or clearly frames something as needing to be excluded.",
       "Do not infer a contingency plan from generic words such as \"наблюдаем\" - a contingency needs a stated trigger for changing course.",
+      "",
+      "HYPOTHESES. List one entry in `differential.items` per diagnosis the learner names, including the one they lead with.",
+      "Set `rank` only when the learner orders them - by number, by wording (\"наиболее вероятен\", \"менее вероятно\", \"в первую очередь думаю о\"), or by explicit comparison. Leave rank null for an unordered list.",
+      "Set `dangerous` only on a hypothesis the learner themselves frames as the one that must not be missed. Do not mark something dangerous because you know it is.",
+      "CONTINGENCY TRIGGERS. `contingency.trigger_concept_ids` lists investigations whose RESULT the learner says would change the plan (\"если ХГЧ положительный - меняю тактику\" gives the pregnancy test concept).",
+      "Record the investigation only. Never record the imagined result, and never record a trigger phrased as a change in the patient rather than as a test.",
+      "",
+      "QUOTES. Fields ending in `_verbatim`, plus `evidence_for`, `evidence_against` and `justification`, must contain text COPIED EXACTLY from raw_user_text.",
+      "Copy a contiguous span, character for character. Do not translate, summarise, correct spelling, complete a sentence, merge two spans, or write your own description of what the learner said.",
+      "A quote that is not an exact span of raw_user_text is discarded by the caller, so an approximation is worth nothing - return null or an empty list instead.",
+      "Quote the shortest span that carries the thought. If the learner did not say the thing, there is no quote: return null.",
       "Reasoning fields never create an action. If the learner discusses a test without requesting it, that belongs in reasoning only.",
       "When uncertain, return false or null. A guess here is worse than a gap.",
     ].join("\n"),
@@ -114,6 +125,8 @@ export function buildSemanticRouterPrompt({ input, caseData, session, locale = "
           reasoning: {
             stability: { stated: "boolean", learner_assessment: "stable | unstable | uncertain | null" },
             problem_representation_stated: "boolean",
+            problem_representation_verbatim:
+              "exact span of raw_user_text where the learner summarises the patient, else null",
             working_diagnosis: {
               stated: "boolean",
               concept_id: "allowed_concept_id | null",
@@ -123,13 +136,23 @@ export function buildSemanticRouterPrompt({ input, caseData, session, locale = "
               stated: "boolean",
               ranked: "boolean",
               has_dangerous_alternative: "boolean",
-              concept_ids: [],
+              items: [
+                {
+                  concept_id: "allowed_concept_id",
+                  rank: "integer >= 1 when the learner ordered the hypotheses, else null",
+                  dangerous: "boolean - the learner calls this the one not to miss",
+                  evidence_for: ["exact spans of raw_user_text arguing for this hypothesis"],
+                  evidence_against: ["exact spans of raw_user_text arguing against it"],
+                },
+              ],
             },
             test_reasoning: [
               {
                 concept_id: "allowed_concept_id",
                 purpose_stated: "boolean",
                 management_consequence_stated: "boolean",
+                justification:
+                  "exact span of raw_user_text saying why this investigation is wanted, else null",
               },
             ],
             management: {
@@ -144,7 +167,13 @@ export function buildSemanticRouterPrompt({ input, caseData, session, locale = "
               escalation_criteria_stated: "boolean",
             },
             reassessment_stated: "boolean",
-            contingency_stated: "boolean",
+            contingency: {
+              stated: "boolean",
+              trigger_concept_ids: [],
+              trigger_verbatim: [
+                "exact spans of raw_user_text saying what would change the plan, including triggers that name no investigation",
+              ],
+            },
             disposition: {
               stated: "boolean",
               destination: DISPOSITION_DESTINATIONS.join(" | ") + " | null",
@@ -231,6 +260,10 @@ export function validateRouterOutput(routerPayload, caseData, options = {}) {
   try {
     reasoning = normalizeReasoningDelta(parsed.reasoning, {
       allowedConceptIds: new Set([...allowed.keys(), ...Object.keys(conceptMap)]),
+      // Quotes are checked against the message the learner actually sent. See
+      // verbatimOrNull: without this a model could write anything into a field
+      // the mentor is allowed to quote back.
+      learnerText: options.learnerText,
     });
   } catch {
     reasoning = null;
@@ -269,7 +302,7 @@ export async function routeUserInput(input, caseData, session, options = {}) {
 
   const prompt = buildSemanticRouterPrompt({ input, caseData, session, locale, conceptMap });
   const routerPayload = await llm(prompt);
-  return validateRouterOutput(routerPayload, caseData, { conceptMap });
+  return validateRouterOutput(routerPayload, caseData, { conceptMap, learnerText: input });
 }
 
 export function createAnthropicBrowserClient({
