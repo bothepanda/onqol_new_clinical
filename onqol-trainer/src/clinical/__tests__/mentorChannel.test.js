@@ -581,3 +581,60 @@ test("a gendered model reply falls back to the neutral authored text", async () 
   const validation = validateMentorText(result.text, caseData, []);
   assert.ok(validation.ok);
 });
+
+// --- what already happened this turn --------------------------------------
+
+test("the brief names what was just performed, without its results", () => {
+  const brief = buildMentorBrief({
+    caseData,
+    session: session({ completedActions: ["focused_history", "abdominal_exam"] }),
+    plan: plan(),
+    deterministicUpdate: update({
+      scoringEvents: [{ action_id: "focused_history" }, { action_id: "abdominal_exam" }],
+      findingsRevealed: ["focused_history", "abdominal_exam"],
+    }),
+  });
+
+  assert.deepEqual(
+    brief.justPerformed.map((entry) => entry.action_id).sort(),
+    ["abdominal_exam", "focused_history"]
+  );
+  assert.ok(brief.justPerformed.every((entry) => entry.concept));
+  assert.equal(brief.resultsAlreadyDelivered, true);
+
+  // Names, not findings: the no-facts invariant must still hold.
+  const serialized = JSON.stringify(brief);
+  for (const finding of Object.values(caseData.available_findings)) {
+    assert.ok(!serialized.includes(finding.text));
+  }
+});
+
+test("the mentor prompt states that those actions are already answered", () => {
+  const brief = buildMentorBrief({
+    caseData,
+    session: session(),
+    plan: plan(),
+    deterministicUpdate: update({
+      scoringEvents: [{ action_id: "abdominal_exam" }],
+      findingsRevealed: ["abdominal_exam"],
+    }),
+  });
+  const prompt = buildMentorPrompt({ brief, learnerText: "физикальный осмотр и анамнез" });
+
+  assert.match(prompt.system, /just_performed/);
+  assert.match(prompt.system, /Never instruct the learner to do something listed in just_performed/);
+  assert.match(prompt.user, /"just_performed"/);
+  assert.match(prompt.user, /abdominal_exam/);
+  assert.match(prompt.user, /"results_already_delivered": true/);
+});
+
+test("a turn with nothing performed reports an empty just_performed", () => {
+  const brief = buildMentorBrief({
+    caseData,
+    session: session(),
+    plan: plan(),
+    deterministicUpdate: update(),
+  });
+  assert.deepEqual(brief.justPerformed, []);
+  assert.equal(brief.resultsAlreadyDelivered, false);
+});

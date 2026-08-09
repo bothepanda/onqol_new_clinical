@@ -93,13 +93,17 @@ function escalationVerdict(caseData, session, actionId, override) {
   return { appropriate: missing.length === 0, missing, policy, barDeclared: true };
 }
 
-function evidenceFor(caseData, actionId) {
-  const action = [
+function getCaseAction(caseData, actionId) {
+  return [
     ...(caseData.expected_actions || []),
     ...(caseData.acceptable_alternatives || []),
     ...(caseData.unnecessary_actions || []),
     ...(caseData.unsafe_actions || []),
   ].find((candidate) => candidate.id === actionId);
+}
+
+function evidenceFor(caseData, actionId) {
+  const action = getCaseAction(caseData, actionId);
   const ids = action?.evidence_reference_ids || [];
   return (caseData.references || [])
     .filter((reference) => ids.includes(reference.id))
@@ -230,8 +234,26 @@ export function buildMentorBrief({
     });
   }
 
+  // What the deterministic layer already did this turn, by name only.
+  //
+  // Without this the mentor sees the learner's message and a bare "что дальше?"
+  // and reconstructs the rest: asked for an examination, so it answers "начинай
+  // с осмотра" - telling the learner to do the very thing whose results are
+  // printed directly above the mentor's own reply.
+  //
+  // Concept labels are action metadata, not patient data, so naming them here
+  // does not weaken the no-facts invariant.
+  const justPerformed = [...performed]
+    .map((actionId) => {
+      const action = getCaseAction(caseData, actionId);
+      return action ? { action_id: actionId, concept: action.concept || actionId } : null;
+    })
+    .filter(Boolean);
+
   return {
     moves,
+    justPerformed,
+    resultsAlreadyDelivered: (deterministicUpdate.findingsRevealed || []).length > 0,
     // Invariant asserted by tests: the brief carries verdicts, not findings.
     containsPatientFacts: false,
     turnNumber: session.workingMemory?.turnNumber || 0,

@@ -108,6 +108,10 @@ export function buildMentorPrompt({ brief, learnerText, locale = "ru" }) {
       "",
       "You MUST NOT: state or confirm a diagnosis, say whether the learner's diagnosis is right or wrong, announce the expected clinical decision, invent or mention any patient finding, vital sign, laboratory value or examination result, or give a score.",
       "You MUST NOT introduce clinical facts that are not in the brief. If the brief does not support a statement, do not make it.",
+      "",
+      "WHAT ALREADY HAPPENED. The application prints the patient and environment response ABOVE your reply. Everything in brief.just_performed has already been carried out this turn and its results are already on the learner's screen.",
+      "Never instruct the learner to do something listed in just_performed, and never suggest starting it. \"Начинай с осмотра\" after the examination has been performed is wrong and confusing.",
+      "Treat those actions as done. Acknowledge them briefly if it helps, then move the reasoning to what comes next.",
       "Every clinical claim you make must be traceable to a brief move or its attached evidence.",
       "",
       "Speak Russian unless the locale says otherwise. Address the learner informally, as a senior colleague would. Be brief: two to four sentences.",
@@ -125,6 +129,10 @@ export function buildMentorPrompt({ brief, learnerText, locale = "ru" }) {
         brief: {
           turn_number: brief.turnNumber,
           phase: brief.phase,
+          // Action names only - never their results. Tells the mentor what the
+          // deterministic layer has already answered above its reply.
+          just_performed: brief.justPerformed || [],
+          results_already_delivered: Boolean(brief.resultsAlreadyDelivered),
           moves: brief.moves.map((move) => ({
             type: move.type,
             authored_text: move.template,
