@@ -68,15 +68,22 @@ export const TRAJECTORY_IDS = Object.freeze([
 /**
  * Kazakhstan resource profiles, addendum 10.
  *
- * Ids only at this stage. Wiring them onto the existing facility templates in
- * v25/scenarioEngine.js is separate work: the code today speaks a third
- * vocabulary (limited/enhanced/maximal), master plan 13.3 keeps four capability
- * levels, and reconciling three vocabularies is its own change.
+ * DECLARED, NOT IN FORCE. Nothing in the running session reads these: the
+ * facility a learner actually meets still comes from v25/scenarioEngine.js,
+ * which speaks its own vocabulary (limited/enhanced/maximal) and picks its own
+ * template from the session seed.
  *
- * A resource profile decides what help is AVAILABLE. It never touches the
- * patient's hidden physiology; a test asserts this.
+ * The field is therefore named `declared_resource_profile_id` everywhere it
+ * appears, so a snapshot cannot be read as a record of the profile that was in
+ * effect. Wiring the two together is separate work: master plan 13.3 keeps four
+ * capability levels, the addendum names three Kazakhstan profiles, and the code
+ * has a fifth vocabulary - reconciling three vocabularies is its own change.
+ *
+ * When it is wired, a resource profile will decide what help is AVAILABLE and
+ * still never touch the patient's hidden physiology; a test asserts the latter
+ * already.
  */
-export const RESOURCE_PROFILE_IDS = Object.freeze([
+export const DECLARED_RESOURCE_PROFILE_IDS = Object.freeze([
   "KZ-R1-DISTRICT",
   "KZ-R2-URBAN",
   "KZ-R3-TERTIARY",
@@ -197,7 +204,10 @@ export const PHYSIOLOGY_ENVELOPES = Object.freeze({
     neutrophil_percent: range(65, 90),
     crp: range(2, 140),
     derived_from: "union of authored ranges for early_subtle, classic, pelvic, retrocecal",
-    clinical_review_status: "reviewed_provisional",
+    // The individual per-phenotype ranges were authored; this union of them was
+    // not, and the CRP-over-time gradient it produces is explicitly unvalidated
+    // (see early_subtle.review_flag). Pending, not reviewed_provisional.
+    clinical_review_status: "pending",
   }),
   complicated: Object.freeze({
     applies_to_morphologies: ["abscess", "gangrene_necrosis", "perforation", "diffuse_peritonitis"],
@@ -368,7 +378,7 @@ export const PHENOTYPES = Object.freeze({
  * @property {string} morphology            the disease truth this preset carries
  * @property {string[]} population_modifier_ids
  * @property {string} trajectory_id
- * @property {string} resource_profile_id
+ * @property {string} declared_resource_profile_id  not in force; see above
  * @property {string} runtime_status        learner_active | faculty_preview
  */
 export const CASE_PRESETS = Object.freeze([
@@ -382,7 +392,7 @@ export const CASE_PRESETS = Object.freeze([
     population_modifier_ids: [],
     compatible_modifier_ids: ["MOD-PREGNANCY-POSSIBLE"],
     trajectory_id: "TRJ-SERIAL-EVOLUTION",
-    resource_profile_id: "KZ-R1-DISTRICT",
+    declared_resource_profile_id: "KZ-R1-DISTRICT",
     runtime_status: "learner_active",
     key_skill_ru:
       "Не закрывать диагноз преждевременно, построить active observation и timed reassessment",
@@ -396,7 +406,7 @@ export const CASE_PRESETS = Object.freeze([
     // plan says it belongs.
     population_modifier_ids: ["MOD-PREGNANCY-POSSIBLE"],
     trajectory_id: "TRJ-STABLE",
-    resource_profile_id: "KZ-R1-DISTRICT",
+    declared_resource_profile_id: "KZ-R1-DISTRICT",
     runtime_status: "learner_active",
     first_vertical_build: true,
     key_skill_ru:
@@ -412,7 +422,7 @@ export const CASE_PRESETS = Object.freeze([
     population_modifier_ids: [],
     compatible_modifier_ids: ["MOD-PREGNANCY-POSSIBLE"],
     trajectory_id: "TRJ-SERIAL-EVOLUTION",
-    resource_profile_id: "KZ-R2-URBAN",
+    declared_resource_profile_id: "KZ-R2-URBAN",
     runtime_status: "learner_active",
     key_skill_ru:
       "Не закрепиться на урологическом или гинекологическом дистракторе, обновлять differential",
@@ -425,7 +435,7 @@ export const CASE_PRESETS = Object.freeze([
     population_modifier_ids: [],
     compatible_modifier_ids: ["MOD-PREGNANCY-POSSIBLE"],
     trajectory_id: "TRJ-STABLE",
-    resource_profile_id: "KZ-R1-DISTRICT",
+    declared_resource_profile_id: "KZ-R1-DISTRICT",
     runtime_status: "learner_active",
     key_skill_ru:
       "Понимать ограничения осмотра и УЗИ, выбирать КТ, наблюдение или безопасный маршрут",
@@ -438,7 +448,7 @@ export const CASE_PRESETS = Object.freeze([
     population_modifier_ids: [],
     compatible_modifier_ids: ["MOD-PREGNANCY-POSSIBLE"],
     trajectory_id: "TRJ-SEPTIC-SHOCK",
-    resource_profile_id: "KZ-R3-TERTIARY",
+    declared_resource_profile_id: "KZ-R3-TERTIARY",
     runtime_status: "faculty_preview",
     inactivity_reason_ru:
       "Движок нестабильного пациента не реализован: физиология ответа на лечение отсутствует, поэтому правильные действия резидента не изменили бы состояние. Клинические правила септического пути не проходили review.",

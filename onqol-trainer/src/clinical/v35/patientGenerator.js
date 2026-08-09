@@ -175,8 +175,13 @@ export const LOAD_COMPOSITION = Object.freeze({
   // being numerically identical. NOT an independent draw per variable.
   per_variable_jitter: 0.12,
   target_p5_p95: Object.freeze({ min: 0.15, max: 0.85 }),
-  provenance: "SURGEON_REVIEWED_PROVISIONAL",
-  clinical_review_status: "reviewed_provisional",
+  // The MECHANISM is reviewed: morphology supplies a prior, absolute time and
+  // trajectory shift it, one latent places every variable. The NUMBERS are not -
+  // `time_shift: 0.15` is exactly what produces the unvalidated CRP gradient in
+  // early_subtle.review_flag. Two statuses, because they are two claims.
+  mechanism_review_status: "reviewed_provisional",
+  numeric_parameters_review_status: "pending",
+  clinical_review_status: "pending",
   eligible_for_scoring: false,
 });
 
@@ -652,7 +657,9 @@ export function generatePatient(casePresetId, seed, options = {}) {
       population_modifier_ids: appliedModifiers.map((modifier) => modifier.modifier_id),
       declared_modifier_ids: [...preset.population_modifier_ids],
       trajectory_id: preset.trajectory_id,
-      resource_profile_id: preset.resource_profile_id,
+      // Declared by the preset, NOT in force this session - the facility
+      // still comes from scenarioEngine. Named so a snapshot cannot be misread.
+      declared_resource_profile_id: preset.declared_resource_profile_id,
       seed,
     }),
     // Hidden truth. Frozen before the session; requesting a test reveals a value

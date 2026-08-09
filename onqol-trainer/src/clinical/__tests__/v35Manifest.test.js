@@ -77,7 +77,7 @@ test("a preset is a composition of layers, not a phenotype", () => {
   assert.deepEqual(preset.population_modifier_ids, ["MOD-PREGNANCY-POSSIBLE"]);
   assert.equal(preset.morphology, "uncomplicated_inflammation");
   assert.equal(preset.trajectory_id, "TRJ-STABLE");
-  assert.ok(preset.resource_profile_id);
+  assert.ok(preset.declared_resource_profile_id, "declared, not in force");
 
   // The phenotype itself knows nothing about reproductive age.
   assert.equal(JSON.stringify(PHENOTYPES.classic).includes("репродуктив"), false);
@@ -733,6 +733,72 @@ test("readiness reports a valid manifest and V3.5 as not yet done", () => {
   assert.equal(readiness.engine_wired, false);
   assert.ok(readiness.blocking_for_done.length > 0);
   assert.deepEqual(readiness.faculty_preview_presets, ["APP-005"]);
+});
+
+test("end to end: effective_seed + content_version + preset rebuild the case exactly", () => {
+  // What a reported session must be reconstructible from. Everything a reviewer
+  // has is the frozen snapshot; if these three fields are not sufficient, a
+  // pilot finding cannot be reproduced and is worth nothing.
+  for (const presetId of ["APP-001", "APP-002", "APP-003", "APP-004"]) {
+    const first = buildV35Case({ seed: `e2e-${presetId}`, requestedPresetId: presetId });
+    const snapshot = first.caseData.v35_composition;
+
+    // Rebuild from the snapshot alone.
+    const rebuilt = buildV35Case({
+      seed: snapshot.effective_seed,
+      requestedPresetId: snapshot.case_preset_id,
+    });
+
+    assert.equal(rebuilt.caseData.v35_composition.content_version, snapshot.content_version);
+    assert.equal(rebuilt.caseData.v35_composition.content_version, V35_CONTENT_VERSION);
+
+    // The patient, byte for byte.
+    assert.deepEqual(rebuilt.patient, first.patient, `${presetId}: пациент не воспроизвёлся`);
+    // The text the learner reads.
+    assert.equal(
+      rebuilt.caseData.initial_presentation.text,
+      first.caseData.initial_presentation.text,
+      `${presetId}: передача не воспроизвелась`
+    );
+    // And the frozen composition itself.
+    assert.deepEqual(rebuilt.caseData.v35_composition, snapshot, `${presetId}: снимок не совпал`);
+
+    // The findings the learner would be shown are the same too - a patient that
+    // reproduces but whose results do not is not a reproduced case.
+    assert.deepEqual(
+      rebuilt.caseData.available_findings,
+      first.caseData.available_findings,
+      `${presetId}: находки не совпали`
+    );
+
+    // The snapshot carries the hidden fields that cannot be recomputed.
+    assert.ok(Number.isFinite(snapshot.physiologic_reserve));
+    assert.ok(Number.isFinite(snapshot.inflammatory_burden));
+    assert.ok(Number.isFinite(snapshot.organ_dysfunction));
+  }
+});
+
+test("the declared resource profile is not passed off as the session's facility", () => {
+  // Nothing in the running session reads it: the facility still comes from
+  // scenarioEngine. The name says so, so a snapshot cannot be misread.
+  const { caseData } = buildV35Case({ seed: "resource-naming" });
+  assert.ok(caseData.v35_composition.declared_resource_profile_id);
+  assert.equal(caseData.v35_composition.resource_profile_id, undefined);
+  for (const preset of CASE_PRESETS) {
+    assert.ok(preset.declared_resource_profile_id);
+    assert.equal(preset.resource_profile_id, undefined);
+  }
+});
+
+test("unvalidated numbers are pending, and say which part was reviewed", () => {
+  // The mechanism was reviewed; the numbers that produce the unvalidated CRP
+  // gradient were not. Two statuses, because they are two claims.
+  assert.equal(LOAD_COMPOSITION.mechanism_review_status, "reviewed_provisional");
+  assert.equal(LOAD_COMPOSITION.numeric_parameters_review_status, "pending");
+  assert.equal(LOAD_COMPOSITION.clinical_review_status, "pending");
+  assert.equal(physiologyEnvelopeFor("uncomplicated_inflammation").clinical_review_status, "pending");
+  assert.equal(PHYSIOLOGIC_RESERVE.clinical_review_status, "pending");
+  assert.equal(MORPHOLOGY_PROFILES.clinical_review_status, "pending");
 });
 
 test("the manifest declares a content version, not just a label", () => {

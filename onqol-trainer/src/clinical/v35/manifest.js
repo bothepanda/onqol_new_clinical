@@ -24,7 +24,7 @@ import {
   COHERENCE_RULES,
   PHENOTYPES,
   PHENOTYPE_IDS,
-  RESOURCE_PROFILE_IDS,
+  DECLARED_RESOURCE_PROFILE_IDS,
   TRAJECTORY_IDS,
   V35_MODIFIERS,
   learnerSelectablePresets,
@@ -36,7 +36,7 @@ import { PATH_STATES, PATH_STATE_IDS, STABLE_PATH, pathStatesById } from "./path
 import { ACTION_CONTRACTS, contractsById, resolvableActionIds } from "./actionContracts.js";
 import { REASONING_FLAGS } from "../core/reasoningState.js";
 
-export const V35_CONTENT_VERSION = "3.5.1";
+export const V35_CONTENT_VERSION = "3.5.2";
 
 /** The counts addendum 14 requires. Named so a failure says which one. */
 export const REQUIRED_COUNTS = Object.freeze({
@@ -55,7 +55,7 @@ export const v35Manifest = Object.freeze({
   case_presets: CASE_PRESETS,
   modifiers: V35_MODIFIERS,
   trajectories: TRAJECTORY_IDS,
-  resource_profiles: RESOURCE_PROFILE_IDS,
+  declared_resource_profiles: DECLARED_RESOURCE_PROFILE_IDS,
   coherence_rules: COHERENCE_RULES,
   alternative_diseases: ALTERNATIVE_DISEASES,
   path_states: PATH_STATES,
@@ -211,9 +211,9 @@ export function validateV35Manifest(caseData = null) {
     if (!TRAJECTORY_IDS.includes(preset.trajectory_id)) {
       errors.push(`preset "${preset.case_preset_id}" names unknown trajectory "${preset.trajectory_id}"`);
     }
-    if (!RESOURCE_PROFILE_IDS.includes(preset.resource_profile_id)) {
+    if (!DECLARED_RESOURCE_PROFILE_IDS.includes(preset.declared_resource_profile_id)) {
       errors.push(
-        `preset "${preset.case_preset_id}" names unknown resource profile "${preset.resource_profile_id}"`
+        `preset "${preset.case_preset_id}" names unknown declared resource profile "${preset.declared_resource_profile_id}"`
       );
     }
     // The preset's morphology must be one the phenotype can actually carry.
