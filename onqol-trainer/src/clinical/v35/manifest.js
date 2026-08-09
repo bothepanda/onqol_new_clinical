@@ -35,7 +35,7 @@ import { PATH_STATES, PATH_STATE_IDS, STABLE_PATH, pathStatesById } from "./path
 import { ACTION_CONTRACTS, contractsById, resolvableActionIds } from "./actionContracts.js";
 import { REASONING_FLAGS } from "../core/reasoningState.js";
 
-export const V35_CONTENT_VERSION = "3.5.0";
+export const V35_CONTENT_VERSION = "3.5.1";
 
 /** The counts addendum 14 requires. Named so a failure says which one. */
 export const REQUIRED_COUNTS = Object.freeze({
@@ -304,10 +304,9 @@ export function v35Readiness(caseData = null) {
     // The generator runs and produces coherent patients. The engine does not yet
     // consume them: selecting a preset does not change the case the learner
     // plays. Set by the step that wires it, not by declaring the manifest.
-    generator_wired_to_case_factory: false,
+    generator_wired_to_case_factory: true,
     engine_wired: false,
     blocking_for_done: [
-      "generator produces patients, but the case factory still builds one fixed patient from acuteAppendicitis.js",
       "path states are declared and do not drive the engine (temporalPatientModel still uses four coarse phases)",
       "stable path does not reach discharge in the running engine",
       "reasoning snapshots are declared per state but not emitted",

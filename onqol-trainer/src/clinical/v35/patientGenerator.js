@@ -61,30 +61,74 @@ import {
  *
  * Deliberately absent: any term for the phenotype.
  */
-export const LOAD_COMPOSITION = Object.freeze({
-  // Morphology SELECTS A DISTRIBUTION; it does not add a fixed score.
-  //
-  // Surgeon's correction, 09.08.2026, option (г): the authored ranges are HARD
-  // ENVELOPES, not a uniform distribution to be swept. The previous additive
-  // form pinned uncomplicated inflammation at 0.25 and, with time worth at most
-  // another 0.25, made the upper half of every envelope unreachable - CRP 140
-  // in a retrocecal case could not occur at any seed.
-  //
-  // Now each morphology names where its patients sit inside the envelope and how
-  // wide they spread. `centre` is the middle of the distribution, `spread` the
-  // half-width of the triangular core. Extremes remain reachable through the
-  // tails, and stay rare.
-  morphology_distribution: Object.freeze({
-    uncomplicated_inflammation: Object.freeze({ centre: 0.5, spread: 0.5 }),
-    abscess: Object.freeze({ centre: 0.62, spread: 0.38 }),
-    gangrene_necrosis: Object.freeze({ centre: 0.68, spread: 0.32 }),
-    perforation: Object.freeze({ centre: 0.74, spread: 0.26 }),
-    diffuse_peritonitis: Object.freeze({ centre: 0.8, spread: 0.2 }),
+/**
+ * Morphology is a CATEGORICAL TRUTH, not a point on a severity line.
+ *
+ * Surgeon's correction, 09.08.2026: "Абсцесс, перфорация и перитонит не являются
+ * точками одной линейной шкалы." The previous form gave each morphology one
+ * scalar centre (0.5 / 0.62 / 0.74 / 0.8), which asserted that an abscess is 62%
+ * of the way to a peritonitis. It is not; it is a different thing.
+ *
+ * So each morphology names a profile, and the profile carries the latent
+ * variables that actually drive physiology - kept separate because they do not
+ * move together. A walled-off abscess can carry a high inflammatory burden with
+ * no organ dysfunction at all; a diffuse peritonitis is defined by having both.
+ */
+export const MORPHOLOGY_PROFILES = Object.freeze({
+  uncomplicated_inflammation: Object.freeze({
+    morphology: "uncomplicated_inflammation",
+    inflammatory_burden: Object.freeze({ centre: 0.5, spread: 0.5 }),
+    organ_dysfunction: Object.freeze({ possible: false, centre: 0, spread: 0 }),
+    haemodynamic_states: ["stable", "pain_sympathetic"],
   }),
-  // Inflammatory burden also moves with how far through the phenotype's own
-  // onset window the patient is, and with the trajectory. Both SHIFT the centre;
-  // neither replaces the morphology's distribution.
-  time_in_window_shift: 0.15,
+  abscess: Object.freeze({
+    morphology: "abscess",
+    // Contained: high inflammatory burden, patient not failing.
+    inflammatory_burden: Object.freeze({ centre: 0.72, spread: 0.28 }),
+    organ_dysfunction: Object.freeze({ possible: false, centre: 0, spread: 0 }),
+    haemodynamic_states: ["stable", "pain_sympathetic", "compensated"],
+  }),
+  gangrene_necrosis: Object.freeze({
+    morphology: "gangrene_necrosis",
+    inflammatory_burden: Object.freeze({ centre: 0.7, spread: 0.3 }),
+    organ_dysfunction: Object.freeze({ possible: true, centre: 0.2, spread: 0.2 }),
+    haemodynamic_states: ["pain_sympathetic", "compensated"],
+  }),
+  perforation: Object.freeze({
+    morphology: "perforation",
+    inflammatory_burden: Object.freeze({ centre: 0.75, spread: 0.25 }),
+    organ_dysfunction: Object.freeze({ possible: true, centre: 0.35, spread: 0.3 }),
+    haemodynamic_states: ["compensated", "hypovolaemic"],
+  }),
+  diffuse_peritonitis: Object.freeze({
+    morphology: "diffuse_peritonitis",
+    inflammatory_burden: Object.freeze({ centre: 0.8, spread: 0.2 }),
+    organ_dysfunction: Object.freeze({ possible: true, centre: 0.55, spread: 0.35 }),
+    haemodynamic_states: ["compensated", "hypovolaemic", "vasodilatory"],
+  }),
+  provenance: "MECHANISM_REVIEWED_PROFILES_PROVISIONAL",
+  clinical_review_status: "pending",
+  eligible_for_scoring: false,
+});
+
+/**
+ * How the latent state is composed.
+ *
+ * TIME IS ABSOLUTE, NOT RELATIVE TO THE PHENOTYPE.
+ *
+ * It used to be the position inside each phenotype's own onset window, which
+ * erased the difference between a classic case at 13 hours and a retrocecal one
+ * at 13 hours - and then the phenotype's envelope silently put that difference
+ * back. The same fact counted twice, in two places, with no way to see it.
+ *
+ * Hours from onset now drive the burden on one scale shared by every phenotype.
+ * A retrocecal patient who presents later is sicker BECAUSE they presented
+ * later, which anyone can check, rather than because of where the appendix sits.
+ */
+export const LOAD_COMPOSITION = Object.freeze({
+  // Horizon over which time raises the burden; beyond it the term saturates.
+  time_reference_hours: 72,
+  time_shift: 0.15,
   trajectory_shift: Object.freeze({
     "TRJ-STABLE": 0,
     "TRJ-SERIAL-EVOLUTION": 0,
@@ -94,12 +138,10 @@ export const LOAD_COMPOSITION = Object.freeze({
     "TRJ-SEPTIC-SHOCK": 0.15,
     "TRJ-RECURRENCE-READMISSION": 0.05,
   }),
-  // Residual variability only. Every variable is placed by the shared burden;
-  // this is the small remainder that keeps two patients at the same burden from
-  // being numerically identical. It is NOT an independent draw per variable.
+  // Residual variability only. Every variable is placed by the shared latent
+  // state; this is the remainder that stops two patients at the same burden from
+  // being numerically identical. NOT an independent draw per variable.
   per_variable_jitter: 0.12,
-  // Target for the shape: p5-p95 should occupy roughly the central 15-85% of the
-  // envelope, so the edges are rare rather than routine. Asserted by a test.
   target_p5_p95: Object.freeze({ min: 0.15, max: 0.85 }),
   provenance: "SURGEON_REVIEWED_PROVISIONAL",
   clinical_review_status: "reviewed_provisional",
@@ -128,29 +170,44 @@ export const HAEMODYNAMIC_STATES = Object.freeze({
   stable: Object.freeze({
     state_id: "stable",
     pulse_pressure: Object.freeze({ min: 35, max: 50 }),
+    // A state that is defined as stable cannot emit a rate and a pressure that
+    // together mean the opposite. The cap is a property of the STATE, not a trim
+    // of the phenotype envelope: heart rate is placed within what the state and
+    // the drawn pressure allow, instead of being drawn freely and then thrown
+    // away by a validator.
+    max_shock_index: 0.85,
+    min_mean_arterial_pressure: 70,
     allowed_for_presets: ["APP-001", "APP-002", "APP-003", "APP-004"],
   }),
   pain_sympathetic: Object.freeze({
     state_id: "pain_sympathetic",
     pulse_pressure: Object.freeze({ min: 40, max: 60 }),
+    max_shock_index: 0.95,
+    min_mean_arterial_pressure: 68,
     allowed_for_presets: ["APP-001", "APP-002", "APP-003", "APP-004"],
   }),
   // APP-005 only, and not reachable by a learner.
   compensated: Object.freeze({
     state_id: "compensated",
     pulse_pressure: Object.freeze({ min: 30, max: 45 }),
+    max_shock_index: 1.1,
+    min_mean_arterial_pressure: 65,
     allowed_for_presets: ["APP-005"],
   }),
   hypovolaemic: Object.freeze({
     state_id: "hypovolaemic",
     // Narrow: the classic early sign, before the systolic falls.
     pulse_pressure: Object.freeze({ min: 20, max: 35 }),
+    max_shock_index: 1.4,
+    min_mean_arterial_pressure: 55,
     allowed_for_presets: ["APP-005"],
   }),
   vasodilatory: Object.freeze({
     state_id: "vasodilatory",
     // Wide: low diastolic in a vasodilated septic patient.
     pulse_pressure: Object.freeze({ min: 45, max: 70 }),
+    max_shock_index: 1.4,
+    min_mean_arterial_pressure: 55,
     allowed_for_presets: ["APP-005"],
   }),
   provenance: "MECHANISM_REVIEWED_RANGES_UNREVIEWED",
@@ -249,12 +306,18 @@ const LOAD_ROUNDING_SLACK = 10 ** -LOAD_REPORTED_DECIMALS / 2;
  * to a learner. NEEDS_CLINICAL_REVIEW.
  */
 export const INSTABILITY_RULES = Object.freeze({
+  // Hard instability is a pressure failure, and only that.
   hard: Object.freeze({
     systolic_below: 90,
     mean_arterial_pressure_below: 65,
-    shock_index_at_or_above: 1.0,
   }),
   physiologic_mismatch: Object.freeze({
+    // Moved out of `hard` on the surgeon's instruction, 09.08.2026. A shock
+    // index at or above 1 is a signal of possible deterioration - it is not a
+    // definition of shock, and treating it as one labels compensated patients
+    // as shocked (Koch et al., 2019,
+    // https://pmc.ncbi.nlm.nih.gov/articles/PMC6698590/).
+    shock_index_at_or_above: 1.0,
     heart_rate_above: 120,
     // Only a mismatch when nothing in the case accounts for it.
     explained_by_trajectories: ["TRJ-SEPTIC-SHOCK", "TRJ-PROGRESSIVE-DETERIORATION", "TRJ-NONRESPONSE"],
@@ -304,28 +367,45 @@ function at(rangeSpec, position, decimals = 0) {
  * @param {number} params.timeInWindow  0..1, position in the phenotype's window
  * @param {string} params.trajectoryId
  */
-export function physiologicLoad({ morphology, timeInWindow, trajectoryId, draw }) {
-  const distribution = LOAD_COMPOSITION.morphology_distribution[morphology];
-  if (!distribution) {
-    throw new Error(`No burden distribution declared for morphology "${morphology}".`);
-  }
-  const trajectoryShift = LOAD_COMPOSITION.trajectory_shift[trajectoryId] ?? 0;
+export function latentClinicalState({ morphology, hoursFromOnset, trajectoryId, draw }) {
+  const profile = MORPHOLOGY_PROFILES[morphology];
+  if (!profile) throw new Error(`No morphology profile declared for "${morphology}".`);
 
   // Mean of two uniforms: a triangular distribution whose 5th and 95th
-  // percentiles sit at about 0.16 and 0.84 of its width. That is the shape the
-  // surgeon asked for - the central 15-85% of the envelope carries the bulk,
-  // and the edges are reachable but rare.
-  const triangular = (draw() + draw()) / 2;
+  // percentiles sit at about 0.16 and 0.84 of its width. The shape the surgeon
+  // asked for - the central band carries the bulk, edges reachable but rare.
+  const triangular = () => (draw() + draw()) / 2;
 
-  // Time through the phenotype's own window and the trajectory move the centre.
-  // Neither replaces the distribution, so morphology still decides the shape.
-  const centre = clamp01(
-    distribution.centre +
-      (clamp01(timeInWindow) - 0.5) * 2 * LOAD_COMPOSITION.time_in_window_shift +
-      trajectoryShift
+  const timeTerm =
+    (clamp01(hoursFromOnset / LOAD_COMPOSITION.time_reference_hours) - 0.5) *
+    2 *
+    LOAD_COMPOSITION.time_shift;
+  const trajectoryTerm = LOAD_COMPOSITION.trajectory_shift[trajectoryId] ?? 0;
+
+  const burdenCentre = clamp01(
+    profile.inflammatory_burden.centre + timeTerm + trajectoryTerm
+  );
+  const inflammatoryBurden = clamp01(
+    burdenCentre + (triangular() - 0.5) * 2 * profile.inflammatory_burden.spread
   );
 
-  return clamp01(centre + (triangular - 0.5) * 2 * distribution.spread);
+  // Organ dysfunction is a SEPARATE latent, not a slice of the burden. A
+  // contained abscess can be florid on paper and physiologically intact.
+  const organDysfunction = profile.organ_dysfunction.possible
+    ? clamp01(
+        profile.organ_dysfunction.centre +
+          trajectoryTerm +
+          (triangular() - 0.5) * 2 * profile.organ_dysfunction.spread
+      )
+    : 0;
+
+  return {
+    morphology, // categorical truth, carried through untouched
+    inflammatory_burden: Math.round(inflammatoryBurden * 1000) / 1000,
+    organ_dysfunction: Math.round(organDysfunction * 1000) / 1000,
+    trajectory_id: trajectoryId,
+    hours_from_onset: hoursFromOnset,
+  };
 }
 
 /**
@@ -374,49 +454,65 @@ export function generatePatient(casePresetId, seed) {
   const { preset, phenotype, modifiers } = resolvePreset(casePresetId);
   const random = mulberry32(hashSeed(`${casePresetId}:${seed}`));
 
-  // 1. Where in this phenotype's own onset window does the patient sit.
-  const timeInWindow = random();
-  const hoursFromOnset = at(phenotype.presentation.hours_from_onset, timeInWindow);
+  // 1. Absolute time from onset, drawn inside the phenotype's authored window.
+  //    The WINDOW is phenotype-specific; the HOURS are then used on a scale
+  //    shared by every phenotype, so time is counted once.
+  const hoursFromOnset = at(phenotype.presentation.hours_from_onset, random());
 
-  // 2. One shared inflammatory burden for the whole cluster.
-  const load = physiologicLoad({
+  // 2. The latent clinical state: inflammatory burden and organ dysfunction as
+  //    separate variables, morphology carried through as a category.
+  const latent = latentClinicalState({
     morphology: preset.morphology,
-    timeInWindow,
+    hoursFromOnset,
     trajectoryId: preset.trajectory_id,
     draw: random,
   });
+  const load = latent.inflammatory_burden;
 
   // 3. Every variable at that burden inside its own authored envelope, plus a
-  //    small residual. The residual is not an independent draw of the variable -
-  //    it is the remainder after the shared state has placed it.
+  //    small residual - the remainder after the shared state has placed it.
   const jitter = () => (random() - 0.5) * 2 * LOAD_COMPOSITION.per_variable_jitter;
   const positioned = (rangeSpec, decimals) => at(rangeSpec, load + jitter(), decimals);
   const ranges = phenotype.authoring_ranges;
 
-  // Systolic falls as burden rises, so it reads its envelope from the other end.
-  const systolic = at(
-    ranges.systolic_bp,
-    1 - clamp01(load + jitter()),
-    REPORTED_DECIMALS.systolic_bp
-  );
+  // 4. Pressure and rate from ONE haemodynamic state, generated together.
+  //
+  //    Systolic first, because landing inside the authored envelope is the hard
+  //    constraint. Pulse pressure then comes from the state, narrowed where a
+  //    wide one would drop the mean below what the state permits. Heart rate is
+  //    finally placed within its envelope AND within the state's shock-index
+  //    ceiling - so an incompatible pair is never built, rather than built and
+  //    rejected.
   const state = haemodynamicStateFor(preset.case_preset_id, random);
-  const pressures = derivePressures({
-    systolic,
-    pulsePressure: at(state.pulse_pressure, random()),
-  });
+  const systolic = at(ranges.systolic_bp, 1 - clamp01(load + jitter()), REPORTED_DECIMALS.systolic_bp);
+  // MAP = SBP - 2*PP/3 >= floor  =>  PP <= 1.5 * (SBP - floor)
+  const maxPulseForMap = 1.5 * (systolic - state.min_mean_arterial_pressure);
+  const pulsePressure = at(
+    { min: state.pulse_pressure.min, max: Math.max(state.pulse_pressure.min, Math.min(state.pulse_pressure.max, maxPulseForMap)) },
+    random()
+  );
+  const pressures = derivePressures({ systolic, pulsePressure });
+
+  const heartRateCeiling = Math.min(
+    ranges.heart_rate.max,
+    Math.floor(pressures.systolic_bp * state.max_shock_index)
+  );
+  const heartRate = at(
+    { min: ranges.heart_rate.min, max: Math.max(ranges.heart_rate.min, heartRateCeiling) },
+    load + jitter(),
+    REPORTED_DECIMALS.heart_rate
+  );
 
   const vitals = Object.freeze({
-    heart_rate: positioned(ranges.heart_rate, REPORTED_DECIMALS.heart_rate),
+    heart_rate: heartRate,
     temperature_c: positioned(ranges.temperature_c, REPORTED_DECIMALS.temperature_c),
     ...pressures,
     haemodynamic_state: state.state_id,
     respiratory_rate: positioned(ranges.respiratory_rate, REPORTED_DECIMALS.respiratory_rate),
   });
 
-  // 4. Demographics. One adult population, not one per sex. A preset that
-  //    declares the modifier (APP-002) constrains them; otherwise the patient is
-  //    drawn from the whole adult range and the case adapts to her, not the
-  //    other way round. Drawn before the labs because haemoglobin is sexed.
+  // 5. Demographics. One adult population, not one per sex. Drawn before the
+  //    labs because haemoglobin is sexed.
   const declared = modifiers.find((modifier) => modifier.demographics)?.demographics;
   const sex = declared?.sex ?? (random() < 0.5 ? "male" : "female");
   const age = at(declared?.age ?? BASE_ADULT_AGE, random());
@@ -433,14 +529,8 @@ export function generatePatient(casePresetId, seed) {
     neutrophil_percent: neutrophilPercent,
     absolute_neutrophil_count: Math.round(wbc * (neutrophilPercent / 100) * 10) / 10,
     crp: positioned(ranges.crp, REPORTED_DECIMALS.crp),
-    // Population values: they do not vary with where the appendix sits. Drawn
-    // from the adult range with the same triangular shape, so the edges of the
-    // envelope stay uncommon.
+    // Population values: they do not vary with where the appendix sits.
     haemoglobin: at(haemoglobinRange, (random() + random()) / 2, 0),
-    // The surgeon gave platelets a hard envelope of 150-400 and a target p5-p95
-    // of 170-350, which is not the same distribution: centring on the envelope
-    // put the 95th percentile at 360. Placed to hit the target band instead,
-    // with the envelope as the outer bound.
     platelets: at(
       POPULATION_BLOOD.platelets.envelope,
       inTargetBand(
@@ -491,8 +581,11 @@ export function generatePatient(casePresetId, seed) {
     hidden: Object.freeze({
       morphology: preset.morphology,
       operative_truth_ru: phenotype.imaging.operative_truth_ru,
-      physiologic_load:
-        Math.round(load * 10 ** LOAD_REPORTED_DECIMALS) / 10 ** LOAD_REPORTED_DECIMALS,
+      // The latent state, stored separately rather than collapsed into one
+      // "severity" number: morphology is categorical, burden and organ
+      // dysfunction are their own variables.
+      latent_state: latent,
+      physiologic_load: latent.inflammatory_burden,
       pregnancy_present: enabledActionIds.includes("pregnancy_test") ? false : null,
     }),
     demographics: Object.freeze({ sex, age }),
@@ -534,12 +627,20 @@ export function coherenceViolations(patient) {
   // declared and inert while the diastolic was a fixed ratio.
   const hardInstability =
     patient.vitals.systolic_bp < INSTABILITY_RULES.hard.systolic_below ||
-    patient.vitals.mean_arterial_pressure < INSTABILITY_RULES.hard.mean_arterial_pressure_below ||
-    shockIndex >= INSTABILITY_RULES.hard.shock_index_at_or_above;
+    patient.vitals.mean_arterial_pressure < INSTABILITY_RULES.hard.mean_arterial_pressure_below;
   if (uncomplicated && hardInstability) {
     violations.push({
       rule: "no_shock_vitals_with_uncomplicated_morphology",
-      detail: `САД ${patient.vitals.systolic_bp}, MAP ${patient.vitals.mean_arterial_pressure}, шоковый индекс ${shockIndex.toFixed(2)} при неосложнённом воспалении`,
+      detail: `САД ${patient.vitals.systolic_bp}, MAP ${patient.vitals.mean_arterial_pressure} при неосложнённом воспалении`,
+    });
+  }
+
+  // A raised shock index is a mismatch signal, not shock. Reported separately so
+  // it can never be read as a diagnosis.
+  if (uncomplicated && shockIndex >= INSTABILITY_RULES.physiologic_mismatch.shock_index_at_or_above) {
+    violations.push({
+      rule: "physiologic_mismatch_shock_index",
+      detail: `шоковый индекс ${shockIndex.toFixed(2)} при неосложнённом воспалении`,
     });
   }
 
@@ -579,8 +680,22 @@ export function coherenceViolations(patient) {
   const ranges = PHENOTYPES[patient.composition.phenotype_id].authoring_ranges;
   const positionOf = (value, rangeSpec) =>
     rangeSpec.max === rangeSpec.min ? 0 : (value - rangeSpec.min) / (rangeSpec.max - rangeSpec.min);
+  // Heart rate is placed inside the range the STATE allows, not the whole
+  // phenotype envelope, so its coherence must be judged against the same range.
+  // Measuring it against the full envelope reported a mismatch every time the
+  // shock-index ceiling bit - which is the mechanism working, not failing.
+  const state = HAEMODYNAMIC_STATES[patient.vitals.haemodynamic_state];
+  const effectiveRange = (key) => {
+    if (key !== "heart_rate" || !state) return ranges[key];
+    const ceiling = Math.min(
+      ranges.heart_rate.max,
+      Math.floor(patient.vitals.systolic_bp * state.max_shock_index)
+    );
+    return { min: ranges.heart_rate.min, max: Math.max(ranges.heart_rate.min, ceiling) };
+  };
+
   for (const key of ["heart_rate", "temperature_c", "respiratory_rate", "wbc", "crp"]) {
-    const rangeSpec = ranges[key];
+    const rangeSpec = effectiveRange(key);
     const value = patient.vitals[key] ?? patient.labs[key];
     // Jitter is the deliberate spread; quantisation is the unavoidable rounding.
     // Only the first is a statement about the patient.

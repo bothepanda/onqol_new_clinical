@@ -22,10 +22,12 @@ import { ALTERNATIVE_DISEASES, alternativesFor, facultyPreview } from "../v35/al
 import { PATH_STATES, STABLE_PATH } from "../v35/pathStates.js";
 import { ACTION_CONTRACTS } from "../v35/actionContracts.js";
 import {
+  INSTABILITY_RULES,
   LOAD_COMPOSITION,
   coherenceViolations,
   generatePatient,
-  physiologicLoad,
+  MORPHOLOGY_PROFILES,
+  latentClinicalState,
 } from "../v35/patientGenerator.js";
 import { SCORING_CONTRACT, WHO_CHECKPOINTS, scorableByDomain } from "../v35/scoringContract.js";
 import { selectV35Case, selectionEvent } from "../v35/sessionSelector.js";
@@ -184,58 +186,105 @@ test("the generator itself is pure: it never sees the previous case", () => {
 
 // --- A2 coherent cluster (owner correction 4) ------------------------------
 
-test("burden comes from morphology, time and trajectory - never from the phenotype", () => {
-  // The owner's point: a retrocecal appendix is in a different place, not a
-  // sicker patient. The composition table has no phenotype term at all.
-  assert.equal(LOAD_COMPOSITION.morphology, undefined, "the additive form is gone");
-  assert.equal(LOAD_COMPOSITION.phenotype, undefined);
-  assert.deepEqual(Object.keys(LOAD_COMPOSITION.morphology_distribution).sort(), [
-    "abscess",
-    "diffuse_peritonitis",
-    "gangrene_necrosis",
-    "perforation",
-    "uncomplicated_inflammation",
-  ]);
+test("morphology is categorical truth, not a point on a severity line", () => {
+  // Surgeon's correction: an abscess is not 62% of the way to a peritonitis.
+  assert.equal(LOAD_COMPOSITION.morphology_distribution, undefined, "scalar centres are gone");
+  assert.equal(LOAD_COMPOSITION.morphology, undefined);
 
-  // Morphology selects a distribution rather than adding a fixed score, so
-  // uncomplicated inflammation can reach the whole envelope.
-  const uncomplicated = LOAD_COMPOSITION.morphology_distribution.uncomplicated_inflammation;
-  assert.equal(uncomplicated.centre, 0.5);
-  assert.equal(uncomplicated.spread, 0.5);
+  // Each morphology names a profile whose latents are separate variables.
+  for (const id of ["uncomplicated_inflammation", "abscess", "perforation", "diffuse_peritonitis"]) {
+    const profile = MORPHOLOGY_PROFILES[id];
+    assert.equal(profile.morphology, id, "the category is carried, not converted to a number");
+    assert.ok(profile.inflammatory_burden);
+    assert.ok(profile.organ_dysfunction);
+  }
 
-  // Sicker morphologies sit higher in the envelope.
-  const inputs = { timeInWindow: 0.5, trajectoryId: "TRJ-STABLE", draw: () => 0.5 };
+  // A contained abscess carries a high inflammatory burden and NO organ
+  // dysfunction - which a single severity scalar cannot express.
+  assert.equal(MORPHOLOGY_PROFILES.abscess.organ_dysfunction.possible, false);
   assert.ok(
-    physiologicLoad({ ...inputs, morphology: "perforation" }) >
-      physiologicLoad({ ...inputs, morphology: "uncomplicated_inflammation" })
+    MORPHOLOGY_PROFILES.abscess.inflammatory_burden.centre >
+      MORPHOLOGY_PROFILES.uncomplicated_inflammation.inflammatory_burden.centre
   );
+  assert.equal(MORPHOLOGY_PROFILES.diffuse_peritonitis.organ_dysfunction.possible, true);
 });
 
-test("the burden distribution puts p5-p95 in the central 15-85% of the envelope", () => {
-  // Surgeon's requirement: extremes reachable, but rare - not a quarter of
-  // patients sitting on the edge.
-  const loads = [];
+test("the latent state keeps burden, organ dysfunction and trajectory apart", () => {
+  const draw = () => 0.5;
+  const latent = latentClinicalState({
+    morphology: "uncomplicated_inflammation",
+    hoursFromOnset: 13,
+    trajectoryId: "TRJ-STABLE",
+    draw,
+  });
+  assert.equal(latent.morphology, "uncomplicated_inflammation");
+  assert.equal(latent.organ_dysfunction, 0, "uncomplicated inflammation has none");
+  assert.equal(latent.hours_from_onset, 13);
+  assert.ok(latent.inflammatory_burden > 0 && latent.inflammatory_burden < 1);
+
+  // Time is absolute: later means a higher burden, whatever the phenotype.
+  const later = latentClinicalState({
+    morphology: "uncomplicated_inflammation",
+    hoursFromOnset: 30,
+    trajectoryId: "TRJ-STABLE",
+    draw,
+  });
+  assert.ok(later.inflammatory_burden > latent.inflammatory_burden);
+});
+
+test("a raised shock index is a mismatch signal, not a definition of shock", () => {
+  // Koch et al. 2019. Hard instability is a pressure failure and only that.
+  assert.equal(INSTABILITY_RULES.hard.shock_index_at_or_above, undefined);
+  assert.equal(INSTABILITY_RULES.hard.systolic_below, 90);
+  assert.equal(INSTABILITY_RULES.hard.mean_arterial_pressure_below, 65);
+  assert.equal(INSTABILITY_RULES.physiologic_mismatch.shock_index_at_or_above, 1.0);
+});
+
+test("the burden distribution puts p5-p95 in the central band of the envelope", () => {
+  const burdens = [];
   let seed = 1;
   const draw = () => {
     seed = (seed * 1664525 + 1013904223) % 4294967296;
     return seed / 4294967296;
   };
   for (let index = 0; index < 20000; index += 1) {
-    loads.push(
-      physiologicLoad({
+    burdens.push(
+      latentClinicalState({
         morphology: "uncomplicated_inflammation",
-        timeInWindow: draw(),
+        hoursFromOnset: draw() * 24,
         trajectoryId: "TRJ-STABLE",
         draw,
-      })
+      }).inflammatory_burden
     );
   }
-  loads.sort((a, b) => a - b);
-  const p5 = loads[Math.floor(loads.length * 0.05)];
-  const p95 = loads[Math.floor(loads.length * 0.95)];
+  burdens.sort((a, b) => a - b);
+  const p5 = burdens[Math.floor(burdens.length * 0.05)];
+  const p95 = burdens[Math.floor(burdens.length * 0.95)];
+  assert.ok(p5 > 0.05 && p5 < 0.25, `p5 was ${p5.toFixed(3)}`);
+  assert.ok(p95 > 0.72 && p95 < 0.95, `p95 was ${p95.toFixed(3)}`);
+});
 
-  assert.ok(p5 > 0.08 && p5 < LOAD_COMPOSITION.target_p5_p95.min + 0.08, `p5 was ${p5.toFixed(3)}`);
-  assert.ok(p95 > LOAD_COMPOSITION.target_p5_p95.max - 0.08 && p95 < 0.95, `p95 was ${p95.toFixed(3)}`);
+test("the phenotype never changes physiology at matched inputs", () => {
+  // The matched counterfactual the surgeon asked for: same morphology, same
+  // absolute hours, same trajectory, same draw. Only the phenotype differs.
+  const inputs = (draw) => ({
+    morphology: "uncomplicated_inflammation",
+    hoursFromOnset: 13,
+    trajectoryId: "TRJ-STABLE",
+    draw,
+  });
+  const fixed = () => 0.5;
+  const reference = latentClinicalState(inputs(fixed));
+
+  // The latent state is phenotype-free by construction: `latentClinicalState`
+  // has no phenotype parameter at all. That is the guarantee, and it is
+  // structural rather than measured.
+  assert.equal(Object.keys(reference).includes("phenotype_id"), false);
+  for (const phenotypeId of ["classic", "pelvic", "retrocecal"]) {
+    assert.ok(PHENOTYPES[phenotypeId], phenotypeId);
+    const again = latentClinicalState(inputs(fixed));
+    assert.deepEqual(again, reference, `${phenotypeId} must not alter the latent state`);
+  }
 });
 
 test("no learner-facing preset ever ships hard instability", () => {
@@ -534,7 +583,9 @@ test("readiness reports a valid manifest and V3.5 as not yet done", () => {
   const readiness = v35Readiness(v3Case);
   assert.equal(readiness.content_version, V35_CONTENT_VERSION);
   assert.equal(readiness.manifest_valid, true);
-  assert.equal(readiness.generator_wired_to_case_factory, false);
+  // The generator now feeds the case factory; the path states still do not
+  // drive the engine, which is what keeps V3.5 from being done.
+  assert.equal(readiness.generator_wired_to_case_factory, true);
   assert.equal(readiness.engine_wired, false);
   assert.ok(readiness.blocking_for_done.length > 0);
   assert.deepEqual(readiness.faculty_preview_presets, ["APP-005"]);

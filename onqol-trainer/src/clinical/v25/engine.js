@@ -391,6 +391,12 @@ export function createV25Session(options = {}) {
     // logged event while running a 3.0 case, which quietly contaminates any
     // analysis that groups by product version.
     product_version: caseData.product_version || "2.5",
+    // Frozen version snapshot, addendum 13. Everything needed to rebuild this
+    // exact case from the log alone: content version, preset, phenotype,
+    // morphology, trajectory, resource profile and both seeds. Absent for the
+    // fixed V2.5/V3 card, which has no composition.
+    v35_composition: caseData.v35_composition || null,
+    content_version: caseData.v35_composition?.content_version || null,
     case_id: caseData.case_id,
     case_version: caseData.case_version,
     disease_card_id: caseData.disease_card_id,
