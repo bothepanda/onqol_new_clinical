@@ -41,7 +41,13 @@
 // state. Repeat avoidance lives in the session selector, not here - a generator
 // that remembers the last case is no longer reproducible from a seed.
 
-import { PHENOTYPES, resolvePreset } from "./phenotypes.js";
+import {
+  BASE_ADULT_AGE,
+  PHENOTYPES,
+  PREGNANCY_BRANCH_RULE,
+  V35_MODIFIERS,
+  resolvePreset,
+} from "./phenotypes.js";
 
 /**
  * How much each input contributes to physiological load.
@@ -138,23 +144,59 @@ const LOAD_REPORTED_DECIMALS = 3;
 const LOAD_ROUNDING_SLACK = 10 ** -LOAD_REPORTED_DECIMALS / 2;
 
 /**
- * Who a preset presents when no modifier constrains demographics.
+ * Instability, owner decision 09.08.2026.
  *
- * NEEDS_CLINICAL_REVIEW, and the open question is named in `review_flag`.
+ * Replaces `SBP < 100 or HR > 120`, which called a systolic of 95 shock and
+ * lumped tachycardia in with hypotension. Three separate things now:
+ *
+ *   hard instability     SBP < 90, MAP < 65, or shock index >= 1.0
+ *   physiologic mismatch HR > 120 in an uncomplicated case that nothing explains
+ *   neither             SBP 90-99 on its own
+ *
+ * MAP needs a real diastolic and there is not one yet - the handoff derived it
+ * from the systolic, which is a readability trick, not a measurement. Declared
+ * here and NOT evaluated until diastolic is authored; see DIASTOLIC_STATUS.
+ *
+ * These are generation guards: they decide whether a synthetic patient is
+ * coherent enough to ship. They are NOT diagnostic cutoffs and are never shown
+ * to a learner. NEEDS_CLINICAL_REVIEW.
  */
-export const DEFAULT_DEMOGRAPHICS = Object.freeze({
-  male: Object.freeze({ min: 18, max: 70 }),
-  // 46 is the floor because MOD-PREGNANCY-POSSIBLE declares reproductive age as
-  // 18-45. Below it, the case would owe the learner a pregnancy branch it does
-  // not have.
-  female_without_pregnancy_branch: Object.freeze({ min: 46, max: 75 }),
-  review_flag: Object.freeze({
-    id: "presets_without_pregnancy_modifier_never_show_a_young_woman",
-    question_ru:
-      "APP-001, APP-003 и APP-004 не объявляют MOD-PREGNANCY-POSSIBLE, поэтому не могут выдать женщину 18-45 лет: иначе в кейсе не было бы ветви исключения беременности. Но аппендицит у молодых женщин част. Добавить модификатор в default_modifiers этих пресетов (тогда ветвь ХГЧ появится везде), или оставить как есть и признать, что три из четырёх пресетов тренируют другую популяцию?",
-    status: "NEEDS_CLINICAL_REVIEW",
+export const INSTABILITY_RULES = Object.freeze({
+  hard: Object.freeze({
+    systolic_below: 90,
+    mean_arterial_pressure_below: 65,
+    shock_index_at_or_above: 1.0,
   }),
+  physiologic_mismatch: Object.freeze({
+    heart_rate_above: 120,
+    // Only a mismatch when nothing in the case accounts for it.
+    explained_by_trajectories: ["TRJ-SEPTIC-SHOCK", "TRJ-PROGRESSIVE-DETERIORATION", "TRJ-NONRESPONSE"],
+    explained_by_morphologies: ["perforation", "diffuse_peritonitis", "abscess", "gangrene_necrosis"],
+  }),
+  not_shock_on_its_own: Object.freeze({ systolic_between: [90, 99] }),
   clinical_review_status: "pending",
+  eligible_for_scoring: false,
+});
+
+/**
+ * Diastolic pressure is not generated.
+ *
+ * The handoff used to print `systolic * 0.62`, which is a plausible ratio for a
+ * normotensive patient and wrong in exactly the situations that matter: a
+ * vasodilated septic patient has a wide pulse pressure and a low diastolic, a
+ * hypovolaemic one narrows it, and a stiff-arteried older patient has isolated
+ * systolic hypertension. A fabricated diastolic would also feed a fabricated
+ * MAP straight into the instability rule above.
+ *
+ * So it is not printed and not used. Authoring it needs per-phenotype ranges
+ * from the surgeon, like every other variable.
+ */
+export const DIASTOLIC_STATUS = Object.freeze({
+  generated: false,
+  status: "NEEDS_AUTHORING",
+  blocks: ["INSTABILITY_RULES.hard.mean_arterial_pressure_below"],
+  note_ru:
+    "Диастолическое не генерируется и не показывается. Пока его нет, MAP не вычисляется, а нестабильность определяется по САД и шоковому индексу.",
 });
 
 /** Place a position in [0,1] inside a range, rounded to `decimals`. */
@@ -228,34 +270,30 @@ export function generatePatient(casePresetId, seed) {
   // 4. Demographics come from the modifiers, or from the adult default when no
   //    modifier constrains them. No modifier means no gynaecological layer -
   //    and the absence of the actions, not their presence at zero weight.
-  const demographic = modifiers.find((modifier) => modifier.demographics)?.demographics;
-  let sex;
-  let age;
-  if (demographic) {
-    sex = demographic.sex;
-    age = at(demographic.age, random());
-  } else {
-    // No reproductive-potential modifier means this case has no pregnancy safety
-    // branch - so it must not produce a patient who would need one. A woman of
-    // reproductive age with no beta-hCG in the case would teach the exact
-    // omission the trainer exists to prevent.
-    //
-    // The consequence is a real content limitation, not a neutral default:
-    // presets without the modifier never present a young woman, and appendicitis
-    // in young women is common. Flagged in DEFAULT_DEMOGRAPHICS for a reviewer
-    // rather than papered over.
-    sex = random() < 0.5 ? "male" : "female";
-    age =
-      sex === "female"
-        ? at(DEFAULT_DEMOGRAPHICS.female_without_pregnancy_branch, random())
-        : at(DEFAULT_DEMOGRAPHICS.male, random());
+  // One adult population, not one per sex. A preset that declares the modifier
+  // (APP-002) constrains demographics; otherwise the patient is drawn from the
+  // whole adult range and the case adapts to her, not the other way round.
+  const declared = modifiers.find((modifier) => modifier.demographics)?.demographics;
+  const sex = declared?.sex ?? (random() < 0.5 ? "male" : "female");
+  const age = at(declared?.age ?? BASE_ADULT_AGE, random());
+
+  // The pregnancy branch follows the PATIENT. A woman in the reproductive band
+  // gets it whether or not the preset anticipated her - which is what lets every
+  // preset present a young woman without each one declaring the modifier.
+  const appliedModifiers = [...modifiers];
+  const branchRequired =
+    sex === PREGNANCY_BRANCH_RULE.sex &&
+    age >= PREGNANCY_BRANCH_RULE.age.min &&
+    age <= PREGNANCY_BRANCH_RULE.age.max;
+  if (branchRequired && !appliedModifiers.some((m) => m.modifier_id === PREGNANCY_BRANCH_RULE.modifier_id)) {
+    appliedModifiers.push(V35_MODIFIERS[PREGNANCY_BRANCH_RULE.modifier_id]);
   }
 
   const enabledActionIds = [
-    ...new Set(modifiers.flatMap((modifier) => modifier.enables_action_ids || [])),
+    ...new Set(appliedModifiers.flatMap((modifier) => modifier.enables_action_ids || [])),
   ];
   const enabledAlternatives = [
-    ...new Set(modifiers.flatMap((modifier) => modifier.enables_dangerous_alternatives || [])),
+    ...new Set(appliedModifiers.flatMap((modifier) => modifier.enables_dangerous_alternatives || [])),
   ];
 
   return Object.freeze({
@@ -264,7 +302,11 @@ export function generatePatient(casePresetId, seed) {
       case_preset_id: preset.case_preset_id,
       phenotype_id: preset.phenotype_id,
       morphology: preset.morphology,
-      population_modifier_ids: [...preset.population_modifier_ids],
+      // What was actually applied, which may exceed what the preset declared:
+      // the pregnancy branch attaches to the patient. Reproducing a case means
+      // replaying these, not the preset's declaration.
+      population_modifier_ids: appliedModifiers.map((modifier) => modifier.modifier_id),
+      declared_modifier_ids: [...preset.population_modifier_ids],
       trajectory_id: preset.trajectory_id,
       resource_profile_id: preset.resource_profile_id,
       seed,
@@ -309,11 +351,35 @@ export function coherenceViolations(patient) {
   const violations = [];
   const uncomplicated = patient.hidden.morphology === "uncomplicated_inflammation";
 
-  // "Не генерировать shock vitals при uncomplicated morphology."
-  if (uncomplicated && (patient.vitals.systolic_bp < 100 || patient.vitals.heart_rate > 120)) {
+  // "Не генерировать shock vitals при uncomplicated morphology", with
+  // instability defined per INSTABILITY_RULES rather than by a systolic cutoff.
+  const shockIndex = patient.vitals.heart_rate / patient.vitals.systolic_bp;
+  const hardInstability =
+    patient.vitals.systolic_bp < INSTABILITY_RULES.hard.systolic_below ||
+    shockIndex >= INSTABILITY_RULES.hard.shock_index_at_or_above;
+  if (uncomplicated && hardInstability) {
     violations.push({
       rule: "no_shock_vitals_with_uncomplicated_morphology",
-      detail: `САД ${patient.vitals.systolic_bp}, ЧСС ${patient.vitals.heart_rate} при неосложнённом воспалении`,
+      detail: `САД ${patient.vitals.systolic_bp}, шоковый индекс ${shockIndex.toFixed(2)} при неосложнённом воспалении`,
+    });
+  }
+
+  // Tachycardia is a separate finding, not shock. It is a mismatch only when
+  // neither the morphology nor the trajectory accounts for it.
+  const explained =
+    INSTABILITY_RULES.physiologic_mismatch.explained_by_morphologies.includes(
+      patient.hidden.morphology
+    ) ||
+    INSTABILITY_RULES.physiologic_mismatch.explained_by_trajectories.includes(
+      patient.composition.trajectory_id
+    );
+  if (
+    !explained &&
+    patient.vitals.heart_rate > INSTABILITY_RULES.physiologic_mismatch.heart_rate_above
+  ) {
+    violations.push({
+      rule: "physiologic_mismatch_unexplained_tachycardia",
+      detail: `ЧСС ${patient.vitals.heart_rate} без объяснения морфологией или траекторией`,
     });
   }
 
@@ -372,12 +438,15 @@ export function coherenceViolations(patient) {
       detail: "статус беременности задан пациенту без модификатора возможной беременности",
     });
   }
-  // And the converse, which matters more: a case with no pregnancy branch must
-  // not present a patient who needs one.
+  // And the converse, which matters more: a woman in the reproductive band must
+  // never reach a case without the pregnancy branch. PREGNANCY_BRANCH_RULE
+  // attaches it automatically, so this is a guard on that mechanism rather than
+  // a filter on seeds.
   if (
     !pregnancyEnabled &&
-    patient.demographics.sex === "female" &&
-    patient.demographics.age <= 45
+    patient.demographics.sex === PREGNANCY_BRANCH_RULE.sex &&
+    patient.demographics.age >= PREGNANCY_BRANCH_RULE.age.min &&
+    patient.demographics.age <= PREGNANCY_BRANCH_RULE.age.max
   ) {
     violations.push({
       rule: "reproductive_age_woman_without_pregnancy_branch",

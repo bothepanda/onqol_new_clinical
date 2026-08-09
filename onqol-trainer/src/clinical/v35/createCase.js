@@ -70,9 +70,11 @@ function handoffText(patient) {
     // Temperature always to one decimal: "38 °C" reads as a rounded-off number,
     // "38.0 °C" as a measured one.
     `Температура ${vitals.temperature_c.toFixed(1)} °C, ЧСС ${vitals.heart_rate}/мин,`,
-    // Diastolic is not generated. Derived for readability only, and it must not
-    // become a finding anyone reasons about.
-    `АД ${vitals.systolic_bp}/${Math.round(vitals.systolic_bp * 0.62)} мм рт. ст.,`,
+    // Systolic only. The diastolic used to be printed as systolic * 0.62, which
+    // is plausible for a normotensive patient and wrong exactly where it would
+    // matter - see DIASTOLIC_STATUS in patientGenerator.js. A number nobody
+    // measured must not appear next to numbers that were.
+    `АД сист. ${vitals.systolic_bp} мм рт. ст.,`,
     `ЧД ${vitals.respiratory_rate}/мин.`,
     "С чего начнёшь?",
   ].join(" ");

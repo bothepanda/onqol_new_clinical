@@ -98,10 +98,44 @@ export const V35_MODIFIERS = Object.freeze({
     // V3.5 authors no physiological delta for this modifier, and none is
     // invented. It changes what must be done, not what the patient's pulse is.
     physiology_delta: null,
-    demographics: Object.freeze({ sex: "female", age: range(18, 45) }),
+    // Owner decision, 09.08.2026: reproductive potential runs to 50, and 46 is
+    // not an automatic boundary. The modifier is MANDATORY for a woman in this
+    // band rather than optional - see PREGNANCY_BRANCH_RULE.
+    demographics: Object.freeze({ sex: "female", age: range(18, 50) }),
     clinical_review_status: "pending",
   }),
 });
+
+/**
+ * When the pregnancy safety branch is compulsory.
+ *
+ * Owner decision, 09.08.2026, replacing an earlier fix of mine that solved the
+ * problem the wrong way. That version kept women out of presets with no
+ * pregnancy branch by drawing them at 46+, which quietly made three of four
+ * presets stop presenting young women at all - and appendicitis in young women
+ * is common.
+ *
+ * The branch is now attached to the PATIENT, not to the preset: draw the patient
+ * from one adult population, and if she falls in the band, the case acquires the
+ * branch. A preset never has to anticipate her.
+ *
+ * NEEDS_CLINICAL_REVIEW.
+ */
+export const PREGNANCY_BRANCH_RULE = Object.freeze({
+  modifier_id: "MOD-PREGNANCY-POSSIBLE",
+  sex: "female",
+  age: range(18, 50),
+  statement_ru:
+    "Женщина 18-50 лет: модификатор обязателен. Женщина 51-75: допустим кейс без него. Мужчина 18-75: не применяется.",
+  clinical_review_status: "pending",
+});
+
+/**
+ * One adult population for everybody, addendum-independent owner decision.
+ * Explicitly NOT split by sex: an age range that depends on sex was an artefact
+ * of the previous fix, not a clinical statement.
+ */
+export const BASE_ADULT_AGE = range(18, 75);
 
 /**
  * Phenotype cards. Authoring data from addendum 4.1-4.3, copied verbatim.
@@ -292,7 +326,10 @@ export const CASE_PRESETS = Object.freeze([
     title_ru: "Ранний маловыраженный неосложнённый аппендицит",
     phenotype_id: "early_subtle",
     morphology: "uncomplicated_inflammation",
+    // Empty: the pregnancy branch is attached to the patient by
+    // PREGNANCY_BRANCH_RULE, not declared per preset. Owner decision (a).
     population_modifier_ids: [],
+    compatible_modifier_ids: ["MOD-PREGNANCY-POSSIBLE"],
     trajectory_id: "TRJ-SERIAL-EVOLUTION",
     resource_profile_id: "KZ-R1-DISTRICT",
     runtime_status: "learner_active",
@@ -335,6 +372,7 @@ export const CASE_PRESETS = Object.freeze([
     phenotype_id: "retrocecal",
     morphology: "uncomplicated_inflammation",
     population_modifier_ids: [],
+    compatible_modifier_ids: ["MOD-PREGNANCY-POSSIBLE"],
     trajectory_id: "TRJ-STABLE",
     resource_profile_id: "KZ-R1-DISTRICT",
     runtime_status: "learner_active",
@@ -347,6 +385,7 @@ export const CASE_PRESETS = Object.freeze([
     phenotype_id: "late_complicated",
     morphology: "diffuse_peritonitis",
     population_modifier_ids: [],
+    compatible_modifier_ids: ["MOD-PREGNANCY-POSSIBLE"],
     trajectory_id: "TRJ-SEPTIC-SHOCK",
     resource_profile_id: "KZ-R3-TERTIARY",
     runtime_status: "faculty_preview",

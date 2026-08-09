@@ -40,12 +40,16 @@ function hasAny(actions, ids) {
 /**
  * The emergency-department disposition checkpoint.
  *
- * A workflow marker only. NEEDS_SOURCE_VERIFICATION: the author cites the NHS
- * England model, which treats 0-4 hours as core ED care with admit/transfer/
- * discharge as the target outcome, and notes that the Kazakhstan standard sets
- * no universal four-hour rule (yellow-zone observation may run to 24 hours).
- * Neither line has been checked against its source, so nothing user-facing may
- * cite it as a requirement.
+ * A workflow marker only, and explicitly NOT a Kazakhstan standard.
+ *
+ * Owner decision, 09.08.2026: the threshold comes from the NHS England model,
+ * which treats 0-4 hours as core emergency-department care with admit, transfer
+ * or discharge as the target outcome. Kazakhstan allows 24 hours for processing;
+ * the owner's point is that a patient nonetheless cannot spend 24 hours in the
+ * emergency department, which is what the marker is for.
+ *
+ * So it is labelled as the NHS model wherever it is surfaced, never as a local
+ * requirement, and it never moves a score.
  */
 export const ED_DISPOSITION_CHECKPOINT_MINUTES = 240;
 

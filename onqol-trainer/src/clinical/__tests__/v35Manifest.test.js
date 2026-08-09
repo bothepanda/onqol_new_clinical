@@ -256,18 +256,56 @@ test("the resource profile never touches hidden physiology", () => {
 
 // --- A4 modifier decides the action set ------------------------------------
 
-test("pregnancy actions exist only where a modifier switched them on", () => {
-  const withModifier = generatePatient("APP-002", "mod-on");
-  assert.ok(withModifier.enabled_action_ids.includes("pregnancy_test"));
-  assert.ok(withModifier.enabled_dangerous_alternatives.includes("differential_ectopic"));
-  assert.equal(withModifier.demographics.sex, "female");
-  assert.ok(withModifier.demographics.age >= 18 && withModifier.demographics.age <= 45);
+test("APP-002 always presents a woman of reproductive age with the branch", () => {
+  for (let index = 0; index < 50; index += 1) {
+    const patient = generatePatient("APP-002", `mod-on-${index}`);
+    assert.equal(patient.demographics.sex, "female");
+    assert.ok(patient.demographics.age >= 18 && patient.demographics.age <= 50);
+    assert.ok(patient.enabled_action_ids.includes("pregnancy_test"));
+    assert.ok(patient.enabled_dangerous_alternatives.includes("differential_ectopic"));
+  }
+});
 
-  // APP-001 and APP-004 carry no modifier: the action is absent, not worth zero.
-  for (const presetId of ["APP-001", "APP-004"]) {
-    const patient = generatePatient(presetId, "mod-off");
-    assert.deepEqual(patient.enabled_action_ids, []);
-    assert.equal(patient.hidden.pregnancy_present, null, "no pregnancy status without the modifier");
+test("the pregnancy branch follows the patient, not the preset", () => {
+  // Owner decision: a woman of 18-50 gets the branch in EVERY preset, so no
+  // preset has to keep young women out in order to stay safe. A preset that
+  // never presented one would be training a different population.
+  let reproductiveWomen = 0;
+  let othersWithBranch = 0;
+
+  for (const presetId of ["APP-001", "APP-003", "APP-004"]) {
+    for (let index = 0; index < 150; index += 1) {
+      const patient = generatePatient(presetId, `branch-${index}`);
+      const { sex, age } = patient.demographics;
+      const hasBranch = patient.enabled_action_ids.includes("pregnancy_test");
+
+      assert.ok(age >= 18 && age <= 75, `age ${age} outside the adult population`);
+
+      if (sex === "female" && age <= 50) {
+        reproductiveWomen += 1;
+        assert.ok(hasBranch, `женщина ${age} лет без ветви исключения беременности в ${presetId}`);
+        assert.ok(patient.composition.population_modifier_ids.includes("MOD-PREGNANCY-POSSIBLE"));
+      } else {
+        if (hasBranch) othersWithBranch += 1;
+        assert.equal(patient.hidden.pregnancy_present, null);
+      }
+    }
+  }
+
+  assert.ok(reproductiveWomen > 0, "presets must be able to present a young woman");
+  assert.equal(othersWithBranch, 0, "men and older women must not acquire a pregnancy branch");
+});
+
+test("age is one adult population, not one per sex", () => {
+  const bySex = { male: [], female: [] };
+  for (let index = 0; index < 400; index += 1) {
+    const patient = generatePatient("APP-004", `age-${index}`);
+    bySex[patient.demographics.sex].push(patient.demographics.age);
+  }
+  for (const [sex, ages] of Object.entries(bySex)) {
+    assert.ok(ages.length > 0, `${sex} must appear`);
+    assert.ok(Math.min(...ages) < 40, `${sex}: expected young patients, min was ${Math.min(...ages)}`);
+    assert.ok(Math.max(...ages) > 60, `${sex}: expected older patients, max was ${Math.max(...ages)}`);
   }
 });
 
