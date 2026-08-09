@@ -607,9 +607,14 @@ test("the phenotype keeps localisation and owns no physiology", () => {
   assert.deepEqual(PHENOTYPES.classic.presentation.hours_from_onset, { min: 6, max: 14 });
   assert.deepEqual(PHENOTYPES.retrocecal.presentation.pain_score, { min: 4, max: 8 });
 
-  // Localisation is what a phenotype is for.
-  assert.match(PHENOTYPES.retrocecal.presentation.examination_ru, /psoas/i);
-  assert.match(PHENOTYPES.pelvic.presentation.story_ru, /тазов|надлобков/i);
+  // Localisation is what a phenotype is for, and it is held as variants rather
+  // than as one sentence containing "или".
+  assert.ok(PHENOTYPES.retrocecal.presentation.examination_optional_ru.some((line) => /psoas/i.test(line)));
+  assert.ok(PHENOTYPES.pelvic.presentation.pain_sites_ru.some((site) => /тазу|надлобков/i.test(site)));
+  assert.equal(PHENOTYPES.retrocecal.presentation.pain_sites_ru.length, 3);
+  assert.equal(PHENOTYPES.retrocecal.presentation.split_status, "MECHANICAL_SPLIT_NEEDS_CONFIRMATION");
+  // The surgeon's original sentence is kept beside the split so it can be checked.
+  assert.match(PHENOTYPES.retrocecal.presentation.authored_source_ru.story, /правый фланк/i);
 
   // Physiology is not.
   for (const phenotype of Object.values(PHENOTYPES)) {
@@ -733,6 +738,71 @@ test("readiness reports a valid manifest and V3.5 as not yet done", () => {
   assert.equal(readiness.engine_wired, false);
   assert.ok(readiness.blocking_for_done.length > 0);
   assert.deepEqual(readiness.faculty_preview_presets, ["APP-005"]);
+});
+
+test("INVARIANT: nothing a learner sees before the debrief names the diagnosis", () => {
+  // Regression. The case title carried `preset.title_ru` - "Ретроцекальный
+  // аппендицит со слабой передней перитонеальной симптоматикой" - and printed
+  // the hidden truth above the handoff, before the learner had done anything.
+  // A trainer for diagnostic reasoning that announces the diagnosis is not one.
+  const forbidden = [/аппендицит/i, /перфорац/i, /перитонит/i, /гангрен/i, /абсцесс/i];
+
+  for (const presetId of ["APP-001", "APP-002", "APP-003", "APP-004"]) {
+    for (let index = 0; index < 40; index += 1) {
+      const { caseData } = buildV35Case({ seed: `leak-${index}`, requestedPresetId: presetId });
+      const learnerFacing = [
+        caseData.title,
+        caseData.initial_presentation.text,
+        caseData.available_findings.focused_history.text,
+        caseData.available_findings.abdominal_exam.text,
+      ].join(" ");
+
+      for (const pattern of forbidden) {
+        assert.ok(
+          !pattern.test(learnerFacing),
+          `${presetId}: диагноз виден резиденту — ${pattern} в "${learnerFacing.slice(0, 90)}"`
+        );
+      }
+    }
+  }
+
+  // The preset title still exists, where faculty can read it.
+  const { caseData } = buildV35Case({ seed: "leak-faculty", requestedPresetId: "APP-004" });
+  assert.match(caseData.faculty_title_ru, /Ретроцекальный/);
+  assert.match(caseData.title, /^Боль в /);
+});
+
+test("a patient has one pain site, not a menu of them", () => {
+  // The authored sentence "правый фланк, поясница или правое подреберье" is an
+  // authoring envelope. Printed verbatim it read as a list of options.
+  for (let index = 0; index < 60; index += 1) {
+    const { caseData } = buildV35Case({ seed: `menu-${index}`, requestedPresetId: "APP-004" });
+    const handoff = caseData.initial_presentation.text;
+    assert.ok(!handoff.includes(" или "), `меню в передаче: ${handoff}`);
+    assert.ok(
+      !caseData.available_findings.abdominal_exam.text.includes(" или "),
+      "меню в осмотре"
+    );
+  }
+
+  // And the sites actually vary between patients.
+  const sites = new Set();
+  for (let index = 0; index < 60; index += 1) {
+    sites.add(buildV35Case({ seed: `site-${index}`, requestedPresetId: "APP-004" }).caseData.title);
+  }
+  assert.ok(sites.size >= 2, `ожидалась вариативность локализации, получено ${sites.size}`);
+});
+
+test("an explicit negative never contradicts what the case already asserts", () => {
+  // The pelvic phenotype reports urinary symptoms; the card's fixed negatives
+  // said "Дизурии нет". One patient, two opposite statements.
+  for (let index = 0; index < 80; index += 1) {
+    const { caseData } = buildV35Case({ seed: `neg-${index}`, requestedPresetId: "APP-003" });
+    const history = caseData.available_findings.focused_history.text.toLowerCase();
+    if (history.includes("мочеиспуск") || history.includes("тенезм")) {
+      assert.ok(!history.includes("дизурии нет"), `противоречие: ${history}`);
+    }
+  }
 });
 
 test("end to end: effective_seed + content_version + preset rebuild the case exactly", () => {

@@ -49,6 +49,137 @@ const MODIFIER_GATED_ACTION_IDS = Object.freeze([
   "gynecology_consult",
 ]);
 
+/**
+ * Compose one patient's presentation from the phenotype's authored variants.
+ *
+ * The phenotype describes what this presentation MAY contain; a patient has one
+ * of each. Every fragment is the surgeon's wording - this chooses among them and
+ * writes nothing.
+ *
+ * Driven by a seed so the same session rebuilds the same sentences.
+ */
+function composePresentation(phenotype, seed) {
+  const p = phenotype.presentation;
+  let state = hashString(`${phenotype.phenotype_id}:${seed}`);
+  const next = () => {
+    state = (state * 1664525 + 1013904223) % 4294967296;
+    return state / 4294967296;
+  };
+  const pick = (list) => (list && list.length ? list[Math.floor(next() * list.length)] : null);
+  const maybe = (list) => (list || []).filter(() => next() < 0.5);
+
+  const site = pick(p.pain_sites_ru);
+  const details = [
+    ...(p.history_fixed_ru || []),
+    ...(p.history_variants_ru ? [pick(p.history_variants_ru)] : []),
+    ...maybe(p.history_optional_ru),
+  ];
+  if (p.history_counted_ru) {
+    const { template, range: countRange } = p.history_counted_ru;
+    const count = countRange.min + Math.floor(next() * (countRange.max - countRange.min + 1));
+    details.push(template.replace("{n}", count).replace("{эпизод}", episodeWord(count)));
+  }
+
+  const examination = [
+    ...(p.examination_fixed_ru || []),
+    ...(p.examination_variants_ru ? [pick(p.examination_variants_ru)] : []),
+    ...maybe(p.examination_optional_ru),
+  ];
+
+  return {
+    pain_site_ru: site,
+    // The handoff carries the COMPLAINT, not the history. An ambulance crew
+    // hands over "pain here, this long"; migration, anorexia and vomiting are
+    // what the learner gets by taking a history. Printing all of it in the
+    // handoff both duplicated the site ("боль в правой подвздошной области,
+    // боль мигрировала в правую подвздошную область") and gave away for free
+    // what asking is supposed to earn.
+    complaint_ru: `боль в ${site}`,
+    // Skip the opening site line when a detail already states it: the classic
+    // phenotype's "боль мигрировала в правую подвздошную область" IS the site,
+    // and printing both read as two separate complaints.
+    history_ru: sentence(
+      details.some((detail) => mentionsSite(detail, site))
+        ? details
+        : [`боль в ${site}`, ...details]
+    ),
+    details_ru: details,
+    examination_ru: sentence(examination),
+  };
+}
+
+function hashString(text) {
+  let hash = 2166136261;
+  for (const char of String(text)) {
+    hash ^= char.charCodeAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+/** Does a history fragment already name this pain site? Stem-level, case-folded. */
+function mentionsSite(fragment, site) {
+  const stem = (text) =>
+    String(text)
+      .toLowerCase()
+      .replace(/ё/g, "е")
+      // Russian declines: "подвздошной" vs "подвздошную". Compare on stems.
+      .split(/[^а-яa-z]+/)
+      .filter((word) => word.length > 4)
+      .map((word) => word.slice(0, -2));
+  const siteStems = new Set(stem(site));
+  return stem(fragment).some((word) => siteStems.has(word));
+}
+
+/**
+ * Explicit negatives carried from the reviewed card, minus any the phenotype
+ * contradicts.
+ *
+ * The pelvic phenotype reports "дискомфорт при мочеиспускании" and the card's
+ * fixed history says "Дизурии нет" - one patient, two opposite statements. The
+ * negatives are still the reviewed card's wording; what changes is that one is
+ * dropped when the case has already asserted the positive.
+ */
+const CARRIED_NEGATIVES = Object.freeze([
+  Object.freeze({ text: "Диареи нет", contradicted_by: ["диаре", "жидк"] }),
+  Object.freeze({ text: "Дизурии нет", contradicted_by: ["мочеиспуск", "дизур", "тенезм"] }),
+]);
+
+function explicitNegatives(details) {
+  const said = details.join(" ").toLowerCase().replace(/ё/g, "е");
+  return CARRIED_NEGATIVES.filter(
+    (negative) => !negative.contradicted_by.some((stem) => said.includes(stem))
+  ).map((negative) => negative.text);
+}
+
+/** 1 эпизод, 2 эпизода, 5 эпизодов. */
+function episodeWord(count) {
+  const tens = count % 100;
+  if (tens >= 11 && tens <= 14) return "эпизодов";
+  const units = count % 10;
+  if (units === 1) return "эпизод";
+  if (units >= 2 && units <= 4) return "эпизода";
+  return "эпизодов";
+}
+
+/** Join fragments into one sentence, capitalised and full-stopped. */
+function sentence(parts) {
+  if (!parts.length) return "";
+  const joined = parts.join(", ");
+  return joined.charAt(0).toUpperCase() + joined.slice(1) + ".";
+}
+
+/**
+ * The complaint the patient arrives with, for the header.
+ *
+ * Derived from the phenotype's pain site, because that is what a triage note
+ * would say. It must stay at the level of a complaint: naming the region is
+ * what the learner can see for themselves, naming the disease is the answer.
+ */
+function presentationTitle(composed) {
+  return composed.pain_site_ru ? `Боль в ${composed.pain_site_ru}` : "Боль в животе";
+}
+
 /** Russian needs three forms: 21 год, 22 года, 25 лет. */
 function yearsWord(age) {
   const tens = age % 100;
@@ -59,13 +190,13 @@ function yearsWord(age) {
   return "лет";
 }
 
-function handoffText(patient) {
+function handoffText(patient, composed) {
   const { demographics: who, presentation: story, vitals } = patient;
   const female = who.sex === "female";
   return [
     `${female ? "Женщина" : "Мужчина"}, ${who.age} ${yearsWord(who.age)}.`,
     `${female ? "Доставлена" : "Доставлен"} в приёмное отделение.`,
-    `Жалобы: ${story.story_ru.charAt(0).toLowerCase()}${story.story_ru.slice(1)}.`,
+    `Жалобы: ${composed.complaint_ru}.`,
     `Давность ${story.hours_from_onset} ч. Боль ${story.pain_score} из 10.`,
     // Temperature always to one decimal: "38 °C" reads as a rounded-off number,
     // "38.0 °C" as a measured one.
@@ -87,14 +218,16 @@ function handoffText(patient) {
  * numbers came from the phenotype envelope; `CARRIED_OVER_UNREVIEWED` means the
  * string is the fixed card's, unchanged and unchecked against this patient.
  */
-function buildFindings(baseCase, patient, phenotype, pregnancyPossible) {
+function buildFindings(baseCase, patient, phenotype, pregnancyPossible, composed) {
   const base = baseCase.available_findings;
   const findings = {};
 
-  const historyLines = [phenotype.presentation.story_ru + "."];
-  // Explicit negatives from the reviewed card. Not regenerated: which negatives
-  // matter is a clinical statement, not a number.
-  historyLines.push("Диареи нет. Дизурии нет.");
+  const historyLines = [composed.history_ru];
+  // Explicit negatives from the reviewed card. Which negatives matter is a
+  // clinical statement, not a number - so they are carried, not regenerated.
+  // A negative the phenotype contradicts is dropped rather than reworded.
+  const negatives = explicitNegatives(composed.details_ru || []);
+  if (negatives.length) historyLines.push(negatives.join(". ") + ".");
   if (pregnancyPossible) {
     historyLines.push("Последняя менструация 24 дня назад, задержки не отмечает.");
   }
@@ -109,7 +242,7 @@ function buildFindings(baseCase, patient, phenotype, pregnancyPossible) {
 
   findings.abdominal_exam = {
     title: base.abdominal_exam.title,
-    text: phenotype.presentation.examination_ru + ".",
+    text: composed.examination_ru,
     provenance: GENERATED,
     review_status: "synthetic_case_fact_needs_external_review",
   };
@@ -227,21 +360,34 @@ export function buildV35Case({
   });
   const phenotype = PHENOTYPES[preset.phenotype_id];
   const pregnancyPossible = patient.enabled_action_ids.includes("pregnancy_test");
+  // One patient's presentation, chosen from the phenotype's authored variants.
+  const composed = composePresentation(phenotype, selection.effective_seed);
 
   // Start from the same composition V3 uses, so the core library, the mentor
   // rules and the router dictionary arrive unchanged.
   const baseCase = createV25Case(locale);
-  const { caseData: composed } = composeV3Case(baseCase, getDiseaseModule(baseCase));
+  const { caseData: v3Composed } = composeV3Case(baseCase, getDiseaseModule(baseCase));
 
   const withPatient = {
-    ...composed,
+    ...v3Composed,
     case_id: `app-v35-${preset.case_preset_id.toLowerCase()}`,
     case_version: V35_CONTENT_VERSION,
     product_version: "3.5",
-    title: preset.title_ru,
-    initial_presentation: { text: handoffText(patient) },
+    // THE TITLE IS A COMPLAINT, NEVER THE DIAGNOSIS.
+    //
+    // This carried `preset.title_ru` - "Ретроцекальный аппендицит со слабой
+    // передней перитонеальной симптоматикой" - which printed the hidden truth
+    // at the top of the screen before the learner had done anything. A trainer
+    // for diagnostic reasoning that announces the diagnosis is not a trainer.
+    //
+    // The preset title stays where it belongs: in the faculty preview and the
+    // frozen composition, both of which a learner never sees.
+    title: presentationTitle(composed),
+    // Faculty-facing only. Named so nothing renders it by reaching for `title`.
+    faculty_title_ru: preset.title_ru,
+    initial_presentation: { text: handoffText(patient, composed) },
     patient_state: {
-      ...composed.patient_state,
+      ...v3Composed.patient_state,
       sex: patient.demographics.sex,
       age: patient.demographics.age,
       pregnancy_possible: pregnancyPossible,
@@ -257,11 +403,11 @@ export function buildV35Case({
         pain_score: patient.presentation.pain_score,
       },
     },
-    available_findings: buildFindings(baseCase, patient, phenotype, pregnancyPossible),
+    available_findings: buildFindings(baseCase, patient, phenotype, pregnancyPossible, composed),
     hidden_findings: {
-      ...composed.hidden_findings,
+      ...v3Composed.hidden_findings,
       operative_finding: {
-        ...composed.hidden_findings.operative_finding,
+        ...v3Composed.hidden_findings.operative_finding,
         text: phenotype.imaging.operative_truth_ru,
         provenance: GENERATED,
       },
@@ -278,6 +424,8 @@ export function buildV35Case({
       content_version: V35_CONTENT_VERSION,
       requested_seed: selection.requested_seed,
       effective_seed: selection.effective_seed,
+      // The chosen presentation, so a reported case rebuilds the same sentences.
+      pain_site_ru: composed.pain_site_ru,
     }),
   };
 

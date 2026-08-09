@@ -22,6 +22,20 @@
 // shows, whether the appendix is visible on ultrasound, and where it is found on
 // CT and at operation.
 //
+// PRESENTATION TEXT IS VARIANTS, NOT A MENU
+//
+// The authored sentences describe what a phenotype MAY look like: "правый фланк,
+// поясница или правое подреберье". That is an authoring envelope, and it was
+// being printed to the learner verbatim - so the handoff read like a list of
+// options rather than a patient. A patient has one pain site, not three.
+//
+// Each sentence is therefore split into the choices it contained, and one
+// patient gets one of each. The split is MECHANICAL: every fragment is the
+// surgeon's own wording, and `authored_source_ru` keeps the original sentence
+// next to it so the split can be checked at a glance. Nothing was added, and
+// `split_status: MECHANICAL_SPLIT_NEEDS_CONFIRMATION` says it is a machine's
+// reading of a human's sentence until a human confirms it.
+//
 // It owns NO PHYSIOLOGY. Heart rate, temperature, pressure, white count and CRP
 // are produced by morphology, absolute disease time, inflammatory burden,
 // trajectory, modifiers and physiologic reserve - see PHYSIOLOGY_ENVELOPES and
@@ -277,10 +291,21 @@ export const PHENOTYPES = Object.freeze({
     presentation: Object.freeze({
       hours_from_onset: range(3, 8),
       pain_score: range(3, 6),
-      story_ru:
-        "Околопупочная или ранняя боль справа внизу, миграция неубедительна, анорексия, тошнота возможна",
-      examination_ru:
-        "Локальная болезненность без убедительного дефанса, перитонеальные признаки отрицательные или сомнительные",
+      pain_sites_ru: ["околопупочной области", "внизу живота справа"],
+      history_fixed_ru: ["миграция боли неубедительна", "аппетита нет"],
+      history_optional_ru: ["была тошнота"],
+      examination_fixed_ru: ["локальная болезненность без убедительного мышечного дефанса"],
+      examination_variants_ru: [
+        "перитонеальные признаки отрицательные",
+        "перитонеальные признаки сомнительные",
+      ],
+      authored_source_ru: Object.freeze({
+        story:
+          "Околопупочная или ранняя боль справа внизу, миграция неубедительна, анорексия, тошнота возможна",
+        examination:
+          "Локальная болезненность без убедительного дефанса, перитонеальные признаки отрицательные или сомнительные",
+      }),
+      split_status: "MECHANICAL_SPLIT_NEEDS_CONFIRMATION",
     }),
     imaging: Object.freeze({
       ultrasound_ru: "Отрицательное или неубедительное допустимо",
@@ -297,10 +322,25 @@ export const PHENOTYPES = Object.freeze({
     presentation: Object.freeze({
       hours_from_onset: range(6, 14),
       pain_score: range(5, 8),
-      story_ru:
-        "Миграция в правую подвздошную область, боль сильнее при движении и кашле, анорексия, 1-2 эпизода рвоты",
-      examination_ru:
-        "Локальная болезненность, защитное напряжение или локальные перитонеальные признаки",
+      pain_sites_ru: ["правой подвздошной области"],
+      history_fixed_ru: [
+        "боль мигрировала в правую подвздошную область",
+        "боль сильнее при движении и кашле",
+        "аппетита нет",
+      ],
+      history_counted_ru: Object.freeze({ template: "рвота, {n} {эпизод}", range: range(1, 2) }),
+      examination_fixed_ru: ["локальная болезненность в правой подвздошной области"],
+      examination_variants_ru: [
+        "защитное мышечное напряжение",
+        "локальные перитонеальные признаки справа внизу",
+      ],
+      authored_source_ru: Object.freeze({
+        story:
+          "Миграция в правую подвздошную область, боль сильнее при движении и кашле, анорексия, 1-2 эпизода рвоты",
+        examination:
+          "Локальная болезненность, защитное напряжение или локальные перитонеальные признаки",
+      }),
+      split_status: "MECHANICAL_SPLIT_NEEDS_CONFIRMATION",
     }),
     imaging: Object.freeze({
       ultrasound_ru: "Воспалённый несжимаемый аппендикс или limited visualization",
@@ -317,10 +357,18 @@ export const PHENOTYPES = Object.freeze({
     presentation: Object.freeze({
       hours_from_onset: range(8, 24),
       pain_score: range(4, 8),
-      story_ru:
-        "Надлобковая или глубокая тазовая боль, тенезмы, учащённое мочеиспускание или дискомфорт",
-      examination_ru:
-        "Максимум болезненности ниже типичной точки, классический дефанс может отсутствовать",
+      pain_sites_ru: ["надлобковой области", "глубоко в тазу"],
+      history_fixed_ru: ["тенезмы"],
+      history_variants_ru: ["учащённое мочеиспускание", "дискомфорт при мочеиспускании"],
+      examination_fixed_ru: ["максимум болезненности ниже типичной точки"],
+      examination_variants_ru: ["классического дефанса нет", "дефанс выражен слабо"],
+      authored_source_ru: Object.freeze({
+        story:
+          "Надлобковая или глубокая тазовая боль, тенезмы, учащённое мочеиспускание или дискомфорт",
+        examination:
+          "Максимум болезненности ниже типичной точки, классический дефанс может отсутствовать",
+      }),
+      split_status: "MECHANICAL_SPLIT_NEEDS_CONFIRMATION",
     }),
     imaging: Object.freeze({
       ultrasound_ru: "Аппендикс может не визуализироваться, тазовые органы оцениваются отдельно",
@@ -337,9 +385,19 @@ export const PHENOTYPES = Object.freeze({
     presentation: Object.freeze({
       hours_from_onset: range(10, 30),
       pain_score: range(4, 8),
-      story_ru:
-        "Правый фланк, поясница или правое подреберье, усиление при ходьбе или разгибании бедра",
-      examination_ru: "Слабые передние признаки, латеральная болезненность, psoas sign возможен",
+      pain_sites_ru: ["правом фланке", "пояснице справа", "правом подреберье"],
+      history_variants_ru: ["усиливается при ходьбе", "усиливается при разгибании бедра"],
+      examination_fixed_ru: [
+        "передние перитонеальные признаки слабые",
+        "болезненность латеральнее обычной точки",
+      ],
+      examination_optional_ru: ["psoas sign положительный"],
+      authored_source_ru: Object.freeze({
+        story:
+          "Правый фланк, поясница или правое подреберье, усиление при ходьбе или разгибании бедра",
+        examination: "Слабые передние признаки, латеральная болезненность, psoas sign возможен",
+      }),
+      split_status: "MECHANICAL_SPLIT_NEEDS_CONFIRMATION",
     }),
     imaging: Object.freeze({
       ultrasound_ru: "Ограничение кишечным газом и глубиной",
@@ -356,8 +414,15 @@ export const PHENOTYPES = Object.freeze({
     presentation: Object.freeze({
       hours_from_onset: range(24, 72),
       pain_score: range(7, 10),
-      story_ru: "Диффузная боль, повторная рвота, слабость, жажда, снижение диуреза",
-      examination_ru: "Распространённые перитонеальные признаки и возможная гипоперфузия",
+      pain_sites_ru: ["по всему животу"],
+      history_fixed_ru: ["повторная рвота", "слабость", "жажда", "снижение диуреза"],
+      examination_fixed_ru: ["распространённые перитонеальные признаки"],
+      examination_optional_ru: ["признаки гипоперфузии"],
+      authored_source_ru: Object.freeze({
+        story: "Диффузная боль, повторная рвота, слабость, жажда, снижение диуреза",
+        examination: "Распространённые перитонеальные признаки и возможная гипоперфузия",
+      }),
+      split_status: "MECHANICAL_SPLIT_NEEDS_CONFIRMATION",
     }),
     imaging: Object.freeze({
       ultrasound_ru:

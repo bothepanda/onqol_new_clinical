@@ -25,7 +25,9 @@ export const SOURCE_LOCALE = "ru";
  * usable. Anything not listed is structure, and structure has no language.
  */
 export const LOCALISED_FIELDS = Object.freeze({
-  phenotype: ["title", "presentation.story", "presentation.examination", "imaging.operative_truth"],
+  // Presentation text is now variant lists rather than one sentence, so the
+  // localised keys are the lists themselves plus the pain sites.
+  phenotype: ["title", "presentation.pain_sites", "imaging.operative_truth"],
   case_preset: ["title", "key_skill"],
   path_state: ["learner_goal", "mentor_focus"],
   alternative: ["hidden_truth", "discriminators", "safe_endpoint"],
@@ -55,7 +57,11 @@ export function localeCoverage() {
           id,
           key: field,
           locale,
-          present: typeof value === "string" && value.trim().length > 0,
+          // Some localised fields are lists now (pain sites, examination
+          // variants), so presence means "a non-empty string, or a list of them".
+          present: Array.isArray(value)
+            ? value.length > 0 && value.every((item) => typeof item === "string" && item.trim())
+            : typeof value === "string" && value.trim().length > 0,
         });
       }
     }

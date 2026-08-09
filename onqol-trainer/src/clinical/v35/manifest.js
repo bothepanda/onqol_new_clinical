@@ -36,7 +36,7 @@ import { PATH_STATES, PATH_STATE_IDS, STABLE_PATH, pathStatesById } from "./path
 import { ACTION_CONTRACTS, contractsById, resolvableActionIds } from "./actionContracts.js";
 import { REASONING_FLAGS } from "../core/reasoningState.js";
 
-export const V35_CONTENT_VERSION = "3.5.2";
+export const V35_CONTENT_VERSION = "3.5.3";
 
 /** The counts addendum 14 requires. Named so a failure says which one. */
 export const REQUIRED_COUNTS = Object.freeze({
