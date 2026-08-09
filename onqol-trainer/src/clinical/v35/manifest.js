@@ -19,8 +19,18 @@
 // Addendum 16: "Если пункт не выполнен, не называй V3.5 готовой. Верни точный
 // blocker."
 
-import { APPENDICITIS_PHENOTYPES, COHERENCE_RULES, V35_MODIFIERS, learnerSelectablePhenotypes } from "./phenotypes.js";
-import { V35_MIMICS } from "./mimics.js";
+import {
+  CASE_PRESETS,
+  COHERENCE_RULES,
+  PHENOTYPES,
+  PHENOTYPE_IDS,
+  RESOURCE_PROFILE_IDS,
+  TRAJECTORY_IDS,
+  V35_MODIFIERS,
+  learnerSelectablePresets,
+} from "./phenotypes.js";
+import { ALTERNATIVE_DISEASES } from "./alternatives.js";
+import { localeReadiness } from "./locale.js";
 import { PATH_STATES, PATH_STATE_IDS, STABLE_PATH, pathStatesById } from "./pathStates.js";
 import { ACTION_CONTRACTS, contractsById, resolvableActionIds } from "./actionContracts.js";
 import { REASONING_FLAGS } from "../core/reasoningState.js";
@@ -30,7 +40,8 @@ export const V35_CONTENT_VERSION = "3.5.0";
 /** The counts addendum 14 requires. Named so a failure says which one. */
 export const REQUIRED_COUNTS = Object.freeze({
   phenotypes: 5,
-  mimics: 8,
+  case_presets: 5,
+  alternative_diseases: 8,
   path_states: 16,
   action_contracts: 32,
 });
@@ -39,10 +50,13 @@ export const v35Manifest = Object.freeze({
   content_version: V35_CONTENT_VERSION,
   vertical: "acute_appendicitis_adult",
   presentation_card: "PRES-RLQ-PAIN",
-  phenotypes: APPENDICITIS_PHENOTYPES,
+  phenotypes: PHENOTYPES,
+  case_presets: CASE_PRESETS,
   modifiers: V35_MODIFIERS,
+  trajectories: TRAJECTORY_IDS,
+  resource_profiles: RESOURCE_PROFILE_IDS,
   coherence_rules: COHERENCE_RULES,
-  mimics: V35_MIMICS,
+  alternative_diseases: ALTERNATIVE_DISEASES,
   path_states: PATH_STATES,
   stable_path: STABLE_PATH,
   action_contracts: ACTION_CONTRACTS,
@@ -62,8 +76,9 @@ export function validateV35Manifest(caseData = null) {
   const count = (label, actual, expected) => {
     if (actual !== expected) errors.push(`${label}: expected exactly ${expected}, found ${actual}`);
   };
-  count("phenotypes", APPENDICITIS_PHENOTYPES.length, REQUIRED_COUNTS.phenotypes);
-  count("mimics", V35_MIMICS.length, REQUIRED_COUNTS.mimics);
+  count("phenotypes", PHENOTYPE_IDS.length, REQUIRED_COUNTS.phenotypes);
+  count("case presets", CASE_PRESETS.length, REQUIRED_COUNTS.case_presets);
+  count("alternative diseases", ALTERNATIVE_DISEASES.length, REQUIRED_COUNTS.alternative_diseases);
   count("path states", PATH_STATES.length, REQUIRED_COUNTS.path_states);
   count("action contracts", ACTION_CONTRACTS.length, REQUIRED_COUNTS.action_contracts);
 
@@ -73,8 +88,9 @@ export function validateV35Manifest(caseData = null) {
     if (seen.has(id)) errors.push(`duplicate id "${id}" (${seen.get(id)} and ${kind})`);
     else seen.set(id, kind);
   };
-  for (const phenotype of APPENDICITIS_PHENOTYPES) claim("phenotype", phenotype.preset_id);
-  for (const mimic of V35_MIMICS) claim("mimic", mimic.mimic_id);
+  for (const id of PHENOTYPE_IDS) claim("phenotype", id);
+  for (const preset of CASE_PRESETS) claim("case preset", preset.case_preset_id);
+  for (const entry of ALTERNATIVE_DISEASES) claim("alternative disease", entry.alternative_id);
   for (const state of PATH_STATES) claim("path state", state.state_id);
   for (const contract of ACTION_CONTRACTS) claim("action contract", contract.contract_id);
 
@@ -162,41 +178,81 @@ export function validateV35Manifest(caseData = null) {
       errors.push(`contract "${contract.contract_id}" must not be eligible for scoring`);
     }
   }
-  for (const mimic of V35_MIMICS) {
-    if (mimic.eligible_for_scoring !== false) {
-      errors.push(`mimic "${mimic.mimic_id}" must not be eligible for scoring`);
+  for (const entry of ALTERNATIVE_DISEASES) {
+    if (entry.eligible_for_scoring !== false) {
+      errors.push(`alternative "${entry.alternative_id}" must not be eligible for scoring`);
     }
-    if (mimic.runtime_status !== "disease_stub_inactive") {
-      errors.push(`mimic "${mimic.mimic_id}" must stay inactive until its disease package exists`);
+    if (entry.runtime_status !== "disease_stub_inactive") {
+      errors.push(
+        `alternative "${entry.alternative_id}" must stay inactive until its disease package exists`
+      );
+    }
+    // Every alternative must say which presentation it hangs off, or it is an
+    // orphan diagnosis nothing can ever reach.
+    if (!(entry.presentation_relationships || []).length) {
+      errors.push(`alternative "${entry.alternative_id}" declares no presentation relationship`);
     }
   }
 
-  // --- modifiers referenced by a phenotype must be declared ---------------
-  for (const phenotype of APPENDICITIS_PHENOTYPES) {
+  // --- presets resolve to declared layers ---------------------------------
+  for (const preset of CASE_PRESETS) {
+    if (!PHENOTYPES[preset.phenotype_id]) {
+      errors.push(`preset "${preset.case_preset_id}" names unknown phenotype "${preset.phenotype_id}"`);
+    }
     for (const modifierId of [
-      ...(phenotype.default_modifiers || []),
-      ...(phenotype.compatible_modifiers || []),
+      ...(preset.population_modifier_ids || []),
+      ...(preset.compatible_modifier_ids || []),
     ]) {
       if (!V35_MODIFIERS[modifierId]) {
-        errors.push(`phenotype "${phenotype.preset_id}" names undeclared modifier "${modifierId}"`);
+        errors.push(`preset "${preset.case_preset_id}" names undeclared modifier "${modifierId}"`);
       }
     }
-    // Every learner-selectable preset needs the ranges a generator will read.
-    if (phenotype.runtime_status === "learner_active") {
-      for (const field of ["heart_rate", "temperature_c", "systolic_bp", "wbc", "crp"]) {
-        const declared = phenotype.authoring_ranges?.[field];
-        if (!declared || !(declared.min <= declared.max)) {
-          errors.push(`phenotype "${phenotype.preset_id}" has no usable range for ${field}`);
-        }
+    if (!TRAJECTORY_IDS.includes(preset.trajectory_id)) {
+      errors.push(`preset "${preset.case_preset_id}" names unknown trajectory "${preset.trajectory_id}"`);
+    }
+    if (!RESOURCE_PROFILE_IDS.includes(preset.resource_profile_id)) {
+      errors.push(
+        `preset "${preset.case_preset_id}" names unknown resource profile "${preset.resource_profile_id}"`
+      );
+    }
+    // The preset's morphology must be one the phenotype can actually carry.
+    const phenotype = PHENOTYPES[preset.phenotype_id];
+    if (phenotype && !phenotype.compatible_morphologies.includes(preset.morphology)) {
+      errors.push(
+        `preset "${preset.case_preset_id}" pairs morphology "${preset.morphology}" with a phenotype that does not carry it`
+      );
+    }
+  }
+
+  // --- every phenotype a learner can reach has usable ranges --------------
+  const reachable = new Set(
+    CASE_PRESETS.filter((preset) => preset.runtime_status === "learner_active").map(
+      (preset) => preset.phenotype_id
+    )
+  );
+  for (const phenotypeId of reachable) {
+    const ranges = PHENOTYPES[phenotypeId]?.authoring_ranges;
+    for (const field of ["heart_rate", "temperature_c", "systolic_bp", "respiratory_rate", "wbc", "crp"]) {
+      const declared = ranges?.[field];
+      if (!declared || !(declared.min <= declared.max)) {
+        errors.push(`phenotype "${phenotypeId}" has no usable range for ${field}`);
       }
     }
   }
 
   // --- warnings: honest about what is not authored ------------------------
-  const unauthored = V35_MIMICS.filter((mimic) => mimic.missing_for_authoring?.length);
+  const unauthored = ALTERNATIVE_DISEASES.filter((entry) => entry.missing_for_authoring?.length);
   if (unauthored.length) {
     warnings.push(
-      `${unauthored.length}/${V35_MIMICS.length} alternatives are stubs awaiting authoring`
+      `${unauthored.length}/${ALTERNATIVE_DISEASES.length} alternative diseases are stubs awaiting authoring`
+    );
+  }
+  const flagged = Object.values(PHENOTYPES).filter((phenotype) => phenotype.review_flag);
+  if (flagged.length) {
+    warnings.push(
+      `${flagged.length} phenotype(s) carry an open review flag: ${flagged
+        .map((phenotype) => `${phenotype.phenotype_id} (${phenotype.review_flag.id})`)
+        .join(", ")}`
     );
   }
   const gaps = ACTION_CONTRACTS.filter((contract) => contract.gap);
@@ -235,20 +291,28 @@ export function v35Readiness(caseData = null) {
     manifest_valid: ok,
     errors,
     warnings,
-    learner_selectable_phenotypes: learnerSelectablePhenotypes().map((p) => p.preset_id),
-    faculty_preview_phenotypes: APPENDICITIS_PHENOTYPES.filter(
-      (p) => p.runtime_status === "faculty_preview"
-    ).map((p) => p.preset_id),
-    inactive_alternatives: V35_MIMICS.map((mimic) => mimic.mimic_id),
-    // Set by the step that wires the manifest into the engine, not by declaring
-    // the manifest. Until then the honest answer is no.
+    learner_selectable_presets: learnerSelectablePresets().map((preset) => preset.case_preset_id),
+    faculty_preview_presets: CASE_PRESETS.filter(
+      (preset) => preset.runtime_status === "faculty_preview"
+    ).map((preset) => preset.case_preset_id),
+    inactive_alternatives: ALTERNATIVE_DISEASES.map((entry) => entry.alternative_id),
+    locales: localeReadiness().map((row) => ({
+      locale: row.locale,
+      status: row.status,
+      missing_keys: row.missing.length,
+    })),
+    // The generator runs and produces coherent patients. The engine does not yet
+    // consume them: selecting a preset does not change the case the learner
+    // plays. Set by the step that wires it, not by declaring the manifest.
+    generator_wired_to_case_factory: false,
     engine_wired: false,
     blocking_for_done: [
-      "path states are declared but do not drive the engine (temporalPatientModel still uses four phases)",
-      "no patient generator: phenotype ranges are not yet instantiated into a case",
+      "generator produces patients, but the case factory still builds one fixed patient from acuteAppendicitis.js",
+      "path states are declared and do not drive the engine (temporalPatientModel still uses four coarse phases)",
       "stable path does not reach discharge in the running engine",
       "reasoning snapshots are declared per state but not emitted",
       "KZ text absent across phenotypes, states and alternatives",
+      "retrocecal envelope implies greater severity and awaits a reviewer's decision",
     ],
   };
 }
