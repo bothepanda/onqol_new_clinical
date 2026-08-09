@@ -2,6 +2,7 @@ import { useState } from "react";
 import ONQOLTrainer from "./ONQOLTrainer";
 import V2Trainer from "./V2Trainer";
 import V25Trainer from "./V25Trainer";
+import V35Preview from "./V35Preview";
 
 /**
  * V3 is the product. The mentor is not an option inside it - it is what makes
@@ -10,10 +11,15 @@ import V25Trainer from "./V25Trainer";
  *   ?version=1     V1  conversational, model as the source of truth
  *   ?version=2     V2  data as the source of truth, semantic router
  *   ?version=2.5   V2.5 same engine as V3 but with the mentor off
+ *   ?review        faculty review harness: read the corpus, do not play it
  *   (default)      V3  core library + mentor channel
  */
 function initialVersion() {
-  const requested = new URLSearchParams(window.location.search).get("version");
+  const params = new URLSearchParams(window.location.search);
+  // Not a version of the trainer - a reading tool. Kept on its own flag so it
+  // can never be mistaken for a mode a learner is put into.
+  if (params.has("review")) return "review";
+  const requested = params.get("version");
   if (requested === "1") return "v1";
   if (requested === "2") return "v2";
   if (requested === "2.5") return "v25";
@@ -37,6 +43,10 @@ const SWITCH_STYLE = {
 
 export default function App() {
   const [version, setVersion] = useState(initialVersion);
+
+  if (version === "review") {
+    return <V35Preview />;
+  }
 
   if (version === "v1") {
     return (

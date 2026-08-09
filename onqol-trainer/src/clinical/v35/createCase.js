@@ -362,7 +362,9 @@ function buildFindings(baseCase, patient, phenotype, pregnancyPossible, composed
   };
 
   findings.crp = {
-    title: base.crp.title,
+    // The card's title is "CRP"; the text the owner rewrote says
+    // "С-реактивный белок". The learner sees both, so they say the same thing.
+    title: "С-реактивный белок",
     text: `С-реактивный белок ${patient.labs.crp} мг/л.`,
     provenance: GENERATED,
     review_status: "synthetic_case_fact_needs_external_review",
