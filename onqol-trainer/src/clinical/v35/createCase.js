@@ -116,10 +116,18 @@ function buildFindings(baseCase, patient, phenotype, pregnancyPossible) {
 
   findings.cbc = {
     title: base.cbc.title,
-    // Only the white count is generated. Haemoglobin, neutrophils and platelets
-    // are the reviewed card's and are not adapted to this patient.
-    text: `Hb 126 г/л, лейкоциты ${patient.labs.wbc} x 10^9/л, нейтрофилы 84%, тромбоциты 248 x 10^9/л.`,
-    provenance: `${GENERATED} (лейкоциты); ${CARRIED} (Hb, нейтрофилы, тромбоциты)`,
+    // Every value here is now this patient's. Haemoglobin and platelets come
+    // from the adult population, the white count and neutrophil fraction from
+    // the shared inflammatory burden, and the absolute neutrophil count is
+    // derived from the two - so the numbers agree with each other rather than
+    // being three independent draws pasted into one line.
+    text:
+      `Hb ${patient.labs.haemoglobin} г/л, ` +
+      `лейкоциты ${patient.labs.wbc} x 10^9/л, ` +
+      `нейтрофилы ${patient.labs.neutrophil_percent}% ` +
+      `(абс. ${patient.labs.absolute_neutrophil_count} x 10^9/л), ` +
+      `тромбоциты ${patient.labs.platelets} x 10^9/л.`,
+    provenance: GENERATED,
     review_status: "synthetic_case_fact_needs_external_review",
   };
 

@@ -44,6 +44,7 @@
 import {
   BASE_ADULT_AGE,
   PHENOTYPES,
+  POPULATION_BLOOD,
   PREGNANCY_BRANCH_RULE,
   V35_MODIFIERS,
   resolvePreset,
@@ -61,18 +62,30 @@ import {
  * Deliberately absent: any term for the phenotype.
  */
 export const LOAD_COMPOSITION = Object.freeze({
-  morphology: Object.freeze({
-    uncomplicated_inflammation: 0.25,
-    abscess: 0.6,
-    gangrene_necrosis: 0.7,
-    perforation: 0.8,
-    diffuse_peritonitis: 0.9,
+  // Morphology SELECTS A DISTRIBUTION; it does not add a fixed score.
+  //
+  // Surgeon's correction, 09.08.2026, option (г): the authored ranges are HARD
+  // ENVELOPES, not a uniform distribution to be swept. The previous additive
+  // form pinned uncomplicated inflammation at 0.25 and, with time worth at most
+  // another 0.25, made the upper half of every envelope unreachable - CRP 140
+  // in a retrocecal case could not occur at any seed.
+  //
+  // Now each morphology names where its patients sit inside the envelope and how
+  // wide they spread. `centre` is the middle of the distribution, `spread` the
+  // half-width of the triangular core. Extremes remain reachable through the
+  // tails, and stay rare.
+  morphology_distribution: Object.freeze({
+    uncomplicated_inflammation: Object.freeze({ centre: 0.5, spread: 0.5 }),
+    abscess: Object.freeze({ centre: 0.62, spread: 0.38 }),
+    gangrene_necrosis: Object.freeze({ centre: 0.68, spread: 0.32 }),
+    perforation: Object.freeze({ centre: 0.74, spread: 0.26 }),
+    diffuse_peritonitis: Object.freeze({ centre: 0.8, spread: 0.2 }),
   }),
-  // Weight of "how far through this phenotype's own onset window the patient is".
-  // Relative to the phenotype, so ten hours is late for early_subtle and early
-  // for retrocecal - which is the point.
-  time_in_window_weight: 0.25,
-  trajectory: Object.freeze({
+  // Inflammatory burden also moves with how far through the phenotype's own
+  // onset window the patient is, and with the trajectory. Both SHIFT the centre;
+  // neither replaces the morphology's distribution.
+  time_in_window_shift: 0.15,
+  trajectory_shift: Object.freeze({
     "TRJ-STABLE": 0,
     "TRJ-SERIAL-EVOLUTION": 0,
     "TRJ-RESPONDS-TO-TREATMENT": 0,
@@ -81,10 +94,67 @@ export const LOAD_COMPOSITION = Object.freeze({
     "TRJ-SEPTIC-SHOCK": 0.15,
     "TRJ-RECURRENCE-READMISSION": 0.05,
   }),
-  // How far a single variable may sit from the shared load. Small on purpose:
-  // above roughly 0.15 the cluster stops looking like one patient.
+  // Residual variability only. Every variable is placed by the shared burden;
+  // this is the small remainder that keeps two patients at the same burden from
+  // being numerically identical. It is NOT an independent draw per variable.
   per_variable_jitter: 0.12,
-  provenance: "EXPERT_OPINION_UNREVIEWED",
+  // Target for the shape: p5-p95 should occupy roughly the central 15-85% of the
+  // envelope, so the edges are rare rather than routine. Asserted by a test.
+  target_p5_p95: Object.freeze({ min: 0.15, max: 0.85 }),
+  provenance: "SURGEON_REVIEWED_PROVISIONAL",
+  clinical_review_status: "reviewed_provisional",
+  eligible_for_scoring: false,
+});
+
+/**
+ * Haemodynamic states, surgeon's correction section 3.
+ *
+ * Pressure is generated from a state rather than as three loose numbers: pulse
+ * pressure comes from the state, and the diastolic and the mean follow from it.
+ * That makes MAP a real computed value instead of the fiction it was when the
+ * diastolic was `systolic * 0.62`.
+ *
+ * ORDER OF DERIVATION. The surgeon specified MAP and pulse pressure first, then
+ * SBP and DBP. The constraint that the systolic must land inside the preset's
+ * authored envelope is the binding one, so the systolic is placed first and the
+ * mean is derived: MAP = SBP - 2*PP/3, DBP = MAP - PP/3. The same three
+ * identities, solved from the end that has a hard constraint.
+ *
+ * PULSE PRESSURE RANGES ARE PROVISIONAL AND UNREVIEWED. The surgeon specified
+ * the mechanism, not the numbers. These are conventional values placed so the
+ * mechanism can run and are flagged in REVIEW_TABLES.md for replacement.
+ */
+export const HAEMODYNAMIC_STATES = Object.freeze({
+  stable: Object.freeze({
+    state_id: "stable",
+    pulse_pressure: Object.freeze({ min: 35, max: 50 }),
+    allowed_for_presets: ["APP-001", "APP-002", "APP-003", "APP-004"],
+  }),
+  pain_sympathetic: Object.freeze({
+    state_id: "pain_sympathetic",
+    pulse_pressure: Object.freeze({ min: 40, max: 60 }),
+    allowed_for_presets: ["APP-001", "APP-002", "APP-003", "APP-004"],
+  }),
+  // APP-005 only, and not reachable by a learner.
+  compensated: Object.freeze({
+    state_id: "compensated",
+    pulse_pressure: Object.freeze({ min: 30, max: 45 }),
+    allowed_for_presets: ["APP-005"],
+  }),
+  hypovolaemic: Object.freeze({
+    state_id: "hypovolaemic",
+    // Narrow: the classic early sign, before the systolic falls.
+    pulse_pressure: Object.freeze({ min: 20, max: 35 }),
+    allowed_for_presets: ["APP-005"],
+  }),
+  vasodilatory: Object.freeze({
+    state_id: "vasodilatory",
+    // Wide: low diastolic in a vasodilated septic patient.
+    pulse_pressure: Object.freeze({ min: 45, max: 70 }),
+    allowed_for_presets: ["APP-005"],
+  }),
+  provenance: "MECHANISM_REVIEWED_RANGES_UNREVIEWED",
+  clinical_review_status: "pending",
   eligible_for_scoring: false,
 });
 
@@ -126,6 +196,23 @@ export const REPORTED_DECIMALS = Object.freeze({
   wbc: 1,
   crp: 0,
 });
+
+/**
+ * Place a triangular draw so its 5th and 95th percentiles land on a target band
+ * inside a wider hard envelope.
+ *
+ * The mean of two uniforms has its p5 and p95 at roughly +/-0.684 of its
+ * half-width, which is what makes this solvable in closed form.
+ */
+function inTargetBand(triangular, envelope, target) {
+  const span = envelope.max - envelope.min;
+  if (span <= 0) return 0;
+  const low = (target.min - envelope.min) / span;
+  const high = (target.max - envelope.min) / span;
+  const centre = (low + high) / 2;
+  const halfWidth = (high - low) / 2 / 0.684;
+  return clamp01(centre + (triangular - 0.5) * 2 * halfWidth);
+}
 
 /** Position error introduced purely by reporting `rangeSpec` to `decimals`. */
 function quantisationSlack(rangeSpec, decimals) {
@@ -192,11 +279,14 @@ export const INSTABILITY_RULES = Object.freeze({
  * from the surgeon, like every other variable.
  */
 export const DIASTOLIC_STATUS = Object.freeze({
-  generated: false,
-  status: "NEEDS_AUTHORING",
-  blocks: ["INSTABILITY_RULES.hard.mean_arterial_pressure_below"],
+  generated: true,
+  status: "DERIVED_FROM_HAEMODYNAMIC_STATE",
+  // Resolved on 09.08.2026. The fixed 0.62 ratio is gone: pulse pressure comes
+  // from the haemodynamic state, and MAP and the diastolic follow by identity.
+  // MAP < 65 is therefore a live coherence rule rather than a declared intent.
   note_ru:
-    "Диастолическое не генерируется и не показывается. Пока его нет, MAP не вычисляется, а нестабильность определяется по САД и шоковому индексу.",
+    "Диастолическое выводится из состояния гемодинамики: пульсовое давление задаётся состоянием, MAP = САД - 2*ПД/3, ДАД = MAP - ПД/3. Диапазоны пульсового давления пока не отрецензированы.",
+  open_review: "HAEMODYNAMIC_STATES.pulse_pressure ranges",
 });
 
 /** Place a position in [0,1] inside a range, rounded to `decimals`. */
@@ -214,15 +304,63 @@ function at(rangeSpec, position, decimals = 0) {
  * @param {number} params.timeInWindow  0..1, position in the phenotype's window
  * @param {string} params.trajectoryId
  */
-export function physiologicLoad({ morphology, timeInWindow, trajectoryId }) {
-  const morphologyLoad = LOAD_COMPOSITION.morphology[morphology];
-  if (morphologyLoad === undefined) {
-    throw new Error(`No load weight declared for morphology "${morphology}".`);
+export function physiologicLoad({ morphology, timeInWindow, trajectoryId, draw }) {
+  const distribution = LOAD_COMPOSITION.morphology_distribution[morphology];
+  if (!distribution) {
+    throw new Error(`No burden distribution declared for morphology "${morphology}".`);
   }
-  const trajectoryLoad = LOAD_COMPOSITION.trajectory[trajectoryId] ?? 0;
-  return clamp01(
-    morphologyLoad + clamp01(timeInWindow) * LOAD_COMPOSITION.time_in_window_weight + trajectoryLoad
+  const trajectoryShift = LOAD_COMPOSITION.trajectory_shift[trajectoryId] ?? 0;
+
+  // Mean of two uniforms: a triangular distribution whose 5th and 95th
+  // percentiles sit at about 0.16 and 0.84 of its width. That is the shape the
+  // surgeon asked for - the central 15-85% of the envelope carries the bulk,
+  // and the edges are reachable but rare.
+  const triangular = (draw() + draw()) / 2;
+
+  // Time through the phenotype's own window and the trajectory move the centre.
+  // Neither replaces the distribution, so morphology still decides the shape.
+  const centre = clamp01(
+    distribution.centre +
+      (clamp01(timeInWindow) - 0.5) * 2 * LOAD_COMPOSITION.time_in_window_shift +
+      trajectoryShift
   );
+
+  return clamp01(centre + (triangular - 0.5) * 2 * distribution.spread);
+}
+
+/**
+ * Blood pressure from a haemodynamic state.
+ *
+ * Systolic is placed inside the preset's authored envelope first, because that
+ * constraint is hard. Pulse pressure comes from the state, and the mean and the
+ * diastolic follow by identity. Nothing here is a fixed ratio.
+ */
+export function derivePressures({ systolic, pulsePressure }) {
+  const meanArterial = systolic - (2 * pulsePressure) / 3;
+  return {
+    systolic_bp: Math.round(systolic),
+    diastolic_bp: Math.round(meanArterial - pulsePressure / 3),
+    mean_arterial_pressure: Math.round(meanArterial),
+    pulse_pressure: Math.round(pulsePressure),
+  };
+}
+
+/**
+ * Which haemodynamic states a preset may present.
+ *
+ * APP-001..004 are stable or in pain, and nothing else: the surgeon's rule is
+ * that a learner-facing uncomplicated case must never carry MAP < 65, SBP < 90
+ * or a shock index at or above 1. The shocked clusters exist only for APP-005,
+ * which no learner can reach.
+ */
+export function haemodynamicStateFor(casePresetId, draw) {
+  const eligible = Object.values(HAEMODYNAMIC_STATES).filter(
+    (state) => state?.allowed_for_presets?.includes(casePresetId)
+  );
+  if (eligible.length === 0) {
+    throw new Error(`No haemodynamic state declared for preset "${casePresetId}".`);
+  }
+  return eligible[Math.min(eligible.length - 1, Math.floor(draw() * eligible.length))];
 }
 
 /**
@@ -240,42 +378,79 @@ export function generatePatient(casePresetId, seed) {
   const timeInWindow = random();
   const hoursFromOnset = at(phenotype.presentation.hours_from_onset, timeInWindow);
 
-  // 2. One shared load for the whole cluster.
+  // 2. One shared inflammatory burden for the whole cluster.
   const load = physiologicLoad({
     morphology: preset.morphology,
     timeInWindow,
     trajectoryId: preset.trajectory_id,
+    draw: random,
   });
 
-  // 3. Every variable at that load inside its own authored envelope.
+  // 3. Every variable at that burden inside its own authored envelope, plus a
+  //    small residual. The residual is not an independent draw of the variable -
+  //    it is the remainder after the shared state has placed it.
   const jitter = () => (random() - 0.5) * 2 * LOAD_COMPOSITION.per_variable_jitter;
   const positioned = (rangeSpec, decimals) => at(rangeSpec, load + jitter(), decimals);
   const ranges = phenotype.authoring_ranges;
 
+  // Systolic falls as burden rises, so it reads its envelope from the other end.
+  const systolic = at(
+    ranges.systolic_bp,
+    1 - clamp01(load + jitter()),
+    REPORTED_DECIMALS.systolic_bp
+  );
+  const state = haemodynamicStateFor(preset.case_preset_id, random);
+  const pressures = derivePressures({
+    systolic,
+    pulsePressure: at(state.pulse_pressure, random()),
+  });
+
   const vitals = Object.freeze({
     heart_rate: positioned(ranges.heart_rate, REPORTED_DECIMALS.heart_rate),
     temperature_c: positioned(ranges.temperature_c, REPORTED_DECIMALS.temperature_c),
-    // Blood pressure falls as load rises, so it reads the envelope from the
-    // other end. Declared here rather than by reversing the authored range,
-    // which would make the range itself say something backwards.
-    systolic_bp: at(ranges.systolic_bp, 1 - clamp01(load + jitter()), REPORTED_DECIMALS.systolic_bp),
+    ...pressures,
+    haemodynamic_state: state.state_id,
     respiratory_rate: positioned(ranges.respiratory_rate, REPORTED_DECIMALS.respiratory_rate),
   });
 
-  const labs = Object.freeze({
-    wbc: positioned(ranges.wbc, REPORTED_DECIMALS.wbc),
-    crp: positioned(ranges.crp, REPORTED_DECIMALS.crp),
-  });
-
-  // 4. Demographics come from the modifiers, or from the adult default when no
-  //    modifier constrains them. No modifier means no gynaecological layer -
-  //    and the absence of the actions, not their presence at zero weight.
-  // One adult population, not one per sex. A preset that declares the modifier
-  // (APP-002) constrains demographics; otherwise the patient is drawn from the
-  // whole adult range and the case adapts to her, not the other way round.
+  // 4. Demographics. One adult population, not one per sex. A preset that
+  //    declares the modifier (APP-002) constrains them; otherwise the patient is
+  //    drawn from the whole adult range and the case adapts to her, not the
+  //    other way round. Drawn before the labs because haemoglobin is sexed.
   const declared = modifiers.find((modifier) => modifier.demographics)?.demographics;
   const sex = declared?.sex ?? (random() < 0.5 ? "male" : "female");
   const age = at(declared?.age ?? BASE_ADULT_AGE, random());
+
+  // White count and neutrophil fraction come from the same burden, and the
+  // absolute count is DERIVED from them - never drawn separately, which is how a
+  // patient ends up with 16 x10^9/L and 60% neutrophils.
+  const wbc = positioned(ranges.wbc, REPORTED_DECIMALS.wbc);
+  const neutrophilPercent = positioned(ranges.neutrophil_percent, 0);
+  const haemoglobinRange = POPULATION_BLOOD.haemoglobin[sex];
+
+  const labs = Object.freeze({
+    wbc,
+    neutrophil_percent: neutrophilPercent,
+    absolute_neutrophil_count: Math.round(wbc * (neutrophilPercent / 100) * 10) / 10,
+    crp: positioned(ranges.crp, REPORTED_DECIMALS.crp),
+    // Population values: they do not vary with where the appendix sits. Drawn
+    // from the adult range with the same triangular shape, so the edges of the
+    // envelope stay uncommon.
+    haemoglobin: at(haemoglobinRange, (random() + random()) / 2, 0),
+    // The surgeon gave platelets a hard envelope of 150-400 and a target p5-p95
+    // of 170-350, which is not the same distribution: centring on the envelope
+    // put the 95th percentile at 360. Placed to hit the target band instead,
+    // with the envelope as the outer bound.
+    platelets: at(
+      POPULATION_BLOOD.platelets.envelope,
+      inTargetBand(
+        (random() + random()) / 2,
+        POPULATION_BLOOD.platelets.envelope,
+        POPULATION_BLOOD.platelets.target_p5_p95
+      ),
+      0
+    ),
+  });
 
   // The pregnancy branch follows the PATIENT. A woman in the reproductive band
   // gets it whether or not the preset anticipated her - which is what lets every
@@ -354,13 +529,17 @@ export function coherenceViolations(patient) {
   // "Не генерировать shock vitals при uncomplicated morphology", with
   // instability defined per INSTABILITY_RULES rather than by a systolic cutoff.
   const shockIndex = patient.vitals.heart_rate / patient.vitals.systolic_bp;
+  // MAP is a real computed value now that pressure comes from a haemodynamic
+  // state, so the rule the surgeon specified finally does something. It was
+  // declared and inert while the diastolic was a fixed ratio.
   const hardInstability =
     patient.vitals.systolic_bp < INSTABILITY_RULES.hard.systolic_below ||
+    patient.vitals.mean_arterial_pressure < INSTABILITY_RULES.hard.mean_arterial_pressure_below ||
     shockIndex >= INSTABILITY_RULES.hard.shock_index_at_or_above;
   if (uncomplicated && hardInstability) {
     violations.push({
       rule: "no_shock_vitals_with_uncomplicated_morphology",
-      detail: `САД ${patient.vitals.systolic_bp}, шоковый индекс ${shockIndex.toFixed(2)} при неосложнённом воспалении`,
+      detail: `САД ${patient.vitals.systolic_bp}, MAP ${patient.vitals.mean_arterial_pressure}, шоковый индекс ${shockIndex.toFixed(2)} при неосложнённом воспалении`,
     });
   }
 

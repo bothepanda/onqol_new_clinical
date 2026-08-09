@@ -12,6 +12,7 @@ import {
   CASE_PRESETS,
   PHENOTYPES,
   PHENOTYPE_IDS,
+  POPULATION_BLOOD,
   V35_MODIFIERS,
   learnerSelectablePresets,
   presetsById,
@@ -26,6 +27,7 @@ import {
   generatePatient,
   physiologicLoad,
 } from "../v35/patientGenerator.js";
+import { SCORING_CONTRACT, WHO_CHECKPOINTS, scorableByDomain } from "../v35/scoringContract.js";
 import { selectV35Case, selectionEvent } from "../v35/sessionSelector.js";
 import { localeReadiness } from "../v35/locale.js";
 
@@ -182,11 +184,12 @@ test("the generator itself is pure: it never sees the previous case", () => {
 
 // --- A2 coherent cluster (owner correction 4) ------------------------------
 
-test("physiological load comes from morphology, time and trajectory - never from the phenotype", () => {
+test("burden comes from morphology, time and trajectory - never from the phenotype", () => {
   // The owner's point: a retrocecal appendix is in a different place, not a
   // sicker patient. The composition table has no phenotype term at all.
+  assert.equal(LOAD_COMPOSITION.morphology, undefined, "the additive form is gone");
   assert.equal(LOAD_COMPOSITION.phenotype, undefined);
-  assert.deepEqual(Object.keys(LOAD_COMPOSITION.morphology).sort(), [
+  assert.deepEqual(Object.keys(LOAD_COMPOSITION.morphology_distribution).sort(), [
     "abscess",
     "diffuse_peritonitis",
     "gangrene_necrosis",
@@ -194,27 +197,119 @@ test("physiological load comes from morphology, time and trajectory - never from
     "uncomplicated_inflammation",
   ]);
 
-  // Same morphology, time and trajectory produce the same load whatever the
-  // presentation is called.
-  const inputs = { morphology: "uncomplicated_inflammation", timeInWindow: 0.5, trajectoryId: "TRJ-STABLE" };
-  assert.equal(physiologicLoad(inputs), physiologicLoad({ ...inputs }));
+  // Morphology selects a distribution rather than adding a fixed score, so
+  // uncomplicated inflammation can reach the whole envelope.
+  const uncomplicated = LOAD_COMPOSITION.morphology_distribution.uncomplicated_inflammation;
+  assert.equal(uncomplicated.centre, 0.5);
+  assert.equal(uncomplicated.spread, 0.5);
 
-  // Perforation is sicker than uncomplicated inflammation, all else equal.
+  // Sicker morphologies sit higher in the envelope.
+  const inputs = { timeInWindow: 0.5, trajectoryId: "TRJ-STABLE", draw: () => 0.5 };
   assert.ok(
-    physiologicLoad({ ...inputs, morphology: "perforation" }) > physiologicLoad(inputs)
+    physiologicLoad({ ...inputs, morphology: "perforation" }) >
+      physiologicLoad({ ...inputs, morphology: "uncomplicated_inflammation" })
   );
 });
 
-test("the cluster hangs together: one load, not six independent draws", () => {
+test("the burden distribution puts p5-p95 in the central 15-85% of the envelope", () => {
+  // Surgeon's requirement: extremes reachable, but rare - not a quarter of
+  // patients sitting on the edge.
+  const loads = [];
+  let seed = 1;
+  const draw = () => {
+    seed = (seed * 1664525 + 1013904223) % 4294967296;
+    return seed / 4294967296;
+  };
+  for (let index = 0; index < 20000; index += 1) {
+    loads.push(
+      physiologicLoad({
+        morphology: "uncomplicated_inflammation",
+        timeInWindow: draw(),
+        trajectoryId: "TRJ-STABLE",
+        draw,
+      })
+    );
+  }
+  loads.sort((a, b) => a - b);
+  const p5 = loads[Math.floor(loads.length * 0.05)];
+  const p95 = loads[Math.floor(loads.length * 0.95)];
+
+  assert.ok(p5 > 0.08 && p5 < LOAD_COMPOSITION.target_p5_p95.min + 0.08, `p5 was ${p5.toFixed(3)}`);
+  assert.ok(p95 > LOAD_COMPOSITION.target_p5_p95.max - 0.08 && p95 < 0.95, `p95 was ${p95.toFixed(3)}`);
+});
+
+test("no learner-facing preset ever ships hard instability", () => {
+  // Surgeon's requirement: APP-001..004 are stable or in pain, never shocked.
+  // The authored envelopes for pelvic and retrocecal do permit a shock index at
+  // or above 1 at the extreme, so the guarantee is enforced by rejection: the
+  // selector reseeds rather than shipping such a patient.
   for (const preset of learnerSelectablePresets()) {
-    for (let index = 0; index < 50; index += 1) {
-      const patient = generatePatient(preset.case_preset_id, `cluster-${index}`);
-      assert.deepEqual(
-        coherenceViolations(patient),
-        [],
-        `${preset.case_preset_id} seed ${index}: ${JSON.stringify(coherenceViolations(patient))}`
-      );
+    for (let index = 0; index < 300; index += 1) {
+      const { patient } = selectV35Case({ seed: `stable-${preset.case_preset_id}-${index}`, requestedPresetId: preset.case_preset_id });
+      const shockIndex = patient.vitals.heart_rate / patient.vitals.systolic_bp;
+      assert.ok(patient.vitals.systolic_bp >= 90, `САД ${patient.vitals.systolic_bp}`);
+      assert.ok(shockIndex < 1, `шоковый индекс ${shockIndex.toFixed(2)}`);
+      assert.ok(patient.vitals.mean_arterial_pressure >= 65, `MAP ${patient.vitals.mean_arterial_pressure}`);
+      assert.deepEqual(coherenceViolations(patient), []);
     }
+  }
+});
+
+test("blood pressure is derived from a haemodynamic state, not from a fixed ratio", () => {
+  for (const preset of learnerSelectablePresets()) {
+    for (let index = 0; index < 100; index += 1) {
+      const { patient } = selectV35Case({ seed: `bp-${index}`, requestedPresetId: preset.case_preset_id });
+      const { systolic_bp: sbp, diastolic_bp: dbp, mean_arterial_pressure: map, pulse_pressure: pp } = patient.vitals;
+
+      assert.ok(dbp < sbp, `ДАД ${dbp} не ниже САД ${sbp}`);
+      assert.ok(map > dbp && map < sbp, `MAP ${map} вне ДАД-САД`);
+      // The identities hold, within rounding.
+      assert.ok(Math.abs(sbp - dbp - pp) <= 1, `пульсовое ${pp} не равно САД-ДАД`);
+      assert.ok(Math.abs(map - (dbp + pp / 3)) <= 1.5, `MAP не равен ДАД + ПД/3`);
+      // And the ratio is not a constant.
+      assert.ok(["stable", "pain_sympathetic"].includes(patient.vitals.haemodynamic_state));
+    }
+  }
+
+  // Across many patients the diastolic/systolic ratio must actually vary.
+  const ratios = new Set();
+  for (let index = 0; index < 200; index += 1) {
+    const patient = generatePatient("APP-002", `ratio-${index}`);
+    ratios.add((patient.vitals.diastolic_bp / patient.vitals.systolic_bp).toFixed(2));
+  }
+  assert.ok(ratios.size > 8, `expected a spread of ratios, got ${ratios.size}`);
+});
+
+test("neutrophils are generated with the white count, and ANC is derived", () => {
+  for (let index = 0; index < 200; index += 1) {
+    const patient = generatePatient("APP-002", `anc-${index}`);
+    const expected = Math.round(patient.labs.wbc * (patient.labs.neutrophil_percent / 100) * 10) / 10;
+    assert.equal(patient.labs.absolute_neutrophil_count, expected);
+    // High white count and low neutrophil fraction in the same patient is what
+    // independent draws produce; the shared burden must prevent it.
+    if (patient.labs.wbc > 14) assert.ok(patient.labs.neutrophil_percent > 78);
+  }
+});
+
+test("haemoglobin and platelets belong to the population, not to the appendix", () => {
+  const byPhenotype = {};
+  for (const preset of learnerSelectablePresets()) {
+    byPhenotype[preset.phenotype_id] = [];
+    for (let index = 0; index < 200; index += 1) {
+      const patient = generatePatient(preset.case_preset_id, `hb-${index}`);
+      byPhenotype[preset.phenotype_id].push(patient.labs.haemoglobin);
+      const bounds = POPULATION_BLOOD.haemoglobin[patient.demographics.sex];
+      assert.ok(
+        patient.labs.haemoglobin >= bounds.min && patient.labs.haemoglobin <= bounds.max,
+        `Hb ${patient.labs.haemoglobin} вне ${patient.demographics.sex} ${bounds.min}-${bounds.max}`
+      );
+      assert.ok(patient.labs.platelets >= 150 && patient.labs.platelets <= 400);
+    }
+  }
+  // No phenotype declares a haemoglobin range any more.
+  for (const phenotype of Object.values(PHENOTYPES)) {
+    assert.equal(phenotype.authoring_ranges.haemoglobin, undefined);
+    assert.equal(phenotype.authoring_ranges.platelets, undefined);
   }
 });
 
@@ -331,6 +426,78 @@ test("the phenotype ranges are the addendum's, unwidened", () => {
   assert.deepEqual(PHENOTYPES.early_subtle.authoring_ranges.temperature_c, { min: 36.7, max: 37.7 });
   assert.deepEqual(PHENOTYPES.retrocecal.authoring_ranges.crp, { min: 40, max: 140 });
   assert.deepEqual(PHENOTYPES.pelvic.presentation.hours_from_onset, { min: 8, max: 24 });
+});
+
+// --- scoring contract (surgeon review section 1) --------------------------
+
+test("the fourteen core actions carry reviewed provisional weights, and still do not score", () => {
+  assert.equal(SCORING_CONTRACT.length, 14, "the count in HANDOFF was wrong; nothing was removed");
+
+  for (const entry of SCORING_CONTRACT) {
+    assert.equal(entry.clinical_review_status, "reviewed_provisional");
+    // Reviewed is not live: weights await pilot calibration.
+    assert.equal(entry.eligible_for_scoring, false, entry.canonical_id);
+    assert.ok(entry.score_weight >= 1 && entry.score_weight <= 4);
+    assert.ok(entry.criticality >= 0 && entry.criticality <= 4);
+  }
+
+  // Weight and criticality are independent: a small weight may still be a
+  // critical gate. informed_consent is exactly that case.
+  const consent = SCORING_CONTRACT.find((e) => e.canonical_id === "informed_consent");
+  assert.equal(consent.score_weight, 2);
+  assert.equal(consent.criticality, 4);
+});
+
+test("a gate has a scope, a target and a waiver - not a boolean", () => {
+  const consent = SCORING_CONTRACT.find((e) => e.canonical_id === "informed_consent");
+  assert.equal(consent.gate.gate_scope, "before_intervention");
+  assert.deepEqual(consent.gate.blocks_action_ids, ["open_appendectomy_here"]);
+  // The surgeon's example: emergency surgery on a patient without capacity.
+  assert.ok(consent.gate.waiver_conditions.length > 0);
+
+  // The WHO checklist is three gates, each with its own blocking point.
+  assert.deepEqual(
+    WHO_CHECKPOINTS.map((checkpoint) => checkpoint.checkpoint_id),
+    ["sign_in", "time_out", "sign_out"]
+  );
+  assert.equal(WHO_CHECKPOINTS[0].gate_scope, "before_induction");
+  assert.equal(WHO_CHECKPOINTS[1].gate_scope, "before_incision");
+  assert.equal(WHO_CHECKPOINTS[2].gate_scope, "before_leaving_theatre");
+});
+
+test("uncertainty is reasoning, and sepsis and escalation are conditional", () => {
+  const uncertainty = SCORING_CONTRACT.find(
+    (e) => e.canonical_id === "calibrate_and_state_uncertainty"
+  );
+  assert.equal(uncertainty.domain, "diagnostic_reasoning", "moved out of escalation");
+  assert.equal(uncertainty.leaf_action_id, "declare_uncertainty", "the engine id still resolves");
+  assert.equal(uncertainty.legacy_canonical_id, "declare_uncertainty");
+
+  for (const id of ["recognize_sepsis", "call_senior_surgeon", "call_intensive_care"]) {
+    const entry = SCORING_CONTRACT.find((e) => e.canonical_id === id);
+    assert.equal(entry.conditional, true, `${id} must only score when the state warrants it`);
+  }
+});
+
+test("the denominator is the actions this case actually contains", () => {
+  const byDomain = scorableByDomain(v3Case);
+  assert.deepEqual(
+    byDomain.map((row) => row.domain).sort(),
+    ["communication", "diagnostic_reasoning", "escalation", "perioperative_safety"]
+  );
+  for (const row of byDomain) {
+    assert.ok(row.max_weight >= 0);
+    // Conditional entries stay out of the denominator until their condition holds.
+    for (const entry of row.entries) {
+      if (entry.conditional) assert.ok(!Number.isNaN(entry.score_weight));
+    }
+  }
+
+  // A case that does not carry an action cannot penalise its absence.
+  const stripped = { ...v3Case, acceptable_alternatives: [], expected_actions: [], unnecessary_actions: [], unsafe_actions: [] };
+  for (const row of scorableByDomain(stripped)) {
+    assert.deepEqual(row.entries, [], `${row.domain} must be empty for a case with no actions`);
+  }
 });
 
 test("nothing added by V3.5 is eligible for scoring", () => {

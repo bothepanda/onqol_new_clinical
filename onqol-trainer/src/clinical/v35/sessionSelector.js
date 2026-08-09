@@ -36,6 +36,37 @@ function hashSeed(seed) {
 const MAX_ATTEMPTS = 8;
 
 /**
+ * Reseed a fixed preset until it yields a coherent patient.
+ *
+ * An incoherent seed is discarded, never patched. Nudging a value to satisfy a
+ * rule would mean the engine, not the author, decided what this patient looks
+ * like.
+ */
+function reseedUntilCoherent(casePresetId, seed) {
+  const attempts = [];
+  let effectiveSeed = seed;
+
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
+    const patient = generatePatient(casePresetId, effectiveSeed);
+    const violations = coherenceViolations(patient);
+    if (violations.length === 0) return { patient, effectiveSeed, attempts };
+
+    attempts.push({
+      seed: effectiveSeed,
+      case_preset_id: casePresetId,
+      rejected_because: "coherence",
+      violations,
+    });
+    effectiveSeed = `${effectiveSeed}#c${attempt + 1}`;
+  }
+
+  throw new Error(
+    `Could not generate a coherent "${casePresetId}" in ${MAX_ATTEMPTS} attempts from seed "${seed}". ` +
+      `Attempts: ${JSON.stringify(attempts)}`
+  );
+}
+
+/**
  * Choose a case preset and a seed that produces a coherent patient.
  *
  * @param {object} options
@@ -63,17 +94,40 @@ export function selectV35Case({
         `Preset "${requestedPresetId}" is ${preset.runtime_status} and cannot be selected in learner mode.`
       );
     }
-    const patient = generatePatient(requestedPresetId, seed);
+    // Faculty asking for a specific seed gets exactly that seed, violations and
+    // all - inspecting a rejected patient is the point of a preview.
+    //
+    // Anything learner-facing goes through the same coherence rejection as a
+    // randomly selected case. Without this, naming a preset was a way round the
+    // guarantee that a learner never meets an incoherent patient, which made the
+    // invariant depend on how the case happened to be requested.
+    if (mode === "faculty") {
+      const patient = generatePatient(requestedPresetId, seed);
+      return {
+        preset,
+        patient,
+        selection: Object.freeze({
+          case_preset_id: requestedPresetId,
+          selection_method: "faculty_requested_preset",
+          requested_seed: seed,
+          effective_seed: seed,
+          attempts: [],
+          coherence_violations: coherenceViolations(patient),
+        }),
+      };
+    }
+
+    const pinned = reseedUntilCoherent(requestedPresetId, seed);
     return {
       preset,
-      patient,
+      patient: pinned.patient,
       selection: Object.freeze({
         case_preset_id: requestedPresetId,
-        selection_method: "faculty_requested_preset",
+        selection_method: pinned.attempts.length ? "requested_preset_after_reseed" : "requested_preset",
         requested_seed: seed,
-        effective_seed: seed,
-        attempts: [],
-        coherence_violations: coherenceViolations(patient),
+        effective_seed: pinned.effectiveSeed,
+        attempts: Object.freeze(pinned.attempts),
+        coherence_violations: [],
       }),
     };
   }

@@ -138,6 +138,33 @@ export const PREGNANCY_BRANCH_RULE = Object.freeze({
 export const BASE_ADULT_AGE = range(18, 75);
 
 /**
+ * Blood values that belong to the adult population, not to appendicitis.
+ *
+ * Surgeon's correction, 09.08.2026: haemoglobin and platelets do not vary with
+ * where the appendix sits. Removing them from the phenotype tables removes an
+ * implied claim that they do.
+ *
+ * Anaemia, haemoconcentration and thrombocytopenia arrive through a modifier or
+ * a compatible organ-dysfunction cluster - never as a side effect of the
+ * presentation. MOD-PREGNANCY-POSSIBLE means she could be pregnant, not that she
+ * is, so it moves nothing here.
+ */
+export const POPULATION_BLOOD = Object.freeze({
+  haemoglobin: Object.freeze({
+    female: range(120, 155),
+    male: range(130, 170),
+  }),
+  // Hard envelope with a narrower target: extremes exist but are uncommon, so
+  // the distribution is centred rather than uniform across the whole envelope.
+  platelets: Object.freeze({
+    envelope: range(150, 400),
+    target_p5_p95: range(170, 350),
+  }),
+  clinical_review_status: "reviewed_provisional",
+  eligible_for_scoring: false,
+});
+
+/**
  * Phenotype cards. Authoring data from addendum 4.1-4.3, copied verbatim.
  *
  * @typedef {Object} PhenotypeCard
@@ -166,6 +193,8 @@ export const PHENOTYPES = Object.freeze({
       systolic_bp: range(105, 140),
       respiratory_rate: range(14, 20),
       wbc: range(8, 13),
+      // Generated jointly with WBC from the shared burden, then ANC is derived.
+      neutrophil_percent: range(65, 82),
       crp: range(2, 35),
     }),
     imaging: Object.freeze({
@@ -194,6 +223,8 @@ export const PHENOTYPES = Object.freeze({
       systolic_bp: range(105, 135),
       respiratory_rate: range(16, 22),
       wbc: range(11, 16),
+      // Generated jointly with WBC from the shared burden, then ANC is derived.
+      neutrophil_percent: range(72, 88),
       crp: range(20, 80),
     }),
     imaging: Object.freeze({
@@ -222,6 +253,8 @@ export const PHENOTYPES = Object.freeze({
       systolic_bp: range(100, 135),
       respiratory_rate: range(16, 22),
       wbc: range(10, 16),
+      // Generated jointly with WBC from the shared burden, then ANC is derived.
+      neutrophil_percent: range(70, 88),
       crp: range(20, 100),
     }),
     imaging: Object.freeze({
@@ -249,6 +282,8 @@ export const PHENOTYPES = Object.freeze({
       systolic_bp: range(100, 135),
       respiratory_rate: range(16, 24),
       wbc: range(11, 18),
+      // Generated jointly with WBC from the shared burden, then ANC is derived.
+      neutrophil_percent: range(72, 90),
       crp: range(40, 140),
     }),
     imaging: Object.freeze({
@@ -287,6 +322,8 @@ export const PHENOTYPES = Object.freeze({
       systolic_bp: range(80, 110),
       respiratory_rate: range(22, 34),
       wbc: range(14, 24),
+      // Generated jointly with WBC from the shared burden, then ANC is derived.
+      neutrophil_percent: range(80, 95),
       crp: range(120, 350),
     }),
     // Addendum 4.2 allows an alternative low branch in a compatible severe seed.
