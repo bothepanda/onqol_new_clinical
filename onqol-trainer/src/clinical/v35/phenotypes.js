@@ -236,6 +236,33 @@ export const PHENOTYPES = Object.freeze({
   early_subtle: Object.freeze({
     phenotype_id: "early_subtle",
     title_ru: "Ранняя маловыраженная презентация",
+    // Raised by the surgeon, 09.08.2026, and NOT acted on: values are not to be
+    // adjusted by hand before clinical review.
+    //
+    // APP-001 presents at a median of 5 hours and carries a median CRP of
+    // 39 mg/L, which is not obviously right for the first hours of an
+    // uncomplicated appendicitis. Measured across 100 000 seeds of the learner
+    // presets, uncomplicated morphology:
+    //
+    //   часы    n        p5   p25   p50   p75   p95   макс
+    //   0-6     19053     4    24    39    55    76   102
+    //   7-12    36464     6    26    42    57    78   103
+    //   13-24   37594    10    31    47    62    84   110
+    //   25+      6889    16    37    52    67    88   113
+    //
+    // The gradient across the first day is +13 mg/L at the median. If a CRP
+    // should be near-normal in the first six hours and climb steeply after
+    // twelve, the shared time term is too weak - LOAD_COMPOSITION.time_shift is
+    // 0.15 - and the fix is a reviewed time-response curve, not a narrower
+    // envelope for this phenotype. That would put physiology back inside the
+    // phenotype, which is what was just removed.
+    review_flag: Object.freeze({
+      id: "early_crp_gradient_not_validated",
+      question_ru:
+        "При медиане 5 часов CRP p50 = 39 мг/л, а к 25+ часам только 52. Правдоподобен ли такой слабый подъём за первые сутки? Если нет, нужна отрецензированная кривая ответа CRP от времени (сейчас линейный сдвиг 0.15), а не отдельный конверт для раннего фенотипа.",
+      measured_on: "100000 seeds, 09.08.2026",
+      status: "NEEDS_CLINICAL_REVIEW",
+    }),
     compatible_morphologies: ["uncomplicated_inflammation"],
     presentation: Object.freeze({
       hours_from_onset: range(3, 8),

@@ -270,6 +270,11 @@ export function buildV35Case({
     // be rebuilt from the log alone.
     v35_composition: Object.freeze({
       ...patient.composition,
+      // Hidden fields the snapshot must carry to rebuild the patient: reserve is
+      // drawn, not derived, so replaying the seed is the only way back to it.
+      physiologic_reserve: patient.hidden.physiologic_reserve,
+      inflammatory_burden: patient.hidden.latent_state.inflammatory_burden,
+      organ_dysfunction: patient.hidden.latent_state.organ_dysfunction,
       content_version: V35_CONTENT_VERSION,
       requested_seed: selection.requested_seed,
       effective_seed: selection.effective_seed,

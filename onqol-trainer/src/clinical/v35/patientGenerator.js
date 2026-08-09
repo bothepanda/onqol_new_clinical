@@ -125,9 +125,20 @@ export const MORPHOLOGY_PROFILES = Object.freeze({
  * to it is not.
  */
 export const PHYSIOLOGIC_RESERVE = Object.freeze({
-  age_reference: Object.freeze({ full_reserve_below: 40, low_reserve_above: 75 }),
-  // How much reserve damps the physiological response, at its strongest.
-  max_damping: 0.15,
+  // Age shifts the PRIOR; it does not determine the value. Surgeon's
+  // instruction, 09.08.2026: the distributions must overlap. A fit
+  // seventy-year-old outperforms a frail thirty-year-old, and a reserve computed
+  // as a function of age alone cannot express that - it would make age a
+  // physiological verdict rather than a risk factor.
+  prior_young: Object.freeze({ min: 0.88, max: 1.0 }),
+  prior_old: Object.freeze({ min: 0.78, max: 0.95 }),
+  // The overlap is the point: 0.88-0.95 is reachable at any adult age.
+  age_reference: Object.freeze({ prior_shifts_from: 40, prior_settles_at: 75 }),
+  // Reserve modifies the physiological RESPONSE only. It never touches
+  // morphology or inflammatory burden: the disease is what it is, and reserve
+  // decides how loudly the patient shows it. Asserted by a test.
+  modifies: ["heart_rate", "temperature_c", "respiratory_rate", "systolic_bp"],
+  never_modifies: ["morphology", "inflammatory_burden", "organ_dysfunction"],
   clinical_review_status: "pending",
   eligible_for_scoring: false,
 });
@@ -424,10 +435,20 @@ export function latentClinicalState({ morphology, hoursFromOnset, trajectoryId, 
  * How much this patient's reserve damps the physiological response.
  * Returns a multiplier in (0, 1]: 1 is a full response, lower is blunted.
  */
-export function reserveDamping(age) {
-  const { full_reserve_below: young, low_reserve_above: old } = PHYSIOLOGIC_RESERVE.age_reference;
-  const fraction = clamp01((age - young) / (old - young));
-  return 1 - fraction * PHYSIOLOGIC_RESERVE.max_damping;
+export function drawPhysiologicReserve(age, draw) {
+  const { prior_shifts_from: from, prior_settles_at: to } = PHYSIOLOGIC_RESERVE.age_reference;
+  const fraction = clamp01((age - from) / (to - from));
+  // Interpolate the PRIOR between the young and old bands, then draw inside it.
+  // Two patients of the same age get different reserves; patients of different
+  // ages have overlapping ranges.
+  const min =
+    PHYSIOLOGIC_RESERVE.prior_young.min +
+    (PHYSIOLOGIC_RESERVE.prior_old.min - PHYSIOLOGIC_RESERVE.prior_young.min) * fraction;
+  const max =
+    PHYSIOLOGIC_RESERVE.prior_young.max +
+    (PHYSIOLOGIC_RESERVE.prior_old.max - PHYSIOLOGIC_RESERVE.prior_young.max) * fraction;
+  const triangular = (draw() + draw()) / 2;
+  return Math.round((min + (max - min) * triangular) * 1000) / 1000;
 }
 
 /**
@@ -533,7 +554,7 @@ export function generatePatient(casePresetId, seed, options = {}) {
   const declared = modifiers.find((modifier) => modifier.demographics)?.demographics;
   const sex = declared?.sex ?? drawnSex;
   const age = at(declared?.age ?? BASE_ADULT_AGE, drawnAgePosition);
-  const reserve = reserveDamping(age);
+  const reserve = drawPhysiologicReserve(age, random);
   // Reserve blunts the response to the same burden: an older patient shows less
   // tachycardia and less fever for the same disease.
   const responded = load * reserve;

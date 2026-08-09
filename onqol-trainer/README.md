@@ -19,6 +19,87 @@ Nothing in this repository can do that for you.
 
 ---
 
+## V3.5 patient generator — what it does and what it may not be used for
+
+The default app builds each session's patient from the V3.5 content manifest
+(`src/clinical/v35/`) rather than replaying one fixed card. Four case presets are
+learner-selectable; the patient is composed from layers and reproducible from a
+seed.
+
+### Constraints that hold today
+
+**Nothing generated here may move a score.** Every physiology envelope, every
+morphology prior and every physiologic-reserve parameter carries
+`clinical_review_status: pending` and `eligible_for_scoring: false`. The weights
+in `v35/scoringContract.js` are `reviewed_provisional`: a surgeon has signed the
+numbers, and scoring stays off until pilot calibration. Reviewed is not live.
+
+**Physiology belongs to the morphology, not to the phenotype.** Heart rate,
+temperature, pressure, white count and CRP come from morphology, absolute disease
+time, inflammatory burden, trajectory, modifiers and physiologic reserve. The
+phenotype owns localisation only: where the pain is, the history, the
+examination, the psoas sign, the urinalysis, whether the appendix is visible on
+ultrasound, and where it is found on CT and at operation.
+
+At matched hidden inputs and a matched physiology sub-seed, every physiological
+delta between phenotypes is zero. Marginally a retrocecal case does run a higher
+CRP — because it presents later, and lateness drives physiology through the
+shared time term, once.
+
+**Physiologic reserve is drawn, not computed from age.** Age shifts the prior;
+the distributions overlap, so a fit older patient can have more reserve than a
+frail younger one. Reserve is stored as its own hidden field in the version
+snapshot and modifies the physiological RESPONSE only — never the morphology and
+never the inflammatory burden. The disease is what it is; reserve decides how
+loudly the patient shows it.
+
+**A woman of 18-50 always gets the pregnancy branch.** In every learner preset,
+whether or not the preset declared the modifier, and it is present in the frozen
+snapshot even when the short handoff text does not mention it. Enforced by an
+invariant test over the whole learner surface, not a sample.
+
+Conversely, a patient without that modifier does not have `pregnancy_test`
+scored at zero — the action, the pelvic screen, the pelvic ultrasound and the
+ectopic alternative are removed from the case entirely, including from
+`critical_omissions`. A male patient owes nobody a beta-hCG.
+
+### Open clinical questions, deliberately not fixed by hand
+
+`early_subtle` carries `review_flag: early_crp_gradient_not_validated`. Measured
+over 100 000 seeds of the learner presets, uncomplicated morphology:
+
+| часы от начала | n | p5 | p50 | p95 |
+|---|---:|---:|---:|---:|
+| 0-6 | 19053 | 4 | 39 | 76 |
+| 7-12 | 36464 | 6 | 42 | 78 |
+| 13-24 | 37594 | 10 | 47 | 84 |
+| 25+ | 6889 | 16 | 52 | 88 |
+
+A median CRP of 39 mg/L in the first six hours, rising only to 52 by the second
+day, is not validated. If the early value should be lower and the climb steeper,
+the fix is a reviewed time-response curve — not a narrower envelope for this
+phenotype, which would put physiology back inside the phenotype.
+
+Pulse-pressure ranges for the haemodynamic states are provisional: the mechanism
+was reviewed, the numbers were not. They never reach scoring or learner feedback.
+
+### Reproducing a session
+
+One seed reproduces the patient, the facility and the shift. The session event
+log carries `v35_composition`, which holds the preset, phenotype, morphology,
+modifiers actually applied, trajectory, resource profile, inflammatory burden,
+organ dysfunction, physiologic reserve, and both the requested and effective
+seeds.
+
+```bash
+node -e 'import("./src/clinical/v35/createCase.js").then(m=>console.log(m.buildV35Case({seed:"your-seed"}).caseData.initial_presentation.text))'
+```
+
+`APP-005` and the eight alternative-disease stubs are faculty preview only and
+are never reachable from the learner selector.
+
+---
+
 ON QOL now contains two product paths.
 
 ## V1 baseline

@@ -28,10 +28,13 @@ import {
   coherenceViolations,
   generatePatient,
   MORPHOLOGY_PROFILES,
+  PHYSIOLOGIC_RESERVE,
+  drawPhysiologicReserve,
   latentClinicalState,
 } from "../v35/patientGenerator.js";
 import { SCORING_CONTRACT, WHO_CHECKPOINTS, scorableByDomain } from "../v35/scoringContract.js";
 import { selectV35Case, selectionEvent } from "../v35/sessionSelector.js";
+import { buildV35Case } from "../v35/createCase.js";
 import { localeReadiness } from "../v35/locale.js";
 
 const v3Case = createV3Case();
@@ -481,6 +484,86 @@ test("the pregnancy branch follows the patient, not the preset", () => {
 
   assert.ok(reproductiveWomen > 0, "presets must be able to present a young woman");
   assert.equal(othersWithBranch, 0, "men and older women must not acquire a pregnancy branch");
+});
+
+test("INVARIANT: every woman of 18-50 gets the pregnancy branch, in every learner preset", () => {
+  // The safety invariant, asserted over the whole learner surface rather than a
+  // sample. A case with no beta-hCG in front of a woman who could be pregnant is
+  // the exact omission the trainer exists to prevent.
+  let checked = 0;
+  for (const preset of learnerSelectablePresets()) {
+    for (let index = 0; index < 500; index += 1) {
+      const { patient, caseData } = buildV35Case({
+        seed: `inv-${index}`,
+        requestedPresetId: preset.case_preset_id,
+      });
+      const { sex, age } = patient.demographics;
+      if (!(sex === "female" && age >= 18 && age <= 50)) continue;
+      checked += 1;
+
+      // In the patient.
+      assert.ok(
+        patient.enabled_action_ids.includes("pregnancy_test"),
+        `${preset.case_preset_id}: женщина ${age} лет без pregnancy_test`
+      );
+      // In the frozen snapshot, which is what a reviewer reads back.
+      assert.ok(
+        caseData.v35_composition.population_modifier_ids.includes("MOD-PREGNANCY-POSSIBLE"),
+        `${preset.case_preset_id}: модификатор отсутствует в snapshot для женщины ${age} лет`
+      );
+      // And in the playable case: the action must actually be there.
+      const actionIds = new Set([
+        ...caseData.expected_actions,
+        ...caseData.acceptable_alternatives,
+      ].map((action) => action.id));
+      assert.ok(actionIds.has("pregnancy_test"), `${preset.case_preset_id}: действия нет в кейсе`);
+    }
+  }
+  assert.ok(checked > 200, `expected many reproductive-age women, checked ${checked}`);
+});
+
+test("physiologic reserve is drawn, not computed from age", () => {
+  // Surgeon's instruction: age shifts the prior, and the distributions overlap.
+  // A reserve that is a function of age alone makes age a verdict.
+  const draw = (() => {
+    let seed = 7;
+    return () => {
+      seed = (seed * 1664525 + 1013904223) % 4294967296;
+      return seed / 4294967296;
+    };
+  })();
+
+  const at30 = [];
+  const at70 = [];
+  for (let index = 0; index < 4000; index += 1) {
+    at30.push(drawPhysiologicReserve(30, draw));
+    at70.push(drawPhysiologicReserve(70, draw));
+  }
+  // Same age, different reserves.
+  assert.ok(new Set(at30).size > 20, "reserve must vary at a fixed age");
+  // Different ages, overlapping distributions.
+  assert.ok(Math.min(...at30) < Math.max(...at70), "the distributions must overlap");
+  assert.ok(
+    at30.reduce((a, b) => a + b, 0) / at30.length > at70.reduce((a, b) => a + b, 0) / at70.length,
+    "older patients should have lower reserve on average"
+  );
+
+  // Reserve moves the response, never the disease.
+  assert.deepEqual(PHYSIOLOGIC_RESERVE.never_modifies, [
+    "morphology",
+    "inflammatory_burden",
+    "organ_dysfunction",
+  ]);
+});
+
+test("reserve changes the response and never the burden", () => {
+  // Two patients, same seed, differ only in the age their preset gives them.
+  // Morphology and burden must be untouched by reserve.
+  const young = generatePatient("APP-002", "reserve-check", { hoursFromOnset: 12 });
+  assert.equal(young.hidden.latent_state.morphology, "uncomplicated_inflammation");
+  assert.ok(young.hidden.physiologic_reserve > 0 && young.hidden.physiologic_reserve <= 1);
+  // The burden is stored before damping; the response after.
+  assert.ok(young.hidden.physiologic_response <= young.hidden.latent_state.inflammatory_burden + 1e-9);
 });
 
 test("age is one adult population, not one per sex", () => {
