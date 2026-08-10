@@ -388,6 +388,14 @@ function applyPlan(caseData, session, plan, options = {}) {
     // order from a repeated sentence.
     turn_kind: plan.turnKind?.kind || "unknown",
     duplicate_suppressed: plan.suppressedOperations || [],
+    // Where the routing came from, and under which contract. A session routed by
+    // the local dictionary matcher and a session routed by the model are not the
+    // same experiment, and the log has to say which one it was.
+    router_source: plan.parsed?.source || "unknown",
+    router_schema_version: plan.parsed?.routerSchemaVersion || null,
+    // What the learner specified, in their own words. Transcription only:
+    // `eligible_for_scoring` is false on every entry.
+    action_parameters: plan.parsed?.actionParameters || [],
     // Research/mentor metadata, kept out of parsed_actions and out of scoring on
     // purpose: these are learner claims awaiting separate validation. Raw text
     // stays scrubbed above; nothing here carries free text.

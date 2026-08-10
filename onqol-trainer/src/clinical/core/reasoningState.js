@@ -197,7 +197,7 @@ function foldForComparison(text) {
  *        construction; callers that have the text must pass it)
  * @returns {string|null}
  */
-function verbatimOrNull(value, learnerText) {
+export function verbatimOrNull(value, learnerText) {
   if (typeof value !== "string") return null;
   const quote = value.trim();
   if (!quote || quote.length > MAX_VERBATIM_CHARS) return null;

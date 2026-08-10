@@ -348,3 +348,178 @@ test("router prompt exposes dictionary concepts but keeps case validation author
   assert.ok(allowedConceptIds.includes("diagnosis_acute_appendicitis"));
   assert.ok(allowedConceptIds.includes("obturator_sign"));
 });
+
+const caseData = acuteAppendicitisCase;
+
+// --- router-v2: multi-intent, hypotheses and treatment parameters ----------
+//
+// The acceptance phrases from CLAUDE_SMARTNESS_AUDIT.md §5 and §17.
+
+test("two hypotheses in one sentence are both kept, with the learner's own words", () => {
+  // Live run, turn 3: "подозрение на воспаление простаты или проблемы с
+  // кишечником" came back as `differential.stated = true` and an empty list,
+  // because the shipped schema had no room for the hypotheses themselves.
+  const learnerText =
+    "аппендицит вероятнее, но из-за дизурии держу в уме простатит";
+  const result = validateRouterOutput(
+    {
+      intents: [
+        { type: "diagnosis", concept_id: "diagnosis_acute_appendicitis", confidence: 0.9 },
+      ],
+      unresolved_fragments: [],
+      action_parameters: [],
+      reasoning: {
+        differential: {
+          stated: true,
+          ranked: true,
+          has_dangerous_alternative: false,
+          items: [
+            {
+              concept_id: "diagnosis_acute_appendicitis",
+              rank: 1,
+              dangerous: false,
+              evidence_for: ["аппендицит вероятнее"],
+              evidence_against: [],
+            },
+            {
+              concept_id: "differential_ectopic",
+              rank: 2,
+              dangerous: false,
+              evidence_for: ["из-за дизурии"],
+              evidence_against: [],
+            },
+          ],
+        },
+      },
+    },
+    caseData,
+    { learnerText }
+  );
+
+  const items = result.reasoning.differential.items;
+  assert.equal(items.length, 2, "обе гипотезы должны сохраниться");
+  assert.equal(result.reasoning.differential.ranked, true);
+  assert.deepEqual(items[0].evidence_for, ["аппендицит вероятнее"]);
+  assert.equal(items[1].rank, 2);
+});
+
+test("treatment parameters are transcribed and never scored", () => {
+  // Live run, turn 6: "1 л быстро, 1 л за след 3 часа" collapsed into a bare
+  // `iv_fluids`; volume, rate and route were all lost.
+  const learnerText = "в/в натрия хлорид 1 л быстро, 1 л за след 3 часа";
+  const result = validateRouterOutput(
+    {
+      intents: [{ type: "management", concept_id: "iv_fluids", confidence: 0.99 }],
+      unresolved_fragments: [],
+      action_parameters: [
+        {
+          concept_id: "iv_fluids",
+          verbatim: "1 л быстро",
+          drug_name: "натрия хлорид",
+          dose_value: null,
+          dose_unit: null,
+          route: "intravenous",
+          rate: null,
+          frequency: null,
+          duration: null,
+          fluid_type: "натрия хлорид",
+          volume_ml: 1000,
+          timing: "болюсно",
+        },
+        {
+          concept_id: "iv_fluids",
+          verbatim: "1 л за след 3 часа",
+          drug_name: "натрия хлорид",
+          dose_value: null,
+          dose_unit: null,
+          route: "intravenous",
+          rate: null,
+          frequency: null,
+          duration: "3 часа",
+          fluid_type: "натрия хлорид",
+          volume_ml: 1000,
+          timing: null,
+        },
+      ],
+      reasoning: null,
+    },
+    caseData,
+    { learnerText }
+  );
+
+  assert.equal(result.actionParameters.length, 2, "два режима введения - две записи");
+  assert.equal(result.actionParameters[0].volume_ml, 1000);
+  assert.equal(result.actionParameters[1].duration, "3 часа");
+  for (const entry of result.actionParameters) {
+    assert.equal(entry.route, "intravenous");
+    assert.equal(entry.eligible_for_scoring, false);
+    assert.equal(entry.review_status, "transcribed_not_validated");
+  }
+});
+
+test("an ambiguous dose is transcribed exactly, not repaired", () => {
+  // "кетотоп 2 мг в/м" from the live run. Whether 2 mg or 2 ml was meant is a
+  // question for the learner; the router must not answer it.
+  const learnerText = "обезбол - кетотоп 2 мг в/м";
+  const result = validateRouterOutput(
+    {
+      intents: [{ type: "management", concept_id: "analgesia", confidence: 0.99 }],
+      unresolved_fragments: [],
+      action_parameters: [
+        {
+          concept_id: "analgesia",
+          verbatim: "кетотоп 2 мг в/м",
+          drug_name: "кетотоп",
+          dose_value: 2,
+          dose_unit: "мг",
+          route: "intramuscular",
+          rate: null,
+          frequency: null,
+          duration: null,
+          fluid_type: null,
+          volume_ml: null,
+          timing: null,
+        },
+      ],
+      reasoning: null,
+    },
+    caseData,
+    { learnerText }
+  );
+
+  const entry = result.actionParameters[0];
+  assert.equal(entry.dose_value, 2);
+  assert.equal(entry.dose_unit, "мг");
+  assert.equal(entry.verbatim, "кетотоп 2 мг в/м");
+});
+
+test("parameters the learner never typed are dropped whole", () => {
+  // A model that paraphrases the order also invented the numbers in it.
+  const result = validateRouterOutput(
+    {
+      intents: [{ type: "management", concept_id: "iv_fluids", confidence: 0.99 }],
+      unresolved_fragments: [],
+      action_parameters: [
+        {
+          concept_id: "iv_fluids",
+          verbatim: "инфузия кристаллоидов в объёме 2000 мл",
+          drug_name: "натрия хлорид",
+          dose_value: null,
+          dose_unit: null,
+          route: "intravenous",
+          rate: null,
+          frequency: null,
+          duration: null,
+          fluid_type: "normal_saline",
+          volume_ml: 2000,
+          timing: null,
+        },
+      ],
+      reasoning: null,
+    },
+    caseData,
+    { learnerText: "капаю физраствор" }
+  );
+
+  assert.deepEqual(result.actionParameters, [], "пересказ модели не является цитатой");
+});

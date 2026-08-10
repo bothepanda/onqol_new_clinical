@@ -1,15 +1,19 @@
 import { buildAllowedActionMap } from "./schemas/caseSchema.js";
-import { DISPOSITION_DESTINATIONS, normalizeReasoningDelta } from "./core/reasoningState.js";
+import {
+  DISPOSITION_DESTINATIONS,
+  normalizeReasoningDelta,
+  verbatimOrNull,
+} from "./core/reasoningState.js";
+import {
+  ADMINISTRATION_ROUTES,
+  ROUTER_INTENT_TYPES as SCHEMA_INTENT_TYPES,
+  ROUTER_SCHEMA_VERSION,
+} from "./schemas/routerSchema.js";
 
-export const ROUTER_INTENT_TYPES = [
-  "request_history",
-  "request_examination",
-  "request_test",
-  "diagnosis",
-  "management",
-  "question",
-  "unknown",
-];
+// Re-exported from the contract rather than declared twice: the list the prompt
+// offers and the enum the provider enforces must be the same list.
+export const ROUTER_INTENT_TYPES = [...SCHEMA_INTENT_TYPES];
+export { ROUTER_SCHEMA_VERSION };
 
 const END_CASE_RE = /конец кейса|завершить|finish|end case/i;
 
@@ -93,6 +97,15 @@ export function buildSemanticRouterPrompt({ input, caseData, session, locale = "
       "Quote the shortest span that carries the thought. If the learner did not say the thing, there is no quote: return null.",
       "Reasoning fields never create an action. If the learner discusses a test without requesting it, that belongs in reasoning only.",
       "When uncertain, return false or null. A guess here is worse than a gap.",
+      "",
+      "THIRD JOB: TREATMENT PARAMETERS.",
+      "When the learner orders a drug or a fluid, transcribe what they specified into `action_parameters`.",
+      "`concept_id` must be the concept the order belongs to, and `verbatim` must be the exact span of raw_user_text carrying the order.",
+      "Fill only what the learner actually said. A dose they did not give is null, not a typical dose.",
+      "Normalise units into the numeric fields when the learner's wording is unambiguous - \"1 л\" is volume_ml 1000 - and leave the ambiguous ones null.",
+      "\"2 мг\" and \"2 мл\" are different orders. Transcribe exactly what was written and never repair it.",
+      "One entry per distinct order. Two boluses at two rates are two entries, not one summed volume.",
+      "These parameters describe an order; they never create it, never confirm it is correct and never change a score.",
     ].join("\n"),
     user: JSON.stringify(
       {
@@ -122,6 +135,22 @@ export function buildSemanticRouterPrompt({ input, caseData, session, locale = "
             },
           ],
           unresolved_fragments: [],
+          action_parameters: [
+            {
+              concept_id: "allowed_concept_id the order belongs to",
+              verbatim: "exact span of raw_user_text carrying this order",
+              drug_name: "string | null",
+              dose_value: "number | null",
+              dose_unit: "string | null",
+              route: ADMINISTRATION_ROUTES.join(" | ") + " | null",
+              rate: "string | null",
+              frequency: "string | null",
+              duration: "string | null",
+              fluid_type: "string | null",
+              volume_ml: "number | null",
+              timing: "string | null",
+            },
+          ],
           reasoning: {
             stability: { stated: "boolean", learner_assessment: "stable | unstable | uncertain | null" },
             problem_representation_stated: "boolean",
@@ -203,6 +232,56 @@ function parseJsonPayload(payload) {
   }
 }
 
+/**
+ * Treatment parameters, kept only where the learner's own words back them.
+ *
+ * `verbatim` is the anchor. A parameter set whose quote is not an exact span of
+ * this turn's message is dropped whole: the numbers would then be the model's,
+ * and a dose nobody typed must never appear in a training record.
+ *
+ * Nothing here creates or validates an action. The engine has already decided
+ * what happened; this only describes it for the reviewer.
+ */
+export function normalizeActionParameters(raw, options = {}) {
+  if (!Array.isArray(raw)) return [];
+  const allowed =
+    options.allowedConceptIds instanceof Set
+      ? options.allowedConceptIds
+      : new Set(options.allowedConceptIds || []);
+  const text = (value) => (typeof value === "string" && value.trim() ? value.trim() : null);
+  const number = (value) => (Number.isFinite(Number(value)) && value !== null ? Number(value) : null);
+
+  const parameters = [];
+  for (const entry of raw) {
+    if (!entry || typeof entry !== "object") continue;
+    const conceptId = entry.concept_id;
+    if (typeof conceptId !== "string") continue;
+    if (allowed.size > 0 && !allowed.has(conceptId)) continue;
+    const verbatim = verbatimOrNull(entry.verbatim, options.learnerText);
+    if (!verbatim) continue;
+
+    parameters.push({
+      concept_id: conceptId,
+      verbatim,
+      drug_name: text(entry.drug_name),
+      dose_value: number(entry.dose_value),
+      dose_unit: text(entry.dose_unit),
+      route: ADMINISTRATION_ROUTES.includes(entry.route) ? entry.route : null,
+      rate: text(entry.rate),
+      frequency: text(entry.frequency),
+      duration: text(entry.duration),
+      fluid_type: text(entry.fluid_type),
+      volume_ml: number(entry.volume_ml),
+      timing: text(entry.timing),
+      // Says out loud what this record is for, so no later reader mistakes a
+      // transcription for a judgement.
+      review_status: "transcribed_not_validated",
+      eligible_for_scoring: false,
+    });
+  }
+  return parameters;
+}
+
 export function validateRouterOutput(routerPayload, caseData, options = {}) {
   const allowed = buildAllowedActionMap(caseData);
   const conceptMap = options.conceptMap || {};
@@ -275,6 +354,11 @@ export function validateRouterOutput(routerPayload, caseData, options = {}) {
     invalidConcepts,
     recognizedButUndefined,
     reasoning,
+    actionParameters: normalizeActionParameters(parsed.action_parameters, {
+      allowedConceptIds: new Set([...allowed.keys(), ...Object.keys(conceptMap)]),
+      learnerText: options.learnerText,
+    }),
+    routerSchemaVersion: ROUTER_SCHEMA_VERSION,
     unresolvedFragments: parsed.unresolved_fragments || [],
     unknownText: intents.some((intent) => intent.type === "unknown") ? "unresolved_intent" : "",
     source: "semantic_router",

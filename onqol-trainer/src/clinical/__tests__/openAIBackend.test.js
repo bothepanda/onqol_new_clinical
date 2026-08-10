@@ -6,6 +6,7 @@ import {
   requestOpenAI,
 } from "../../../server/openaiGateway.mjs";
 import { DISPOSITION_DESTINATIONS, STABILITY_ASSESSMENTS } from "../core/reasoningState.js";
+import { ROUTER_JSON_SCHEMA, ROUTER_SCHEMA_VERSION } from "../schemas/routerSchema.js";
 import {
   createOpenAIBackendClient,
   getOpenAIBackendStatus,
@@ -22,28 +23,53 @@ test("OpenAI router request uses Luna and strict structured output", () => {
   assert.equal(request.text.format.schema.additionalProperties, false);
 });
 
+test("the gateway ships the one router contract, not a copy of it", () => {
+  // The prompt, the normaliser and the provider schema used to be three
+  // separate descriptions of the same object, and they had drifted: the prompt
+  // asked for ranked hypotheses with evidence, the schema allowed a bare list of
+  // ids. Under strict mode the richer half simply could not come back.
+  const shipped = buildOpenAIRequest({ task: "router", prompt }).text.format.schema;
+  assert.deepEqual(shipped, ROUTER_JSON_SCHEMA, "шлюз должен отдавать ровно тот же контракт");
+  assert.equal(ROUTER_SCHEMA_VERSION, "router-v2");
+});
+
 test("the router schema can actually carry the reasoning the prompt asks for", () => {
-  // Structured output is strict with additionalProperties:false, so a field the
-  // schema does not name cannot be returned however clearly the prompt requests
-  // it. Reasoning extraction was silently empty in a live session for exactly
-  // this reason: the prompt had been extended and the schema had not.
   const schema = buildOpenAIRequest({ task: "router", prompt }).text.format.schema;
   assert.ok(schema.required.includes("reasoning"));
 
   const reasoning = schema.properties.reasoning;
   for (const field of [
     "stability",
+    "problem_representation_stated",
+    "problem_representation_verbatim",
     "working_diagnosis",
     "differential",
     "test_reasoning",
     "management",
     "observation",
-    "contingency_stated",
+    "reassessment_stated",
+    "contingency",
     "disposition",
     "consultation",
   ]) {
     assert.ok(reasoning.properties[field], `router schema cannot return reasoning.${field}`);
     assert.ok(reasoning.required.includes(field), `reasoning.${field} must be required under strict mode`);
+  }
+
+  // The four fields the drift had removed, checked by shape and not by name.
+  const item = reasoning.properties.differential.properties.items.items;
+  for (const field of ["concept_id", "rank", "dangerous", "evidence_for", "evidence_against"]) {
+    assert.ok(item.properties[field], `гипотеза не может нести ${field}`);
+  }
+  assert.ok(reasoning.properties.test_reasoning.items.properties.justification);
+  for (const field of ["stated", "trigger_concept_ids", "trigger_verbatim"]) {
+    assert.ok(reasoning.properties.contingency.properties[field]);
+  }
+
+  // Treatment parameters travel beside the intents, never inside reasoning.
+  const parameters = schema.properties.action_parameters.items;
+  for (const field of ["concept_id", "verbatim", "dose_value", "dose_unit", "route", "volume_ml"]) {
+    assert.ok(parameters.properties[field], `параметры назначения не несут ${field}`);
   }
 
   // Every enum the client normalises against must be expressible.
