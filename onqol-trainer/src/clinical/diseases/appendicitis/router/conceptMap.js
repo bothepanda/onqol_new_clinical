@@ -1,67 +1,11 @@
-export const appendicitisRouterConceptMap = {
-  relevant_history: ["focused_history"],
-  pain_history: ["focused_history"],
-  associated_gi_symptoms: ["focused_history"],
-  urinary_symptoms: ["focused_history"],
-  gynecologic_history: ["focused_history"],
-  medication_allergy_history: ["focused_history"],
+// The flat concept map, now derived from the typed registry.
+//
+// It used to be the source of truth, and an empty array in it meant six
+// different things at once - see conceptRegistry.js for what that cost. The map
+// survives only as a compatibility view for callers that just need
+// `conceptId -> actionIds`; the kinds live next door.
 
-  physical_examination: ["abdominal_exam"],
-  abdominal_examination: ["abdominal_exam"],
-  abdominal_inspection: ["abdominal_exam"],
-  abdominal_palpation: ["abdominal_exam"],
-  rlq_tenderness: ["abdominal_exam"],
-  guarding: ["abdominal_exam"],
-  rebound_tenderness: ["abdominal_exam"],
-  peritoneal_signs: ["abdominal_exam"],
-  pelvic_examination: ["pelvic_gynecologic_screen"],
-  cervical_motion_tenderness: ["pelvic_gynecologic_screen"],
-
-  cbc: ["cbc"],
-  crp: ["crp"],
-  urinalysis: ["urinalysis"],
-  beta_hcg: ["pregnancy_test"],
-  basic_biochemistry: ["biochemistry"],
-  liver_tests: ["biochemistry"],
-  abdominal_ultrasound: ["abdominal_ultrasound"],
-  pelvic_ultrasound: ["pelvic_ultrasound"],
-  ct_abdomen_pelvis: ["ct_abdomen"],
-
-  acute_appendicitis: ["diagnosis_acute_appendicitis"],
-  uncomplicated_appendicitis: ["diagnosis_acute_appendicitis"],
-  complicated_appendicitis: ["diagnosis_acute_appendicitis"],
-  ectopic_pregnancy: ["differential_ectopic"],
-
-  iv_access: ["iv_access"],
-  analgesia: ["analgesia"],
-  iv_fluids: ["iv_fluids"],
-  npo: ["npo"],
-  surgical_consult: ["surgical_consult"],
-  gynecology_consult: ["gynecology_consult"],
-  appendectomy: ["open_appendectomy_here"],
-  open_appendectomy: ["open_appendectomy_here"],
-  active_observation: ["active_observation"],
-  serial_reexamination: ["serial_reexamination"],
-  transfer: ["transfer_before_source_control"],
-
-  antibiotics: [],
-  laparoscopic_appendectomy: [],
-  nonoperative_management: [],
-  shared_decision_making: [],
-  resource_availability: [],
-  rovsing_sign: [],
-  psoas_sign: [],
-  obturator_sign: [],
-  bowel_sounds: [],
-  cva_tenderness: [],
-  rectal_examination: [],
-  mri_abdomen_pelvis: [],
-  ovarian_torsion: [],
-  pelvic_inflammatory_disease: [],
-  renal_colic: [],
-  gastroenteritis: [],
-};
-
-export function mapRouterConceptToCaseActionIds(conceptId) {
-  return appendicitisRouterConceptMap[conceptId];
-}
+export {
+  appendicitisRouterConceptMap,
+  mapRouterConceptToCaseActionIds,
+} from "./conceptRegistry.js";

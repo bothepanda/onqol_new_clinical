@@ -290,6 +290,7 @@ export function validateRouterOutput(routerPayload, caseData, options = {}) {
   const actions = [];
   const invalidConcepts = [];
   const recognizedButUndefined = [];
+  const unresolvedByKind = [];
   const seenActions = new Set();
 
   for (const rawIntent of parsed.intents || []) {
@@ -307,6 +308,41 @@ export function validateRouterOutput(routerPayload, caseData, options = {}) {
 
     intents.push({ type, concept_id: conceptId, confidence });
     if (conceptId && type !== "question" && type !== "unknown") {
+      // What KIND of thing is this? An empty mapping used to mean six different
+      // things; the registry says which one, so the engine can answer each
+      // honestly instead of falling silent. See conceptRegistry.js.
+      const typed = options.conceptRegistry?.(conceptId) || null;
+      if (typed && typed.kind !== "action" && typed.kind !== "finding_bundle") {
+        unresolvedByKind.push({
+          concept_id: conceptId,
+          kind: typed.kind,
+          // Whatever the kind needs in order to answer: a reason, a question,
+          // the slot to read, the candidate actions.
+          reason_ru: typed.reason_ru || typed.unavailable_reason_ru || null,
+          question_ru: typed.question_ru || null,
+          slot_id: typed.slot_id || null,
+          finding_bundle: typed.finding_bundle || null,
+          candidates: typed.candidates || [],
+          findings_status: typed.findings_status || null,
+        });
+        continue;
+      }
+      if (typed?.kind === "action" && typed.findings_status && !(typed.maps_to || []).length) {
+        // A real action whose authored result has not been signed off. Saying so
+        // is a better answer than saying nothing.
+        unresolvedByKind.push({
+          concept_id: conceptId,
+          kind: "action_not_modelled",
+          reason_ru: typed.unavailable_reason_ru || null,
+          findings_status: typed.findings_status,
+          slot_id: null,
+          finding_bundle: null,
+          candidates: [],
+          question_ru: null,
+        });
+        continue;
+      }
+
       const mappedIds = allowed.has(conceptId) ? [conceptId] : conceptMap[conceptId] || [];
       const validMappedIds = mappedIds.filter((id) => allowed.has(id));
 
@@ -353,6 +389,10 @@ export function validateRouterOutput(routerPayload, caseData, options = {}) {
     actions,
     invalidConcepts,
     recognizedButUndefined,
+    // Concepts that were understood but are not actions: hypotheses, resource
+    // questions, orders too vague to act on, and actions whose authored result
+    // is not signed. Each gets its own answer downstream.
+    unresolvedByKind,
     reasoning,
     actionParameters: normalizeActionParameters(parsed.action_parameters, {
       allowedConceptIds: new Set([...allowed.keys(), ...Object.keys(conceptMap)]),
@@ -386,7 +426,11 @@ export async function routeUserInput(input, caseData, session, options = {}) {
 
   const prompt = buildSemanticRouterPrompt({ input, caseData, session, locale, conceptMap });
   const routerPayload = await llm(prompt);
-  return validateRouterOutput(routerPayload, caseData, { conceptMap, learnerText: input });
+  return validateRouterOutput(routerPayload, caseData, {
+    conceptMap,
+    conceptRegistry: options.conceptRegistry,
+    learnerText: input,
+  });
 }
 
 export function createAnthropicBrowserClient({

@@ -340,6 +340,21 @@ function buildFindings(baseCase, patient, phenotype, pregnancyPossible, composed
   findings.abdominal_exam = {
     title: base.abdominal_exam.title,
     text: composed.examination_ru,
+    // The slots stay addressable at runtime, not only flattened into the
+    // sentence above: a narrow question ("симптом Ровзинга?") should be able to
+    // answer from one slot without performing the whole examination.
+    slots: composed.examination_slots,
+    // Each slot's own sentence, so a narrow answer uses the same authored words
+    // as the full examination rather than a second phrasing of them.
+    slot_text: Object.fromEntries(
+      Object.keys(composed.examination_slots).map((slotId) => [
+        slotId,
+        renderExamination(
+          { [slotId]: composed.examination_slots[slotId] },
+          composed.pain_site_ru
+        ),
+      ])
+    ),
     provenance: GENERATED,
     review_status: "synthetic_case_fact_needs_external_review",
   };

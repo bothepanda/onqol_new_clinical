@@ -103,7 +103,11 @@ function commitmentFor(action, input) {
   return "ordered";
 }
 
-function plannerPromptFor({ actions, operations, session }) {
+function plannerPromptFor({ actions, operations, session, answeredNonAction }) {
+  // The turn produced a real answer - "не смоделировано", "уточни какой
+  // антибиотик", the one sign that was asked about. Following it with "уточни,
+  // какое действие выполняешь" reads as if nothing had been understood.
+  if (answeredNonAction) return "Как это меняет твой план?";
   if (!actions.length) return "Уточни, какие данные хочешь получить или какое действие выполняешь.";
   if (operations.some((operation) => operation.needsOperationalization)) {
     return "Какой операционный доступ выбираешь и когда начинаешь?";
@@ -159,6 +163,9 @@ async function resolveActions(input, caseData, session, options) {
         actionExtractorLLM: options.actionExtractorLLM,
         locale: options.locale || session.locale || "ru",
         conceptMap: options.conceptMap || {},
+        // Typed lookup: tells a hypothesis from a resource question from an
+        // investigation nobody modelled. See router/conceptRegistry.js.
+        conceptRegistry: options.conceptRegistry,
         routerVersion: options.routerVersion,
       });
       return {
@@ -265,7 +272,14 @@ export async function planClinicalTurn({ input, caseData, session, options = {} 
     plannerPrompt:
       mode === "debrief"
         ? "Сформировать evidence-grounded debrief."
-        : plannerPromptFor({ actions, operations, session }),
+        : plannerPromptFor({
+            actions,
+            operations,
+            session,
+            answeredNonAction: (parsed.unresolvedByKind || []).some(
+              (entry) => entry.kind !== "reasoning_only"
+            ),
+          }),
     prerequisiteWarnings: prerequisites,
     riskFlags: actions
       .filter((action) => ["unsafe", "unnecessary"].includes(action.action_kind))

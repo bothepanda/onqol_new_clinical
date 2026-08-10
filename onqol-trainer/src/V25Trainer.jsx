@@ -365,6 +365,7 @@ export default function V25Trainer({ mentor = true }) {
           simulatorLLM,
           locale,
           conceptMap: caseData.v3_concept_map || browserContent.conceptMap,
+          conceptRegistry: browserContent.conceptRegistry,
           diseaseCard: browserContent.diseaseCard,
           provider: simulatorLLM ? "openai" : "local",
           model: simulatorLLM ? openAIStatus.simulatorModel : null,

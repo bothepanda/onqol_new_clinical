@@ -46,6 +46,62 @@ function findingText(finding) {
   return finding ? `**${finding.title}:** ${finding.text}` : "";
 }
 
+/**
+ * Answers for concepts that were understood but are not actions.
+ *
+ * Before the typed registry every one of these produced the same non-answer,
+ * because an empty mapping could not tell them apart. In the first live run
+ * "пальцевое ректальное исследование" was recognised, mapped to nothing, and
+ * disappeared without a word. Each kind now gets the answer it deserves, and
+ * "this is not modelled here" is an answer.
+ *
+ * None of these performs anything, moves the clock or touches the score.
+ */
+function nonActionReplies(caseData, session, entries) {
+  const replies = [];
+  for (const entry of entries || []) {
+    if (entry.kind === "reasoning_only") continue; // recorded, not answered
+    if (entry.kind === "unsupported" || entry.kind === "action_not_modelled") {
+      if (entry.reason_ru) replies.push(entry.reason_ru);
+      continue;
+    }
+    if (entry.kind === "needs_specification") {
+      if (entry.question_ru) replies.push(entry.question_ru);
+      continue;
+    }
+    if (entry.kind === "resource_query") {
+      // Asking what the hospital has is not ordering it. Availability only; the
+      // waiting time belongs to the resource/time work and is not claimed here.
+      const lines = ["ct_abdomen", "abdominal_ultrasound"]
+        .map((actionId) => resolveActionResource(session.scenario, actionId, ""))
+        .filter((check) => check.resource)
+        .map((check) => check.revealText)
+        .filter(Boolean);
+      replies.push(
+        lines.length
+          ? `**Доступность ресурса:** ${lines.join(" ")}`
+          : "**Доступность ресурса:** ограничений по этому исследованию не заявлено."
+      );
+      continue;
+    }
+    if (entry.kind === "finding_slot") {
+      const bundle = caseData.available_findings?.[entry.finding_bundle];
+      const text = bundle?.slot_text?.[entry.slot_id];
+      // A narrow question reads one slot. It never hands over the whole bundle:
+      // asking whether Rovsing is positive is not the same as examining the
+      // abdomen, and answering with the full examination gives away work the
+      // learner did not do.
+      if (text) replies.push(`**${bundle.title}:** ${text}`);
+      else if (bundle) {
+        replies.push(
+          `**${bundle.title}:** этот признак у пациента не описан.`
+        );
+      }
+    }
+  }
+  return replies;
+}
+
 function createWorkingMemory() {
   return {
     turnNumber: 0,
@@ -362,6 +418,13 @@ function applyPlan(caseData, session, plan, options = {}) {
     }
   }
 
+  // Understood-but-not-an-action concepts answer separately, NOT through the
+  // patient simulator. "ТРУЗИ не смоделировано в этом сценарии" is a statement
+  // about the model of the case, and a patient cannot say it. Voiced by the
+  // simulator it came out as the generic "эти данные не заданы", which is the
+  // non-answer this whole change exists to remove.
+  const nonActionLines = nonActionReplies(caseData, nextSession, plan.parsed?.unresolvedByKind);
+
   const stateLine = neutralStateLine(previousTemporalState, temporalState);
   // A turn that asked for the question to be repeated gets the question back,
   // not a new one and not a state line about a patient who did not change.
@@ -369,7 +432,9 @@ function applyPlan(caseData, session, plan, options = {}) {
   const neutralPrompt = repaired
     ? `Повторю вопрос. ${repaired}`
     : [stateLine, closingPrompt(nextSession, plan, blockedOperations)].filter(Boolean).join("\n\n");
-  const reply = [...new Set(replies), neutralPrompt].filter(Boolean).join("\n\n");
+  const reply = [...new Set(replies), ...nonActionLines, neutralPrompt]
+    .filter(Boolean)
+    .join("\n\n");
 
   const turnEvent = event(nextSession, "clinical_turn", {
     turn_number: memory.turnNumber,
@@ -407,6 +472,7 @@ function applyPlan(caseData, session, plan, options = {}) {
     session: { ...nextSession, eventLog: [...nextSession.eventLog, turnEvent] },
     reply,
     neutralPrompt,
+    nonActionLines,
     findingsRevealed,
     scoringEvents,
     blockedOperations,
@@ -537,7 +603,13 @@ export async function advanceV25Session({
   // The patient says nothing when the learner is talking to the trainer about
   // the conversation. Left unguarded, the simulator answered "не понимаю
   // вопроса" by reciting the handoff again.
-  if (options.simulatorLLM && plan.mode !== "conversational_turn") {
+  // Nothing happened to the patient this turn, and the engine has already said
+  // what did happen. Left unguarded the simulator added its generic "эти данные
+  // не заданы в карте пациента" underneath a specific answer, which reads as a
+  // contradiction of it.
+  const turnTouchedThePatient =
+    plan.operations.length > 0 || !(deterministicUpdate.nonActionLines || []).length;
+  if (options.simulatorLLM && plan.mode !== "conversational_turn" && turnTouchedThePatient) {
     const evidencePacket = retrieveEvidence(activeKnowledgeBase, input, { limit: 5 });
     simulator = await runClinicalSimulatorAgent(
       {
@@ -564,6 +636,12 @@ export async function advanceV25Session({
     );
     reply = simulator.reply;
     additionalFindingIds = simulator.additionalFindingIds || [];
+    // Re-attached after the simulator has spoken: it is not allowed to
+    // paraphrase these away, and it is not the one saying them.
+    const missing = (deterministicUpdate.nonActionLines || []).filter(
+      (line) => !reply.includes(line)
+    );
+    if (missing.length) reply = [...missing, reply].join("\n\n");
   }
 
   // Mentor channel. Off by default so V2.5 behaviour is unchanged; V3 turns it

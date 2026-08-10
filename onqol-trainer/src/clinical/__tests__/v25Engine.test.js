@@ -4,6 +4,11 @@ import { createV25Case } from "../v25/caseFactory.js";
 import { advanceV25Session, createV25Session } from "../v25/engine.js";
 import { createKnowledgeBase } from "../v25/knowledgeBase.js";
 import { generateScenario, resolveActionResource } from "../v25/scenarioEngine.js";
+import { buildV35Case } from "../v35/createCase.js";
+import {
+  appendicitisRouterConceptMap,
+  resolveConcept,
+} from "../diseases/appendicitis/router/conceptRegistry.js";
 
 function actionExtractorFor(intents) {
   return () => JSON.stringify({ intents, unresolved_fragments: [] });
@@ -340,4 +345,100 @@ test("the log records the turn kind and what was not repeated", async () => {
     ["npo"]
   );
   assert.equal(turn.elapsed_minutes, 0);
+});
+
+// --- typed concept registry ------------------------------------------------
+
+test("an understood concept that is not an action gets its own answer", async () => {
+  // Live run, turn 2: "пальцевое ректальное исследование" was recognised by the
+  // router, mapped to an empty array and vanished without a word. Six different
+  // situations shared that empty array; each now answers for itself.
+  const caseData = createV25Case();
+  const session = createV25Session({ caseData, mode: "reference", seed: "kind-1" });
+
+  const result = await advanceV25Session({
+    caseData,
+    session,
+    input: "проведу пальцевое ректальное исследование и сделаю трузи",
+    options: {
+      conceptRegistry: resolveConcept,
+      conceptMap: appendicitisRouterConceptMap,
+      actionExtractorLLM: actionExtractorFor([
+        { type: "request_examination", concept_id: "rectal_examination", confidence: 0.95 },
+        { type: "request_test", concept_id: "transrectal_ultrasound", confidence: 0.95 },
+      ]),
+    },
+  });
+
+  assert.match(result.reply, /не смоделирован/i, "система должна сказать, чего нет");
+  assert.equal(result.session.completedActions.length, 0);
+  assert.equal(result.session.temporalState.clockMinutes, 0, "несмоделированное не стоит времени");
+});
+
+test("a hypothesis creates no action and reveals nothing", async () => {
+  const caseData = createV25Case();
+  const session = createV25Session({ caseData, mode: "reference", seed: "kind-2" });
+
+  const result = await advanceV25Session({
+    caseData,
+    session,
+    input: "думаю ещё про почечную колику",
+    options: {
+      conceptRegistry: resolveConcept,
+      conceptMap: appendicitisRouterConceptMap,
+      actionExtractorLLM: actionExtractorFor([
+        { type: "diagnosis", concept_id: "renal_colic", confidence: 0.9 },
+      ]),
+    },
+  });
+
+  assert.equal(result.session.completedActions.length, 0);
+  assert.equal(result.session.revealedFindings.length, 0);
+  assert.equal(result.session.temporalState.clockMinutes, 0);
+});
+
+test("a vague antibiotic order is asked to be specified, not guessed", async () => {
+  const caseData = createV25Case();
+  const session = createV25Session({ caseData, mode: "reference", seed: "kind-3" });
+
+  const result = await advanceV25Session({
+    caseData,
+    session,
+    input: "назначаю антибиотики",
+    options: {
+      conceptRegistry: resolveConcept,
+      conceptMap: appendicitisRouterConceptMap,
+      actionExtractorLLM: actionExtractorFor([
+        { type: "management", concept_id: "antibiotics", confidence: 0.95 },
+      ]),
+    },
+  });
+
+  assert.match(result.reply, /профилактика перед операцией/i);
+  assert.equal(result.session.completedActions.length, 0, "движок не выбирает за резидента");
+});
+
+test("a narrow question about one sign does not hand over the whole examination", async () => {
+  // The abdominal examination stays addressable slot by slot, so asking about
+  // Rovsing answers about Rovsing.
+  const { caseData } = buildV35Case({ seed: "slot-1", requestedPresetId: "APP-002" });
+  const session = createV25Session({ caseData, mode: "reference", seed: "slot-1" });
+
+  const result = await advanceV25Session({
+    caseData,
+    session,
+    input: "симптом ровзинга есть?",
+    options: {
+      conceptRegistry: resolveConcept,
+      conceptMap: appendicitisRouterConceptMap,
+      actionExtractorLLM: actionExtractorFor([
+        { type: "request_examination", concept_id: "rovsing_sign", confidence: 0.95 },
+      ]),
+    },
+  });
+
+  assert.match(result.reply, /Ровзинга/);
+  assert.doesNotMatch(result.reply, /участвует в акте дыхания/, "весь осмотр выдавать нельзя");
+  assert.doesNotMatch(result.reply, /перистальтика/i);
+  assert.equal(result.session.revealedFindings.includes("abdominal_exam"), false);
 });
