@@ -173,7 +173,17 @@ test("a new scoring domain never produces NaN", () => {
 
   assert.ok(Number.isFinite(scored.overallScore));
   for (const [domain, value] of Object.entries(scored.domainScores)) {
-    assert.ok(Number.isFinite(value), `domain ${domain} scored ${value}`);
+    // Since 10.08.2026 a domain with no scorable weight is `null`, not 100: a
+    // perfect score for behaviour nobody measured is worse than no score. NaN is
+    // still forbidden.
+    assert.ok(value === null || Number.isFinite(value), `domain ${domain} scored ${value}`);
+  }
+  for (const domain of caseData.core_library.unscored_domains) {
+    assert.equal(
+      scored.domainScores[domain],
+      null,
+      `домен без оцениваемых элементов должен быть N/A, а не числом: ${domain}`
+    );
   }
   assert.ok(caseData.scoring.domains.includes("Professionalism and escalation"));
   assert.ok(caseData.core_library.unscored_domains.includes("Professionalism and escalation"));

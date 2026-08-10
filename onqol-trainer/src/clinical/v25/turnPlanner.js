@@ -1,6 +1,7 @@
 import { extractLearnerActions } from "../actionExtraction.js";
 import { buildAllowedActionMap } from "../schemas/caseSchema.js";
 import { requestedTechnique } from "./scenarioEngine.js";
+import { classifyTurn, requestsExplicitRepeat, suppressDuplicateOperations } from "./turnKind.js";
 
 const TENTATIVE_RE =
   /\b(я\s+бы|можно\s+рассмотреть|рассмотрю|возможно|вероятно|если\s+будет|подумаю|предлагаю\s+обсудить)\b/i;
@@ -186,10 +187,35 @@ async function resolveActions(input, caseData, session, options) {
 }
 
 export async function planClinicalTurn({ input, caseData, session, options = {} }) {
+  // Conversation management is decided before routing. A learner asking for the
+  // question to be repeated must not be able to reach the clinical engine at
+  // all - see turnKind.js for what this cost in the first live run.
+  const turnKind = classifyTurn(input);
+  if (turnKind.blocks_clinical_turn) {
+    return {
+      input,
+      parsed: { actions: [], source: "conversational_resolver", turn_kind: turnKind.kind },
+      actions: [],
+      actionIds: [],
+      operations: [],
+      suppressedOperations: [],
+      turnKind,
+      mode: "conversational_turn",
+      learnerMove: turnKind.kind,
+      responseAct: "repair_previous_question",
+      patientBoundary:
+        "The learner is talking about the conversation, not to the patient. Reveal nothing and change nothing.",
+      // The mentor restates its previous question; it does not pick a new topic.
+      plannerPrompt: "",
+      prerequisiteWarnings: [],
+      riskFlags: [],
+    };
+  }
+
   const { actions, parsed } = await resolveActions(input, caseData, session, options);
   const actionIds = actions.map((action) => action.id).filter((id) => id !== "end_case");
   const technique = requestedTechnique(input);
-  const operations = actions
+  const plannedOperations = actions
     .filter((action) => action.id !== "end_case")
     .map((action) => {
       const commitment = commitmentFor(action, input);
@@ -205,6 +231,13 @@ export async function planClinicalTurn({ input, caseData, session, options = {} 
         countsAsDecision: action.intent_type === "diagnosis",
       };
     });
+  // Idempotency. A message that mentions an order the patient already had does
+  // not repeat it, unless the learner asked for a repeat in words.
+  const { operations, suppressed } = suppressDuplicateOperations(
+    plannedOperations,
+    session.workingMemory?.actionStates,
+    requestsExplicitRepeat(input)
+  );
   const prerequisites = missingPrerequisites(caseData, session, actionIds);
   const mode = actions.some((action) => action.id === "end_case") ? "debrief" : "simulation_turn";
 
@@ -214,6 +247,8 @@ export async function planClinicalTurn({ input, caseData, session, options = {} 
     actions,
     actionIds,
     operations,
+    suppressedOperations: suppressed,
+    turnKind,
     mode,
     learnerMove: actions.length
       ? actions.length > 1

@@ -55,18 +55,47 @@ export function scoreSession(caseData, session) {
   const missedExpected = caseData.expected_actions.filter((action) => !completed.has(action.id));
   const missedCritical = missedExpected.filter((action) => action.critical);
   const criticalOmissions = caseData.critical_omissions.filter((id) => !completed.has(id));
-  const criticalErrors = [
-    ...[...unsafeCompleted].filter((id) => {
-      const action = unsafeById.get(id);
-      return action?.critical && action.eligible_for_scoring !== false;
-    }),
-    ...criticalOmissions,
-  ];
+
+  // Two different failures, reported separately.
+  //
+  // The first live run put `open_appendectomy_here` and
+  // `preop_single_antibiotic_prophylaxis` under the heading "CRITICAL / UNSAFE
+  // ACTIONS" for a learner who had performed neither. Telling someone they did
+  // a dangerous thing they did not do is not a scoring nuance; it is a false
+  // accusation in a training record.
+  const unsafeActionsPerformed = [...unsafeCompleted].filter((id) => {
+    const action = unsafeById.get(id);
+    return action?.critical && action.eligible_for_scoring !== false;
+  });
+
+  // Dependent omissions are not independent failures.
+  //
+  // Prophylaxis before an operation is only owed once an operation is decided
+  // on. Counting it against a learner who never got as far as deciding turns one
+  // gap into two.
+  const dependentOmissions = caseData.dependent_omissions || {};
+  const criticalOmissionsIndependent = criticalOmissions.filter((id) => {
+    const requires = dependentOmissions[id];
+    if (!requires) return true;
+    return requires.some((prerequisiteId) => completed.has(prerequisiteId));
+  });
+  const criticalOmissionsSuppressed = criticalOmissions.filter(
+    (id) => !criticalOmissionsIndependent.includes(id)
+  );
 
   const domainScores = {};
   for (const domain of caseData.scoring.domains) {
     const total = domainTotals[domain] || 0;
-    const raw = total === 0 ? 100 : ((domainEarned[domain] - domainPenalties[domain]) / total) * 100;
+    // A domain with nothing to score is `null`, not 100.
+    //
+    // Reporting a perfect score for behaviour that was never observed is the
+    // most flattering possible lie: the first live run showed Patient safety and
+    // Professionalism at 100 without a single scorable item in either.
+    if (total === 0) {
+      domainScores[domain] = null;
+      continue;
+    }
+    const raw = ((domainEarned[domain] - domainPenalties[domain]) / total) * 100;
     domainScores[domain] = Math.round(clamp(raw, 0, 100));
   }
 
@@ -82,8 +111,13 @@ export function scoreSession(caseData, session) {
     earned,
     penalties,
     maxExpected,
-    criticalErrorFlag: criticalErrors.length > 0,
-    criticalErrors,
+    criticalErrorFlag: unsafeActionsPerformed.length > 0 || criticalOmissionsIndependent.length > 0,
+    // Kept for consumers that read one combined list, but no longer the primary
+    // report: `unsafe_actions_performed` and `critical_omissions` are.
+    criticalErrors: [...unsafeActionsPerformed, ...criticalOmissionsIndependent],
+    unsafeActionsPerformed,
+    criticalOmissions: criticalOmissionsIndependent,
+    criticalOmissionsSuppressed,
     missedExpected: missedExpected.map((action) => action.id),
     missedCritical: missedCritical.map((action) => action.id),
     unsafeActions: [...unsafeCompleted],

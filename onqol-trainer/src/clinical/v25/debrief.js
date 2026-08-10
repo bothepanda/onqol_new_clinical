@@ -79,7 +79,13 @@ export function buildEvidenceGroundedDebrief({ caseData, session, scoring, knowl
 
 **Оценка по доменам**
 ${Object.entries(scoring.domainScores)
-  .map(([domain, score]) => `- ${domain}: ${score}%`)
+  .map(([domain, score]) =>
+    // `null` means the domain had nothing to score in this case. Printing it as
+    // a percentage - any percentage - claims a measurement that was not made.
+    score === null
+      ? `- ${domain}: не оценивался (в этом кейсе нет оцениваемых элементов)`
+      : `- ${domain}: ${score}%`
+  )
   .join("\n")}
 
 **Клиническая временная линия**

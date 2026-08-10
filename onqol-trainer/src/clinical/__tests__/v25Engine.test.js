@@ -193,3 +193,151 @@ test("event log scrubs direct identifiers from learner text", async () => {
   assert.match(result.session.eventLog.at(-1).raw_text_redacted, /\[IIN_REDACTED\]/);
   assert.doesNotMatch(result.session.eventLog.at(-1).raw_text_redacted, /123456789012/);
 });
+
+// --- turn kind, idempotency and the scoring contract -----------------------
+//
+// Every case below is taken from the first recorded live run, session
+// 095a865b-249f-4037-aeb4-4cce0b81c1df on seed reference-d6c0a7cc.
+
+test("asking for the question to be repeated is not a clinical action", async () => {
+  // Turn 8 of the live run: "не понимаю вопроса" was routed as
+  // `declare_uncertainty`, a proposed diagnosis, and charged four minutes.
+  const caseData = createV25Case();
+  let session = createV25Session({ caseData, mode: "reference", seed: "repair-1" });
+  const before = session.temporalState.clockMinutes;
+
+  const result = await advanceV25Session({
+    caseData,
+    session,
+    input: "не понимаю вопроса",
+    options: {
+      // The extractor would have produced an action; the conversational
+      // resolver must run before it and stop the turn.
+      actionExtractorLLM: actionExtractorFor([
+        { concept_id: "declare_uncertainty", type: "diagnosis", confidence: 0.99 },
+      ]),
+    },
+  });
+
+  assert.equal(result.plan.mode, "conversational_turn");
+  assert.equal(result.plan.turnKind.kind, "clarification_request");
+  assert.deepEqual(result.plan.operations, []);
+  assert.equal(result.session.completedActions.length, 0);
+  assert.equal(result.session.temporalState.clockMinutes, before, "часы не должны идти");
+  assert.deepEqual(result.scoringEvents, []);
+});
+
+test("a repair turn restates the previous question instead of asking a new one", async () => {
+  const caseData = createV25Case();
+  let session = createV25Session({ caseData, mode: "reference", seed: "repair-2" });
+  session = {
+    ...session,
+    messages: [
+      ...session.messages,
+      { role: "assistant", content: "Пациент стабилен. Какой следующий клинический шаг?" },
+    ],
+  };
+
+  const result = await advanceV25Session({
+    caseData,
+    session,
+    input: "не понимаю вопроса",
+    options: { mentor: true },
+  });
+
+  assert.match(result.reply, /Какой следующий клинический шаг\?/);
+  assert.equal(result.mentor, null, "наставник не выбирает новый ход на просьбу переспросить");
+});
+
+test("repeating a plan does not run the orders a second time", async () => {
+  // Turn 9 of the live run: restating the same plan performed observation, NPO
+  // and the fluids again and added another two hours.
+  const caseData = createV25Case();
+  let session = createV25Session({ caseData, mode: "reference", seed: "idem-1" });
+  const extractor = actionExtractorFor([
+    { concept_id: "npo", type: "management", confidence: 0.99 },
+    { concept_id: "iv_fluids", type: "management", confidence: 0.99 },
+  ]);
+
+  const first = await advanceV25Session({
+    caseData,
+    session,
+    input: "НПО, в/в натрия хлорид 1 л быстро, 1 л за след 3 часа",
+    options: { actionExtractorLLM: extractor },
+  });
+  const afterFirst = first.session.temporalState.clockMinutes;
+  assert.ok(afterFirst > 0, "первое назначение должно стоить времени");
+
+  const second = await advanceV25Session({
+    caseData,
+    session: first.session,
+    input: "я же сказала решение - НПО, в/в натрия хлорид 1 л быстро, 1 л за след 3 часа",
+    options: { actionExtractorLLM: extractor },
+  });
+
+  assert.equal(second.plan.turnKind.kind, "repeat_or_correction");
+  assert.deepEqual(second.plan.operations, [], "повтор не выполняет назначения заново");
+  assert.deepEqual(
+    second.plan.suppressedOperations.map((entry) => entry.action_id).sort(),
+    ["iv_fluids", "npo"]
+  );
+  assert.equal(second.session.temporalState.clockMinutes, afterFirst, "часы не должны идти");
+});
+
+test("an explicit request to repeat an investigation still performs it", async () => {
+  // Idempotency must not swallow serial re-examination: "повтори ОАК" is a real
+  // second blood count.
+  const caseData = createV25Case();
+  const session = createV25Session({ caseData, mode: "reference", seed: "idem-2" });
+  const extractor = actionExtractorFor([
+    { concept_id: "cbc", type: "request_test", confidence: 0.99 },
+  ]);
+
+  const first = await advanceV25Session({
+    caseData,
+    session,
+    input: "оак",
+    options: { actionExtractorLLM: extractor },
+  });
+  const second = await advanceV25Session({
+    caseData,
+    session: first.session,
+    input: "повтори оак в динамике",
+    options: { actionExtractorLLM: extractor },
+  });
+
+  assert.equal(second.plan.operations.length, 1, "явный повтор выполняется");
+  assert.ok(
+    second.session.temporalState.clockMinutes > first.session.temporalState.clockMinutes,
+    "повторный анализ стоит времени"
+  );
+});
+
+test("the log records the turn kind and what was not repeated", async () => {
+  const caseData = createV25Case();
+  const session = createV25Session({ caseData, mode: "reference", seed: "log-1" });
+  const extractor = actionExtractorFor([
+    { concept_id: "npo", type: "management", confidence: 0.99 },
+  ]);
+  const first = await advanceV25Session({
+    caseData,
+    session,
+    input: "НПО",
+    options: { actionExtractorLLM: extractor },
+  });
+  const second = await advanceV25Session({
+    caseData,
+    session: first.session,
+    input: "я уже сказала - НПО",
+    options: { actionExtractorLLM: extractor },
+  });
+
+  const turn = second.session.eventLog.at(-1);
+  assert.equal(turn.event_type, "clinical_turn");
+  assert.equal(turn.turn_kind, "repeat_or_correction");
+  assert.deepEqual(
+    turn.duplicate_suppressed.map((entry) => entry.action_id),
+    ["npo"]
+  );
+  assert.equal(turn.elapsed_minutes, 0);
+});

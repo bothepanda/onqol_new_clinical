@@ -616,6 +616,15 @@ export const acuteAppendicitisCase = {
     "open_appendectomy_here",
     "preop_single_antibiotic_prophylaxis",
   ],
+  // Which omissions only become omissions once something else has happened.
+  //
+  // Antibiotic prophylaxis is owed before an incision. A learner who never
+  // decided on an operation has one gap - no operative decision - not two. The
+  // first live run reported both, which made a single unfinished decision look
+  // like two separate critical failures.
+  dependent_omissions: {
+    preop_single_antibiotic_prophylaxis: ["open_appendectomy_here"],
+  },
   diagnostic_milestones: ["focused_history", "abdominal_exam", "pregnancy_test", "cbc", "urinalysis", "diagnosis_acute_appendicitis"],
   management_milestones: ["open_appendectomy_here", "preop_single_antibiotic_prophylaxis"],
   end_conditions: {

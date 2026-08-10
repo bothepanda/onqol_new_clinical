@@ -12,8 +12,10 @@ export function scoreV25Session(caseData, session) {
   const overallScore = clamp(base.overallScore - temporalPenalty, 0, 100);
   const domainScores = { ...base.domainScores };
 
-  if (temporalPenalty) {
-    domainScores.Prioritization = clamp((domainScores.Prioritization || 100) - temporalPenalty, 0, 100);
+  // A domain with nothing to score stays `null`; a penalty cannot drag an
+  // unmeasured domain down from an imaginary 100.
+  if (temporalPenalty && Number.isFinite(domainScores.Prioritization)) {
+    domainScores.Prioritization = clamp(domainScores.Prioritization - temporalPenalty, 0, 100);
   }
 
   return {

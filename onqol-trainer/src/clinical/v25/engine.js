@@ -141,6 +141,23 @@ function neutralStateLine(previousTemporalState, temporalState) {
   )} °C, боль ${temporalState.painScore}/10.`;
 }
 
+/**
+ * The last question the trainer actually asked.
+ *
+ * Used to repair a turn where the learner did not understand it. Deterministic
+ * and literal: it restates the question rather than rephrasing it, because
+ * rephrasing is the mentor's job and the mentor may be switched off.
+ */
+function lastQuestionAsked(session) {
+  for (let index = session.messages.length - 1; index >= 0; index -= 1) {
+    const message = session.messages[index];
+    if (message.role !== "assistant") continue;
+    const questions = String(message.content).match(/[^.!?\n]*\?/g);
+    if (questions && questions.length) return questions[questions.length - 1].trim();
+  }
+  return null;
+}
+
 function closingPrompt(session, plan, blockedOperations) {
   if (blockedOperations.length) return "Как меняешь план с учётом этого ограничения?";
   if (session.temporalState.status === "controlled") return "Контроль источника выполнен. Что нужно сделать дальше?";
@@ -346,9 +363,12 @@ function applyPlan(caseData, session, plan, options = {}) {
   }
 
   const stateLine = neutralStateLine(previousTemporalState, temporalState);
-  const neutralPrompt = [stateLine, closingPrompt(nextSession, plan, blockedOperations)]
-    .filter(Boolean)
-    .join("\n\n");
+  // A turn that asked for the question to be repeated gets the question back,
+  // not a new one and not a state line about a patient who did not change.
+  const repaired = plan.mode === "conversational_turn" ? lastQuestionAsked(session) : null;
+  const neutralPrompt = repaired
+    ? `Повторю вопрос. ${repaired}`
+    : [stateLine, closingPrompt(nextSession, plan, blockedOperations)].filter(Boolean).join("\n\n");
   const reply = [...new Set(replies), neutralPrompt].filter(Boolean).join("\n\n");
 
   const turnEvent = event(nextSession, "clinical_turn", {
@@ -363,6 +383,11 @@ function applyPlan(caseData, session, plan, options = {}) {
     findings_revealed: findingsRevealed,
     resources_revealed: revealedResources,
     elapsed_minutes: temporalState.clockMinutes - previousTemporalState.clockMinutes,
+    // What kind of turn this was, and what the engine declined to run again.
+    // Without these two fields a reviewer reading the log cannot tell a repeated
+    // order from a repeated sentence.
+    turn_kind: plan.turnKind?.kind || "unknown",
+    duplicate_suppressed: plan.suppressedOperations || [],
     // Research/mentor metadata, kept out of parsed_actions and out of scoring on
     // purpose: these are learner claims awaiting separate validation. Raw text
     // stays scrubbed above; nothing here carries free text.
@@ -501,7 +526,10 @@ export async function advanceV25Session({
   let additionalFindingIds = [];
   const activeKnowledgeBase = knowledgeBase || createKnowledgeBase();
 
-  if (options.simulatorLLM) {
+  // The patient says nothing when the learner is talking to the trainer about
+  // the conversation. Left unguarded, the simulator answered "не понимаю
+  // вопроса" by reciting the handoff again.
+  if (options.simulatorLLM && plan.mode !== "conversational_turn") {
     const evidencePacket = retrieveEvidence(activeKnowledgeBase, input, { limit: 5 });
     simulator = await runClinicalSimulatorAgent(
       {
@@ -537,7 +565,10 @@ export async function advanceV25Session({
   // contains no patient facts at all.
   let mentor = null;
   let mentorBrief = null;
-  if (options.mentor) {
+  // On a repair turn the mentor stays out of it: the learner did not understand
+  // the previous question, so answering with a different question is the one
+  // thing that cannot help. The deterministic repair restates it instead.
+  if (options.mentor && plan.mode !== "conversational_turn") {
     const brief = buildMentorBrief({
       caseData,
       session: deterministicUpdate.session,
