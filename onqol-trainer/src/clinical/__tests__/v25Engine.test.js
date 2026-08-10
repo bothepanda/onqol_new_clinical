@@ -5,6 +5,7 @@ import { advanceV25Session, createV25Session } from "../v25/engine.js";
 import { createKnowledgeBase } from "../v25/knowledgeBase.js";
 import { generateScenario, resolveActionResource } from "../v25/scenarioEngine.js";
 import { buildV35Case } from "../v35/createCase.js";
+import { resolveActionEta, turnEtaMinutes } from "../v25/resourceTiming.js";
 import {
   appendicitisRouterConceptMap,
   resolveConcept,
@@ -441,4 +442,107 @@ test("a narrow question about one sign does not hand over the whole examination"
   assert.doesNotMatch(result.reply, /участвует в акте дыхания/, "весь осмотр выдавать нельзя");
   assert.doesNotMatch(result.reply, /перистальтика/i);
   assert.equal(result.session.revealedFindings.includes("abdominal_exam"), false);
+});
+
+// --- one resource resolver, one clock --------------------------------------
+
+test("an ultrasound in a hospital that has one round the clock costs its turnaround", async () => {
+  // Live run: reference facility, `ultrasound: coverage 24/7`, and the scan
+  // still cost 360 minutes because a flat table said so. Of that session's 822
+  // minutes, 360 came from this one number.
+  const caseData = createV25Case();
+  const session = createV25Session({ caseData, mode: "reference", seed: "eta-1" });
+
+  const eta = resolveActionEta(session.scenario, "abdominal_ultrasound");
+  assert.equal(eta.available, true);
+  assert.equal(eta.queue_delay_minutes, 0, "круглосуточное УЗИ не создаёт очереди");
+  assert.equal(eta.total_eta_minutes, eta.baseline_turnaround_minutes);
+  assert.ok(eta.total_eta_minutes < 60, `ожидался оборот, а не смена: ${eta.total_eta_minutes}`);
+});
+
+test("investigations ordered together cost the longest, not the sum", async () => {
+  const caseData = createV25Case();
+  const session = createV25Session({ caseData, mode: "reference", seed: "eta-2" });
+  const ids = ["cbc", "urinalysis", "crp", "abdominal_ultrasound"];
+
+  const longest = Math.max(
+    ...ids.map((id) => resolveActionEta(session.scenario, id).total_eta_minutes)
+  );
+  assert.equal(turnEtaMinutes(session.scenario, ids), longest);
+
+  const result = await advanceV25Session({
+    caseData,
+    session,
+    input: "оак, оам, срб, узи обп",
+    options: {
+      actionExtractorLLM: actionExtractorFor(
+        ids.map((concept_id) => ({ concept_id, type: "request_test", confidence: 0.99 }))
+      ),
+    },
+  });
+  assert.equal(result.session.temporalState.clockMinutes, longest);
+});
+
+test("asking when a result would come does not order it and does not move the clock", async () => {
+  const caseData = createV25Case();
+  const session = createV25Session({ caseData, mode: "reference", seed: "eta-3" });
+
+  const result = await advanceV25Session({
+    caseData,
+    session,
+    input: "когда будет доступно узи?",
+    options: {
+      conceptRegistry: resolveConcept,
+      conceptMap: appendicitisRouterConceptMap,
+      actionExtractorLLM: actionExtractorFor([
+        { type: "question", concept_id: "resource_availability", confidence: 0.9 },
+      ]),
+    },
+  });
+
+  assert.match(result.reply, /Доступность ресурса/);
+  assert.match(result.reply, /Результат ожидается/);
+  assert.equal(result.session.temporalState.clockMinutes, 0, "вопрос не двигает часы");
+  assert.equal(result.session.completedActions.length, 0, "вопрос ничего не заказывает");
+});
+
+test("the workflow clock and the disease clock are reported separately", async () => {
+  const caseData = createV25Case();
+  const session = createV25Session({ caseData, mode: "reference", seed: "eta-4" });
+  const result = await advanceV25Session({
+    caseData,
+    session,
+    input: "оак",
+    options: {
+      actionExtractorLLM: actionExtractorFor([
+        { concept_id: "cbc", type: "request_test", confidence: 0.99 },
+      ]),
+    },
+  });
+
+  const turn = result.session.eventLog.at(-1);
+  assert.ok(Number.isFinite(turn.workflow_time_minutes));
+  assert.ok(Number.isFinite(turn.disease_time_minutes));
+  assert.ok(
+    turn.disease_time_minutes > turn.workflow_time_minutes,
+    "болезнь началась до поступления"
+  );
+  const breakdown = turn.time_cost_breakdown.find((entry) => entry.action_id === "cbc");
+  assert.equal(breakdown.queue_delay_minutes, 0);
+  assert.equal(breakdown.total_eta_minutes, breakdown.baseline_turnaround_minutes);
+});
+
+test("the opening timeline entry describes this patient, not a frozen one", () => {
+  // It used to read "Стабильная пациентка с болью в правой подвздошной области
+  // поступила ночью" for every patient - wrong sex and wrong site for most of
+  // them, and an invented time of day.
+  const male = buildV35Case({ seed: "tl-male", requestedPresetId: "APP-004" }).caseData;
+  const session = createV25Session({ caseData: male, mode: "reference", seed: "tl-1" });
+  const opening = session.temporalState.timeline[0].detail;
+
+  assert.doesNotMatch(opening, /ночью/, "время суток никто не заявлял");
+  assert.doesNotMatch(opening, /Стабильн/, "стабильность - утверждение резидента");
+  const sex = male.patient_state.sex;
+  if (sex === "male") assert.match(opening, /^Пациент /);
+  if (sex === "female") assert.match(opening, /^Пациентка /);
 });

@@ -13,6 +13,7 @@ import {
 } from "./scenarioEngine.js";
 import { createEmptyReasoningState, mergeReasoningState } from "../core/reasoningState.js";
 import { createInitialTemporalState, projectTemporalState } from "./temporalPatientModel.js";
+import { describeEta, resolveActionEta, turnEtaMinutes } from "./resourceTiming.js";
 import { planClinicalTurn } from "./turnPlanner.js";
 import { buildMentorBrief, prerequisiteMeta } from "../core/mentorBrief.js";
 import { runMentorAgent } from "../core/mentorAgent.js";
@@ -70,18 +71,15 @@ function nonActionReplies(caseData, session, entries) {
       continue;
     }
     if (entry.kind === "resource_query") {
-      // Asking what the hospital has is not ordering it. Availability only; the
-      // waiting time belongs to the resource/time work and is not claimed here.
-      const lines = ["ct_abdomen", "abdominal_ultrasound"]
-        .map((actionId) => resolveActionResource(session.scenario, actionId, ""))
-        .filter((check) => check.resource)
-        .map((check) => check.revealText)
-        .filter(Boolean);
-      replies.push(
-        lines.length
-          ? `**Доступность ресурса:** ${lines.join(" ")}`
-          : "**Доступность ресурса:** ограничений по этому исследованию не заявлено."
-      );
+      // Asking what the hospital has is not ordering it: the learner is told
+      // whether it is available and when the result would come, and the clock
+      // does not move. Deciding with the waiting time in view is the whole point.
+      const lines = ["abdominal_ultrasound", "ct_abdomen"].map((actionId) => {
+        const eta = resolveActionEta(session.scenario, actionId, "");
+        const label = actionId === "ct_abdomen" ? "КТ" : "УЗИ";
+        return `${label}: ${describeEta(eta)}`;
+      });
+      replies.push(`**Доступность ресурса:** ${lines.join(" ")}`);
       continue;
     }
     if (entry.kind === "finding_slot") {
@@ -388,7 +386,12 @@ function applyPlan(caseData, session, plan, options = {}) {
   }
 
   const previousTemporalState = nextSession.temporalState;
-  const temporalState = projectTemporalState(caseData, previousTemporalState, performedIds);
+  // The clock cost comes from the resource resolver, not from a flat table: an
+  // ultrasound in a hospital that has one round the clock costs its turnaround,
+  // not somebody else's night shift. Parallel orders cost the longest of them.
+  const temporalState = projectTemporalState(caseData, previousTemporalState, performedIds, {
+    elapsedMinutes: turnEtaMinutes(nextSession.scenario, performedIds, plan.input),
+  });
   nextSession = {
     ...nextSession,
     temporalState,
@@ -448,6 +451,23 @@ function applyPlan(caseData, session, plan, options = {}) {
     findings_revealed: findingsRevealed,
     resources_revealed: revealedResources,
     elapsed_minutes: temporalState.clockMinutes - previousTemporalState.clockMinutes,
+    // Two different clocks, reported separately. Workflow time is how long the
+    // department took; disease time is how long the illness has been running.
+    // Conflating them is how a six-hour queue became a sicker patient.
+    workflow_time_minutes: temporalState.clockMinutes,
+    disease_time_minutes: temporalState.timeFromOnsetMinutes,
+    // Why the clock moved, per action, so a reviewer can tell a slow hospital
+    // from a slow learner.
+    time_cost_breakdown: performedIds.map((actionId) => {
+      const eta = resolveActionEta(nextSession.scenario, actionId, plan.input);
+      return {
+        action_id: actionId,
+        baseline_turnaround_minutes: eta.baseline_turnaround_minutes,
+        queue_delay_minutes: eta.queue_delay_minutes,
+        total_eta_minutes: eta.total_eta_minutes,
+        delay_source: eta.delay_source,
+      };
+    }),
     // What kind of turn this was, and what the engine declined to run again.
     // Without these two fields a reviewer reading the log cannot tell a repeated
     // order from a repeated sentence.

@@ -307,11 +307,15 @@ export function validateRouterOutput(routerPayload, caseData, options = {}) {
     }
 
     intents.push({ type, concept_id: conceptId, confidence });
-    if (conceptId && type !== "question" && type !== "unknown") {
-      // What KIND of thing is this? An empty mapping used to mean six different
-      // things; the registry says which one, so the engine can answer each
-      // honestly instead of falling silent. See conceptRegistry.js.
-      const typed = options.conceptRegistry?.(conceptId) || null;
+    // What KIND of thing is this? An empty mapping used to mean six different
+    // things; the registry says which one, so the engine can answer each
+    // honestly instead of falling silent. See conceptRegistry.js.
+    const typed = conceptId ? options.conceptRegistry?.(conceptId) || null : null;
+    // "Когда будет УЗИ?" arrives as a question, and a question is exactly what
+    // it is - but it still deserves an answer about availability. These two
+    // kinds answer whatever intent type they arrive under.
+    const answersAnyIntent = typed && ["resource_query", "unsupported"].includes(typed.kind);
+    if (conceptId && (answersAnyIntent || (type !== "question" && type !== "unknown"))) {
       if (typed && typed.kind !== "action" && typed.kind !== "finding_bundle") {
         unresolvedByKind.push({
           concept_id: conceptId,

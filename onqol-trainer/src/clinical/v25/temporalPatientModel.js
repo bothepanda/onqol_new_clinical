@@ -86,21 +86,50 @@ export function createInitialTemporalState(caseData) {
       {
         minute: 0,
         label: "Поступление",
-        detail: "Стабильная пациентка с болью в правой подвздошной области поступила ночью.",
+        // Built from what is actually shown, not from a frozen sentence. The
+        // literal used to read "Стабильная пациентка с болью в правой
+        // подвздошной области поступила ночью" for every patient - wrong sex,
+        // wrong site and an invented time of day for most of them.
+        detail: admissionLine(caseData),
       },
     ],
   };
 }
 
+/** The opening timeline entry: sex and complaint as presented, nothing more. */
+function admissionLine(caseData) {
+  const sex = caseData.patient_state?.sex;
+  const who = sex === "male" ? "Пациент" : sex === "female" ? "Пациентка" : "Пациент";
+  // The complaint the learner was handed, without the diagnosis and without a
+  // stability claim nobody has made yet.
+  const complaint = caseData.title ? String(caseData.title).replace(/^Боль\s+/i, "боль ") : null;
+  return complaint ? `${who} поступил${sex === "female" ? "а" : ""}: ${complaint}.` : `${who} поступил${sex === "female" ? "а" : ""} в приёмное отделение.`;
+}
+
+/**
+ * Fallback cost, used only when nobody supplied a resolved ETA.
+ *
+ * The real cost of a turn is composed by v25/resourceTiming.js from a baseline
+ * turnaround plus whatever queue THIS shift imposes. This table survives for
+ * callers that have no scenario to resolve against - and it is why an ultrasound
+ * used to cost six hours in a hospital that had one available round the clock.
+ */
 export function actionTimeCost(actionIds) {
   const costs = unique(actionIds).map((id) => ACTION_MINUTES[id] ?? 4);
   return costs.length ? Math.max(...costs) : 0;
 }
 
-export function projectTemporalState(caseData, previousState, actionIds) {
+/**
+ * @param {object} [options]
+ * @param {number} [options.elapsedMinutes] resolved ETA for this turn. Pass it
+ *        whenever a scenario is available; without it the flat table is used.
+ */
+export function projectTemporalState(caseData, previousState, actionIds, options = {}) {
   const actions = unique(actionIds);
   const completed = unique([...(previousState.completedActionIds || []), ...actions]);
-  const addedMinutes = actionTimeCost(actions);
+  const addedMinutes = Number.isFinite(options.elapsedMinutes)
+    ? options.elapsedMinutes
+    : actionTimeCost(actions);
   const clockMinutes = previousState.clockMinutes + addedMinutes;
   const timeFromOnsetMinutes = previousState.timeFromOnsetMinutes + addedMinutes;
   const sourceControl = previousState.sourceControl || actions.includes("open_appendectomy_here");
