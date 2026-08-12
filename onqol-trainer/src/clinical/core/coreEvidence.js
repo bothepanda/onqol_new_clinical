@@ -51,6 +51,23 @@ export const coreEvidence = {
         "The 60-minute antibiotic window is the checklist item that most often links to the disease-specific prophylaxis action.",
     },
     {
+      id: "who-ssc-sign-out",
+      name: "WHO Surgical Safety Checklist",
+      year: 2009,
+      citation:
+        "World Health Organization. WHO Guidelines for Safe Surgery 2009: Safe Surgery Saves Lives. Geneva: WHO; 2009.",
+      section: "Checklist - Sign Out (before patient leaves operating room)",
+      recommendation:
+        "Before the patient leaves the operating room, the team confirms the procedure, specimen labelling, equipment problems and key concerns for recovery and management.",
+      strength: "strong",
+      certainty: "not GRADE (WHO guideline)",
+      provenance: "T1",
+      kz_protocol_status: "КП?",
+      license: "public WHO document",
+      local_note:
+        "Kept separate from Sign In and Time Out so postoperative transfer cannot imply completion of a checkpoint that was never recorded.",
+    },
+    {
       id: "who-safe-surgery-consent",
       name: "WHO Guidelines for Safe Surgery",
       year: 2009,

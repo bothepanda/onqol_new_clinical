@@ -65,6 +65,8 @@ export const BASELINE_TURNAROUND_MINUTES = Object.freeze({
   gynecology_consult: 25,
   antibiotic_observation_course: 20,
   postop_antibiotics_uncomplicated: 5,
+  postoperative_reassessment: 0,
+  discharge_and_followup: 0,
 });
 
 /** Anything not listed above. */
@@ -104,20 +106,41 @@ export const TURNAROUND_REVIEW_STATUS = Object.freeze({
  *   reveal_text: string|null
  * }}
  */
-export function resolveActionEta(scenario, actionId, input = "") {
+export function resolveActionEta(scenario, actionId, input = "", clockMinutes = 0) {
   const waitsFor = WAIT_ACTIONS[actionId];
   if (waitsFor) {
-    const target = resolveActionEta(scenario, waitsFor, input);
-    return { ...target, action_id: actionId, waits_for: waitsFor };
+    const target = resolveActionEta(scenario, waitsFor, input, clockMinutes);
+    if (target.status === "delayed") {
+      return {
+        ...target,
+        action_id: actionId,
+        status: "waiting",
+        available: true,
+        waits_for: waitsFor,
+        baseline_turnaround_minutes: 0,
+        total_eta_minutes: target.queue_delay_minutes,
+        result_ready_at: target.ready_at,
+      };
+    }
+    return {
+      ...target,
+      action_id: actionId,
+      waits_for: waitsFor,
+      baseline_turnaround_minutes: 0,
+      queue_delay_minutes: 0,
+      total_eta_minutes: 0,
+      result_ready_at: clockMinutes,
+    };
   }
 
   const baseline = BASELINE_TURNAROUND_MINUTES[actionId] ?? DEFAULT_TURNAROUND_MINUTES;
-  const resource = scenario ? resolveActionResource(scenario, actionId, input) : null;
+  const resource = scenario ? resolveActionResource(scenario, actionId, input, clockMinutes) : null;
 
   // No resource attached, or the shift puts nothing in the way.
   if (!resource || !resource.resource || resource.status === "available") {
     return {
       action_id: actionId,
+      status: "available",
       available: true,
       baseline_turnaround_minutes: baseline,
       queue_delay_minutes: 0,
@@ -125,13 +148,16 @@ export function resolveActionEta(scenario, actionId, input = "") {
       delay_source: null,
       learner_visible: false,
       reveal_text: null,
+      ready_at: resource?.readyAt ?? clockMinutes,
+      result_ready_at: clockMinutes + baseline,
     };
   }
 
   // Permanently absent: no ETA exists, because it is never coming.
-  if (resource.permanent && resource.status === "unavailable") {
+  if (resource.status === "unavailable" || resource.status === "transfer_only") {
     return {
       action_id: actionId,
+      status: resource.status,
       available: false,
       baseline_turnaround_minutes: baseline,
       queue_delay_minutes: 0,
@@ -139,20 +165,26 @@ export function resolveActionEta(scenario, actionId, input = "") {
       delay_source: resource.reasonId || "unavailable",
       learner_visible: true,
       reveal_text: resource.revealText || null,
+      ready_at: null,
+      result_ready_at: null,
+      transfer_minutes: resource.transferMinutes || null,
     };
   }
 
   const queue = resource.delayMinutes || 0;
   return {
     action_id: actionId,
-    // Delayed is not unavailable: the scan happens, later.
-    available: true,
+    status: "delayed",
+    // Future availability is explicit, but the action cannot execute before it.
+    available: false,
     baseline_turnaround_minutes: baseline,
     queue_delay_minutes: queue,
     total_eta_minutes: baseline + queue,
     delay_source: resource.reasonId || "queue",
     learner_visible: true,
     reveal_text: resource.revealText || null,
+    ready_at: resource.readyAt,
+    result_ready_at: resource.readyAt + baseline,
   };
 }
 
@@ -163,9 +195,9 @@ export function resolveActionEta(scenario, actionId, input = "") {
  * of them, not their sum. A learner who batches sensibly should not be charged
  * for doing so.
  */
-export function turnEtaMinutes(scenario, actionIds, input = "") {
+export function turnEtaMinutes(scenario, actionIds, input = "", clockMinutes = 0) {
   const etas = [...new Set(actionIds)]
-    .map((actionId) => resolveActionEta(scenario, actionId, input))
+    .map((actionId) => resolveActionEta(scenario, actionId, input, clockMinutes))
     .filter((eta) => eta.available)
     .map((eta) => eta.total_eta_minutes);
   return etas.length ? Math.max(...etas) : 0;
@@ -173,14 +205,16 @@ export function turnEtaMinutes(scenario, actionIds, input = "") {
 
 /** Human-readable ETA, for answering "когда будет результат?" without ordering. */
 export function describeEta(eta) {
-  if (!eta.available) return eta.reveal_text || "Это исследование сейчас недоступно.";
+  if (!eta.available && eta.status !== "delayed") {
+    return eta.reveal_text || "Это исследование сейчас недоступно.";
+  }
   const total = eta.total_eta_minutes;
   const when =
     total >= 60
       ? `${Math.floor(total / 60)} ч ${total % 60 ? `${total % 60} мин` : ""}`.trim()
       : `${total} мин`;
   const because = eta.queue_delay_minutes
-    ? ` Ожидание в очереди: ${eta.queue_delay_minutes} мин.${eta.reveal_text ? ` ${eta.reveal_text}` : ""}`
+    ? ` До доступности ресурса: ${eta.queue_delay_minutes} мин.${eta.reveal_text ? ` ${eta.reveal_text}` : ""}`
     : "";
   return `Результат ожидается примерно через ${when}.${because}`;
 }

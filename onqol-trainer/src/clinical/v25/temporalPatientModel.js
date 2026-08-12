@@ -10,10 +10,11 @@ const ACTION_MINUTES = {
   pregnancy_test: 12,
   crp: 35,
   biochemistry: 35,
-  abdominal_ultrasound: 360,
-  pelvic_ultrasound: 360,
+  abdominal_ultrasound: 30,
+  pelvic_ultrasound: 30,
   ct_abdomen: 90,
-  wait_for_ultrasound: 360,
+  // Without a scenario there is no authored resource queue to wait for.
+  wait_for_ultrasound: 0,
   active_observation: 120,
   serial_reexamination: 45,
   transfer_before_source_control: 150,
@@ -27,6 +28,8 @@ const ACTION_MINUTES = {
   gynecology_consult: 25,
   antibiotic_observation_course: 20,
   postop_antibiotics_uncomplicated: 5,
+  postoperative_reassessment: 0,
+  discharge_and_followup: 0,
 };
 
 function unique(list) {
@@ -183,6 +186,7 @@ export function projectTemporalState(caseData, previousState, actionIds, options
   // to ship.
   if (!sourceControl) {
     for (const rule of caseData.temporal_progression_rules || []) {
+      if (rule.runtime_status !== "reviewed_active") continue;
       if (!temporalRuleMatches(rule, { actions, completed, clockMinutes })) continue;
       const effects = rule.effects || {};
       if (effects.status) status = effects.status;

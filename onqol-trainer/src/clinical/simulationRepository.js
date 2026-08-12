@@ -27,6 +27,8 @@ const STORAGE_KEYS = Object.freeze({
   sessionSnapshots: "onqol_simulation_session_snapshots_v1",
 });
 
+export const LOCAL_SESSION_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+
 const IMMUTABLE_SESSION_FIELDS = Object.freeze([
   "session_id",
   "anonymous_user_id",
@@ -54,6 +56,30 @@ function readJson(storage, key, fallback) {
 
 function equalJson(left, right) {
   return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function withoutVerbatim(value) {
+  if (Array.isArray(value)) return value.map(withoutVerbatim);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([key]) => !/(?:^raw_|_verbatim$|^quote$|learner_text|reasoning_delta)/i.test(key))
+      .map(([key, entry]) => [key, withoutVerbatim(entry)])
+  );
+}
+
+function privacySafeSessionSnapshot(session, savedAt, retentionMs) {
+  return {
+    ...withoutVerbatim(session),
+    // Current-tab transcript is intentionally not a persistence format. It may
+    // contain pasted patient data or a mentor echo of learner wording.
+    messages: [],
+    turnPlans: [],
+    eventLog: (session.eventLog || []).map((entry) => withoutVerbatim(entry)),
+    persistence_policy: "raw_text_off",
+    saved_at: new Date(savedAt).toISOString(),
+    expires_at: new Date(savedAt + retentionMs).toISOString(),
+  };
 }
 
 export function getOrCreateAnonymousUserId(storage = globalThis.localStorage) {
@@ -96,12 +122,19 @@ export class SimulationRepository {
   exportSession() {
     throw new Error("SimulationRepository.exportSession() is not implemented.");
   }
+
+  deleteSession() {
+    throw new Error("SimulationRepository.deleteSession() is not implemented.");
+  }
 }
 
 export class BrowserSimulationRepository extends SimulationRepository {
-  constructor(storage = globalThis.localStorage) {
+  constructor(storage = globalThis.localStorage, options = {}) {
     super();
     this.storage = storage;
+    this.persistRawText = options.persistRawText === true;
+    this.retentionMs = options.retentionMs || LOCAL_SESSION_RETENTION_MS;
+    this.now = options.now || Date.now;
   }
 
   createSession(sessionRecord) {
@@ -140,7 +173,11 @@ export class BrowserSimulationRepository extends SimulationRepository {
     analytics.push(normalized);
     this.storage.setItem(STORAGE_KEYS.eventAnalytics, JSON.stringify(analytics));
 
-    if (eventRecord.raw_user_text !== undefined && eventRecord.raw_user_text !== null) {
+    if (
+      this.persistRawText &&
+      eventRecord.raw_user_text !== undefined &&
+      eventRecord.raw_user_text !== null
+    ) {
       const rawTextByEvent = readJson(this.storage, STORAGE_KEYS.eventRawText, {});
       rawTextByEvent[eventId] = scrubSensitiveText(eventRecord.raw_user_text);
       this.storage.setItem(STORAGE_KEYS.eventRawText, JSON.stringify(rawTextByEvent));
@@ -149,7 +186,9 @@ export class BrowserSimulationRepository extends SimulationRepository {
     return {
       ...normalized,
       raw_user_text:
-        eventRecord.raw_user_text === undefined || eventRecord.raw_user_text === null
+        !this.persistRawText ||
+        eventRecord.raw_user_text === undefined ||
+        eventRecord.raw_user_text === null
           ? null
           : scrubSensitiveText(eventRecord.raw_user_text),
     };
@@ -203,13 +242,47 @@ export class BrowserSimulationRepository extends SimulationRepository {
 
   saveSession(session) {
     const snapshots = readJson(this.storage, STORAGE_KEYS.sessionSnapshots, {});
-    snapshots[session.session_id] = session;
+    const now = this.now();
+    for (const [sessionId, snapshot] of Object.entries(snapshots)) {
+      if (Date.parse(snapshot.expires_at || 0) <= now) delete snapshots[sessionId];
+    }
+    const persisted = privacySafeSessionSnapshot(session, now, this.retentionMs);
+    snapshots[session.session_id] = persisted;
     this.storage.setItem(STORAGE_KEYS.sessionSnapshots, JSON.stringify(snapshots));
-    return session;
+    return persisted;
   }
 
   exportSession(sessionId) {
-    return readJson(this.storage, STORAGE_KEYS.sessionSnapshots, {})[sessionId] || null;
+    const snapshots = readJson(this.storage, STORAGE_KEYS.sessionSnapshots, {});
+    const snapshot = snapshots[sessionId];
+    if (!snapshot) return null;
+    if (Date.parse(snapshot.expires_at || 0) <= this.now()) {
+      delete snapshots[sessionId];
+      this.storage.setItem(STORAGE_KEYS.sessionSnapshots, JSON.stringify(snapshots));
+      return null;
+    }
+    return snapshot;
+  }
+
+  deleteSession(sessionId) {
+    const sessions = readJson(this.storage, STORAGE_KEYS.sessions, {});
+    const snapshots = readJson(this.storage, STORAGE_KEYS.sessionSnapshots, {});
+    const analytics = readJson(this.storage, STORAGE_KEYS.eventAnalytics, []);
+    const rawTextByEvent = readJson(this.storage, STORAGE_KEYS.eventRawText, {});
+    const removedEventIds = analytics
+      .filter((entry) => entry.session_id === sessionId)
+      .map((entry) => entry.event_id);
+    delete sessions[sessionId];
+    delete snapshots[sessionId];
+    for (const eventId of removedEventIds) delete rawTextByEvent[eventId];
+    this.storage.setItem(STORAGE_KEYS.sessions, JSON.stringify(sessions));
+    this.storage.setItem(STORAGE_KEYS.sessionSnapshots, JSON.stringify(snapshots));
+    this.storage.setItem(
+      STORAGE_KEYS.eventAnalytics,
+      JSON.stringify(analytics.filter((entry) => entry.session_id !== sessionId))
+    );
+    this.storage.setItem(STORAGE_KEYS.eventRawText, JSON.stringify(rawTextByEvent));
+    return true;
   }
 
   exportResearchData({ includeRawText = false } = {}) {
@@ -223,5 +296,5 @@ export class BrowserSimulationRepository extends SimulationRepository {
 }
 
 export function createSimulationRepository(options = {}) {
-  return new BrowserSimulationRepository(options.storage || globalThis.localStorage);
+  return new BrowserSimulationRepository(options.storage || globalThis.localStorage, options);
 }

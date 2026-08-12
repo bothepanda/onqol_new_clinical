@@ -3,9 +3,15 @@ import test from "node:test";
 import { createV25Case } from "../v25/caseFactory.js";
 import { advanceV25Session, createV25Session } from "../v25/engine.js";
 import { createKnowledgeBase } from "../v25/knowledgeBase.js";
-import { generateScenario, resolveActionResource } from "../v25/scenarioEngine.js";
+import {
+  generateScenario,
+  resolveActionResource,
+  resolveScenarioResource,
+} from "../v25/scenarioEngine.js";
 import { buildV35Case } from "../v35/createCase.js";
+import { scoreSession } from "../scoring.js";
 import { resolveActionEta, turnEtaMinutes } from "../v25/resourceTiming.js";
+import { buildV25ReplayExport } from "../v25/replayExport.js";
 import {
   appendicitisRouterConceptMap,
   resolveConcept,
@@ -13,6 +19,10 @@ import {
 
 function actionExtractorFor(intents) {
   return () => JSON.stringify({ intents, unresolved_fragments: [] });
+}
+
+function lastEvent(session, eventType) {
+  return session.eventLog.findLast((entry) => entry.event_type === eventType);
 }
 
 test("V2.5 knowledge base is an internal versioned corpus", () => {
@@ -38,6 +48,39 @@ test("reference mode always has full resources and no random constraints", () =>
   assert.equal(scenario.facility.capabilities.ct.installed, true);
   assert.equal(scenario.facility.capabilities.laparoscopy.installed, true);
   assert.equal(resolveActionResource(scenario, "ct_abdomen").available, true);
+});
+
+test("V3.5 real mode uses the case's canonical KZ profile instead of a random facility", () => {
+  const districtCase = buildV35Case({
+    seed: "profile-district",
+    requestedPresetId: "APP-001",
+  }).caseData;
+  const district = createV25Session({
+    caseData: districtCase,
+    mode: "real",
+    seed: "profile-district",
+  });
+  assert.equal(district.scenario.declaredResourceProfileId, "KZ-R1-DISTRICT");
+  assert.equal(district.scenario.effectiveResourceProfileId, "KZ-R1-DISTRICT");
+  assert.equal(district.scenario.facility.id, "KZ-R1-DISTRICT");
+  assert.equal(district.scenario.facility.capabilities.ct.installed, false);
+
+  const urbanCase = buildV35Case({
+    seed: "profile-urban",
+    requestedPresetId: "APP-003",
+  }).caseData;
+  const urban = createV25Session({ caseData: urbanCase, mode: "real", seed: "profile-urban" });
+  assert.equal(urban.scenario.facility.id, "KZ-R2-URBAN");
+  assert.equal(urban.scenario.facility.capabilities.ct.installed, true);
+
+  const reference = createV25Session({
+    caseData: districtCase,
+    mode: "reference",
+    seed: "profile-reference",
+  });
+  assert.equal(reference.scenario.declaredResourceProfileId, "KZ-R1-DISTRICT");
+  assert.equal(reference.scenario.effectiveResourceProfileId, "REFERENCE-FULL");
+  assert.equal(reference.scenario.constraints.length, 0);
 });
 
 test("initial V2.5 presentation does not leak the hidden facility profile", () => {
@@ -182,10 +225,219 @@ test("V2.5 debrief is deterministic, evidence-grounded and versioned in the even
   }
   const result = await advanceV25Session({ caseData, session, input: "конец кейса" });
   assert.equal(result.session.finished, true);
+  assert.equal(result.session.terminal_status, "completed");
+  assert.equal(result.session.completion_status, "completed");
   assert.match(result.reply, /Итоговая оценка/);
   assert.match(result.reply, /Использованные источники/);
   assert.equal(result.session.eventLog.at(-1).event_type, "session_scored");
   assert.equal(result.session.eventLog.at(-1).rubric_version, result.session.scoring_rubric_version);
+});
+
+test("ending before the first clinical turn abandons the session without scoring", async () => {
+  const { caseData } = buildV35Case({ seed: "turn-zero", requestedPresetId: "APP-001" });
+  const session = createV25Session({ caseData, mode: "reference", seed: "turn-zero" });
+  const result = await advanceV25Session({ caseData, session, input: "конец кейса" });
+
+  assert.equal(result.session.finished, true);
+  assert.equal(result.session.terminal_status, "abandoned");
+  assert.equal(result.session.completion_status, "abandoned");
+  assert.equal(result.session.scoring, null);
+  assert.equal(result.session.report, null);
+  assert.equal(result.session.eventLog.at(-1).event_type, "session_abandoned");
+  assert.equal(result.session.eventLog.at(-1).reason, "ended_before_first_clinical_turn");
+  assert.equal(result.session.eventLog.some((entry) => entry.event_type === "session_scored"), false);
+  assert.equal(
+    result.session.eventLog.some((entry) => entry.event_type === "session_formative_completed"),
+    false
+  );
+  assert.deepEqual(result.scoringEvents, []);
+  assert.match(result.reply, /до первого клинического хода/);
+});
+
+test("V3.5 completion produces formative domains and never a numeric score", async () => {
+  const { caseData } = buildV35Case({ seed: "no-numeric-score", requestedPresetId: "APP-001" });
+  let session = createV25Session({ caseData, mode: "reference", seed: "no-numeric-score" });
+  session = (
+    await advanceV25Session({ caseData, session, input: "Собираю анамнез" })
+  ).session;
+  const result = await advanceV25Session({ caseData, session, input: "конец кейса" });
+
+  assert.equal(result.session.finished, true);
+  assert.equal(result.session.terminal_status, "incomplete");
+  assert.equal(result.session.scoring.mode, "formative_only");
+  assert.equal(result.session.scoring.eligibleForScoring, false);
+  assert.equal(result.session.scoring.overallScore, null);
+  assert.ok(Object.values(result.session.scoring.domainScores).every((value) => value === null));
+  assert.doesNotMatch(result.reply, /Итоговая оценка|\d+%/);
+  assert.match(result.reply, /числовой балл отключён/i);
+  assert.equal(result.session.eventLog.at(-1).event_type, "session_formative_incomplete");
+  assert.equal(
+    result.session.eventLog.some((entry) => entry.event_type === "session_scored"),
+    false
+  );
+  assert.deepEqual(result.scoringEvents, [
+    { type: "formative_feedback_incomplete", overall_score: null },
+  ]);
+  assert.throws(
+    () => scoreSession(caseData, result.session),
+    /Numeric scoring is disabled/
+  );
+});
+
+test("V3.5 stable runtime path reaches discharge before a completed debrief", async () => {
+  const { caseData } = buildV35Case({ seed: "stable-endpoint", requestedPresetId: "APP-001" });
+  let session = createV25Session({ caseData, mode: "reference", seed: "stable-endpoint" });
+
+  let result = await advanceV25Session({
+    caseData,
+    session,
+    input: "Выписываю с рекомендациями",
+    options: {
+      actionExtractorLLM: actionExtractorFor([
+        { type: "management", concept_id: "discharge_and_followup", confidence: 0.99 },
+      ]),
+    },
+  });
+  assert.equal(result.session.completedActions.includes("discharge_and_followup"), false);
+  assert.match(result.reply, /Выписка пока не может быть завершена/);
+
+  session = result.session;
+  result = await advanceV25Session({
+    caseData,
+    session,
+    input: "Выполняю лапароскопическую аппендэктомию, антибиотикопрофилактика до разреза",
+    options: {
+      actionExtractorLLM: actionExtractorFor([
+        {
+          type: "management",
+          concept_id: "preop_single_antibiotic_prophylaxis",
+          confidence: 0.99,
+        },
+        { type: "management", concept_id: "open_appendectomy_here", confidence: 0.99 },
+      ]),
+    },
+  });
+  assert.equal(result.session.pathState, "operation");
+
+  session = result.session;
+  result = await advanceV25Session({
+    caseData,
+    session,
+    input: "Передаю пациента из операционной",
+    options: {
+      actionExtractorLLM: actionExtractorFor([
+        { type: "management", concept_id: "structured_handover", confidence: 0.99 },
+      ]),
+    },
+  });
+  assert.equal(result.session.completedActions.includes("structured_handover"), false);
+  assert.match(result.reply, /Sign Out/);
+
+  session = result.session;
+  result = await advanceV25Session({
+    caseData,
+    session,
+    input: "Выполняю Sign Out и передаю пациента в хирургическое отделение структурированно",
+    options: {
+      actionExtractorLLM: actionExtractorFor([
+        { type: "management", concept_id: "who_sign_out", confidence: 0.99 },
+        { type: "management", concept_id: "structured_handover", confidence: 0.99 },
+      ]),
+    },
+  });
+  assert.equal(result.session.pathState, "postop_destination");
+
+  session = result.session;
+  result = await advanceV25Session({
+    caseData,
+    session,
+    input: "Провожу послеоперационный осмотр: витальные, боль, живот, диурез, питание и рана",
+    options: {
+      actionExtractorLLM: actionExtractorFor([
+        { type: "request_examination", concept_id: "postoperative_reassessment", confidence: 0.99 },
+      ]),
+    },
+  });
+  assert.equal(result.session.pathState, "ward_care");
+
+  session = result.session;
+  result = await advanceV25Session({
+    caseData,
+    session,
+    input: "Фиксирую готовность, лекарства, инструкции, наблюдение и критерии возврата",
+    options: {
+      actionExtractorLLM: actionExtractorFor([
+        { type: "management", concept_id: "discharge_and_followup", confidence: 0.99 },
+      ]),
+    },
+  });
+  assert.equal(result.session.pathState, "discharge");
+  assert.match(result.reply, /безопасного endpoint/);
+
+  session = result.session;
+  result = await advanceV25Session({ caseData, session, input: "конец кейса" });
+  assert.equal(result.session.terminal_status, "completed");
+  assert.equal(result.session.pathState, "complete");
+  assert.equal(result.session.eventLog.at(-1).event_type, "session_formative_completed");
+  assert.equal(result.session.report.pathwayStatus, "completed");
+  assert.match(result.reply, /доведён до discharge\/follow-up endpoint/);
+});
+
+test("session_started and replay export carry complete deterministic V3.5 inputs", async () => {
+  const { caseData } = buildV35Case({ seed: "replay-seed", requestedPresetId: "APP-002" });
+  let session = createV25Session({
+    caseData,
+    mode: "reference",
+    seed: "replay-seed",
+    startedAt: "2026-08-10T00:00:00.000Z",
+  });
+  const started = session.eventLog[0];
+
+  assert.equal(started.event_type, "session_started");
+  assert.equal(started.engine_version, session.engine_version);
+  assert.equal(started.product_version, "3.5");
+  assert.equal(started.content_version, caseData.v35_composition.content_version);
+  assert.equal(started.case_preset_id, "APP-002");
+  assert.equal(started.requested_seed, "replay-seed");
+  assert.equal(started.effective_seed, caseData.v35_composition.effective_seed);
+  assert.deepEqual(started.selection_attempts, caseData.v35_composition.selection_attempts);
+  assert.equal(session.scoring_rubric_version, caseData.scoring_rubric_version);
+
+  session = {
+    ...session,
+    messages: [...session.messages, { role: "user", content: "Мой ИИН 123456789012" }],
+    workingMemory: {
+      ...session.workingMemory,
+      reasoningState: {
+        ...(session.workingMemory?.reasoningState || {}),
+        problem_representation_verbatim: "Мой ИИН 123456789012",
+      },
+    },
+    eventLog: [
+      ...session.eventLog,
+      {
+        event_type: "test_raw_input",
+        raw_text_redacted: "Мой ИИН [IIN_REDACTED]",
+        clinical_fact: "appendicitis",
+      },
+    ],
+  };
+  const payload = buildV25ReplayExport(session, "2026-08-10T01:00:00.000Z");
+  assert.equal(payload.export_schema_version, "3.5.0");
+  assert.equal(payload.replay.engine_version, session.engine_version);
+  assert.equal(payload.replay.case_preset_id, "APP-002");
+  assert.equal(payload.replay.requested_seed, "replay-seed");
+  assert.deepEqual(payload.session.scenario, session.scenario);
+  assert.deepEqual(payload.session.v35_composition, caseData.v35_composition);
+  assert.equal(payload.data_policy.raw_learner_text_included, false);
+  assert.match(payload.transcript.at(-1).content, /\[IIN_REDACTED\]/);
+  assert.doesNotMatch(JSON.stringify(payload), /123456789012/);
+  assert.equal(payload.events.at(-1).clinical_fact, "appendicitis");
+  assert.equal("raw_text_redacted" in payload.events.at(-1), false);
+  assert.equal(
+    "problem_representation_verbatim" in payload.state_snapshot.working_memory.reasoningState,
+    false
+  );
 });
 
 test("event log scrubs direct identifiers from learner text", async () => {
@@ -196,8 +448,39 @@ test("event log scrubs direct identifiers from learner text", async () => {
     session,
     input: "Мой ИИН 123456789012, собираю анамнез",
   });
-  assert.match(result.session.eventLog.at(-1).raw_text_redacted, /\[IIN_REDACTED\]/);
-  assert.doesNotMatch(result.session.eventLog.at(-1).raw_text_redacted, /123456789012/);
+  const turn = lastEvent(result.session, "clinical_turn");
+  assert.match(turn.raw_text_redacted, /\[IIN_REDACTED\]/);
+  assert.doesNotMatch(turn.raw_text_redacted, /123456789012/);
+});
+
+test("model-backed and local turns are separated into explicit evaluation groups", async () => {
+  const caseData = createV25Case();
+  const local = await advanceV25Session({
+    caseData,
+    session: createV25Session({ caseData, mode: "reference", seed: "group-local" }),
+    input: "собираю анамнез",
+  });
+  assert.equal(lastEvent(local.session, "execution_profile").evaluation_group, "local_fallback");
+
+  const model = await advanceV25Session({
+    caseData,
+    session: createV25Session({ caseData, mode: "reference", seed: "group-model" }),
+    input: "назначаю ОАК",
+    options: {
+      actionExtractorLLM: actionExtractorFor([
+        { concept_id: "cbc", type: "request_test", confidence: 0.99 },
+      ]),
+      provider: "openai",
+      routerModel: "router-test-model",
+      gatewayVersion: "gateway-test-version",
+      schemaVersions: { router: { version: "router-v2", ready: true } },
+    },
+  });
+  const profile = lastEvent(model.session, "execution_profile");
+  assert.equal(profile.evaluation_group, "model_backed");
+  assert.equal(profile.router_execution, "model");
+  assert.equal(profile.router_model, "router-test-model");
+  assert.equal(profile.gateway_version, "gateway-test-version");
 });
 
 // --- turn kind, idempotency and the scoring contract -----------------------
@@ -338,7 +621,7 @@ test("the log records the turn kind and what was not repeated", async () => {
     options: { actionExtractorLLM: extractor },
   });
 
-  const turn = second.session.eventLog.at(-1);
+  const turn = lastEvent(second.session, "clinical_turn");
   assert.equal(turn.event_type, "clinical_turn");
   assert.equal(turn.turn_kind, "repeat_or_correction");
   assert.deepEqual(
@@ -460,6 +743,100 @@ test("an ultrasound in a hospital that has one round the clock costs its turnaro
   assert.ok(eta.total_eta_minutes < 60, `ожидался оборот, а не смена: ${eta.total_eta_minutes}`);
 });
 
+test("delayed, unavailable and transfer-only resources have distinct absolute states", () => {
+  const delayedScenario = generateScenario({ mode: "real", seed: "clock-0" });
+  assert.equal(delayedScenario.facility.id, "district_ct_open");
+  const beforeOpening = resolveScenarioResource(delayedScenario, "ultrasound", 0);
+  assert.equal(beforeOpening.status, "delayed");
+  assert.equal(beforeOpening.available, false);
+  assert.equal(beforeOpening.readyAt, 380);
+  assert.equal(resolveScenarioResource(delayedScenario, "ultrasound", 379).available, false);
+  const atOpening = resolveScenarioResource(delayedScenario, "ultrasound", 380);
+  assert.equal(atOpening.status, "available");
+  assert.equal(atOpening.available, true);
+  assert.equal(atOpening.readyAt, 380);
+
+  const unavailableScenario = generateScenario({ mode: "real", seed: "profile-5" });
+  const unavailable = resolveScenarioResource(unavailableScenario, "ct", 10_000);
+  assert.equal(unavailable.status, "unavailable");
+  assert.equal(unavailable.available, false);
+  assert.equal(unavailable.readyAt ?? null, null);
+
+  const reference = generateScenario({ mode: "reference", seed: "transfer-only" });
+  const transferOnlyScenario = {
+    ...reference,
+    facility: {
+      ...reference.facility,
+      capabilities: {
+        ...reference.facility.capabilities,
+        ct: {
+          installed: false,
+          access: "transfer_only",
+          transferMinutes: 150,
+          transferDestination: "областную больницу",
+        },
+      },
+    },
+  };
+  const transferOnly = resolveScenarioResource(transferOnlyScenario, "ct", 0);
+  assert.equal(transferOnly.status, "transfer_only");
+  assert.equal(transferOnly.available, false);
+  assert.equal(transferOnly.transferMinutes, 150);
+  assert.match(transferOnly.revealText, /только после перевода/i);
+});
+
+test("night ultrasound becomes executable at readyAt and returns its authored result", async () => {
+  const caseData = createV25Case();
+  const scenario = generateScenario({ mode: "real", seed: "clock-0" });
+  let session = createV25Session({ caseData, scenario, seed: "clock-0" });
+
+  const blocked = await advanceV25Session({
+    caseData,
+    session,
+    input: "Назначаю УЗИ живота",
+    options: {
+      actionExtractorLLM: actionExtractorFor([
+        { type: "request_test", concept_id: "abdominal_ultrasound", confidence: 0.99 },
+      ]),
+    },
+  });
+  assert.equal(blocked.session.temporalState.clockMinutes, 0);
+  assert.equal(blocked.session.completedActions.includes("abdominal_ultrasound"), false);
+  assert.equal(blocked.session.resourceQueue.ultrasound.status, "pending");
+  assert.equal(blocked.session.resourceQueue.ultrasound.ready_at, 380);
+
+  session = blocked.session;
+  const waited = await advanceV25Session({
+    caseData,
+    session,
+    input: "Жду до открытия УЗИ",
+    options: {
+      actionExtractorLLM: actionExtractorFor([
+        { type: "management", concept_id: "wait_for_ultrasound", confidence: 0.99 },
+      ]),
+    },
+  });
+  assert.equal(waited.session.temporalState.clockMinutes, 380);
+  assert.equal(resolveActionEta(scenario, "abdominal_ultrasound", "", 380).available, true);
+
+  session = waited.session;
+  const resulted = await advanceV25Session({
+    caseData,
+    session,
+    input: "Теперь выполняю УЗИ живота",
+    options: {
+      actionExtractorLLM: actionExtractorFor([
+        { type: "request_test", concept_id: "abdominal_ultrasound", confidence: 0.99 },
+      ]),
+    },
+  });
+  assert.equal(resulted.session.temporalState.clockMinutes, 410);
+  assert.equal(resulted.session.completedActions.includes("abdominal_ultrasound"), true);
+  assert.equal(resulted.session.revealedFindings.includes("abdominal_ultrasound"), true);
+  assert.equal(resulted.session.resourceQueue.ultrasound.status, "consumed");
+  assert.match(resulted.reply, /УЗИ брюшной полости/);
+});
+
 test("investigations ordered together cost the longest, not the sum", async () => {
   const caseData = createV25Case();
   const session = createV25Session({ caseData, mode: "reference", seed: "eta-2" });
@@ -520,7 +897,7 @@ test("the workflow clock and the disease clock are reported separately", async (
     },
   });
 
-  const turn = result.session.eventLog.at(-1);
+  const turn = lastEvent(result.session, "clinical_turn");
   assert.ok(Number.isFinite(turn.workflow_time_minutes));
   assert.ok(Number.isFinite(turn.disease_time_minutes));
   assert.ok(

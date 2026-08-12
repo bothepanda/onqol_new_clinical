@@ -657,8 +657,8 @@ export function generatePatient(casePresetId, seed, options = {}) {
       population_modifier_ids: appliedModifiers.map((modifier) => modifier.modifier_id),
       declared_modifier_ids: [...preset.population_modifier_ids],
       trajectory_id: preset.trajectory_id,
-      // Declared by the preset, NOT in force this session - the facility
-      // still comes from scenarioEngine. Named so a snapshot cannot be misread.
+      // Declared by the preset. The case factory copies it into the effective
+      // runtime snapshot; physiology generation remains independent of it.
       declared_resource_profile_id: preset.declared_resource_profile_id,
       seed,
     }),

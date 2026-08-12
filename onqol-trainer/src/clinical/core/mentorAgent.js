@@ -9,8 +9,8 @@ import { renderMentorBrief } from "./mentorBrief.js";
  * brief it was handed.
  *
  * What it never receives: the Case Card, hidden findings, the expected action
- * list, the score. The brief carries verdicts and authored templates only, so a
- * misbehaving model has no patient fact available to leak.
+ * list, the score or future state. Patient facts travel only through the
+ * revealed-facts allowlist and are tied to source ids.
  */
 
 // The mentor MAY affirm process ("вызов старшего — зрелое решение"). It may NOT
@@ -90,10 +90,49 @@ export function validateMentorText(mentorText, caseData, revealedFindingIds = []
   if (DIAGNOSIS_CONFIRMATION_RE.test(text)) return { ok: false, reason: "premature_diagnosis_confirmation" };
   if (PRESCRIPTION_RE.test(text)) return { ok: false, reason: "prescribed_expected_decision" };
   if (GENDERED_ADDRESS_RE.test(text)) return { ok: false, reason: "gendered_address" };
+  if ((text.match(/\?/g) || []).length > 1) return { ok: false, reason: "multiple_questions" };
 
   const leak = leaksUnrevealedFinding(text, caseData, revealedFindingIds);
   if (leak.leaked) return { ok: false, reason: "finding_leak", findingId: leak.findingId };
 
+  return { ok: true, reason: null };
+}
+
+function normaliseFactText(text) {
+  return String(text || "").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Every factual excerpt must be copied from one allowed source and cited by id.
+ * Free coaching prose remains possible, but the agent cannot smuggle in an
+ * uncited number because numbers are the highest-risk clinical inventions.
+ */
+export function validateMentorPayload(payload, brief, caseData, revealedFindingIds = []) {
+  const base = validateMentorText(payload?.mentor_text, caseData, revealedFindingIds);
+  if (!base.ok) return base;
+
+  const allowed = new Map(
+    (brief.revealedFacts || []).map((fact) => [fact.source_id, normaliseFactText(fact.text)])
+  );
+  const claims = Array.isArray(payload?.factual_claims) ? payload.factual_claims : [];
+  let uncitedText = normaliseFactText(payload.mentor_text);
+
+  for (const claim of claims) {
+    const sourceText = allowed.get(claim?.source_id);
+    const claimText = normaliseFactText(claim?.text);
+    if (!sourceText) return { ok: false, reason: "fact_source_not_allowed" };
+    if (!claimText || !sourceText.includes(claimText)) {
+      return { ok: false, reason: "fact_not_supported_by_source" };
+    }
+    if (!uncitedText.includes(claimText)) {
+      return { ok: false, reason: "declared_fact_missing_from_reply" };
+    }
+    uncitedText = uncitedText.replace(claimText, " ");
+  }
+
+  // A number in the free prose is an uncited clinical value until proven
+  // otherwise. Source ids themselves never appear in mentor_text.
+  if (/\d/u.test(uncitedText)) return { ok: false, reason: "uncited_numeric_fact" };
   return { ok: true, reason: null };
 }
 
@@ -106,8 +145,10 @@ export function buildMentorPrompt({ brief, learnerText, locale = "ru" }) {
       "You MAY: choose wording and tone, encourage, name what the learner did well as a process, stop the learner, ask one focused question, and reorder the points for a natural flow.",
       "You MAY affirm professional behaviour such as recognising the limits of one's own competence.",
       "",
-      "You MUST NOT: state or confirm a diagnosis, say whether the learner's diagnosis is right or wrong, announce the expected clinical decision, invent or mention any patient finding, vital sign, laboratory value or examination result, or give a score.",
-      "You MUST NOT introduce clinical facts that are not in the brief. If the brief does not support a statement, do not make it.",
+      "You MUST NOT: state or confirm a diagnosis, say whether the learner's diagnosis is right or wrong, announce the expected clinical decision, invent a patient finding, or give a score.",
+      "brief.revealed_facts is the complete fact allowlist. It contains only facts already visible to the learner. Never use a fact outside it.",
+      "If you use a revealed fact, copy the shortest sufficient excerpt EXACTLY into mentor_text and add the same excerpt plus its source_id to factual_claims. Do not paraphrase facts.",
+      "Do not put any number in free coaching prose. A number is allowed only inside an exact cited excerpt from revealed_facts.",
       "",
       "WHAT ALREADY HAPPENED. The application prints the patient and environment response ABOVE your reply. Everything in brief.just_performed has already been carried out this turn and its results are already on the learner's screen.",
       "Never instruct the learner to do something listed in just_performed, and never suggest starting it. \"Начинай с осмотра\" after the examination has been performed is wrong and confusing.",
@@ -142,6 +183,8 @@ export function buildMentorPrompt({ brief, learnerText, locale = "ru" }) {
           just_performed: brief.justPerformed || [],
           results_already_delivered: Boolean(brief.resultsAlreadyDelivered),
           learner_reasoning: brief.learnerReasoning || null,
+          facts_contract: brief.factsContract,
+          revealed_facts: brief.revealedFacts || [],
           moves: brief.moves.map((move) => ({
             type: move.type,
             authored_text: move.template,
@@ -158,7 +201,10 @@ export function buildMentorPrompt({ brief, learnerText, locale = "ru" }) {
         reference_rendering: renderMentorBrief(brief),
         note:
           "reference_rendering is the deterministic version of this reply. Improve its phrasing and flow; do not add clinical content it does not contain.",
-        output_schema: { mentor_text: "string" },
+        output_schema: {
+          mentor_text: "string",
+          factual_claims: [{ source_id: "string", text: "exact excerpt copied into mentor_text" }],
+        },
       },
       null,
       2
@@ -184,7 +230,7 @@ export async function runMentorAgent({ brief, learnerText, caseData, revealedFin
       buildMentorPrompt({ brief, learnerText, locale: options.locale || brief.locale })
     );
     const parsed = parseJsonPayload(payload);
-    const validation = validateMentorText(parsed.mentor_text, caseData, revealedFindingIds);
+    const validation = validateMentorPayload(parsed, brief, caseData, revealedFindingIds);
     if (!validation.ok) {
       return { ...deterministic, rejectionReason: validation.reason };
     }

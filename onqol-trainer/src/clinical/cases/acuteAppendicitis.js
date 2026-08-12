@@ -702,6 +702,8 @@ export const acuteAppendicitisCase = {
         "Ожидание визуализации вместо решения откладывает контроль источника; неосложнённый аппендицит при этом прогрессирует. Величины не отрецензированы.",
       provenance: "CARRIED_OVER_UNREVIEWED",
       review_status: "NEEDS_CLINICAL_REVIEW",
+      runtime_status: "faculty_review_only",
+      eligible_for_scoring: false,
     },
   ],
   references: appendicitisEvidence.references,

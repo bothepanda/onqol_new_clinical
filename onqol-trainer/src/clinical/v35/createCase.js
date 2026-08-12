@@ -31,12 +31,17 @@
 // work-up genuinely differs.
 
 import { createV25Case } from "../v25/caseFactory.js";
+import { KZ_RESOURCE_PROFILE_VERSION } from "../v25/scenarioEngine.js";
 import { composeV3Case } from "../v3/createCase.js";
 import { getDiseaseModule } from "../v3/diseaseModules.js";
 import { PHENOTYPES } from "./phenotypes.js";
 import { renderExamination } from "./examSlots.js";
 import { selectV35Case } from "./sessionSelector.js";
 import { V35_CONTENT_VERSION } from "./manifest.js";
+import {
+  V35_SCORING_CONTRACT_VERSION,
+  V35_SCORING_REVIEW_STATUS,
+} from "./scoringContract.js";
 
 const CARRIED = "CARRIED_OVER_UNREVIEWED";
 const GENERATED = "GENERATED_FROM_AUTHORED_RANGE";
@@ -59,13 +64,6 @@ const V35_REWORDED_CARRIED = Object.freeze({
       "Креатинин 72 мкмоль/л, мочевина 4,8 ммоль/л, общий билирубин 12 мкмоль/л, " +
       "АЛТ 22 Ед/л, АСТ 19 Ед/л.",
   }),
-  abdominal_ultrasound: Object.freeze({
-    text: "УЗИ в настоящее время недоступно; врач УЗД будет с 09:00.",
-  }),
-  pelvic_ultrasound: Object.freeze({
-    text: "УЗИ в настоящее время недоступно; врач УЗД будет с 09:00.",
-  }),
-  ct_abdomen: Object.freeze({ text: "КТ в данном стационаре недоступна." }),
   pelvic_gynecologic_screen: Object.freeze({
     text:
       // The last sentence is deliberately NOT softened, owner 09.08.2026:
@@ -426,9 +424,8 @@ function buildFindings(baseCase, patient, phenotype, pregnancyPossible, composed
     };
     findings.pelvic_ultrasound = {
       ...base.pelvic_ultrasound,
-      ...V35_REWORDED_CARRIED.pelvic_ultrasound,
       provenance: CARRIED,
-      review_status: REWORDED,
+      review_status: "synthetic_case_fact_needs_external_review",
     };
   }
 
@@ -505,6 +502,19 @@ export function buildV35Case({
     case_id: `app-v35-${preset.case_preset_id.toLowerCase()}`,
     case_version: V35_CONTENT_VERSION,
     product_version: "3.5",
+    scoring_rubric_version: V35_SCORING_CONTRACT_VERSION,
+    scoring: {
+      ...v3Composed.scoring,
+      mode: "formative_only",
+      eligible_for_scoring: false,
+      review_status: V35_SCORING_REVIEW_STATUS,
+      contract_version: V35_SCORING_CONTRACT_VERSION,
+      unlock_requires: [
+        "independent_clinical_review",
+        "pilot_calibration",
+        "one_to_one_evidence_trace",
+      ],
+    },
     // THE TITLE IS A COMPLAINT, NEVER THE DIAGNOSIS.
     //
     // This carried `preset.title_ru` - "Ретроцекальный аппендицит со слабой
@@ -554,8 +564,23 @@ export function buildV35Case({
       inflammatory_burden: patient.hidden.latent_state.inflammatory_burden,
       organ_dysfunction: patient.hidden.latent_state.organ_dysfunction,
       content_version: V35_CONTENT_VERSION,
+      effective_resource_profile_id: patient.composition.declared_resource_profile_id,
+      resource_profile_version: KZ_RESOURCE_PROFILE_VERSION,
+      selection_method: selection.selection_method,
       requested_seed: selection.requested_seed,
       effective_seed: selection.effective_seed,
+      selection_attempts: Object.freeze(
+        selection.attempts.map((attempt) =>
+          Object.freeze({
+            seed: attempt.seed,
+            case_preset_id: attempt.case_preset_id,
+            rejected_because: attempt.rejected_because,
+            violation_rules: Object.freeze(
+              (attempt.violations || []).map((violation) => violation.rule)
+            ),
+          })
+        )
+      ),
       // The chosen presentation, so a reported case rebuilds the same sentences.
       pain_site_ru: composed.pain_site_ru,
     }),

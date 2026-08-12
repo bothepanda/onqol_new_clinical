@@ -26,6 +26,9 @@
 // before incision, sign-out before the patient leaves theatre. One boolean
 // cannot express "the time-out was done and the sign-out was not".
 
+export const V35_SCORING_CONTRACT_VERSION = "3.5.0";
+export const V35_SCORING_REVIEW_STATUS = "reviewed_provisional_unvalidated";
+
 export const SCORING_DOMAINS = Object.freeze([
   "perioperative_safety",
   "diagnostic_reasoning",
@@ -45,9 +48,8 @@ const noGate = Object.freeze({ gate_scope: "none", blocks_action_ids: [], waiver
 /**
  * The three WHO checkpoints, declared separately.
  *
- * `who_safety_checklist` stays as the single leaf action the engine already
- * knows; these describe the points it stands for, so a later change can split
- * the leaf without redesigning the contract first.
+ * Each checkpoint has its own runtime leaf. The canonical contract remains one
+ * reviewed-provisional rubric row while numeric scoring is disabled.
  */
 export const WHO_CHECKPOINTS = Object.freeze([
   Object.freeze({
@@ -124,8 +126,9 @@ export const SCORING_CONTRACT = Object.freeze([
     gate: noGate,
   },
   {
-    canonical_id: "who_safety_checklist",
-    leaf_action_id: "who_safety_checklist",
+    canonical_id: "who_surgical_safety_checkpoints",
+    leaf_action_id: "who_time_out",
+    leaf_action_ids: ["who_sign_in", "who_time_out", "who_sign_out"],
     domain: "perioperative_safety",
     score_weight: 2,
     criticality: 4,
@@ -247,7 +250,9 @@ export const SCORING_CONTRACT = Object.freeze([
 ));
 
 export const contractByLeafId = new Map(
-  SCORING_CONTRACT.map((entry) => [entry.leaf_action_id, entry])
+  SCORING_CONTRACT.flatMap((entry) =>
+    (entry.leaf_action_ids || [entry.leaf_action_id]).map((leafId) => [leafId, entry])
+  )
 );
 
 /**
@@ -273,7 +278,9 @@ export function scorableByDomain(caseData) {
 
   return SCORING_DOMAINS.map((domain) => {
     const entries = SCORING_CONTRACT.filter(
-      (entry) => entry.domain === domain && present.has(entry.leaf_action_id)
+      (entry) =>
+        entry.domain === domain
+        && (entry.leaf_action_ids || [entry.leaf_action_id]).some((leafId) => present.has(leafId))
     );
     return {
       domain,

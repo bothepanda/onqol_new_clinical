@@ -4,6 +4,8 @@ import { selectCase } from "../caseRegistry.js";
 import { advanceCaseWithSimulator, createInitialSession } from "../caseEngine.js";
 import { acuteAppendicitisCase } from "../cases/acuteAppendicitis.js";
 import {
+  allowedSourceIdsForTurn,
+  buildSanitizedCaseView,
   buildPatientInformationPolicy,
   isAuthorizedInformationSource,
   PATIENT_INFORMATION_CLASS,
@@ -46,7 +48,7 @@ test("patient information policy separates locked, inferable, and unknown inform
   );
 });
 
-test("simulator prompt receives full authored context without delegating scoring", () => {
+test("simulator prompt receives only the turn-scoped patient view", () => {
   const session = createInitialSession(acuteAppendicitisCase);
   const deterministicUpdate = {
     session,
@@ -65,15 +67,23 @@ test("simulator prompt receives full authored context without delegating scoring
   });
   const payload = JSON.parse(prompt.user);
 
-  assert.equal(payload.case_blueprint.case_id, acuteAppendicitisCase.case_id);
-  assert.equal(payload.disease_card, "full disease card");
-  assert.equal(payload.retrieval_corpus.manifest, "full corpus manifest");
+  assert.equal(payload.patient_view.case_id, acuteAppendicitisCase.case_id);
+  assert.deepEqual(payload.patient_view.available_findings, {});
+  assert.deepEqual(payload.patient_view.hidden_findings, {});
+  assert.deepEqual(payload.allowed_locked_sources, ["initial_presentation"]);
+  assert.equal(payload.case_blueprint, undefined);
+  assert.equal(payload.disease_card, undefined);
+  assert.equal(payload.retrieval_corpus, undefined);
+  assert.equal("expected_actions" in payload.patient_view, false);
+  assert.equal("unsafe_actions" in payload.patient_view, false);
+  assert.equal("critical_omissions" in payload.patient_view, false);
   assert.deepEqual(payload.conversation_history, session.messages);
   assert.match(prompt.system, /action extraction and scoring pipeline is separate/i);
   assert.match(prompt.system, /Never score the learner/i);
+  assert.match(prompt.system, /hard boundary/i);
 });
 
-test("arbitrary clinical question can reveal a Case Card fact without a concept id or score", async () => {
+test("the simulator cannot reveal a fact the deterministic router did not unlock", async () => {
   const session = createInitialSession(acuteAppendicitisCase);
   const result = await advanceCaseWithSimulator(
     acuteAppendicitisCase,
@@ -95,9 +105,20 @@ test("arbitrary clinical question can reveal a Case Card fact without a concept 
 
   assert.deepEqual(result.parsed.actions, []);
   assert.deepEqual(result.session.completedActions, []);
-  assert.ok(result.session.revealedFindings.includes("abdominal_exam"));
-  assert.match(result.reply, /\*\*Осмотр живота:\*\*/);
+  assert.equal(result.session.revealedFindings.includes("abdominal_exam"), false);
+  assert.doesNotMatch(result.reply, /\*\*Осмотр живота:\*\*/);
+  assert.match(result.reply, /Что думаешь и что будешь делать дальше/);
   assert.equal(result.session.scoring, undefined);
+});
+
+test("an already revealed fact is the only authored finding visible to the simulator", () => {
+  const allowed = allowedSourceIdsForTurn(["abdominal_exam"], []);
+  const view = buildSanitizedCaseView(acuteAppendicitisCase, allowed);
+  assert.deepEqual(Object.keys(view.available_findings), ["abdominal_exam"]);
+  assert.deepEqual(view.hidden_findings, {});
+  assert.equal(view.available_findings.cbc, undefined);
+  assert.equal("expected_actions" in view, false);
+  assert.equal("patient_state" in view, false);
 });
 
 test("generated simulator fields cannot modify deterministic actions or Case Card values", async () => {
@@ -151,4 +172,3 @@ test("case selection supports seed, immediate-repeat avoidance, filters, and fac
   assert.equal(faculty.caseData.case_id, "case-b");
   assert.equal(faculty.selection.selection_method, "faculty_requested_case_id");
 });
-

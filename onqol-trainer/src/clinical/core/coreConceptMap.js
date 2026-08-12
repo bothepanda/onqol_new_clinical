@@ -23,9 +23,9 @@ export const coreRouterConceptMap = {
   surgical_team_activation: ["notify_operating_team"],
 
   // perioperative safety
-  surgical_safety_checklist: ["who_safety_checklist"],
-  time_out: ["who_safety_checklist"],
-  sign_in: ["who_safety_checklist"],
+  time_out: ["who_time_out"],
+  sign_in: ["who_sign_in"],
+  sign_out: ["who_sign_out"],
   preoperative_risk_assessment: ["preop_risk_assessment"],
   comorbidity_assessment: ["preop_risk_assessment"],
   asa_classification: ["preop_risk_assessment"],
@@ -60,6 +60,11 @@ export const coreRouterConceptMap = {
   structured_handover: ["structured_handover"],
   sbar_report: ["structured_handover"],
   shift_handover: ["structured_handover"],
+  postoperative_reassessment: ["postoperative_reassessment"],
+  postoperative_round: ["postoperative_reassessment"],
+  discharge_plan: ["discharge_and_followup"],
+  follow_up_plan: ["discharge_and_followup"],
+  return_precautions: ["discharge_and_followup"],
   clinical_documentation: ["document_decision"],
   record_rationale: ["document_decision"],
 };

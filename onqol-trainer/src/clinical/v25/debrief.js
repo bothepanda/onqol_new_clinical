@@ -27,7 +27,59 @@ function formatEvidenceRows(rows) {
   return rows.map((row) => `- ${formatEvidenceCitation(row)}: ${row.text.slice(0, 220)}${row.text.length > 220 ? "..." : ""}`).join("\n");
 }
 
+function buildFormativeDebrief({ caseData, session, scoring }) {
+  const stableEndpointReached = session.pathState === "discharge";
+  const domainRows = (scoring.formativeDomains || [])
+    .map((domain) => {
+      const observed = domain.signals
+        .filter((signal) => signal.observed)
+        .map((signal) => signal.label_ru);
+      return `| ${domain.title_ru} | ${
+        observed.length ? observed.join("; ") : "высказывание не зафиксировано"
+      } |`;
+    })
+    .join("\n");
+  const timeline = (session.temporalState?.timeline || [])
+    .slice(-6)
+    .map((entry) => `- T+${entry.minute} мин: ${entry.detail}`)
+    .join("\n");
+
+  const markdown = `# Формирующий разбор V${caseData.product_version || "3.5"}
+
+**Статус:** итоговый числовой балл отключён. Рубрика не валидирована для оценивания резидента.
+
+**Путь:** ${
+    stableEndpointReached
+      ? "стабильный путь доведён до discharge/follow-up endpoint."
+      : `сессия завершена до безопасного endpoint (текущее состояние: \`${session.pathState || "unknown"}\`).`
+  }
+
+Таблица ниже фиксирует только наличие явно сформулированных элементов рассуждения. Она не подтверждает их клиническую правильность и не является оценкой эффективности.
+
+| Область | Что было явно сформулировано |
+| --- | --- |
+${domainRows}
+
+**Клиническая временная линия**
+${timeline || "- Временные события не зафиксированы."}
+
+**Статус данных**
+- Формирующий режим: \`${scoring.reviewStatus}\`.
+- Legacy \`expected_actions\`, веса и штрафы не использовались.
+- Числовые overall score и domain scores не создавались.`;
+
+  return {
+    markdown,
+    evidence: [],
+    formativeDomains: scoring.formativeDomains || [],
+    pathwayStatus: stableEndpointReached ? "completed" : "incomplete",
+  };
+}
+
 export function buildEvidenceGroundedDebrief({ caseData, session, scoring, knowledgeBase }) {
+  if (scoring.eligibleForScoring === false) {
+    return buildFormativeDebrief({ caseData, session, scoring });
+  }
   const expected = actionMap(caseData.expected_actions);
   const unnecessary = actionMap(caseData.unnecessary_actions);
   const unsafe = actionMap(caseData.unsafe_actions);

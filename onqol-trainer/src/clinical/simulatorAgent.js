@@ -1,5 +1,7 @@
 import {
+  allowedSourceIdsForTurn,
   buildPatientInformationPolicy,
+  buildSanitizedCaseView,
   isAuthorizedInformationSource,
   PATIENT_INFORMATION_CLASS,
 } from "./informationPolicy.js";
@@ -44,12 +46,15 @@ function compactSessionState(session) {
 export function buildClinicalSimulatorPrompt({
   input,
   caseData,
-  diseaseCard,
-  retrievalCorpus,
   sessionBefore,
   deterministicUpdate,
   locale = "ru",
 }) {
+  const allowedSourceIds = allowedSourceIdsForTurn(
+    sessionBefore.revealedFindings || [],
+    deterministicUpdate.findingsRevealed || []
+  );
+  const caseView = buildSanitizedCaseView(caseData, allowedSourceIds);
   const requiredLockedSources = deterministicUpdate.findingsRevealed.map((findingId) => {
     const group = Object.hasOwn(caseData.hidden_findings || {}, findingId)
       ? "hidden_findings"
@@ -61,26 +66,26 @@ export function buildClinicalSimulatorPrompt({
     system: [
       "You are the ON QOL Clinical Simulator Agent, representing the patient and clinical environment during an active simulation.",
       "Understand arbitrary natural clinical language in Russian or Kazakh. Learner questions do not need a predefined concept_id.",
-      "You receive the complete Case Blueprint, Disease Card, retrieval corpus, current state, and conversation history.",
+      "You receive a turn-scoped patient view containing only facts already revealed or deterministically unlocked on this turn.",
+      "Absence from the patient view is a hard boundary, not permission to infer, reconstruct, or retrieve a fact.",
       "The action extraction and scoring pipeline is separate. Never score the learner, grade them, confirm correctness, teach guideline reasoning, or reveal the expected next decision during simulation.",
       "Return only data explicitly requested, automatically visible, caused by a performed action, or required by an applied state transition.",
-      "LOCKED_FACT must be copied from the Case Card. INFERABLE_FINDING is allowed only when listed by id in the authored policy and must not alter diagnosis, severity, timeline, resources, or key decisions. Otherwise use UNKNOWN.",
-      "Never reveal a hidden finding unless it is listed among already revealed findings or required_locked_sources.",
-      "Retrieval helps understand terminology only. It cannot create patient facts, score the learner, or override the Case Card.",
+      "Every LOCKED_FACT source_id must appear in allowed_locked_sources and its text must come from patient_view. Otherwise use UNKNOWN.",
+      "INFERABLE_FINDING is allowed only when listed by id in the authored policy and must not alter diagnosis, severity, timeline, resources, or key decisions.",
+      "No disease card, answer key, rubric, hidden truth, future result, or retrieval corpus is available to you.",
       "Return strict JSON only. Do not include a closing tutoring question; the application appends the neutral prompt.",
     ].join("\n"),
     user: JSON.stringify(
       {
         locale,
         raw_user_text: input,
-        case_blueprint: caseData,
-        disease_card: diseaseCard,
-        retrieval_corpus: retrievalCorpus,
-        patient_information_policy: buildPatientInformationPolicy(caseData),
+        patient_view: caseView,
+        patient_information_policy: buildPatientInformationPolicy(caseView),
         current_state_before: compactSessionState(sessionBefore),
         current_state_after: compactSessionState(deterministicUpdate.session),
         conversation_history: sessionBefore.messages,
         extracted_actions: deterministicUpdate.parsed.actions,
+        allowed_locked_sources: [...allowedSourceIds],
         required_locked_sources: requiredLockedSources,
         neutral_closing_prompt: deterministicUpdate.neutralPrompt,
         output_schema: {
@@ -93,7 +98,7 @@ export function buildClinicalSimulatorPrompt({
                 "Only for a short exact substring copied from initial_presentation, or authored inferable text. Omit for finding source ids and UNKNOWN.",
             },
           ],
-          retrieval_sources_used: ["source id used only for terminology understanding"],
+          retrieval_sources_used: [],
         },
       },
       null,
@@ -113,8 +118,10 @@ function formatFinding(caseData, sourceId) {
   return finding ? `**${finding.title}:** ${finding.text}` : "";
 }
 
-function validateAndMaterializePart(caseData, part, revealedFindingIds) {
-  if (!isAuthorizedInformationSource(caseData, part, revealedFindingIds)) return null;
+function validateAndMaterializePart(caseData, part, revealedFindingIds, allowedSourceIds) {
+  if (!isAuthorizedInformationSource(caseData, part, revealedFindingIds, allowedSourceIds)) {
+    return null;
+  }
 
   if (part.classification === PATIENT_INFORMATION_CLASS.UNKNOWN) {
     return {
@@ -168,7 +175,11 @@ function requiredFindingParts(caseData, deterministicUpdate) {
   });
 }
 
-function materializeEnvelope(caseData, envelope, deterministicUpdate) {
+function materializeEnvelope(caseData, envelope, deterministicUpdate, sessionBefore) {
+  const allowedSourceIds = allowedSourceIdsForTurn(
+    sessionBefore.revealedFindings || [],
+    deterministicUpdate.findingsRevealed || []
+  );
   const revealed = [
     ...new Set([
       ...(deterministicUpdate.session.revealedFindings || []),
@@ -179,7 +190,12 @@ function materializeEnvelope(caseData, envelope, deterministicUpdate) {
   const seenSources = new Set(materialized.map((part) => part.source.source_id));
 
   for (const rawPart of envelope.response_parts || []) {
-    const part = validateAndMaterializePart(caseData, rawPart, revealed);
+    const part = validateAndMaterializePart(
+      caseData,
+      rawPart,
+      revealed,
+      allowedSourceIds
+    );
     if (!part || seenSources.has(part.source.source_id)) continue;
     materialized.push(part);
     seenSources.add(part.source.source_id);
@@ -194,10 +210,13 @@ function materializeEnvelope(caseData, envelope, deterministicUpdate) {
     informationUsed: materialized.map((part) => part.source),
     additionalFindingIds: materialized
       .map((part) => part.findingId)
-      .filter((findingId) => findingId && !deterministicUpdate.findingsRevealed.includes(findingId)),
-    retrievalSourcesUsed: Array.isArray(envelope.retrieval_sources_used)
-      ? envelope.retrieval_sources_used.filter((source) => typeof source === "string")
-      : [],
+      .filter(
+        (findingId) =>
+          findingId && !deterministicUpdate.session.revealedFindings.includes(findingId)
+      ),
+    // No retrieval corpus is provided to the simulator. A model cannot claim
+    // provenance for sources it was never allowed to read.
+    retrievalSourcesUsed: [],
   };
 }
 
@@ -223,7 +242,8 @@ export async function runClinicalSimulatorAgent(context, options = {}) {
     const materialized = materializeEnvelope(
       context.caseData,
       parseJsonPayload(payload),
-      context.deterministicUpdate
+      context.deterministicUpdate,
+      context.sessionBefore
     );
     return {
       ...materialized,

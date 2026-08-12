@@ -92,7 +92,9 @@ test("router now recognises universal actions that no disease card defines", () 
     "escalate_to_senior",
     "escalate_to_intensive_care",
     "declare_uncertainty",
-    "surgical_safety_checklist",
+    "sign_in",
+    "time_out",
+    "sign_out",
     "structured_handover",
   ]) {
     assert.ok(allowed.has(conceptId), `router cannot see concept ${conceptId}`);
@@ -143,7 +145,9 @@ test("core actions do not move the score before clinical review", () => {
     completedActions: [
       "informed_consent",
       "notify_anesthesia",
-      "who_safety_checklist",
+      "who_sign_in",
+      "who_time_out",
+      "who_sign_out",
       "call_senior_surgeon",
       "declare_uncertainty",
     ],
@@ -196,6 +200,9 @@ test("operative prerequisites are attached and every one of them exists", () => 
   assert.ok(report.prerequisitesAttachedTo.includes("open_appendectomy_here"));
   assert.ok(surgery.prerequisites.includes("informed_consent"));
   assert.ok(surgery.prerequisites.includes("notify_anesthesia"));
+  assert.ok(surgery.prerequisites.includes("who_sign_in"));
+  assert.ok(surgery.prerequisites.includes("who_time_out"));
+  assert.ok(!surgery.prerequisites.includes("who_sign_out"));
   // the case's own prerequisite must survive
   assert.ok(surgery.prerequisites.includes("diagnosis_acute_appendicitis"));
 

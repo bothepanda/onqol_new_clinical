@@ -264,7 +264,7 @@ export const mentorHeuristics = [
       attempted_intent: ["request_test"],
       not_completed_intent: ["request_examination"],
     },
-    mentor_line: "А что мы ищем в животе? Может, сначала пальпация?",
+    mentor_line: "До визуализации стоит назвать, что даст осмотр живота. Что именно ищем при пальпации?",
     rationale_for_reviewer:
       "Автор: «мы всегда движемся от менее инвазивного теста к более. Иногда руки скажут тебе больше». Сформулировано через типы намерений, а не через id конкретных исследований, поэтому переносится на любую нозологию.",
     provenance: AUTHORED,
@@ -357,7 +357,7 @@ export const mentorHeuristics = [
       reasoning_none: ["disposition_stated", "observation_plan_complete"],
     },
     mentor_line:
-      "Мы уже долго в приёмном. Куда идёт пациент дальше? Если продолжаем наблюдение, чего конкретно ждём и когда пересматриваем?",
+      "Мы уже долго в приёмном. Каков конкретный план диспозиции, включая цель и срок пересмотра при продолжении наблюдения?",
     rationale_for_reviewer:
       "NEEDS_SOURCE_VERIFICATION. Автор: стандарт приёмных отделений РК не устанавливает универсального правила «через 4 часа пациент обязан уйти»; для жёлтой зоны допускается наблюдение до 24 часов. Модель NHS England использует 0–4 часа как core ED care с целевым исходом admit/transfer/discharge у ≥95%. Сверить обе строки; порог 240 минут взят из второй. Наблюдение принимается как маршрут только с целью, интервалом и критерием выхода.",
     provenance: AUTHORED_WITH_SOURCE,
@@ -469,12 +469,10 @@ export const mentorHeuristicsById = new Map(
  * How many heuristics may speak in one turn.
  *
  * SURGICAL_MENTOR_LOGIC.md step 4 says "find the single highest-value teaching
- * point; do not correct everything at once". Asked directly, the author said
- * "бывает что говорить много вещей, это же человек". Two is the compromise:
- * enough to sound like a person, few enough that the learner keeps reading.
- * One number, one place to change it.
+ * point; do not correct everything at once". The remediation contract makes
+ * that operational: one focused coaching move per mentor message.
  */
-export const MAX_HEURISTICS_PER_TURN = 2;
+export const MAX_HEURISTICS_PER_TURN = 1;
 
 /**
  * Select the heuristics for this turn, most severe first.

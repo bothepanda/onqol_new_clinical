@@ -510,13 +510,9 @@ test("the trajectory records when each piece of reasoning first appeared", async
   assert.equal(trajectory.has("disposition_stated"), false);
 });
 
-// --- 12.3 no-facts invariant ---------------------------------------------
+// --- 12.3 revealed-facts invariant ---------------------------------------
 
-test("the mentor is handed the learner's own words, and never a case-owned fact", () => {
-  // The restated invariant. Previously: the brief carries no patient facts at
-  // all. Now: no CASE-OWNED patient facts, and the learner's own quoted
-  // sentences are allowed - the position ONQOL_NORTH_STAR.md takes, where the
-  // mentor sees the learner's data, actions and argumentation.
+test("the mentor gets learner reasoning without unrevealed case findings", () => {
   const learnerText =
     "стабильная пациентка с локальным перитонизмом справа внизу, думаю на аппендицит";
   const state = mergeReasoningState(
@@ -559,14 +555,19 @@ test("the mentor is handed the learner's own words, and never a case-owned fact"
   assert.equal(brief.learnerReasoning.patient_summary, "стабильная пациентка с локальным перитонизмом");
   assert.match(brief.learnerReasoning.note, /claims, not verified facts/i);
 
-  // Nothing the case owns is.
+  // No finding the learner has not received is present. The opening handoff is
+  // deliberately allowed because it is already on screen.
   const serialized = JSON.stringify(brief);
   for (const group of [v3Case.hidden_findings || {}, v3Case.available_findings || {}]) {
     for (const [findingId, finding] of Object.entries(group)) {
       assert.ok(!serialized.includes(finding.text), `brief leaked ${findingId}`);
     }
   }
-  assert.equal(brief.containsPatientFacts, false);
+  assert.equal(brief.factsContract, "revealed_only");
+  assert.deepEqual(
+    brief.allowedFactSourceIds.filter((id) => id.startsWith("finding.")),
+    []
+  );
 });
 
 test("a learner who has articulated nothing gives the mentor nothing to quote", () => {
@@ -589,7 +590,7 @@ test("a learner who has articulated nothing gives the mentor nothing to quote", 
   assert.equal(brief.learnerReasoning, null);
 });
 
-test("reasoning state reaches the mentor without carrying a patient fact", () => {
+test("reasoning state reaches the mentor without carrying an unrevealed result", () => {
   const session = {
     phase: "decision",
     locale: "ru",
@@ -614,7 +615,11 @@ test("reasoning state reaches the mentor without carrying a patient fact", () =>
       assert.ok(!serialized.includes(finding.text), `brief leaked ${findingId}`);
     }
   }
-  assert.equal(brief.containsPatientFacts, false);
+  assert.equal(brief.factsContract, "revealed_only");
+  assert.deepEqual(
+    brief.allowedFactSourceIds.filter((id) => id.startsWith("finding.")),
+    []
+  );
 });
 
 // --- 12.4 / 12.5 portability ---------------------------------------------
@@ -846,11 +851,9 @@ test("four hours reaches the flow checkpoint without touching physiology", () =>
   // A case with no configured progression rule must not deteriorate with time.
   const stableCase = { ...v3Case, temporal_progression_rules: [] };
   const initial = createInitialTemporalState(stableCase);
-  let state = initial;
-  // Push past the checkpoint using actions that consume time.
-  for (const action of ["abdominal_ultrasound", "abdominal_exam"]) {
-    state = projectTemporalState(stableCase, state, [action]);
-  }
+  const state = projectTemporalState(stableCase, initial, ["abdominal_exam"], {
+    elapsedMinutes: ED_DISPOSITION_CHECKPOINT_MINUTES,
+  });
 
   assert.ok(state.clockMinutes >= ED_DISPOSITION_CHECKPOINT_MINUTES);
   assert.equal(state.flow.edDispositionCheckpointReached, true);
@@ -861,14 +864,19 @@ test("four hours reaches the flow checkpoint without touching physiology", () =>
   assert.notEqual(state.status, "delayed_source_control");
 });
 
-test("a configured disease rule is what deteriorates the patient", () => {
+test("an unreviewed disease rule remains faculty-only and cannot alter learner physiology", () => {
+  const initial = createInitialTemporalState(v3Case);
   const state = projectTemporalState(v3Case, createInitialTemporalState(v3Case), ["wait_for_ultrasound"]);
-  assert.equal(state.status, "delayed_source_control");
-  assert.ok(state.flags.includes("delay_risk"));
+  assert.equal(state.status, initial.status);
+  assert.equal(state.heartRate, initial.heartRate);
+  assert.equal(state.temperatureC, initial.temperatureC);
+  assert.ok(!state.flags.includes("delay_risk"));
 
   const rule = (v3Case.temporal_progression_rules || [])[0];
   assert.ok(rule, "the appendicitis card must own its progression rule");
   assert.equal(rule.review_status, "NEEDS_CLINICAL_REVIEW");
+  assert.equal(rule.runtime_status, "faculty_review_only");
+  assert.equal(rule.eligible_for_scoring, false);
 });
 
 test("the ED heuristic fires on the checkpoint, and stays quiet given a real plan", () => {
@@ -935,7 +943,8 @@ const PREOP = [
   "информированное согласие",
   "предупредить анестезиолога",
   "оценка операционного риска",
-  "чек-лист воз",
+  "sign in перед наркозом",
+  "time out перед разрезом",
   "предупредить операционную",
 ];
 

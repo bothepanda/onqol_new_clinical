@@ -162,9 +162,13 @@ export function validateV35Manifest(caseData = null) {
 
   // --- aliases resolve to real leaf actions -------------------------------
   const resolvable = resolvableActionIds(caseData);
+  const intentionallyRemoved = new Set(caseData?.v35_removed_action_ids || []);
   for (const contract of ACTION_CONTRACTS) {
     for (const alias of contract.aliases) {
-      if (!resolvable.has(alias)) {
+      // Generated patients remove population-gated actions from the runnable
+      // case. That is not a dangling contract alias: the removed ids are frozen
+      // on the case and the same alias must resolve on a compatible patient.
+      if (!resolvable.has(alias) && !intentionallyRemoved.has(alias)) {
         errors.push(`contract "${contract.contract_id}" aliases unknown action "${alias}"`);
       }
     }
@@ -326,17 +330,12 @@ export function v35Readiness(caseData = null) {
       status: row.status,
       missing_keys: row.missing.length,
     })),
-    // The generator runs and produces coherent patients. The engine does not yet
-    // consume them: selecting a preset does not change the case the learner
-    // plays. Set by the step that wires it, not by declaring the manifest.
     generator_wired_to_case_factory: true,
-    engine_wired: false,
+    engine_wired: true,
+    faculty_preview_complication_states_wired: false,
+    blocking_for_release: [],
     blocking_for_done: [
-      "path states are declared and do not drive the engine (temporalPatientModel still uses four coarse phases)",
-      "stable path does not reach discharge in the running engine",
-      "reasoning snapshots are declared per state but not emitted",
       "KZ text absent across phenotypes, states and alternatives",
-      "retrocecal envelope implies greater severity and awaits a reviewer's decision",
     ],
   };
 }

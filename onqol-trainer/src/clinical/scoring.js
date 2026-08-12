@@ -7,6 +7,11 @@ function byId(actions) {
 }
 
 export function scoreSession(caseData, session) {
+  if (caseData.scoring?.eligible_for_scoring === false) {
+    throw new Error(
+      "Numeric scoring is disabled for this case. Use the formative assessment path."
+    );
+  }
   const completed = new Set(session.completedActions || []);
   const unsafeCompleted = new Set(session.unsafeActions || []);
   const unnecessaryCompleted = new Set(session.unnecessaryActions || []);

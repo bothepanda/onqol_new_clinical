@@ -1,17 +1,8 @@
 // The sixteen patient-path states, CLAUDE_CODE_ONQOL_V3_5_ADDENDUM.md 6.
 //
-// WHAT THE ENGINE HAS TODAY
-//
-// temporalPatientModel.js works with four phases: presentation,
-// diagnostic_workup, decision, post_source_control. They stop at source control
-// because that is where the V3 case stops. These sixteen states describe the
-// whole path, from the ambulance handover to discharge.
-//
-// This file DECLARES the graph. It does not yet drive the engine: wiring it in
-// replaces the phase assignment in temporalPatientModel, and doing that in the
-// same change as authoring the graph would mean debugging both at once. The
-// declaration is testable on its own (every transition resolves, the stable path
-// reaches discharge), and that test is what makes the wiring safe.
+// The stable learner path is consumed by v35/runtimePath.js. The three
+// complication states remain explicitly faculty-preview until their clinical
+// modules are authored; they cannot be selected in learner mode.
 //
 // `mentor_focus_ru` is copied from addendum 8.2 where that table names the
 // stage. Where it does not, the field is absent rather than invented - a mentor
@@ -81,6 +72,7 @@ export const PATH_STATES = Object.freeze([
     time_behavior: "runs",
     exit_conditions: ["stability_addressed"],
     safety_stops: ["unstable_patient_left_untreated"],
+    reasoning_snapshot: "primary_assessment",
   }),
   state("data_gathering", {
     learner_goal_ru: "Собрать данные, которых не хватает для формулировки проблемы.",

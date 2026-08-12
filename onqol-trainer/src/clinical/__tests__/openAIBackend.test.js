@@ -122,10 +122,11 @@ test("server request keeps the API key in the Authorization header", async () =>
   assert.equal(result.output, "{}");
 });
 
-test("browser client sends only task and prompt to the same-origin backend", async () => {
+test("browser client sends task, prompt and a quota-scoped session header", async () => {
   let captured;
   const client = createOpenAIBackendClient({
     task: "router",
+    sessionId: "session-backend-0001",
     fetchImpl: async (url, options) => {
       captured = { url, options };
       return { ok: true, json: async () => ({ output: "structured-result" }) };
@@ -133,6 +134,7 @@ test("browser client sends only task and prompt to the same-origin backend", asy
   });
   assert.equal(await client(prompt), "structured-result");
   assert.equal(captured.url, "/api/v25/openai");
+  assert.equal(captured.options.headers["X-ONQOL-Session-Id"], "session-backend-0001");
   assert.deepEqual(JSON.parse(captured.options.body), { task: "router", prompt });
 });
 

@@ -5,7 +5,12 @@ const FACILITY_TEMPLATES = Object.freeze([
     resourceLevel: "limited",
     capabilities: {
       ct: { installed: true, coverage: "24/7" },
-      ultrasound: { installed: true, coverage: "business_hours" },
+      ultrasound: {
+        installed: true,
+        coverage: "business_hours",
+        availableAtMinute: 380,
+        availableAtLabel: "09:00",
+      },
       laparoscopy: { installed: false, units: 0 },
       laboratory: { installed: true, coverage: "24/7" },
       operatingRoom: { installed: true, coverage: "24/7" },
@@ -88,6 +93,64 @@ const REFERENCE_FACILITY = Object.freeze({
   resourceLevel: "reference",
 });
 
+export const KZ_RESOURCE_PROFILE_VERSION = "2026-08-10-review.1";
+
+/**
+ * Canonical runtime profiles for V3.5. Capabilities are workflow assumptions,
+ * not claims about every Kazakhstan hospital; each row remains owner-review
+ * gated in KZ_RESOURCE_PROFILES_REVIEW.md.
+ */
+export const KZ_RESOURCE_PROFILES = Object.freeze({
+  "KZ-R1-DISTRICT": Object.freeze({
+    id: "KZ-R1-DISTRICT",
+    label: "Ограниченный районный профиль",
+    resourceLevel: "limited",
+    capabilities: Object.freeze({
+      ct: Object.freeze({ installed: false, coverage: "none" }),
+      ultrasound: Object.freeze({ installed: true, coverage: "business_hours", availableAtMinute: 380, availableAtLabel: "09:00" }),
+      laparoscopy: Object.freeze({ installed: false, units: 0 }),
+      laboratory: Object.freeze({ installed: true, coverage: "24/7" }),
+      operatingRoom: Object.freeze({ installed: true, coverage: "24/7" }),
+      anesthesia: Object.freeze({ installed: true, coverage: "24/7" }),
+      gynecology: Object.freeze({ installed: true, coverage: "on_call" }),
+      icu: Object.freeze({ installed: true, prolongedVentilation: false }),
+      transfer: Object.freeze({ installed: true, baselineMinutes: 150 }),
+    }),
+  }),
+  "KZ-R2-URBAN": Object.freeze({
+    id: "KZ-R2-URBAN",
+    label: "Городской многопрофильный профиль",
+    resourceLevel: "enhanced",
+    capabilities: Object.freeze({
+      ct: Object.freeze({ installed: true, coverage: "24/7" }),
+      ultrasound: Object.freeze({ installed: true, coverage: "24/7" }),
+      laparoscopy: Object.freeze({ installed: true, units: 1 }),
+      laboratory: Object.freeze({ installed: true, coverage: "24/7" }),
+      operatingRoom: Object.freeze({ installed: true, coverage: "24/7" }),
+      anesthesia: Object.freeze({ installed: true, coverage: "24/7" }),
+      gynecology: Object.freeze({ installed: true, coverage: "24/7" }),
+      icu: Object.freeze({ installed: true, prolongedVentilation: true }),
+      transfer: Object.freeze({ installed: true, baselineMinutes: 45 }),
+    }),
+  }),
+  "KZ-R3-TERTIARY": Object.freeze({
+    id: "KZ-R3-TERTIARY",
+    label: "Третичный клинический профиль",
+    resourceLevel: "maximal",
+    capabilities: Object.freeze({
+      ct: Object.freeze({ installed: true, coverage: "24/7" }),
+      ultrasound: Object.freeze({ installed: true, coverage: "24/7" }),
+      laparoscopy: Object.freeze({ installed: true, units: 2 }),
+      laboratory: Object.freeze({ installed: true, coverage: "24/7" }),
+      operatingRoom: Object.freeze({ installed: true, coverage: "24/7" }),
+      anesthesia: Object.freeze({ installed: true, coverage: "24/7" }),
+      gynecology: Object.freeze({ installed: true, coverage: "24/7" }),
+      icu: Object.freeze({ installed: true, prolongedVentilation: true }),
+      transfer: Object.freeze({ installed: true, baselineMinutes: 20 }),
+    }),
+  }),
+});
+
 const SHIFT_CONSTRAINTS = Object.freeze([
   {
     id: "ct_repair",
@@ -119,6 +182,7 @@ const SHIFT_CONSTRAINTS = Object.freeze([
     resource: "ultrasound",
     status: "delayed",
     delayMinutes: 380,
+    readyAtMinute: 380,
     eligible: (facility) => facility.capabilities.ultrasound.installed,
     revealText: "Специалист УЗД будет только к 09:00. До этого исследование выполнить некому.",
     debriefText: "УЗИ было доступно только с 09:00.",
@@ -232,9 +296,21 @@ export function createScenarioSeed(prefix = "shift") {
   return `${prefix}-${Date.now().toString(36)}`;
 }
 
-export function generateScenario({ mode = "real", seed = createScenarioSeed() } = {}) {
+export function generateScenario({
+  mode = "real",
+  seed = createScenarioSeed(),
+  resourceProfileId = null,
+} = {}) {
   const random = mulberry32(hashSeed(seed));
-  const facility = copyFacility(mode === "reference" ? REFERENCE_FACILITY : pick(FACILITY_TEMPLATES, random));
+  const requestedProfile = resourceProfileId ? KZ_RESOURCE_PROFILES[resourceProfileId] : null;
+  if (resourceProfileId && !requestedProfile) {
+    throw new Error(`Unknown Kazakhstan resource profile "${resourceProfileId}".`);
+  }
+  const selectedFacility =
+    mode === "reference"
+      ? REFERENCE_FACILITY
+      : requestedProfile || pick(FACILITY_TEMPLATES, random);
+  const facility = copyFacility(selectedFacility);
   const constraints = mode === "reference" ? [] : chooseConstraints(facility, random);
   return {
     id: `${mode}:${seed}`,
@@ -242,6 +318,10 @@ export function generateScenario({ mode = "real", seed = createScenarioSeed() } 
     mode,
     facility,
     constraints,
+    declaredResourceProfileId: resourceProfileId,
+    effectiveResourceProfileId:
+      mode === "reference" ? "REFERENCE-FULL" : requestedProfile?.id || facility.id,
+    resourceProfileVersion: requestedProfile ? KZ_RESOURCE_PROFILE_VERSION : null,
     generated: true,
     source: "synthetic_training_scenario",
   };
@@ -275,10 +355,67 @@ function permanentUnavailability(resource, capability) {
   return messages[resource] || "Запрошенный ресурс в больнице отсутствует.";
 }
 
-export function resolveScenarioResource(scenario, resource) {
+function transferOnlyResolution(scenario, resource, capability) {
+  if (capability?.access !== "transfer_only") return null;
+  const transferMinutes =
+    capability.transferMinutes || scenario.facility.capabilities.transfer?.baselineMinutes || null;
+  const destination = capability.transferDestination || "стационар следующего уровня";
+  const duration = Number.isFinite(transferMinutes) ? `; дорога около ${transferMinutes} мин` : "";
+  const text = `Ресурс недоступен локально; доступ возможен только после перевода в ${destination}${duration}.`;
+  return {
+    resource,
+    status: "transfer_only",
+    available: false,
+    delayMinutes: 0,
+    readyAt: null,
+    transferMinutes,
+    transferDestination: destination,
+    reasonId: `facility:${resource}:transfer_only`,
+    revealText: text,
+    debriefText: text,
+    permanent: true,
+  };
+}
+
+function delayedResolution(resource, delay, clockMinutes) {
+  const readyAt = Number.isFinite(delay.readyAtMinute)
+    ? delay.readyAtMinute
+    : Math.max(0, delay.delayMinutes || 0);
+  const remaining = Math.max(0, readyAt - Math.max(0, clockMinutes || 0));
+  if (remaining === 0) {
+    return {
+      resource,
+      status: "available",
+      available: true,
+      delayMinutes: 0,
+      readyAt,
+      reasonId: delay.reasonId,
+      revealText: null,
+      debriefText: delay.debriefText || null,
+      releasedFromDelay: true,
+      permanent: false,
+    };
+  }
+  return {
+    resource,
+    status: "delayed",
+    available: false,
+    delayMinutes: remaining,
+    initialDelayMinutes: readyAt,
+    readyAt,
+    reasonId: delay.reasonId,
+    revealText: delay.revealText,
+    debriefText: delay.debriefText,
+    permanent: false,
+  };
+}
+
+export function resolveScenarioResource(scenario, resource, clockMinutes = 0) {
   if (!resource) return { resource: null, status: "available", available: true, delayMinutes: 0 };
 
   const capability = scenario.facility.capabilities[resource];
+  const transferOnly = transferOnlyResolution(scenario, resource, capability);
+  if (transferOnly) return transferOnly;
   const permanentMessage = permanentUnavailability(resource, capability);
   if (permanentMessage) {
     return {
@@ -293,38 +430,53 @@ export function resolveScenarioResource(scenario, resource) {
     };
   }
 
-  if (resource === "ultrasound" && capability?.coverage === "business_hours") {
-    return {
-      resource,
-      status: "delayed",
-      available: false,
-      delayMinutes: 380,
-      reasonId: "facility:ultrasound:business_hours",
-      revealText: "Ночью специалиста УЗД нет; планово он будет к 09:00.",
-      debriefText: "УЗИ в этой больнице доступно только в рабочие часы.",
-      permanent: true,
-    };
-  }
-
   const override = scenario.constraints.find((constraint) => constraint.resource === resource);
   if (override) {
+    if (override.status === "delayed") {
+      return delayedResolution(
+        resource,
+        {
+          readyAtMinute: override.readyAtMinute ?? override.delayMinutes,
+          delayMinutes: override.delayMinutes,
+          reasonId: override.id,
+          revealText: override.revealText,
+          debriefText: override.debriefText,
+        },
+        clockMinutes
+      );
+    }
     return {
       resource,
       status: override.status,
       available: false,
       delayMinutes: override.delayMinutes || 0,
+      readyAt: null,
       reasonId: override.id,
       revealText: override.revealText,
       debriefText: override.debriefText,
-      permanent: false,
+      permanent: true,
     };
+  }
+
+  if (resource === "ultrasound" && capability?.coverage === "business_hours") {
+    const label = capability.availableAtLabel || "объявленному времени";
+    return delayedResolution(
+      resource,
+      {
+        readyAtMinute: capability.availableAtMinute,
+        reasonId: "facility:ultrasound:business_hours",
+        revealText: `Сейчас специалиста УЗД нет; ресурс станет доступен к ${label}.`,
+        debriefText: `УЗИ в этой больнице было доступно с ${label}.`,
+      },
+      clockMinutes
+    );
   }
 
   return { resource, status: "available", available: true, delayMinutes: 0 };
 }
 
-export function resolveActionResource(scenario, actionId, input = "") {
-  return resolveScenarioResource(scenario, resourceForAction(actionId, input));
+export function resolveActionResource(scenario, actionId, input = "", clockMinutes = 0) {
+  return resolveScenarioResource(scenario, resourceForAction(actionId, input), clockMinutes);
 }
 
 export function revealedScenarioFacts(scenario, revealedResourceIds = []) {

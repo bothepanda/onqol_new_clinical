@@ -1,5 +1,5 @@
 import { createUuid } from "../ids.js";
-import { scrubSensitiveText } from "../privacy.js";
+import { scrubSensitiveData, scrubSensitiveText } from "../privacy.js";
 import { runClinicalSimulatorAgent } from "../simulatorAgent.js";
 import { createV25Case } from "./caseFactory.js";
 import { createKnowledgeBase, retrieveEvidence } from "./knowledgeBase.js";
@@ -17,6 +17,17 @@ import { describeEta, resolveActionEta, turnEtaMinutes } from "./resourceTiming.
 import { planClinicalTurn } from "./turnPlanner.js";
 import { buildMentorBrief, prerequisiteMeta } from "../core/mentorBrief.js";
 import { runMentorAgent } from "../core/mentorAgent.js";
+import { buildReasoningSnapshot, deriveV35PathState } from "../v35/runtimePath.js";
+
+export const V25_ENGINE_VERSION = "2.5.2";
+export const V25_TERMINAL_STATUSES = Object.freeze([
+  "in_progress",
+  "completed",
+  "abandoned",
+  "incomplete",
+  "expired",
+  "unsafe_terminated",
+]);
 
 function uniquePush(list, value) {
   return list.includes(value) ? list : [...list, value];
@@ -75,7 +86,12 @@ function nonActionReplies(caseData, session, entries) {
       // whether it is available and when the result would come, and the clock
       // does not move. Deciding with the waiting time in view is the whole point.
       const lines = ["abdominal_ultrasound", "ct_abdomen"].map((actionId) => {
-        const eta = resolveActionEta(session.scenario, actionId, "");
+        const eta = resolveActionEta(
+          session.scenario,
+          actionId,
+          "",
+          session.temporalState?.clockMinutes || 0
+        );
         const label = actionId === "ct_abdomen" ? "КТ" : "УЗИ";
         return `${label}: ${describeEta(eta)}`;
       });
@@ -115,6 +131,7 @@ function createWorkingMemory() {
     // What the learner has articulated, cumulative. Claims, not facts: nothing
     // in here may move the score. See core/reasoningState.js.
     reasoningState: createEmptyReasoningState(),
+    reasoningSnapshotIds: [],
   };
 }
 
@@ -134,6 +151,12 @@ function event(session, eventType, payload = {}) {
     timestamp: new Date().toISOString(),
     ...payload,
   };
+}
+
+function abandonedMessage(locale) {
+  return locale === "kk"
+    ? "Сессия алғашқы клиникалық қадамға дейін аяқталды. Бағалау және қалыптастырушы талдау жасалмады."
+    : "Сессия завершена до первого клинического хода. Оценка и формирующий разбор не создавались.";
 }
 
 function updateActionState(memory, operation, status, turnNumber, extra = {}) {
@@ -176,12 +199,68 @@ function prerequisiteBlocks(caseData, plan, actionId) {
 }
 
 function resourceChecks(session, operation, input) {
-  const checks = [resolveActionResource(session.scenario, operation.action_id, input)];
+  const clockMinutes = session.temporalState?.clockMinutes || 0;
+  const checks = [
+    resolveActionResource(session.scenario, operation.action_id, input, clockMinutes),
+  ];
   if (operation.action_id === "open_appendectomy_here" && operation.commitment !== "proposed") {
-    checks.push(resolveScenarioResource(session.scenario, "anesthesia"));
-    checks.push(resolveScenarioResource(session.scenario, "operatingRoom"));
+    checks.push(resolveScenarioResource(session.scenario, "anesthesia", clockMinutes));
+    checks.push(resolveScenarioResource(session.scenario, "operatingRoom", clockMinutes));
   }
   return checks.filter((check) => check.resource && !check.available);
+}
+
+function pathwayBlock(session, operation) {
+  if (operation.action_id === "postoperative_reassessment" && !session.temporalState.sourceControl) {
+    return {
+      reasonId: "postoperative_reassessment_before_source_control",
+      text: "Послеоперационная переоценка доступна после завершённого контроля источника.",
+    };
+  }
+  if (
+    operation.action_id === "structured_handover"
+    && session.temporalState.sourceControl
+    && !session.completedActions.includes("who_sign_out")
+  ) {
+    return {
+      reasonId: "sign_out_before_leaving_theatre",
+      missing: ["who_sign_out"],
+      text: "Перед выходом пациента из операционной нужно отдельно зафиксировать Sign Out.",
+    };
+  }
+  if (operation.action_id !== "discharge_and_followup") return null;
+
+  const missing = [];
+  if (!session.temporalState.sourceControl) missing.push("source_control");
+  if (!session.completedActions.includes("structured_handover")) {
+    missing.push("postoperative_destination");
+  }
+  if (!session.completedActions.includes("postoperative_reassessment")) {
+    missing.push("postoperative_reassessment");
+  }
+  if (!missing.length) return null;
+  return {
+    reasonId: "discharge_before_safe_endpoint",
+    missing,
+    text:
+      "Выписка пока не может быть завершена: нужно зафиксировать контроль источника, место послеоперационного наблюдения и послеоперационную переоценку.",
+  };
+}
+
+function runtimePathState(session, performedActionIds = []) {
+  if (session.product_version === "3.5") {
+    return deriveV35PathState(session, performedActionIds);
+  }
+  const completed = new Set(session.completedActions || []);
+  if (completed.has("discharge_and_followup")) return "discharge";
+  if (session.temporalState?.sourceControl) {
+    if (completed.has("postoperative_reassessment")) return "ward_care";
+    if (completed.has("structured_handover")) return "postop_destination";
+    return "operation";
+  }
+  if (session.phase === "decision") return "decision";
+  if (session.phase === "diagnostic_workup") return "data_gathering";
+  return session.pathState || "ems_handoff";
 }
 
 function neutralStateLine(previousTemporalState, temporalState) {
@@ -214,6 +293,18 @@ function lastQuestionAsked(session) {
 
 function closingPrompt(session, plan, blockedOperations) {
   if (blockedOperations.length) return "Как меняешь план с учётом этого ограничения?";
+  if (session.pathState === "operation") {
+    return "Контроль источника завершён. Где и с каким мониторингом пациент продолжит наблюдение?";
+  }
+  if (session.pathState === "postop_destination") {
+    return "Место наблюдения выбрано. Как проведёшь структурированную послеоперационную переоценку?";
+  }
+  if (session.pathState === "ward_care") {
+    return "Послеоперационная переоценка зафиксирована. Каков план выписки, наблюдения и критерии возврата?";
+  }
+  if (session.pathState === "discharge") {
+    return "Стабильный путь доведён до безопасного endpoint. Можно завершить кейс для формирующего разбора.";
+  }
   if (session.temporalState.status === "controlled") return "Контроль источника выполнен. Что нужно сделать дальше?";
   if (session.temporalState.status === "controlled_with_antibiotic_gap") {
     return "Операция завершена. Что ещё должно быть зафиксировано?";
@@ -223,6 +314,7 @@ function closingPrompt(session, plan, blockedOperations) {
 
 function applyPlan(caseData, session, plan, options = {}) {
   let nextSession = session;
+  const previousPathState = session.pathState || "ems_handoff";
   const turnNumber = session.workingMemory.turnNumber + 1;
 
   // Reasoning State merges before anything else this turn, so a mentor brief
@@ -271,6 +363,27 @@ function applyPlan(caseData, session, plan, options = {}) {
       continue;
     }
 
+    const blockedByPath = pathwayBlock(nextSession, operation);
+    if (blockedByPath) {
+      blockedOperations.push(operation);
+      replies.push(`**Граница пути:** ${blockedByPath.text}`);
+      memory = updateActionState(memory, operation, "blocked", memory.turnNumber, {
+        blocked_by: [blockedByPath.reasonId],
+      });
+      actionLogEntries.push({
+        turn: memory.turnNumber,
+        action_id: operation.action_id,
+        intent_type: operation.intent_type,
+        lifecycle_before: beforeStatus,
+        lifecycle_after: "blocked",
+        applied_to_patient: false,
+        pathway_block: blockedByPath.reasonId,
+        missing_path_requirements: blockedByPath.missing || [],
+        confidence: operation.confidence,
+      });
+      continue;
+    }
+
     const missingBlocking = options.enforceBlockingPrerequisites
       ? prerequisiteBlocks(caseData, plan, operation.action_id)
       : [];
@@ -302,6 +415,26 @@ function applyPlan(caseData, session, plan, options = {}) {
       memory = updateActionState(memory, operation, "blocked", memory.turnNumber, {
         blocked_by: blockedBy.map((block) => block.reasonId),
       });
+      const queueUpdates = Object.fromEntries(
+        blockedBy
+          .filter((block) => block.status === "delayed")
+          .map((block) => [
+            block.resource,
+            {
+              resource: block.resource,
+              status: "pending",
+              requested_at: nextSession.temporalState.clockMinutes,
+              ready_at: block.readyAt,
+              reason_id: block.reasonId,
+            },
+          ])
+      );
+      if (Object.keys(queueUpdates).length) {
+        nextSession = {
+          ...nextSession,
+          resourceQueue: { ...(nextSession.resourceQueue || {}), ...queueUpdates },
+        };
+      }
       actionLogEntries.push({
         turn: memory.turnNumber,
         action_id: operation.action_id,
@@ -310,6 +443,7 @@ function applyPlan(caseData, session, plan, options = {}) {
         lifecycle_after: "blocked",
         applied_to_patient: false,
         resource_blocks: blockedBy.map((block) => block.reasonId),
+        resource_ready_at: blockedBy.map((block) => block.readyAt ?? null),
         confidence: operation.confidence,
       });
       continue;
@@ -341,6 +475,26 @@ function applyPlan(caseData, session, plan, options = {}) {
       ...nextSession,
       completedActions: uniquePush(nextSession.completedActions, operation.action_id),
     };
+    const resolvedResource = resolveActionResource(
+      nextSession.scenario,
+      operation.action_id,
+      plan.input,
+      nextSession.temporalState.clockMinutes
+    );
+    if (resolvedResource.resource && nextSession.resourceQueue?.[resolvedResource.resource]) {
+      nextSession = {
+        ...nextSession,
+        resourceQueue: {
+          ...nextSession.resourceQueue,
+          [resolvedResource.resource]: {
+            ...nextSession.resourceQueue[resolvedResource.resource],
+            status: "consumed",
+            consumed_at: nextSession.temporalState.clockMinutes,
+            consumed_by_action: operation.action_id,
+          },
+        },
+      };
+    }
     if (kind === "unsafe") {
       nextSession = {
         ...nextSession,
@@ -390,12 +544,41 @@ function applyPlan(caseData, session, plan, options = {}) {
   // ultrasound in a hospital that has one round the clock costs its turnaround,
   // not somebody else's night shift. Parallel orders cost the longest of them.
   const temporalState = projectTemporalState(caseData, previousTemporalState, performedIds, {
-    elapsedMinutes: turnEtaMinutes(nextSession.scenario, performedIds, plan.input),
+    elapsedMinutes: turnEtaMinutes(
+      nextSession.scenario,
+      performedIds,
+      plan.input,
+      previousTemporalState.clockMinutes
+    ),
   });
+  const pathState = runtimePathState({
+    ...nextSession,
+    temporalState,
+    phase: temporalState.phase,
+    workingMemory: memory,
+  }, performedIds);
+  const reasoningSnapshot = caseData.product_version === "3.5"
+    ? buildReasoningSnapshot(pathState, reasoningState, memory.turnNumber)
+    : null;
+  const newReasoningSnapshot =
+    reasoningSnapshot
+    && !(memory.reasoningSnapshotIds || []).includes(reasoningSnapshot.snapshot_id)
+      ? reasoningSnapshot
+      : null;
+  if (newReasoningSnapshot) {
+    memory = {
+      ...memory,
+      reasoningSnapshotIds: [
+        ...(memory.reasoningSnapshotIds || []),
+        newReasoningSnapshot.snapshot_id,
+      ],
+    };
+  }
   nextSession = {
     ...nextSession,
     temporalState,
     phase: temporalState.phase,
+    pathState,
     workingMemory: {
       ...memory,
       revealedConstraints: [
@@ -459,15 +642,25 @@ function applyPlan(caseData, session, plan, options = {}) {
     // Why the clock moved, per action, so a reviewer can tell a slow hospital
     // from a slow learner.
     time_cost_breakdown: performedIds.map((actionId) => {
-      const eta = resolveActionEta(nextSession.scenario, actionId, plan.input);
+      const eta = resolveActionEta(
+        nextSession.scenario,
+        actionId,
+        plan.input,
+        previousTemporalState.clockMinutes
+      );
       return {
         action_id: actionId,
         baseline_turnaround_minutes: eta.baseline_turnaround_minutes,
         queue_delay_minutes: eta.queue_delay_minutes,
         total_eta_minutes: eta.total_eta_minutes,
         delay_source: eta.delay_source,
+        resource_ready_at: eta.ready_at ?? null,
+        result_ready_at: eta.result_ready_at ?? null,
       };
     }),
+    resource_queue_after: nextSession.resourceQueue || {},
+    path_state_before: previousPathState,
+    path_state_after: pathState,
     // What kind of turn this was, and what the engine declined to run again.
     // Without these two fields a reviewer reading the log cannot tell a repeated
     // order from a repeated sentence.
@@ -484,12 +677,27 @@ function applyPlan(caseData, session, plan, options = {}) {
     // Research/mentor metadata, kept out of parsed_actions and out of scoring on
     // purpose: these are learner claims awaiting separate validation. Raw text
     // stays scrubbed above; nothing here carries free text.
-    reasoning_delta: reasoningChanged ? reasoningDelta : null,
-    reasoning_state_after: reasoningState,
+    reasoning_delta: reasoningChanged ? scrubSensitiveData(reasoningDelta) : null,
+    reasoning_state_after: scrubSensitiveData(reasoningState),
   });
 
   return {
-    session: { ...nextSession, eventLog: [...nextSession.eventLog, turnEvent] },
+    session: {
+      ...nextSession,
+      eventLog: [
+        ...nextSession.eventLog,
+        turnEvent,
+        ...(newReasoningSnapshot
+          ? [
+              event(
+                { ...nextSession, eventLog: [...nextSession.eventLog, turnEvent] },
+                "reasoning_snapshot",
+                newReasoningSnapshot
+              ),
+            ]
+          : []),
+      ],
+    },
     reply,
     neutralPrompt,
     nonActionLines,
@@ -503,13 +711,18 @@ export function createV25Session(options = {}) {
   const caseData = options.caseData || createV25Case();
   const scenario =
     options.scenario ||
-    generateScenario({ mode: options.mode || "real", seed: options.seed || createScenarioSeed() });
+    generateScenario({
+      mode: options.mode || "real",
+      seed: options.seed || createScenarioSeed(),
+      resourceProfileId: caseData.v35_composition?.effective_resource_profile_id || null,
+    });
   const session = {
     session_id: options.sessionId || createUuid(),
     // From the case, not hardcoded. A V3 session used to freeze "2.5" into every
     // logged event while running a 3.0 case, which quietly contaminates any
     // analysis that groups by product version.
     product_version: caseData.product_version || "2.5",
+    engine_version: V25_ENGINE_VERSION,
     // Frozen version snapshot, addendum 13. Everything needed to rebuild this
     // exact case from the log alone: content version, preset, phenotype,
     // morphology, trajectory, resource profile and both seeds. Absent for the
@@ -520,7 +733,7 @@ export function createV25Session(options = {}) {
     case_version: caseData.case_version,
     disease_card_id: caseData.disease_card_id,
     disease_card_version: caseData.disease_card_version,
-    scoring_rubric_version: `${caseData.scoring_rubric_version}-v25.1`,
+    scoring_rubric_version: caseData.scoring_rubric_version,
     router_version: caseData.router_version,
     title: caseData.title,
     locale: options.locale === "kk" ? "kk" : "ru",
@@ -529,6 +742,7 @@ export function createV25Session(options = {}) {
     learner_id: options.learnerId || `anon:${createUuid()}`,
     scenario,
     phase: "presentation",
+    pathState: "ems_handoff",
     completedActions: [],
     unsafeActions: [],
     unnecessaryActions: [],
@@ -537,18 +751,32 @@ export function createV25Session(options = {}) {
     turnPlans: [],
     workingMemory: createWorkingMemory(),
     actionLog: [],
+    resourceQueue: {},
     eventLog: [],
     temporalState: createInitialTemporalState(caseData),
     messages: [{ role: "assistant", content: caseData.initial_presentation.text }],
     finished: false,
+    terminal_status: "in_progress",
+    completion_status: "in_progress",
     started_at: options.startedAt || new Date().toISOString(),
     completed_at: null,
   };
   session.eventLog.push(
     event(session, "session_started", {
+      engine_version: session.engine_version,
+      product_version: session.product_version,
+      content_version: session.content_version,
       mode: scenario.mode,
       facility_template_id: scenario.facility.id,
+      declared_resource_profile_id: scenario.declaredResourceProfileId || null,
+      effective_resource_profile_id: scenario.effectiveResourceProfileId || scenario.facility.id,
+      resource_profile_version: scenario.resourceProfileVersion || null,
       shift_constraint_count: scenario.constraints.length,
+      case_preset_id: session.v35_composition?.case_preset_id || null,
+      selection_method: session.v35_composition?.selection_method || null,
+      requested_seed: session.v35_composition?.requested_seed || scenario.seed,
+      effective_seed: session.v35_composition?.effective_seed || scenario.seed,
+      selection_attempts: session.v35_composition?.selection_attempts || [],
     })
   );
   return session;
@@ -569,7 +797,48 @@ export async function advanceV25Session({
   };
 
   if (plan.mode === "debrief") {
+    if ((nextSession.workingMemory?.turnNumber || 0) === 0) {
+      const completedAt = new Date().toISOString();
+      const reply = abandonedMessage(nextSession.locale);
+      nextSession = {
+        ...nextSession,
+        finished: true,
+        terminal_status: "abandoned",
+        completion_status: "abandoned",
+        scoring: null,
+        report: null,
+        completed_at: completedAt,
+        messages: [...nextSession.messages, { role: "assistant", content: reply }],
+        turnPlans: [...nextSession.turnPlans, plan],
+      };
+      nextSession = {
+        ...nextSession,
+        eventLog: [
+          ...nextSession.eventLog,
+          event(nextSession, "session_abandoned", {
+            reason: "ended_before_first_clinical_turn",
+            clinical_turn_count: 0,
+            overall_score: null,
+            domain_scores: null,
+          }),
+        ],
+      };
+      return {
+        session: nextSession,
+        plan,
+        parsed: plan.parsed,
+        reply,
+        findingsRevealed: [],
+        scoringEvents: [],
+      };
+    }
+
     const scoring = scoreV25Session(caseData, nextSession);
+    const scoringEnabled = scoring.eligibleForScoring !== false;
+    const stableEndpointRequired = nextSession.product_version === "3.5";
+    const stableEndpointReached = nextSession.pathState === "discharge";
+    const terminalStatus =
+      stableEndpointRequired && !stableEndpointReached ? "incomplete" : "completed";
     const report = buildEvidenceGroundedDebrief({
       caseData,
       session: nextSession,
@@ -580,6 +849,12 @@ export async function advanceV25Session({
     nextSession = {
       ...nextSession,
       finished: true,
+      terminal_status: terminalStatus,
+      completion_status: terminalStatus,
+      pathState:
+        stableEndpointRequired && terminalStatus === "completed"
+          ? "complete"
+          : nextSession.pathState,
       scoring,
       report,
       completed_at: completedAt,
@@ -590,11 +865,28 @@ export async function advanceV25Session({
       ...nextSession,
       eventLog: [
         ...nextSession.eventLog,
-        event(nextSession, "session_scored", {
-          overall_score: scoring.overallScore,
-          domain_scores: scoring.domainScores,
-          critical_errors: scoring.criticalErrors,
-        }),
+        event(
+          nextSession,
+          scoringEnabled
+            ? "session_scored"
+            : terminalStatus === "completed"
+              ? "session_formative_completed"
+              : "session_formative_incomplete",
+          scoringEnabled
+            ? {
+                overall_score: scoring.overallScore,
+                domain_scores: scoring.domainScores,
+                critical_errors: scoring.criticalErrors,
+              }
+            : {
+                scoring_status: "disabled",
+                overall_score: null,
+                domain_scores: null,
+                formative_domains: scoring.formativeDomains,
+                pathway_status: terminalStatus,
+                path_state: nextSession.pathState,
+              }
+        ),
       ],
     };
     return {
@@ -603,7 +895,17 @@ export async function advanceV25Session({
       parsed: plan.parsed,
       reply: report.markdown,
       findingsRevealed: [],
-      scoringEvents: [{ type: "case_scored", overall_score: scoring.overallScore }],
+      scoringEvents: scoringEnabled
+        ? [{ type: "case_scored", overall_score: scoring.overallScore }]
+        : [
+            {
+              type:
+                terminalStatus === "completed"
+                  ? "formative_feedback_generated"
+                  : "formative_feedback_incomplete",
+              overall_score: null,
+            },
+          ],
     };
   }
 
@@ -717,6 +1019,35 @@ export async function advanceV25Session({
         ...(mentorBrief?.firedHeuristicKeys || []),
       ],
     },
+  };
+  const routerExecution = plan.parsed?.source === "semantic_router" ? "model" : "local";
+  const simulatorExecution = simulator
+    ? simulator.provider === "deterministic_fallback" ? "fallback" : "model"
+    : "not_invoked";
+  const mentorExecution = mentor
+    ? mentor.source === "llm" ? "model" : "fallback"
+    : "not_invoked";
+  const executionGroup = [routerExecution, simulatorExecution, mentorExecution].includes("model")
+    ? "model_backed"
+    : "local_fallback";
+  nextSession = {
+    ...nextSession,
+    eventLog: [
+      ...nextSession.eventLog,
+      event(nextSession, "execution_profile", {
+        turn_number: nextSession.workingMemory?.turnNumber || null,
+        evaluation_group: executionGroup,
+        router_execution: routerExecution,
+        simulator_execution: simulatorExecution,
+        mentor_execution: mentorExecution,
+        provider: executionGroup === "model_backed" ? options.provider || "configured_provider" : "local",
+        gateway_version: options.gatewayVersion || null,
+        router_model: routerExecution === "model" ? options.routerModel || null : null,
+        simulator_model: simulatorExecution === "model" ? simulator?.model || options.model || null : null,
+        mentor_model: mentorExecution === "model" ? options.mentorModel || null : null,
+        schema_versions: options.schemaVersions || null,
+      }),
+    ],
   };
 
   return {

@@ -82,20 +82,13 @@ export const TRAJECTORY_IDS = Object.freeze([
 /**
  * Kazakhstan resource profiles, addendum 10.
  *
- * DECLARED, NOT IN FORCE. Nothing in the running session reads these: the
- * facility a learner actually meets still comes from v25/scenarioEngine.js,
- * which speaks its own vocabulary (limited/enhanced/maximal) and picks its own
- * template from the session seed.
+ * Each preset declares one of these ids. buildV35Case freezes it as the effective
+ * profile, and createV25Session passes that id to scenarioEngine. Reference mode
+ * is an explicit, logged full-resource override; real mode no longer randomises
+ * a competing facility template.
  *
- * The field is therefore named `declared_resource_profile_id` everywhere it
- * appears, so a snapshot cannot be read as a record of the profile that was in
- * effect. Wiring the two together is separate work: master plan 13.3 keeps four
- * capability levels, the addendum names three Kazakhstan profiles, and the code
- * has a fifth vocabulary - reconciling three vocabularies is its own change.
- *
- * When it is wired, a resource profile will decide what help is AVAILABLE and
- * still never touch the patient's hidden physiology; a test asserts the latter
- * already.
+ * The capability rows are still review-gated workflow assumptions. Runtime
+ * wiring makes them consistent, not clinically validated.
  */
 export const DECLARED_RESOURCE_PROFILE_IDS = Object.freeze([
   "KZ-R1-DISTRICT",

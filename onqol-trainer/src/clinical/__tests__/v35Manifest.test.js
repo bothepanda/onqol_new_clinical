@@ -32,11 +32,18 @@ import {
   drawPhysiologicReserve,
   latentClinicalState,
 } from "../v35/patientGenerator.js";
-import { SCORING_CONTRACT, WHO_CHECKPOINTS, scorableByDomain } from "../v35/scoringContract.js";
+import {
+  SCORING_CONTRACT,
+  V35_SCORING_CONTRACT_VERSION,
+  V35_SCORING_REVIEW_STATUS,
+  WHO_CHECKPOINTS,
+  scorableByDomain,
+} from "../v35/scoringContract.js";
 import { selectV35Case, selectionEvent } from "../v35/sessionSelector.js";
 import { buildV35Case } from "../v35/createCase.js";
 import { EXAM_SLOTS, examSlot, statesFor, renderExamination } from "../v35/examSlots.js";
 import { localeReadiness } from "../v35/locale.js";
+import { KZ_RESOURCE_PROFILE_VERSION } from "../v25/scenarioEngine.js";
 
 const v3Case = createV3Case();
 
@@ -54,6 +61,15 @@ test("the manifest validates against the real case, with every reference resolvi
   const result = validateV35Manifest(v3Case);
   assert.deepEqual(result.errors, []);
   assert.equal(result.ok, true);
+});
+
+test("the manifest accepts population-gated aliases removed from a generated patient", () => {
+  const generated = buildV35Case({
+    seed: "manifest-runtime-case",
+    requestedPresetId: "APP-001",
+  }).caseData;
+  assert.ok(generated.v35_removed_action_ids.length > 0);
+  assert.deepEqual(validateV35Manifest(generated).errors, []);
 });
 
 test("every transition and stable-path step resolves", () => {
@@ -653,6 +669,15 @@ test("the fourteen core actions carry reviewed provisional weights, and still do
   assert.equal(consent.criticality, 4);
 });
 
+test("every playable V3.5 case disables the legacy numeric rubric at case level", () => {
+  const { caseData } = buildV35Case({ seed: "formative-only", requestedPresetId: "APP-001" });
+  assert.equal(caseData.scoring.eligible_for_scoring, false);
+  assert.equal(caseData.scoring.mode, "formative_only");
+  assert.equal(caseData.scoring.review_status, V35_SCORING_REVIEW_STATUS);
+  assert.equal(caseData.scoring_rubric_version, V35_SCORING_CONTRACT_VERSION);
+  assert.ok(caseData.scoring.unlock_requires.includes("independent_clinical_review"));
+});
+
 test("a gate has a scope, a target and a waiver - not a boolean", () => {
   const consent = SCORING_CONTRACT.find((e) => e.canonical_id === "informed_consent");
   assert.equal(consent.gate.gate_scope, "before_intervention");
@@ -739,10 +764,10 @@ test("readiness reports a valid manifest and V3.5 as not yet done", () => {
   const readiness = v35Readiness(v3Case);
   assert.equal(readiness.content_version, V35_CONTENT_VERSION);
   assert.equal(readiness.manifest_valid, true);
-  // The generator now feeds the case factory; the path states still do not
-  // drive the engine, which is what keeps V3.5 from being done.
   assert.equal(readiness.generator_wired_to_case_factory, true);
-  assert.equal(readiness.engine_wired, false);
+  assert.equal(readiness.engine_wired, true);
+  assert.equal(readiness.faculty_preview_complication_states_wired, false);
+  assert.deepEqual(readiness.blocking_for_release, []);
   assert.ok(readiness.blocking_for_done.length > 0);
   assert.deepEqual(readiness.faculty_preview_presets, ["APP-005"]);
 });
@@ -871,15 +896,27 @@ test("end to end: effective_seed + content_version + preset rebuild the case exa
   }
 });
 
-test("the declared resource profile is not passed off as the session's facility", () => {
-  // Nothing in the running session reads it: the facility still comes from
-  // scenarioEngine. The name says so, so a snapshot cannot be misread.
+test("the declared resource profile becomes one explicit versioned runtime input", () => {
   const { caseData } = buildV35Case({ seed: "resource-naming" });
   assert.ok(caseData.v35_composition.declared_resource_profile_id);
+  assert.equal(
+    caseData.v35_composition.effective_resource_profile_id,
+    caseData.v35_composition.declared_resource_profile_id
+  );
+  assert.equal(caseData.v35_composition.resource_profile_version, KZ_RESOURCE_PROFILE_VERSION);
   assert.equal(caseData.v35_composition.resource_profile_id, undefined);
   for (const preset of CASE_PRESETS) {
     assert.ok(preset.declared_resource_profile_id);
     assert.equal(preset.resource_profile_id, undefined);
+  }
+});
+
+test("patient imaging findings never hardcode facility availability", () => {
+  const { caseData } = buildV35Case({ seed: "imaging-resource-separation", requestedPresetId: "APP-002" });
+  for (const id of ["abdominal_ultrasound", "pelvic_ultrasound", "ct_abdomen"]) {
+    const finding = caseData.available_findings[id];
+    assert.ok(finding, id);
+    assert.doesNotMatch(finding.text, /недоступ|врач УЗД|09:00|аппарата нет/i, id);
   }
 });
 

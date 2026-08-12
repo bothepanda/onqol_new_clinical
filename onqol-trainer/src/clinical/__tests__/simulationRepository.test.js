@@ -8,6 +8,7 @@ import {
   BrowserSimulationRepository,
   getOrCreateAnonymousUserId,
 } from "../simulationRepository.js";
+import { scrubSensitiveText } from "../privacy.js";
 
 class MemoryStorage {
   constructor() {
@@ -36,6 +37,19 @@ test("anonymous user id is random-looking and reused across sessions", () => {
   assert.match(first, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
 });
 
+test("opt-in redaction covers labeled names, addresses, birth dates, ids and cards", () => {
+  const scrubbed = scrubSensitiveText(
+    "ФИО: Иванов Иван Иванович; адрес: Алматы, Абая 1; дата рождения: 01.02.1990; " +
+      "удостоверение: N12345678; карта 4111 1111 1111 1111"
+  );
+  assert.match(scrubbed, /\[NAME_REDACTED\]/);
+  assert.match(scrubbed, /\[ADDRESS_REDACTED\]/);
+  assert.match(scrubbed, /\[DOB_REDACTED\]/);
+  assert.match(scrubbed, /\[ID_REDACTED\]/);
+  assert.match(scrubbed, /\[CARD_REDACTED\]/);
+  assert.doesNotMatch(scrubbed, /Иванов|Абая|01\.02\.1990|N12345678|4111/);
+});
+
 test("session persists frozen versions and refuses retrospective version changes", () => {
   const storage = new MemoryStorage();
   const repository = new BrowserSimulationRepository(storage);
@@ -55,18 +69,25 @@ test("session persists frozen versions and refuses retrospective version changes
   );
 });
 
-test("raw text is scrubbed and stored separately from analytics", () => {
+test("raw text is off by default and only an explicit opt-in stores a scrubbed copy", () => {
   const storage = new MemoryStorage();
-  const repository = new BrowserSimulationRepository(storage);
+  const defaultRepository = new BrowserSimulationRepository(storage);
   const session = createInitialSession(acuteAppendicitisCase, {
     anonymousUserId: getOrCreateAnonymousUserId(storage),
   });
-  repository.createSession(buildSessionRecord(session));
+  defaultRepository.createSession(buildSessionRecord(session));
   const event = createSimulationEvent("user_message", session.session_id, {
     raw_user_text:
       "Почта doctor@example.com, телефон +7 (701) 123-45-67, ИИН 900101301234. ОАК.",
     parsed_actions: [{ id: "cbc", confidence: 0.98 }],
   });
+  const defaultResult = defaultRepository.appendEvent(event);
+  assert.equal(defaultResult.raw_user_text, null);
+  assert.equal(defaultRepository.listEvents({ includeRawText: true })[0].raw_user_text, null);
+
+  const optedInStorage = new MemoryStorage();
+  const repository = new BrowserSimulationRepository(optedInStorage, { persistRawText: true });
+  repository.createSession(buildSessionRecord(session));
   repository.appendEvent(event);
 
   const analyticsOnly = repository.listEvents();
@@ -82,6 +103,67 @@ test("raw text is scrubbed and stored separately from analytics", () => {
   repository.deleteRawEventText(event.event_id);
   assert.equal(repository.listEvents({ includeRawText: true })[0].raw_user_text, null);
   assert.equal(repository.listEvents()[0].parsed_actions[0].id, "cbc");
+});
+
+test("persisted engine snapshots exclude transcript, plans and learner verbatim", () => {
+  const storage = new MemoryStorage();
+  let now = Date.parse("2026-08-10T00:00:00.000Z");
+  const repository = new BrowserSimulationRepository(storage, {
+    retentionMs: 1_000,
+    now: () => now,
+  });
+  const session = {
+    session_id: "privacy-session",
+    messages: [
+      { role: "assistant", content: "Синтетическая презентация" },
+      {
+        role: "user",
+        content:
+          "ФИО: Иванов Иван Иванович; адрес: Алматы, Абая 1; дата рождения: 01.02.1990; карта 4111 1111 1111 1111",
+      },
+    ],
+    turnPlans: [{ input: "ИИН 900101301234" }],
+    workingMemory: {
+      reasoningState: { quote: "реальные данные пациента", trigger_verbatim: "секрет" },
+    },
+    eventLog: [
+      {
+        event_type: "clinical_turn",
+        raw_text_redacted: "всё ещё текст",
+        reasoning_delta: { quote: "вставка" },
+      },
+    ],
+  };
+
+  const persisted = repository.saveSession(session);
+  assert.equal(persisted.persistence_policy, "raw_text_off");
+  assert.deepEqual(persisted.messages, []);
+  assert.deepEqual(persisted.turnPlans, []);
+  assert.equal(JSON.stringify(persisted).includes("Иванов"), false);
+  assert.equal(JSON.stringify(persisted).includes("900101301234"), false);
+  assert.equal(JSON.stringify(persisted).includes("всё ещё текст"), false);
+  assert.equal(repository.exportSession(session.session_id)?.session_id, session.session_id);
+
+  now += 1_001;
+  assert.equal(repository.exportSession(session.session_id), null);
+});
+
+test("session deletion removes record, snapshot, analytics and opted-in raw text", () => {
+  const storage = new MemoryStorage();
+  const repository = new BrowserSimulationRepository(storage, { persistRawText: true });
+  const session = createInitialSession(acuteAppendicitisCase, {
+    anonymousUserId: getOrCreateAnonymousUserId(storage),
+  });
+  repository.createSession(buildSessionRecord(session));
+  repository.saveSession({ ...session, messages: [] });
+  repository.appendEvent(
+    createSimulationEvent("user_message", session.session_id, { raw_user_text: "секрет" })
+  );
+
+  repository.deleteSession(session.session_id);
+  assert.equal(repository.listSessions().some((entry) => entry.session_id === session.session_id), false);
+  assert.equal(repository.exportSession(session.session_id), null);
+  assert.equal(repository.listEvents({ includeRawText: true }).length, 0);
 });
 
 test("completed and abandoned sessions preserve their original version snapshot", () => {

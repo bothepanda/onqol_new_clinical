@@ -8,6 +8,7 @@ import { composeCaseWithCore } from "../core/composeCase.js";
 import {
   MENTOR_MOVE,
   buildMentorBrief,
+  buildRevealedMentorFacts,
   minimumAssessmentIds,
   renderMentorBrief,
 } from "../core/mentorBrief.js";
@@ -15,6 +16,7 @@ import {
   buildMentorPrompt,
   leaksUnrevealedFinding,
   runMentorAgent,
+  validateMentorPayload,
   validateMentorText,
 } from "../core/mentorAgent.js";
 import {
@@ -71,7 +73,7 @@ function moveTypes(brief) {
   return brief.moves.map((move) => move.type);
 }
 
-test("the brief carries verdicts, never patient facts", () => {
+test("the brief carries only facts already revealed to the learner", () => {
   const brief = buildMentorBrief({
     caseData,
     session: session(),
@@ -82,17 +84,77 @@ test("the brief carries verdicts, never patient facts", () => {
   });
 
   const serialized = JSON.stringify(brief);
-  const findings = {
-    ...caseData.available_findings,
-    ...caseData.hidden_findings,
-  };
-  for (const [findingId, finding] of Object.entries(findings)) {
-    assert.ok(
-      !serialized.includes(finding.text),
-      `brief leaked finding text for ${findingId}`
-    );
+  for (const [findingId, finding] of Object.entries(caseData.available_findings)) {
+    assert.ok(!serialized.includes(finding.text), `brief leaked unrevealed finding ${findingId}`);
   }
-  assert.equal(brief.containsPatientFacts, false);
+  assert.ok(!serialized.includes(caseData.hidden_findings.operative_finding.text));
+  assert.equal(brief.factsContract, "revealed_only");
+  assert.ok(brief.allowedFactSourceIds.includes("initial_presentation"));
+});
+
+test("revealed facts expose current state and only already delivered results", () => {
+  const facts = buildRevealedMentorFacts(
+    caseData,
+    session({
+      revealedFindings: ["abdominal_exam"],
+      temporalState: {
+        clockMinutes: 14,
+        lastDeltaMinutes: 6,
+        heartRate: 96,
+        temperatureC: 37.8,
+        painScore: 7,
+      },
+    })
+  );
+  const serialized = JSON.stringify(facts);
+  assert.match(serialized, /finding\.abdominal_exam/);
+  assert.match(serialized, /ЧСС 96/);
+  assert.match(serialized, /С последнего действия прошло 6 мин/);
+  assert.ok(!serialized.includes(caseData.available_findings.cbc.text));
+  assert.ok(!serialized.includes(caseData.hidden_findings.operative_finding.text));
+});
+
+test("mentor factual claims require an allowed source and exact support", () => {
+  const brief = buildMentorBrief({
+    caseData,
+    session: session({ revealedFindings: ["abdominal_exam"] }),
+    plan: plan(),
+    deterministicUpdate: update(),
+  });
+  const exact = "Локальная болезненность и мышечный дефанс в правой подвздошной области.";
+  assert.equal(
+    validateMentorPayload(
+      {
+        mentor_text: `${exact} Что это меняет в твоей оценке?`,
+        factual_claims: [{ source_id: "finding.abdominal_exam", text: exact }],
+      },
+      brief,
+      caseData,
+      ["abdominal_exam"]
+    ).ok,
+    true
+  );
+  assert.equal(
+    validateMentorPayload(
+      {
+        mentor_text: "Лейкоциты 13,8. Что это меняет?",
+        factual_claims: [{ source_id: "finding.cbc", text: "Лейкоциты 13,8" }],
+      },
+      brief,
+      caseData,
+      ["abdominal_exam"]
+    ).reason,
+    "fact_source_not_allowed"
+  );
+  assert.equal(
+    validateMentorPayload(
+      { mentor_text: "Температура 39. Что это меняет?", factual_claims: [] },
+      brief,
+      caseData,
+      ["abdominal_exam"]
+    ).reason,
+    "uncited_numeric_fact"
+  );
 });
 
 test("the mentor prompt is built without the Case Card", () => {
@@ -126,10 +188,9 @@ test("operating without consent produces a blocking stop, not a silent penalty",
   });
 
   const stops = brief.moves.filter((move) => move.type === MENTOR_MOVE.PREREQUISITE_STOP);
-  assert.equal(stops.length, 2);
+  assert.equal(stops.length, 1);
   assert.ok(stops.every((stop) => stop.severity === "blocking"));
   assert.match(renderMentorBrief(brief), /информированное согласие/i);
-  assert.match(renderMentorBrief(brief), /анестезиолог/i);
   assert.ok(stops[0].evidence.length > 0, "a stop must carry its evidence");
 });
 
@@ -393,10 +454,7 @@ test("a valid model reply is used and reports its move types", async () => {
   // Escalation is praised, and the core rule adds the second half of the lesson:
   // call, but say what you think first. The learner stated no assessment here,
   // so `consultation_replacing_reasoning` is eligible.
-  assert.deepEqual(result.moveTypes, [
-    MENTOR_MOVE.ESCALATION_APPROPRIATE,
-    MENTOR_MOVE.OUTSTANDING_PRIORITY,
-  ]);
+  assert.deepEqual(result.moveTypes, [MENTOR_MOVE.ESCALATION_APPROPRIATE]);
 });
 
 test("without a configured model the mentor still speaks", async () => {
@@ -488,9 +546,9 @@ test("mentor on: operating without consent is stopped out loud", async () => {
     "blocked"
   );
 
-  // Only the blocking items speak. A supervisor does not read out five points.
+  // One highest-priority block speaks. The next remains pending for a later turn.
   const stops = committed.mentor.moveTypes.filter((type) => type === MENTOR_MOVE.PREREQUISITE_STOP);
-  assert.equal(stops.length, 2);
+  assert.equal(stops.length, 1);
 });
 
 test("advisory prerequisites never block the operation", async () => {
@@ -506,7 +564,13 @@ test("advisory prerequisites never block the operation", async () => {
   });
   session = {
     ...session,
-    completedActions: ["informed_consent", "notify_anesthesia", "diagnosis_acute_appendicitis"],
+    completedActions: [
+      "informed_consent",
+      "notify_anesthesia",
+      "who_sign_in",
+      "who_time_out",
+      "diagnosis_acute_appendicitis",
+    ],
   };
 
   const result = await advanceV25Session({
@@ -787,7 +851,7 @@ test("with nothing to say the mentor stays silent, not chatty", () => {
   assert.equal(renderMentorBrief(brief), "");
 });
 
-test("the more critical remark comes first, and at most two are made", () => {
+test("the single most critical remark is selected", () => {
   // Several heuristics match this state. Priority is the declared severity, not
   // the order of lines in the file: "смотря что критичнее".
   const brief = buildMentorBrief({

@@ -1,15 +1,15 @@
 import { coreActionsById, operativePrerequisites } from "./coreActions.js";
 import { firedKey, selectHeuristics } from "./mentorHeuristics.js";
+import { resolveScenarioResource } from "../v25/scenarioEngine.js";
 
 /**
  * The mentor brief: a deterministic description of what is pedagogically true
  * on this turn.
  *
  * This is the whole safety argument for letting the mentor speak freely. The
- * brief contains action ids, verdicts, authored template text - and no
- * CASE-OWNED patient facts. The mentor agent receives the brief and nothing
- * else, so it cannot leak a finding it was never given, however badly it
- * behaves.
+ * brief contains action ids, verdicts, authored template text and a strict
+ * allowlist of facts already visible to the learner. It never contains hidden
+ * truth, unrevealed results, future states or answer keys.
  *
  * It does carry `learnerReasoning`: sentences the learner wrote themselves,
  * quoted exactly and checked against their message before they got here (see
@@ -50,8 +50,8 @@ const PREREQUISITE_TEMPLATES = {
     "Стоп. Анестезиолог ещё не оповещён. Проверка анестезиологической безопасности входит в Sign In и требует времени до индукции.",
   risk_not_assessed:
     "Операционный риск и сопутствующая патология пока не оценены.",
-  checklist_not_performed:
-    "Контрольный лист безопасности до разреза ещё не выполнен.",
+  sign_in_not_performed: "Sign In до индукции анестезии ещё не выполнен.",
+  time_out_not_performed: "Time Out до разреза ещё не выполнен.",
   theatre_not_notified: "Операционная бригада ещё не оповещена.",
   prophylaxis_not_given:
     "Стоп. Антибиотикопрофилактика до разреза не введена. Это шаг перед операцией, а не после неё.",
@@ -133,6 +133,92 @@ function evidenceFor(caseData, actionId) {
       recommendation: reference.recommendation,
       provenance: reference.provenance,
     }));
+}
+
+function visibleFinding(caseData, findingId) {
+  const finding = caseData.available_findings?.[findingId] || caseData.hidden_findings?.[findingId];
+  if (!finding?.text) return null;
+  return {
+    source_id: `finding.${findingId}`,
+    kind: "result",
+    text: `${finding.title}: ${finding.text}`,
+  };
+}
+
+function visibleResource(session, resource) {
+  if (!session.scenario) return null;
+  const resolution = resolveScenarioResource(
+    session.scenario,
+    resource,
+    session.temporalState?.clockMinutes || 0
+  );
+  const text = resolution.revealText || `${resource}: доступен`;
+  return { source_id: `resource.${resource}`, kind: "resource", text };
+}
+
+function currentStateFacts(session) {
+  const state = session.temporalState;
+  if (!state) return [];
+  const minutes = Number.isFinite(state.clockMinutes) ? state.clockMinutes : 0;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  const facts = [
+    {
+      source_id: "time.current",
+      kind: "time",
+      text: `Клиническое время: ${hours} ч ${rest} мин от начала симуляции.`,
+    },
+  ];
+  const hasVisibleVitals = [state.heartRate, state.temperatureC, state.painScore].every(Number.isFinite);
+  if (hasVisibleVitals) {
+    facts.push({
+      source_id: "vitals.current",
+      kind: "vitals",
+      text: `ЧСС ${state.heartRate}/мин, температура ${Number(state.temperatureC).toFixed(1)} °C, боль ${state.painScore}/10.`,
+    });
+  }
+  if (hasVisibleVitals && minutes > 0 && Number.isFinite(state.lastDeltaMinutes)) {
+    facts.push({
+      source_id: "trend.current",
+      kind: "trend",
+      text: `С последнего действия прошло ${state.lastDeltaMinutes} мин; сейчас ЧСС ${state.heartRate}/мин, температура ${Number(state.temperatureC).toFixed(1)} °C, боль ${state.painScore}/10.`,
+    });
+  }
+  return facts;
+}
+
+/**
+ * Facts the learner can already see. Source ids are the authorization boundary:
+ * a fact absent from this array cannot be voiced by the mentor agent.
+ */
+export function buildRevealedMentorFacts(caseData, session, justPerformed = []) {
+  const facts = [];
+  if (caseData.initial_presentation?.text) {
+    facts.push({
+      source_id: "initial_presentation",
+      kind: "handoff",
+      text: caseData.initial_presentation.text,
+    });
+  }
+  facts.push(...currentStateFacts(session));
+  facts.push(
+    ...(session.revealedFindings || [])
+      .map((findingId) => visibleFinding(caseData, findingId))
+      .filter(Boolean)
+  );
+  facts.push(
+    ...(session.workingMemory?.revealedConstraints || [])
+      .map((resource) => visibleResource(session, resource))
+      .filter(Boolean)
+  );
+  facts.push(
+    ...justPerformed.map((action) => ({
+      source_id: `intervention.${action.action_id}`,
+      kind: "intervention",
+      text: `Выполнено в текущем ходе: ${action.concept}.`,
+    }))
+  );
+  return facts;
 }
 
 /**
@@ -230,11 +316,9 @@ export function buildMentorBrief({
     });
   }
 
-  // A supervisor names what actually blocks the operation, not a checklist of
-  // five things at once. Blocking items always speak; advisory ones only when
-  // nothing is blocking, and then at most two.
+  // A supervisor names the highest-priority block, not a checklist all at once.
   const blockingStops = stops.filter((stop) => stop.severity === "blocking");
-  const shownStops = blockingStops.length > 0 ? blockingStops : stops.slice(0, 2);
+  const shownStops = blockingStops.length > 0 ? blockingStops.slice(0, 1) : stops.slice(0, 1);
   moves.push(...shownStops);
   const stoppedActionIds = new Set(shownStops.map((stop) => stop.action_id));
 
@@ -308,7 +392,8 @@ export function buildMentorBrief({
     });
     const status = session.temporalState?.status || "stable";
     for (const heuristic of selected) {
-      firedHeuristicKeys.push(firedKey(heuristic, { status }));
+      const heuristicFiredKey = firedKey(heuristic, { status });
+      firedHeuristicKeys.push(heuristicFiredKey);
       moves.push({
         type: MENTOR_MOVE[heuristic.type.toUpperCase()] || heuristic.type,
         heuristic_id: heuristic.id,
@@ -318,6 +403,7 @@ export function buildMentorBrief({
         template: heuristic.mentor_line,
         provenance: heuristic.provenance,
         evidence: [],
+        fired_key: heuristicFiredKey,
       });
     }
   }
@@ -329,7 +415,8 @@ export function buildMentorBrief({
   // SURGICAL_MENTOR_LOGIC.md section 19 says the same: do not stop the learner
   // for every imperfect phrase. So the mentor produces no text at all, and the
   // engine keeps its own operational prompt instead of having it replaced.
-  const silent = moves.length === 0;
+  const focusedMoves = moves.slice(0, 1);
+  const silent = focusedMoves.length === 0;
 
   // What the deterministic layer already did this turn, by name only.
   //
@@ -346,19 +433,23 @@ export function buildMentorBrief({
       return action ? { action_id: actionId, concept: action.concept || actionId } : null;
     })
     .filter(Boolean);
+  const revealedFacts = buildRevealedMentorFacts(caseData, session, justPerformed);
 
   return {
-    moves,
+    moves: focusedMoves,
     justPerformed,
     learnerReasoning: learnerReasoning(session.workingMemory?.reasoningState),
     silent,
     // The engine folds these into working memory so a heuristic speaks once per
     // session. A supervisor who repeats the same remark every turn stops being
     // heard after the second time. Deterioration re-arms; see firedKey.
-    firedHeuristicKeys,
+    firedHeuristicKeys: focusedMoves
+      .map((move) => move.fired_key)
+      .filter((key) => key && firedHeuristicKeys.includes(key)),
     resultsAlreadyDelivered: (deterministicUpdate.findingsRevealed || []).length > 0,
-    // Invariant asserted by tests: the brief carries verdicts, not findings.
-    containsPatientFacts: false,
+    factsContract: "revealed_only",
+    revealedFacts,
+    allowedFactSourceIds: revealedFacts.map((fact) => fact.source_id),
     turnNumber: session.workingMemory?.turnNumber || 0,
     phase: session.phase,
     locale: session.locale || "ru",
