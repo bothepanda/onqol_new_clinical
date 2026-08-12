@@ -1,0 +1,62 @@
+name: ON QOL verification
+
+on:
+  push:
+    paths:
+      - "onqol-trainer/**"
+      - ".github/workflows/onqol-ci.yml"
+  pull_request:
+    paths:
+      - "onqol-trainer/**"
+      - ".github/workflows/onqol-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: onqol-trainer
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            onqol-trainer/package-lock.json
+            onqol-trainer/legacy-v1/package-lock.json
+      - name: Clean install
+        run: npm ci
+      - name: Main tests
+        run: npm test
+      - name: Main lint
+        run: npm run lint
+      - name: Production dependency audit
+        run: npm audit --omit=dev --audit-level=high
+      - name: Main production build
+        run: npm run build
+      - name: Isolated V1 verification
+        run: npm ci && npm test && npm run lint && npm run build && npm audit --omit=dev --audit-level=high
+        working-directory: onqol-trainer/legacy-v1
+      - name: Safe package
+        run: npm run pack:safe
+      - name: Verify clean extracted package
+        shell: bash
+        run: |
+          archive="../onqol-export-$(date -u +%F).zip"
+          clean_dir="$(mktemp -d)"
+          unzip -q "$archive" -d "$clean_dir"
+          cd "$clean_dir/onqol-trainer"
+          npm ci
+          npm test
+          npm run lint
+          npm run build
+          cd legacy-v1
+          npm ci
+          npm test
+          npm run lint
+          npm run build
+

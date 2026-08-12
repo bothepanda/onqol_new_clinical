@@ -14,3 +14,4 @@ dist/
 
 # Архивы, собранные npm run pack:safe. Артефакт выгрузки, не исходник.
 onqol-export-*.zip
+onqol-export-*.manifest.json

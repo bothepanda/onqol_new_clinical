@@ -34,6 +34,9 @@ morphology prior and every physiologic-reserve parameter carries
 in `v35/scoringContract.js` are `reviewed_provisional`: a surgeon has signed the
 numbers, and scoring stays off until pilot calibration. Reviewed is not live.
 
+Numeric assessment is disabled at the case, scoring and debrief layers. V3.5
+returns formative observations only; it cannot emit an overall or domain score.
+
 **Physiology belongs to the morphology, not to the phenotype.** Heart rate,
 temperature, pressure, white count and CRP come from morphology, absolute disease
 time, inflammatory burden, trajectory, modifiers and physiologic reserve. The
@@ -100,22 +103,37 @@ are never reachable from the learner selector.
 
 ---
 
-ON QOL now contains two product paths.
+ON QOL has one learner-facing product entry point. The historical V1 prototype
+is kept as an independently built application under `legacy-v1/`; it is not
+imported by the main bundle and has no query-string route from the product.
 
-## V1 baseline
+## V1 historical prototype
 
-`src/ONQOLTrainer.jsx` is the preserved conversational baseline. It keeps the original flow:
+`legacy-v1/` preserves the original conversational experiment for controlled
+qualitative comparison:
 
 - user selects a broad surgical category;
-- the browser calls Anthropic directly with the saved API key;
 - the model generates the case, findings, coaching and summary;
-- `/api/history.js` stores prior case labels in Vercel Blob.
+- a separate same-origin server gateway holds the provider key;
+- a separate internal access code and hosting protection gate the stand;
+- only short synthetic case labels are stored locally in that browser.
 
-V1 is still reachable from the V2 header via `Открыть V1`.
+V1 remains model-as-source-of-truth and is explicitly marked as unsuitable for
+clinical assessment or validated scoring. Build, deploy and verify it from
+`legacy-v1/README.md`; never deploy that directory as part of the main product.
 
-## V2 evidence-grounded MVP
+## North Star evidence-grounded product
 
-V2 is the default app entry. It implements one complete case end-to-end:
+The root app entry mounts the current structured trainer only. Its architectural
+boundary is the opposite of V1: authored, versioned clinical data and the
+deterministic engine own patient facts, actions, state and scoring eligibility;
+the model may interpret or phrase but cannot become the clinical source of
+truth.
+
+The current implementation includes one appendicitis-centered vertical slice
+with four learner presets. The stable learner path runs through the V3.5 state
+contract to discharge; complication states and alternative diseases remain
+faculty-preview/inactive until their clinical packages exist.
 
 - Case: `app-acute-basic-001`, right iliac fossa pain with high-probability uncomplicated acute appendicitis.
 - Resource context: `basic` district hospital; no CT, no laparoscopy, delayed ultrasound operator, 2.5-hour transfer.
@@ -123,7 +141,9 @@ V2 is the default app entry. It implements one complete case end-to-end:
 
 Core files:
 
-- `src/V2Trainer.jsx` - V2 interaction UI.
+- `src/V25Trainer.jsx` - current learner UI; the historical component name is retained internally.
+- `src/clinical/v35/runtimePath.js` - stable runtime path and state-specific reasoning snapshots.
+- `src/clinical/v35/releaseGate.js` - machine-readable GO/NO-GO release decision.
 - `src/clinical/diseases/appendicitis/appendicitis.core.yaml` - v0.2 language-neutral source of truth for appendicitis.
 - `src/clinical/diseases/appendicitis/locales/ru.yaml` and `kk.yaml` - language text only; no clinical numbers or scoring rules.
 - `src/clinical/diseases/appendicitis/router/appendicitis.concepts.yaml` - RU/KZ/EN semantic vocabulary for router concept recognition only.
@@ -133,16 +153,26 @@ Core files:
 - `src/clinical/corpus/emergency/corpus_manifest.yaml` - emergency surgery retrieval registry; not an active case source of truth.
 - `src/clinical/corpus/emergency/RETRIEVAL_POLICY.md` - guardrails for future retrieval/RAG use.
 - `src/clinical/evidence/appendicitisEvidence.js` - evidence layer with source, year, recommendation, provenance tier and Kazakhstan protocol delta.
-- `src/clinical/semanticRouter.js` - LLM semantic router prompt, strict JSON validation, hallucinated concept rejection and Anthropic browser client.
+- `src/clinical/semanticRouter.js` - semantic router prompt, strict JSON validation and hallucinated concept rejection.
 - `src/clinical/caseEngine.js` - state transitions and findings reveal logic.
-- `src/clinical/scoring.js` - deterministic domain and overall scoring.
-- `src/clinical/report.js` - final Clinical Reasoning Report built only from scoring and approved feedback fields.
+- `src/clinical/v25/scoring.js` - V3.5 formative-only evaluation and retained V2.5 regression scoring.
+- `src/clinical/v25/replayExport.js` - redacted deterministic replay/audit package.
+- `ARCHITECTURE.md` - executable boundaries between engine, router, simulator, mentor and server.
+- `VERSION_MAP.md` - application, engine, content, schema and policy versions.
+- `CLINICAL_DECISIONS_REQUIRED.md` - decisions that code must not invent.
+- `CLINICAL_VALIDATION_MATRIX.md` - separate source, clinical, Kazakhstan and language review states.
+- `REMEDIATION_STATUS.md` - audit-priority traceability and GO/NO-GO decisions.
 - `src/clinical/schemas/caseSchema.js` - lightweight schema consistency checks.
 - `src/clinical/__tests__/clinicalEngine.test.js` - deterministic MVP test coverage.
 
 ## Medical integrity rule
 
-The language model is not the clinical source of truth in V2. Free text is routed through an LLM semantic router that must output strict JSON intents. The router may interpret what the learner means, but it may not create findings, scores, guideline rules, state transitions, or new concept ids. Unknown or hallucinated concepts are rejected instead of invented.
+The model is not the clinical source of truth in V3.5. Free text is routed
+through a strict semantic contract. The router may interpret what the learner
+means, but it may not create findings, scores, guideline rules, state
+transitions or new concept ids. Unknown or hallucinated concepts are rejected.
+The patient channel sees only turn-authorized facts; the mentor sees only facts
+already visible to the learner, each with an allowed source id.
 
 The appendicitis router dictionary is a vocabulary layer, not a disease card. Dictionary concepts must pass through `conceptMap.js`; concepts recognized by the dictionary but absent from the current Case Card are reported internally as `recognized_but_undefined` and must not generate findings.
 
@@ -166,12 +196,50 @@ npm install
 npm run dev
 ```
 
+## Main production API
+
+The main V3.5 bundle calls the same-origin `/api/v25/openai` gateway; the
+provider credential remains server-side. Vercel handlers are included for the
+POST endpoint and `/api/v25/openai/status`.
+
+Production fails closed unless all three variables are configured:
+
+- `OPENAI_API_KEY` — project-scoped provider credential;
+- `ONQOL_MAIN_ACCESS_TOKEN` — separate internal pilot code;
+- `ONQOL_MAIN_ALLOWED_ORIGIN` — exact protected deployment origin.
+
+The gateway checks the exact browser origin, validates the pilot code with a
+timing-safe comparison, requires a valid session id, limits request size, allows
+only router/simulator/mentor tasks, sets `store: false`, and applies per-client
+and per-session in-process minute/day quotas. Its status endpoint reports the
+active provider, gateway version and strict schema versions without credentials.
+The in-process quota is only a last line of defence: hosting-level authentication,
+durable rate limiting and project spend limits still have to be enabled for the
+pilot. Use `.env.example` as the variable inventory; never commit real values.
+
+Kazakh learner mode is disabled until all V3.5 learner-facing text receives an
+independent language review. Router vocabulary support is not treated as proof
+that the clinical learner experience is localized.
+
+## Production release gate
+
+Vercel runs `npm run release:check` before the bundle build. The gate remains
+`NO-GO` until credential rotation, hosting protection, clinical review, Russian
+language review, resource-profile approval and privacy-owner approval are
+recorded through the variables listed in `.env.example`. Enabling Kazakh adds a
+separate completeness gate and currently fails by design.
+
 ## Verify
 
 ```bash
 npm test
+npm run lint
 npm run build
+npm run release:check
 ```
+
+`release:check` is expected to exit non-zero while the external owner gates are
+open. Local build and test remain available; production deployment does not.
 
 The tests cover ideal pathway, acceptable alternatives, missed critical action, unsafe action, excessive investigations, semantic routing, invalid concept rejection and final-score reproducibility.
 
