@@ -1,41 +1,22 @@
 import { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 
-// ─── Case history (Vercel Blob via /api/history) ───────────────────────────
-function getUserId(apiKey) {
-  if (!apiKey) return null;
-  let h = 5381;
-  for (let i = 0; i < apiKey.length; i++) {
-    h = ((h << 5) + h) ^ apiKey.charCodeAt(i);
-  }
-  return (h >>> 0).toString(36).padStart(8, "0");
-}
+// V1 keeps only short synthetic case labels in this browser. It has no shared
+// history backend and cannot mix its sessions with North Star telemetry.
+const ACCESS_TOKEN_KEY = "onqol_v1_access_token";
+const CASE_HISTORY_KEY = "onqol_v1_case_history";
 
-async function apiFetchHistory(uid) {
+function loadCaseHistory() {
   try {
-    const r = await fetch(`/api/history?uid=${uid}`);
-    const d = await r.json();
-    return Array.isArray(d.history) ? d.history : [];
-  } catch { return []; }
-}
-
-async function apiAddCase(uid, label) {
-  try {
-    const r = await fetch(`/api/history?uid=${uid}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ label }),
-    });
-    const d = await r.json();
-    return Array.isArray(d.history) ? d.history : null;
-  } catch { return null; }
-}
-
-async function apiClearHistory(uid) {
-  try { await fetch(`/api/history?uid=${uid}`, { method: "DELETE" }); }
-  catch {
-    return;
+    const value = JSON.parse(localStorage.getItem(CASE_HISTORY_KEY) || "[]");
+    return Array.isArray(value) ? value.slice(-30) : [];
+  } catch {
+    return [];
   }
+}
+
+function saveCaseHistory(history) {
+  localStorage.setItem(CASE_HISTORY_KEY, JSON.stringify(history.slice(-30)));
 }
 
 function extractCaseLabel(text) {
@@ -255,12 +236,14 @@ export default function ONQOLTrainer() {
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [summary, setSummary] = useState("");
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem("onqol_api_key") || "");
-  const [apiKeyDraft, setApiKeyDraft] = useState("");
+  const [accessToken, setAccessToken] = useState(
+    () => sessionStorage.getItem(ACCESS_TOKEN_KEY) || "",
+  );
+  const [accessTokenDraft, setAccessTokenDraft] = useState("");
   const [showKeyInput, setShowKeyInput] = useState(false);
   const [error, setError] = useState("");
   const [hoveredCat, setHoveredCat] = useState(null);
-  const [caseHistory, setCaseHistory] = useState([]);
+  const [caseHistory, setCaseHistory] = useState(loadCaseHistory);
   const bottomRef = useRef(null);
   const textareaRef = useRef(null);
   const historyRef = useRef([]);
@@ -276,24 +259,14 @@ export default function ONQOLTrainer() {
     }
   }, [input]);
 
-  useEffect(() => {
-    if (!apiKey) return;
-    const uid = getUserId(apiKey);
-    apiFetchHistory(uid).then(setCaseHistory);
-  }, [apiKey]);
-
   async function callClaude(history) {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    const response = await fetch("/api/anthropic", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-direct-browser-access": "true",
+        Authorization: `Bearer ${accessToken}`,
       },
       body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 2048,
         system: SYSTEM_PROMPT,
         messages: history,
       }),
@@ -301,35 +274,33 @@ export default function ONQOLTrainer() {
 
     if (!response.ok) {
       const errData = await response.json().catch(() => ({}));
-      const msg = errData.error?.message
-        || (errData.error ? JSON.stringify(errData.error) : null)
-        || JSON.stringify(errData)
+      const msg = errData.error
         || `Ошибка API: ${response.status}`;
       throw new Error(msg);
     }
 
     const data = await response.json();
-    return data.content?.map((b) => b.text || "").join("") || "";
+    return data.output || "";
   }
 
-  function saveApiKey() {
-    const key = apiKeyDraft.trim();
-    if (!key) return;
-    localStorage.setItem("onqol_api_key", key);
-    setApiKey(key);
-    setApiKeyDraft("");
+  function saveAccessToken() {
+    const token = accessTokenDraft.trim();
+    if (!token) return;
+    sessionStorage.setItem(ACCESS_TOKEN_KEY, token);
+    setAccessToken(token);
+    setAccessTokenDraft("");
     setShowKeyInput(false);
     setError("");
   }
 
-  function clearApiKey() {
-    localStorage.removeItem("onqol_api_key");
-    setApiKey("");
+  function clearAccessToken() {
+    sessionStorage.removeItem(ACCESS_TOKEN_KEY);
+    setAccessToken("");
     setShowKeyInput(true);
   }
 
   async function startSession(category) {
-    if (!apiKey) {
+    if (!accessToken) {
       setShowKeyInput(true);
       return;
     }
@@ -338,17 +309,17 @@ export default function ONQOLTrainer() {
     setLoading(true);
 
     try {
-      const uid = getUserId(apiKey);
       const historyNote = caseHistory.length > 0
         ? `\n\nУже разобранные кейсы в предыдущих сессиях — обязательно избегай повторения этих нозологий и клинических сценариев: ${caseHistory.join(" | ")}.`
         : "";
       const initMessages = [{ role: "user", content: category.prompt + historyNote }];
       const firstCase = await callClaude(initMessages);
 
-      // Сохраняем кейс в историю (API + state)
+      // Local V1-only history. No learner text or cross-product telemetry.
       const label = extractCaseLabel(firstCase);
-      const updated = await apiAddCase(uid, label);
-      if (updated) setCaseHistory(updated);
+      const updated = [...caseHistory.filter((entry) => entry !== label), label].slice(-30);
+      saveCaseHistory(updated);
+      setCaseHistory(updated);
 
       setMessages([{ role: "assistant", content: firstCase }]);
       historyRef.current = [...initMessages, { role: "assistant", content: firstCase }];
@@ -484,7 +455,7 @@ export default function ONQOLTrainer() {
       background: C.borderMid,
     },
     logoSub: {
-      fontSize: "12px",
+      fontSize: "14px",
       color: C.textMid,
       letterSpacing: "0.05em",
     },
@@ -536,7 +507,7 @@ export default function ONQOLTrainer() {
       borderRadius: "4px",
       color: hovered ? "#ffffff" : C.accent,
       fontFamily: "'IBM Plex Mono', monospace",
-      fontSize: "12px",
+      fontSize: "13px",
       letterSpacing: "0.08em",
       padding: "18px 12px",
       cursor: "pointer",
@@ -546,7 +517,7 @@ export default function ONQOLTrainer() {
       boxShadow: hovered ? "0 2px 8px rgba(22,105,122,0.2)" : "0 1px 3px rgba(22,105,122,0.06)",
     }),
     hint: {
-      fontSize: "12px",
+      fontSize: "13px",
       color: C.textSub,
       letterSpacing: "0.05em",
       textAlign: "center",
@@ -591,7 +562,7 @@ export default function ONQOLTrainer() {
       borderRadius: "4px",
       color: "#ffffff",
       fontFamily: "'IBM Plex Mono', monospace",
-      fontSize: "12px",
+      fontSize: "13px",
       fontWeight: 700,
       letterSpacing: "0.08em",
       padding: "10px 16px",
@@ -767,7 +738,7 @@ export default function ONQOLTrainer() {
       borderRadius: "4px",
       color: primary ? "#ffffff" : C.accent,
       fontFamily: "'IBM Plex Mono', monospace",
-      fontSize: "12px",
+      fontSize: "13px",
       fontWeight: 700,
       letterSpacing: "0.08em",
       padding: "12px",
@@ -784,6 +755,14 @@ export default function ONQOLTrainer() {
     <div style={styles.root}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&display=swap');
+        button:focus-visible, input:focus-visible, textarea:focus-visible {
+          outline: 3px solid #0b7189 !important;
+          outline-offset: 3px;
+        }
+        @media (max-width: 520px) {
+          .v1-access-row { flex-direction: column; }
+          .v1-access-row > * { width: 100%; min-height: 44px; }
+        }
         @keyframes pulse {
           0%, 80%, 100% { transform: scale(0.7); opacity: 0.3; }
           40% { transform: scale(1); opacity: 1; }
@@ -802,12 +781,12 @@ export default function ONQOLTrainer() {
         <span style={styles.logo}>ON QOL</span>
         <div style={styles.logoSep} />
         <span style={styles.logoSub}>Тренажёр клинических кейсов</span>
-        {apiKey && phase === "start" && (
+        {accessToken && phase === "start" && (
           <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "16px" }}>
             {caseHistory.length > 0 && (
               <button
-                onClick={async () => {
-                  await apiClearHistory(getUserId(apiKey));
+                onClick={() => {
+                  localStorage.removeItem(CASE_HISTORY_KEY);
                   setCaseHistory([]);
                 }}
                 title="Сбросить историю кейсов"
@@ -827,13 +806,15 @@ export default function ONQOLTrainer() {
               </button>
             )}
             <button
-              onClick={clearApiKey}
+              onClick={clearAccessToken}
               style={{
                 background: "none",
                 border: "none",
                 color: C.textSub,
                 fontFamily: "'IBM Plex Mono', monospace",
-                fontSize: "12px",
+                minHeight: "40px",
+                padding: "8px 10px",
+                fontSize: "13px",
                 cursor: "pointer",
                 letterSpacing: "0.05em",
                 display: "flex",
@@ -841,7 +822,7 @@ export default function ONQOLTrainer() {
                 gap: "4px",
               }}
             >
-              <KeyIcon /> API ключ
+              <KeyIcon /> Доступ
             </button>
           </div>
         )}
@@ -857,29 +838,29 @@ export default function ONQOLTrainer() {
           </div>
 
           {/* API KEY SETUP */}
-          {(!apiKey || showKeyInput) && (
+          {(!accessToken || showKeyInput) && (
             <div style={styles.keyCard}>
-              <div style={styles.keyLabel}>Anthropic API ключ</div>
-              <div style={styles.keyInputRow}>
+              <div style={styles.keyLabel}>Код доступа к закрытому V1</div>
+              <div className="v1-access-row" style={styles.keyInputRow}>
                 <input
                   type="password"
                   style={styles.keyInput}
-                  value={apiKeyDraft}
-                  onChange={(e) => setApiKeyDraft(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && saveApiKey()}
-                  placeholder="sk-ant-..."
+                  value={accessTokenDraft}
+                  onChange={(e) => setAccessTokenDraft(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && saveAccessToken()}
+                  placeholder="Внутренний код доступа"
                 />
-                <button style={styles.keyBtn} onClick={saveApiKey}>
+                <button style={styles.keyBtn} onClick={saveAccessToken}>
                   Сохранить
                 </button>
               </div>
               <p style={styles.keyHint}>
-                Ключ сохраняется в localStorage браузера и не передаётся никуда, кроме Anthropic API.
+                Код хранится только до закрытия вкладки. Ключ провайдера остаётся на сервере.
               </p>
             </div>
           )}
 
-          {apiKey && !showKeyInput && (
+          {accessToken && !showKeyInput && (
             <>
               {error && <div style={styles.errorBox}>{error}</div>}
               <div style={styles.categoryGrid}>
