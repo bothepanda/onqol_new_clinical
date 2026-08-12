@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { buildV35Case } from "./clinical/v35/createCase.js";
-import ReactMarkdown from "react-markdown";
 import { getBrowserContentForCase } from "./clinical/browserContentRegistry.js";
 import {
   createSimulationRepository,
@@ -19,7 +18,12 @@ import {
   getOpenAIBackendStatus,
 } from "./clinical/v25/openAIBackendClient.js";
 import { createScenarioSeed, resolveScenarioResource } from "./clinical/v25/scenarioEngine.js";
+import { buildV25ReplayExport } from "./clinical/v25/replayExport.js";
 import "./V25Trainer.css";
+
+const ReactMarkdown = lazy(() => import("react-markdown"));
+
+const MAIN_ACCESS_TOKEN_KEY = "onqol_main_access_token";
 
 const UI = {
   ru: {
@@ -45,12 +49,18 @@ const UI = {
     log: "Событийный лог",
     events: "событий",
     download: "Скачать JSON",
-    finish: "Завершить кейс",
+    finish: "Прервать сессию",
+    finishConfirm: "Прервать сессию? Она будет отмечена как незавершённая, без оценки.",
+    finishConfirmAction: "Да, прервать",
+    cancel: "Продолжить кейс",
     restart: "Новая смена",
     placeholder: "Что ты спрашиваешь или делаешь?",
     send: "Отправить",
     localNotice:
       "OpenAI backend не настроен: временно работает ограниченный локальный matcher.",
+    accessCode: "Код доступа к серверному интерпретатору",
+    accessCodePlaceholder: "Введите внутренний код",
+    accessCodeHelp: "Код хранится только до закрытия этой вкладки.",
   },
   kk: {
     subtitle: "Клиникалық симулятор",
@@ -75,28 +85,46 @@ const UI = {
     log: "Оқиғалар журналы",
     events: "оқиға",
     download: "JSON жүктеу",
-    finish: "Кейсті аяқтау",
+    finish: "Сессияны тоқтату",
+    finishConfirm: "Сессияны тоқтату керек пе? Ол бағалаусыз, аяқталмаған деп белгіленеді.",
+    finishConfirmAction: "Иә, тоқтату",
+    cancel: "Кейсті жалғастыру",
     restart: "Жаңа кезекшілік",
     placeholder: "Не сұрайсың немесе не істейсің?",
     send: "Жіберу",
     localNotice:
       "OpenAI backend бапталмаған: уақытша шектеулі жергілікті matcher жұмыс істейді.",
+    accessCode: "Серверлік интерпретаторға кіру коды",
+    accessCodePlaceholder: "Ішкі кодты енгізіңіз",
+    accessCodeHelp: "Код осы қойынды жабылғанға дейін ғана сақталады.",
   },
 };
 
 function phaseLabel(phase, locale) {
   const labels = {
     ru: {
+      ems_handoff: "Передача пациента",
+      data_gathering: "Сбор данных",
       presentation: "Первичная оценка",
       diagnostic_workup: "Диагностика",
       decision: "Решение",
       post_source_control: "После контроля источника",
+      operation: "Операция завершена",
+      postop_destination: "Послеоперационный маршрут",
+      ward_care: "Послеоперационное наблюдение",
+      discharge: "Выписка и наблюдение",
     },
     kk: {
+      ems_handoff: "Пациентті тапсыру",
+      data_gathering: "Деректер жинау",
       presentation: "Бастапқы бағалау",
       diagnostic_workup: "Диагностика",
       decision: "Шешім",
       post_source_control: "Инфекция ошағын бақылаудан кейін",
+      operation: "Операция аяқталды",
+      postop_destination: "Операциядан кейінгі бағыт",
+      ward_care: "Операциядан кейінгі бақылау",
+      discharge: "Шығару және бақылау",
     },
   };
   return labels[locale][phase] || phase;
@@ -137,8 +165,12 @@ function AppHeader({ locale, setLocale, actions = null }) {
           <button className={locale === "ru" ? "active" : ""} onClick={() => setLocale("ru")}>
             РУС
           </button>
-          <button className={locale === "kk" ? "active" : ""} onClick={() => setLocale("kk")}>
-            ҚАЗ
+          <button
+            className={locale === "kk" ? "active" : ""}
+            disabled
+            title="Казахская клиническая редакция ожидает языковую проверку"
+          >
+            ҚАЗ · REVIEW
           </button>
         </div>
       </div>
@@ -150,6 +182,9 @@ function StartScreen({
   locale,
   setLocale,
   onStart,
+  accessRequired,
+  accessToken,
+  onAccessTokenChange,
 }) {
   const t = UI[locale];
   return (
@@ -158,6 +193,20 @@ function StartScreen({
       <main className="v25-classic-start">
         <h1>{t.landingTitle}</h1>
         <p className="v25-classic-lead">{t.landingBody}</p>
+
+        {accessRequired && (
+          <label className="v25-access-code">
+            <span>{t.accessCode}</span>
+            <input
+              type="password"
+              autoComplete="off"
+              value={accessToken}
+              onChange={(event) => onAccessTokenChange(event.target.value)}
+              placeholder={t.accessCodePlaceholder}
+            />
+            <small>{t.accessCodeHelp}</small>
+          </label>
+        )}
 
         <section className="v25-classic-mode-grid" aria-label="Simulation mode">
           <button
@@ -185,7 +234,11 @@ function SessionSidebar({ session, caseData, locale, onDownload }) {
   const t = UI[locale];
   const states = Object.values(session.workingMemory.actionStates).slice(-6);
   const revealed = session.workingMemory.revealedConstraints.map((resource) => {
-    const resolution = resolveScenarioResource(session.scenario, resource);
+    const resolution = resolveScenarioResource(
+      session.scenario,
+      resource,
+      session.temporalState?.clockMinutes || 0
+    );
     return resolution.revealText || `${resource}: доступен`;
   });
   return (
@@ -194,7 +247,7 @@ function SessionSidebar({ session, caseData, locale, onDownload }) {
         <div className="v25-side-heading"><span>{t.state}</span><b className="pulse-dot" /></div>
         <div className="v25-state-grid">
           <div><small>{t.clinicalTime}</small><strong>{formatClock(session.temporalState.clockMinutes)}</strong></div>
-          <div><small>{t.phase}</small><strong>{phaseLabel(session.phase, locale)}</strong></div>
+          <div><small>{t.phase}</small><strong>{phaseLabel(session.pathState || session.phase, locale)}</strong></div>
         </div>
         <div className="v25-vitals">
           <span>HR <b>{session.temporalState.heartRate}</b></span>
@@ -252,10 +305,9 @@ function persistSession(session) {
 }
 
 /**
- * V3 is this component with the mentor on; V2.5 is the same component with the
- * mentor off, kept reachable at ?version=2.5 so the two can be compared and so
- * the older behaviour stays regression-testable. There is no in-product switch:
- * a learner should never be asked whether they want the mentor.
+ * V3 is this component with the mentor on. Mentor-off behaviour remains
+ * regression-testable through the component API, but no legacy mode or product
+ * switch is exposed from the learner-facing entry point.
  */
 export default function V25Trainer({ mentor = true }) {
   const [screen, setScreen] = useState("start");
@@ -265,12 +317,17 @@ export default function V25Trainer({ mentor = true }) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [confirmInterrupt, setConfirmInterrupt] = useState(false);
   const [openAIStatus, setOpenAIStatus] = useState({
     checking: true,
     configured: false,
+    accessRequired: false,
     routerModel: "gpt-5.6-luna",
     simulatorModel: "gpt-5.6-terra",
   });
+  const [accessToken, setAccessToken] = useState(
+    () => sessionStorage.getItem(MAIN_ACCESS_TOKEN_KEY) || ""
+  );
   const learnerId = useMemo(() => getOrCreateAnonymousUserId(), []);
   const bottomRef = useRef(null);
   const textareaRef = useRef(null);
@@ -279,6 +336,8 @@ export default function V25Trainer({ mentor = true }) {
   // its seed.
   const lastPresetIdRef = useRef(null);
   const t = UI[locale];
+  const modelBackendReady =
+    openAIStatus.configured && (!openAIStatus.accessRequired || Boolean(accessToken));
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -291,6 +350,12 @@ export default function V25Trainer({ mentor = true }) {
     });
     return () => { active = false; };
   }, []);
+
+  function updateAccessToken(value) {
+    setAccessToken(value);
+    if (value) sessionStorage.setItem(MAIN_ACCESS_TOKEN_KEY, value);
+    else sessionStorage.removeItem(MAIN_ACCESS_TOKEN_KEY);
+  }
 
   function start(mode) {
     const seedOverride = new URLSearchParams(window.location.search).get("seed")?.trim();
@@ -329,6 +394,7 @@ export default function V25Trainer({ mentor = true }) {
     setSession(nextSession);
     setInput("");
     setError("");
+    setConfirmInterrupt(false);
     setScreen("session");
   }
 
@@ -338,16 +404,16 @@ export default function V25Trainer({ mentor = true }) {
     setLoading(true);
     setError("");
     try {
-      const actionExtractorLLM = openAIStatus.configured
-        ? createOpenAIBackendClient({ task: "router" })
+      const actionExtractorLLM = modelBackendReady
+        ? createOpenAIBackendClient({ task: "router", accessToken, sessionId: session.session_id })
         : null;
-      const simulatorLLM = openAIStatus.configured
-        ? createOpenAIBackendClient({ task: "simulator" })
+      const simulatorLLM = modelBackendReady
+        ? createOpenAIBackendClient({ task: "simulator", accessToken, sessionId: session.session_id })
         : null;
       // The mentor falls back to authored text when no key is configured, so
       // it stays useful offline - it just phrases things more stiffly.
-      const mentorLLM = mentor && openAIStatus.configured
-        ? createOpenAIBackendClient({ task: "mentor" })
+      const mentorLLM = mentor && modelBackendReady
+        ? createOpenAIBackendClient({ task: "mentor", accessToken, sessionId: session.session_id })
         : null;
       // From the active case, never a literal id. A second disease would
       // otherwise be handed appendicitis's disease card and retrieval package
@@ -369,6 +435,10 @@ export default function V25Trainer({ mentor = true }) {
           diseaseCard: browserContent.diseaseCard,
           provider: simulatorLLM ? "openai" : "local",
           model: simulatorLLM ? openAIStatus.simulatorModel : null,
+          routerModel: actionExtractorLLM ? openAIStatus.routerModel : null,
+          mentorModel: mentorLLM ? openAIStatus.mentorModel : null,
+          gatewayVersion: openAIStatus.gatewayVersion || null,
+          schemaVersions: openAIStatus.schemas || null,
           mentor,
           mentorLLM,
         },
@@ -387,33 +457,23 @@ export default function V25Trainer({ mentor = true }) {
     setSession(null);
     setInput("");
     setError("");
+    setConfirmInterrupt(false);
     setScreen("start");
+  }
+
+  function interruptSession() {
+    setConfirmInterrupt(false);
+    send(locale === "kk" ? "кейс соңы" : "конец кейса");
   }
 
   function downloadLog() {
     if (!session) return;
-    const payload = {
-      export_schema_version: "2.5.0-alpha.1",
-      exported_at: new Date().toISOString(),
-      session: {
-        session_id: session.session_id,
-        institution_id: session.institution_id,
-        cohort_id: session.cohort_id,
-        learner_id: session.learner_id,
-        case_id: session.case_id,
-        case_version: session.case_version,
-        rubric_version: session.scoring_rubric_version,
-        scenario: session.scenario,
-      },
-      events: session.eventLog,
-      action_log: session.actionLog,
-      scoring: session.scoring || null,
-    };
+    const payload = buildV25ReplayExport(session);
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = `onqol-v25-${session.session_id}.json`;
+    anchor.download = `onqol-replay-${session.session_id}.json`;
     anchor.click();
     URL.revokeObjectURL(url);
   }
@@ -431,6 +491,9 @@ export default function V25Trainer({ mentor = true }) {
         locale={locale}
         setLocale={setLocale}
         onStart={start}
+        accessRequired={openAIStatus.accessRequired}
+        accessToken={accessToken}
+        onAccessTokenChange={updateAccessToken}
       />
     );
   }
@@ -459,11 +522,15 @@ export default function V25Trainer({ mentor = true }) {
 
       <main className="v25-workspace">
         <section className="v25-chat-column">
-          {!openAIStatus.configured && <div className="v25-local-notice">{t.localNotice}</div>}
+          {!modelBackendReady && <div className="v25-local-notice">{t.localNotice}</div>}
           <div className="v25-messages">
             {session.messages.map((message, index) => (
               <article key={index} className={`v25-message v25-message-${message.role}`}>
-                {message.role === "assistant" ? <ReactMarkdown>{message.content}</ReactMarkdown> : message.content}
+                {message.role === "assistant" ? (
+                  <Suspense fallback={<span>{message.content}</span>}>
+                    <ReactMarkdown>{message.content}</ReactMarkdown>
+                  </Suspense>
+                ) : message.content}
               </article>
             ))}
             {loading && <div className="v25-thinking"><i /><i /><i /><span>Clinical turn planner</span></div>}
@@ -472,8 +539,17 @@ export default function V25Trainer({ mentor = true }) {
 
           {error && <div className="v25-error">{error}</div>}
           <div className="v25-composer-area">
+            {confirmInterrupt && (
+              <div className="v25-interrupt-confirm" role="dialog" aria-modal="true" aria-labelledby="v25-interrupt-title">
+                <p id="v25-interrupt-title">{t.finishConfirm}</p>
+                <div>
+                  <button onClick={() => setConfirmInterrupt(false)}>{t.cancel}</button>
+                  <button onClick={interruptSession}>{t.finishConfirmAction}</button>
+                </div>
+              </div>
+            )}
             <div className="v25-session-actions">
-              <button onClick={() => send(locale === "kk" ? "кейс соңы" : "конец кейса")} disabled={loading || session.finished}>{t.finish}</button>
+              <button onClick={() => setConfirmInterrupt(true)} disabled={loading || session.finished}>{t.finish}</button>
               <button onClick={restart}>{t.restart}</button>
             </div>
             <div className="v25-composer">
