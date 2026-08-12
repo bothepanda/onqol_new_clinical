@@ -1,5 +1,5 @@
 {
-  "buildCommand": "vite build",
+  "buildCommand": "npm run release:check && vite build",
   "outputDirectory": "dist",
   "framework": "vite",
   "rewrites": [

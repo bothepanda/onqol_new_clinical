@@ -1,4 +1,12 @@
-import { ROUTER_RESPONSE_FORMAT } from "../src/clinical/schemas/routerSchema.js";
+import { createHash, timingSafeEqual } from "node:crypto";
+import {
+  ROUTER_RESPONSE_FORMAT,
+  ROUTER_SCHEMA_VERSION,
+} from "../src/clinical/schemas/routerSchema.js";
+
+export const OPENAI_GATEWAY_VERSION = "2026-08-10.2";
+const SIMULATOR_SCHEMA_VERSION = "simulator-envelope-v2";
+const MENTOR_SCHEMA_VERSION = "mentor-revealed-facts-v1";
 
 const DEFAULT_MODELS = Object.freeze({
   router: "gpt-5.6-luna",
@@ -62,8 +70,20 @@ const TASKS = Object.freeze({
         type: "object",
         properties: {
           mentor_text: { type: "string" },
+          factual_claims: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                source_id: { type: "string" },
+                text: { type: "string" },
+              },
+              required: ["source_id", "text"],
+              additionalProperties: false,
+            },
+          },
         },
-        required: ["mentor_text"],
+        required: ["mentor_text", "factual_claims"],
         additionalProperties: false,
       },
     },
@@ -72,15 +92,53 @@ const TASKS = Object.freeze({
 
 const MAX_BODY_BYTES = 750_000;
 const REQUESTS_PER_MINUTE = 40;
+const REQUESTS_PER_DAY = 1_000;
 
 function json(res, statusCode, payload) {
   res.statusCode = statusCode;
   res.setHeader("Content-Type", "application/json; charset=utf-8");
   res.setHeader("Cache-Control", "no-store");
+  res.setHeader("X-Content-Type-Options", "nosniff");
   res.end(JSON.stringify(payload));
 }
 
+function tokenMatches(actual, expected) {
+  if (!actual || !expected) return false;
+  const actualBuffer = Buffer.from(actual);
+  const expectedBuffer = Buffer.from(expected);
+  return actualBuffer.length === expectedBuffer.length
+    && timingSafeEqual(actualBuffer, expectedBuffer);
+}
+
+function bearerToken(req) {
+  const value = req.headers?.authorization || "";
+  return value.startsWith("Bearer ") ? value.slice(7) : "";
+}
+
+function originAllowed(req, configuredOrigin) {
+  const origin = req.headers?.origin;
+  if (!origin) return true;
+  if (configuredOrigin) return origin === configuredOrigin;
+  const forwardedHost = req.headers?.["x-forwarded-host"];
+  const host = Array.isArray(forwardedHost)
+    ? forwardedHost[0]
+    : forwardedHost || req.headers?.host;
+  try {
+    return Boolean(host) && new URL(origin).host === host;
+  } catch {
+    return false;
+  }
+}
+
 async function readJson(req) {
+  if (req.body && typeof req.body === "object" && !Buffer.isBuffer(req.body)) {
+    if (Buffer.byteLength(JSON.stringify(req.body), "utf8") > MAX_BODY_BYTES) {
+      const error = new Error("Request is too large.");
+      error.statusCode = 413;
+      throw error;
+    }
+    return req.body;
+  }
   const chunks = [];
   let size = 0;
   for await (const chunk of req) {
@@ -107,9 +165,15 @@ export function extractOpenAIResponseText(payload) {
 
 export function buildOpenAIRequest({ task, prompt, models = DEFAULT_MODELS }) {
   const taskConfig = TASKS[task];
-  if (!taskConfig) throw new Error("Unsupported ON QOL model task.");
+  if (!taskConfig) {
+    const error = new Error("Unsupported ON QOL model task.");
+    error.statusCode = 400;
+    throw error;
+  }
   if (typeof prompt?.system !== "string" || typeof prompt?.user !== "string") {
-    throw new Error("Invalid ON QOL prompt envelope.");
+    const error = new Error("Invalid ON QOL prompt envelope.");
+    error.statusCode = 400;
+    throw error;
   }
   if (prompt.system.length + prompt.user.length > 500_000) {
     const error = new Error("Prompt is too large.");
@@ -149,8 +213,9 @@ export async function requestOpenAI({ apiKey, task, prompt, models, fetchImpl = 
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-      const error = new Error(payload?.error?.message || `OpenAI request failed (${response.status}).`);
-      error.statusCode = response.status;
+      const error = new Error("Model provider request failed.");
+      error.statusCode = 502;
+      error.providerStatus = response.status;
       throw error;
     }
     const output = extractOpenAIResponseText(payload);
@@ -163,24 +228,54 @@ export async function requestOpenAI({ apiKey, task, prompt, models, fetchImpl = 
 
 export function createOpenAIGateway(options = {}) {
   const apiKey = options.apiKey || "";
+  const accessToken = options.accessToken || "";
+  const allowedOrigin = options.allowedOrigin || "";
+  const requireAccessControl = options.requireAccessControl === true;
+  const accessControlConfigured = !requireAccessControl || Boolean(accessToken && allowedOrigin);
   const models = {
     router: options.routerModel || DEFAULT_MODELS.router,
     simulator: options.simulatorModel || DEFAULT_MODELS.simulator,
     mentor: options.mentorModel || DEFAULT_MODELS.mentor,
   };
   const requestBuckets = new Map();
+  const clientBuckets = new Map();
+  const requestsPerMinute = options.requestsPerMinute || REQUESTS_PER_MINUTE;
+  const requestsPerDay = options.requestsPerDay || REQUESTS_PER_DAY;
 
-  function withinRateLimit(req) {
-    const now = Date.now();
-    const key = req.socket?.remoteAddress || "local";
-    const bucket = requestBuckets.get(key) || { windowStartedAt: now, count: 0 };
-    if (now - bucket.windowStartedAt >= 60_000) {
-      bucket.windowStartedAt = now;
-      bucket.count = 0;
+  function consumeBucket(store, key, now) {
+    const bucket = store.get(key) || {
+      minuteStartedAt: now,
+      minuteCount: 0,
+      dayStartedAt: now,
+      dayCount: 0,
+    };
+    if (now - bucket.minuteStartedAt >= 60_000) {
+      bucket.minuteStartedAt = now;
+      bucket.minuteCount = 0;
     }
-    bucket.count += 1;
-    requestBuckets.set(key, bucket);
-    return bucket.count <= REQUESTS_PER_MINUTE;
+    if (now - bucket.dayStartedAt >= 86_400_000) {
+      bucket.dayStartedAt = now;
+      bucket.dayCount = 0;
+    }
+    bucket.minuteCount += 1;
+    bucket.dayCount += 1;
+    store.set(key, bucket);
+    return bucket.minuteCount <= requestsPerMinute && bucket.dayCount <= requestsPerDay;
+  }
+
+  function withinRateLimit(req, sessionId) {
+    const now = Date.now();
+    const forwarded = req.headers?.["x-forwarded-for"];
+    const address = (Array.isArray(forwarded) ? forwarded[0] : forwarded)?.split(",")[0]?.trim()
+      || req.socket?.remoteAddress
+      || "local";
+    const tokenFingerprint = bearerToken(req)
+      ? createHash("sha256").update(bearerToken(req)).digest("hex").slice(0, 16)
+      : "no-token";
+    const clientKey = `${address}:${tokenFingerprint}`;
+    const sessionKey = `${tokenFingerprint}:${sessionId}`;
+    return consumeBucket(clientBuckets, clientKey, now)
+      && consumeBucket(requestBuckets, sessionKey, now);
   }
 
   return async function openAIGateway(req, res, next) {
@@ -190,20 +285,42 @@ export function createOpenAIGateway(options = {}) {
       return json(res, 404, { error: "Not found." });
     }
 
+    if (!accessControlConfigured) {
+      return json(res, 503, { error: "ON QOL API access control is not configured." });
+    }
+    if (!originAllowed(req, allowedOrigin)) {
+      return json(res, 403, { error: "Origin is not allowed." });
+    }
+
     if (req.method === "GET" && url.pathname === "/api/v25/openai/status") {
       return json(res, 200, {
         configured: Boolean(apiKey),
+        accessRequired: Boolean(accessToken),
+        originRestricted: Boolean(allowedOrigin),
         provider: "openai",
+        gatewayVersion: OPENAI_GATEWAY_VERSION,
         routerModel: models.router,
         simulatorModel: models.simulator,
         mentorModel: models.mentor,
+        schemas: {
+          router: { version: ROUTER_SCHEMA_VERSION, ready: true },
+          simulator: { version: SIMULATOR_SCHEMA_VERSION, ready: true },
+          mentor: { version: MENTOR_SCHEMA_VERSION, ready: true },
+        },
       });
     }
 
     if (req.method !== "POST" || url.pathname !== "/api/v25/openai") {
       return json(res, 405, { error: "Method not allowed." });
     }
-    if (!withinRateLimit(req)) return json(res, 429, { error: "Too many model requests." });
+    if (accessToken && !tokenMatches(bearerToken(req), accessToken)) {
+      return json(res, 401, { error: "Invalid ON QOL access code." });
+    }
+    const sessionId = String(req.headers?.["x-onqol-session-id"] || "");
+    if (!/^[a-zA-Z0-9:_-]{8,128}$/.test(sessionId)) {
+      return json(res, 400, { error: "A valid ON QOL session id is required." });
+    }
+    if (!withinRateLimit(req, sessionId)) return json(res, 429, { error: "Too many model requests." });
 
     try {
       const body = await readJson(req);
@@ -217,7 +334,12 @@ export function createOpenAIGateway(options = {}) {
       return json(res, 200, result);
     } catch (error) {
       const statusCode = Number(error.statusCode) || (error.name === "AbortError" ? 504 : 500);
-      return json(res, statusCode, { error: error.message || "OpenAI gateway error." });
+      const safeMessage = [400, 413].includes(statusCode)
+        ? error.message
+        : statusCode === 504
+          ? "Model service timed out."
+          : "Model service is temporarily unavailable.";
+      return json(res, statusCode, { error: safeMessage });
     }
   };
 }

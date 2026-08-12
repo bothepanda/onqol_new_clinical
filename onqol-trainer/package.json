@@ -1,7 +1,7 @@
 {
   "name": "onqol-trainer",
   "private": true,
-  "version": "0.0.0",
+  "version": "3.5.0-internal",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -11,10 +11,10 @@
     "lint": "eslint .",
     "test": "node --test \"src/**/*.test.js\"",
     "preview": "vite preview",
-    "pack:safe": "node scripts/packSafe.mjs"
+    "pack:safe": "node scripts/packSafe.mjs",
+    "release:check": "node scripts/releaseGate.mjs"
   },
   "dependencies": {
-    "@vercel/blob": "^0.27.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-markdown": "^10.1.0",
