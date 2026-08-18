@@ -30,7 +30,8 @@ test("the gateway ships the one router contract, not a copy of it", () => {
   // ids. Under strict mode the richer half simply could not come back.
   const shipped = buildOpenAIRequest({ task: "router", prompt }).text.format.schema;
   assert.deepEqual(shipped, ROUTER_JSON_SCHEMA, "шлюз должен отдавать ровно тот же контракт");
-  assert.equal(ROUTER_SCHEMA_VERSION, "router-v2");
+  assert.equal(ROUTER_SCHEMA_VERSION, "router-v3");
+  assert.ok(shipped.properties.intents.items.required.includes("requested_fragment"));
 });
 
 test("the router schema can actually carry the reasoning the prompt asks for", () => {
@@ -85,6 +86,26 @@ test("OpenAI simulator request uses Terra and a separate response schema", () =>
   const request = buildOpenAIRequest({ task: "simulator", prompt });
   assert.equal(request.model, "gpt-5.6-terra");
   assert.equal(request.text.format.name, "onqol_simulator_envelope");
+});
+
+test("OpenAI mentor schema carries intervention mode and selected issue", () => {
+  const request = buildOpenAIRequest({
+    task: "mentor",
+    prompt: { system: "mentor", user: "{}" },
+  });
+  const schema = request.text.format.schema;
+  assert.deepEqual(schema.properties.mode.enum, [
+    "CONTINUE",
+    "REINFORCE",
+    "CLARIFY",
+    "CHALLENGE",
+    "TEACH",
+    "SAFETY_STOP",
+  ]);
+  assert.deepEqual(schema.properties.issue_id.type, ["string", "null"]);
+  assert.ok(schema.required.includes("mode"));
+  assert.ok(schema.required.includes("issue_id"));
+  assert.ok(schema.required.includes("question_domain"));
 });
 
 test("OpenAI raw response text is collected from message output items", () => {

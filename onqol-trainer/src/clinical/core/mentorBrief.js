@@ -1,6 +1,11 @@
 import { coreActionsById, operativePrerequisites } from "./coreActions.js";
 import { firedKey, selectHeuristics } from "./mentorHeuristics.js";
 import { resolveScenarioResource } from "../v25/scenarioEngine.js";
+import {
+  ADEQUACY,
+  MENTOR_MODE,
+  selectMentorPolicy,
+} from "./mentorPolicy.js";
 
 /**
  * The mentor brief: a deterministic description of what is pedagogically true
@@ -39,6 +44,7 @@ export const MENTOR_MOVE = {
   // A question asked because reasoning should be made visible at this point in
   // the case, not because anything is wrong. See mentorHeuristics.js.
   CHECKPOINT: "checkpoint",
+  PARAMETER_SAFETY: "parameter_safety",
 };
 
 const ESCALATION_ACTION_IDS = ["call_senior_surgeon", "call_intensive_care"];
@@ -288,6 +294,7 @@ export function buildMentorBrief({
   plan,
   deterministicUpdate = {},
   minimumAssessment = null,
+  simulatorProducedResults = false,
 }) {
   const moves = [];
   const performed = new Set(
@@ -300,6 +307,79 @@ export function buildMentorBrief({
   // stopped it. Both deserve a mentor reply.
   const attempted = new Set([...performed, ...blocked]);
 
+  const currentReasoning = plan.parsed?.reasoning;
+  if (
+    currentReasoning?.differential?.has_dangerous_alternative &&
+    (currentReasoning.differential?.items || []).length >= 2
+  ) {
+    moves.push({
+      type: "reasoning_reinforcement",
+      issue_id: "dangerous_alternative_retained",
+      severity: 2,
+      hint_level: 1,
+      safety_critical: false,
+      why_now: "reasoning_changed_this_turn",
+      reasoning_gap: null,
+      relevant_to_current_turn: true,
+      template:
+        "Опасная альтернатива остаётся в поле зрения — это полезная часть текущего рассуждения.",
+      evidence: [],
+    });
+  }
+
+  if (plan.mentorAnswer?.answered_contract) {
+    const specificity = plan.parsed?.reasoning?.contingency?.specificity;
+    if (specificity === "partial") {
+      moves.push({
+        type: "contingency_partial",
+        issue_id: "contingency_threshold",
+        severity: 1,
+        hint_level: 2,
+        safety_critical: false,
+        why_now: "answer_to_previous_mentor_question",
+        reasoning_gap: "contingency_specificity",
+        relevant_to_current_turn: true,
+        template:
+          "Признаки наблюдения названы. Какое изменение станет триггером смены плана?",
+        evidence: [],
+      });
+    } else if (specificity === "vague") {
+      moves.push({
+        type: "contingency_acknowledged",
+        issue_id: "contingency_vague_acknowledgement",
+        severity: 0,
+        hint_level: 1,
+        safety_critical: false,
+        why_now: "answer_to_previous_mentor_question",
+        reasoning_gap: "contingency_specificity",
+        relevant_to_current_turn: true,
+        template: "Условие пересмотра названо, но пока остаётся общим.",
+        evidence: [],
+      });
+    }
+  }
+
+  // Parameter review precedes ordinary pedagogy. This says only that the pilot
+  // cannot validate/apply the order; it does not invent a correction.
+  for (const signal of plan.parameterSafetySignals || []) {
+    if (!signal.blocks_application) continue;
+    moves.push({
+      type: MENTOR_MOVE.PARAMETER_SAFETY,
+      issue_id: signal.source_rule_id || signal.governance_policy_id,
+      severity: 4,
+      hint_level: 4,
+      safety_critical: true,
+      why_now: "current_parameter_requires_review",
+      reasoning_gap: null,
+      relevant_to_current_turn: true,
+      template:
+        "Стоп. Указанный расчёт инфузии требует клинической проверки и пока не применён. Что станет условием немедленного пересмотра плана?",
+      parameter_safety: signal,
+      clinical_rule_ids: signal.source_rule_id ? [signal.source_rule_id] : [],
+      evidence: [],
+    });
+  }
+
   // 1. Prerequisite stops. This is the "система говорила стоп" behaviour.
   const stops = [];
   for (const warning of plan.prerequisiteWarnings || []) {
@@ -310,6 +390,10 @@ export function buildMentorBrief({
       action_id: warning.action_id,
       missing_action_id: warning.missing,
       severity: meta.severity,
+      safety_critical: meta.severity === "blocking",
+      why_now: "current_prerequisite_block",
+      relevant_to_current_turn: true,
+      issue_id: meta.reason_id || `prerequisite:${warning.missing}`,
       reason_id: meta.reason_id,
       template: PREREQUISITE_TEMPLATES[meta.reason_id] || PREREQUISITE_FALLBACK,
       evidence: evidenceFor(caseData, warning.missing),
@@ -341,30 +425,11 @@ export function buildMentorBrief({
     });
   }
 
-  // 3. Declared uncertainty. Normalised, then oriented - never punished.
-  if (performed.has("declare_uncertainty")) {
-    moves.push({
-      type: MENTOR_MOVE.UNCERTAINTY_DECLARED,
-      action_id: "declare_uncertainty",
-      template:
-        "Назвать неопределённость вслух — правильный ход, а не провал. Теперь сузим: каких именно данных тебе не хватает для следующего решения?",
-      evidence: evidenceFor(caseData, "declare_uncertainty"),
-    });
-  }
+  // 3. Declared uncertainty is recorded as learner reasoning, not automatically
+  // reinforced. Likewise, a library content gap belongs to the addressed
+  // patient/environment reply and audit log, never to the mentor praise queue.
 
-  // 4. Clinically sensible action the library does not carry yet. Acknowledged,
-  //    not scored, and logged as a candidate for the core library.
-  for (const conceptId of plan.parsed?.recognizedButUndefined || []) {
-    moves.push({
-      type: MENTOR_MOVE.OUT_OF_SCOPE_RECOGNIZED,
-      concept_id: conceptId,
-      template:
-        "Это осмысленный шаг, но в этом кейсе он не описан, поэтому в оценку не войдёт. Разберём его отдельно.",
-      evidence: [],
-    });
-  }
-
-  // 5. Resource wall. The deterministic layer already printed what is
+  // 4. Resource wall. The deterministic layer already printed what is
   //    unavailable; the mentor turns it into a decision, not a dead end.
   for (const operation of deterministicUpdate.blockedOperations || []) {
     // Already covered by a prerequisite stop for the same action: one reason is
@@ -378,7 +443,7 @@ export function buildMentorBrief({
     });
   }
 
-  // 6. What is NOT happening. See mentorHeuristics.js.
+  // 5. What is NOT happening. See mentorHeuristics.js.
   //
   // Yields to a blocking stop: when the operation is being attempted without
   // consent, that is the only thing worth saying this turn.
@@ -389,6 +454,21 @@ export function buildMentorBrief({
       session,
       attempted,
       alreadyFired: session.workingMemory?.firedHeuristicIds || [],
+      currentTurn: plan.turnKind
+        ? {
+            previousIssueId: session.workingMemory?.pendingMentorQuestion?.issue_id || null,
+            pathState: session.pathState,
+            topic: (plan.actions || []).some((action) => action.intent_type === "request_test")
+              ? "investigations"
+              : (plan.actions || []).some((action) => action.intent_type === "management") ||
+                  (plan.managementDecisions || []).length
+                ? "management"
+                : plan.parsed?.reasoning
+                  ? "reasoning"
+                  : "unknown",
+          }
+        : null,
+      limit: 5,
     });
     const status = session.temporalState?.status || "stable";
     for (const heuristic of selected) {
@@ -397,11 +477,16 @@ export function buildMentorBrief({
       moves.push({
         type: MENTOR_MOVE[heuristic.type.toUpperCase()] || heuristic.type,
         heuristic_id: heuristic.id,
+        issue_id: heuristic.id,
         severity: heuristic.severity,
         hint_level: heuristic.hint_level,
         spec_section: heuristic.spec_section,
         template: heuristic.mentor_line,
         provenance: heuristic.provenance,
+        why_now: heuristic.why_now,
+        reasoning_gap: heuristic.id,
+        safety_critical: heuristic.severity === 4,
+        relevant_to_current_turn: true,
         evidence: [],
         fired_key: heuristicFiredKey,
       });
@@ -415,8 +500,131 @@ export function buildMentorBrief({
   // SURGICAL_MENTOR_LOGIC.md section 19 says the same: do not stop the learner
   // for every imperfect phrase. So the mentor produces no text at all, and the
   // engine keeps its own operational prompt instead of having it replaced.
-  const focusedMoves = moves.slice(0, 1);
-  const silent = focusedMoves.length === 0;
+  moves.sort((left, right) => {
+    if (Boolean(left.safety_critical) !== Boolean(right.safety_critical)) {
+      return left.safety_critical ? -1 : 1;
+    }
+    return 0;
+  });
+  let candidateIssues = moves.slice(0, 5).map((move) => ({
+    issue_id: move.issue_id || move.heuristic_id || move.type,
+    type: move.type,
+    severity: move.severity || null,
+    hint_level: move.hint_level || null,
+    why_now: move.why_now || "current_turn_event",
+    reasoning_gap: move.reasoning_gap || null,
+    safety_critical: Boolean(move.safety_critical),
+    relevant_to_current_turn: move.relevant_to_current_turn !== false,
+    evidence: move.evidence || [],
+    fallback_text: move.template || null,
+    parameter_safety: move.parameter_safety || null,
+    clinical_rule_ids: move.clinical_rule_ids || [],
+    fired_key: move.fired_key || null,
+  }));
+  const positiveTypes = new Set([
+    MENTOR_MOVE.ESCALATION_APPROPRIATE,
+    "reasoning_reinforcement",
+    "contingency_acknowledged",
+  ]);
+  const adequacyAssessment = plan.adequacyAssessment || {
+    adequacy:
+      moves.length === 0 || moves.every((move) => positiveTypes.has(move.type))
+        ? ADEQUACY.SUFFICIENT
+        : ADEQUACY.PARTIAL,
+    reason: moves.length ? "legacy_candidate_issue" : "no_current_issue",
+    expected_answer_domains: [],
+    safety_critical: moves.some((move) => move.safety_critical),
+    governance_stop: false,
+    consultation_preserved: false,
+  };
+  const rememberedScaffold = session.workingMemory?.mentorScaffoldingState;
+  const previousTeachingExchange =
+    plan.pendingMentorQuestionBeforeTurn ||
+    session.workingMemory?.pendingMentorQuestion ||
+    (rememberedScaffold?.issue_id
+      ? {
+          issue_id: rememberedScaffold.issue_id,
+          expects: rememberedScaffold.expected_answer_domains || [],
+          scaffolding_level: rememberedScaffold.scaffolding_level || 0,
+        }
+      : null);
+  const mentorPolicy = selectMentorPolicy({
+    assessment: adequacyAssessment,
+    candidateIssues,
+    previousQuestion: previousTeachingExchange,
+  });
+  if (
+    mentorPolicy.issue_id &&
+    !candidateIssues.some((issue) => issue.issue_id === mentorPolicy.issue_id)
+  ) {
+    const issue = mentorPolicy.selected_issue || {};
+    candidateIssues = [
+      {
+        issue_id: mentorPolicy.issue_id,
+        type: issue.type || "current_decision",
+        severity: issue.severity || null,
+        hint_level: mentorPolicy.scaffolding_level,
+        why_now: mentorPolicy.why_now,
+        reasoning_gap: null,
+        safety_critical: mentorPolicy.safety_critical,
+        relevant_to_current_turn: true,
+        evidence: [],
+        fallback_text: mentorPolicy.fallback_text,
+        parameter_safety: null,
+        clinical_rule_ids: mentorPolicy.allowed_clinical_rule_ids,
+        fired_key: null,
+      },
+      ...candidateIssues,
+    ].slice(0, 5);
+  }
+  candidateIssues = candidateIssues.map((issue) =>
+    issue.issue_id === mentorPolicy.issue_id
+      ? {
+          ...issue,
+          fallback_text: mentorPolicy.fallback_text,
+          hint_level: mentorPolicy.scaffolding_level,
+        }
+      : issue
+  );
+  const selectedMove = mentorPolicy.issue_id
+    ? moves.find(
+        (move) =>
+          (move.issue_id || move.heuristic_id || move.type) === mentorPolicy.issue_id
+      )
+    : null;
+  const focusedMoves = mentorPolicy.mode === MENTOR_MODE.CONTINUE
+    ? []
+    : [
+        {
+          ...(selectedMove || mentorPolicy.selected_issue || {}),
+          issue_id: mentorPolicy.issue_id,
+          type: selectedMove?.type || mentorPolicy.selected_issue?.type || "current_decision",
+          template: mentorPolicy.fallback_text,
+        },
+      ];
+  const silent = mentorPolicy.mode === MENTOR_MODE.CONTINUE;
+
+  // Live suppression must not erase educational information. Re-evaluate the
+  // accumulated state without the live-turn relevance gate and carry those
+  // gaps to the debrief archive only.
+  const debriefOnlyIssues = selectHeuristics({
+    caseData,
+    session,
+    attempted,
+    alreadyFired: [],
+    currentTurn: null,
+    limit: 100,
+  })
+    .filter(
+      (heuristic) =>
+        heuristic.severity !== 4 && heuristic.id !== mentorPolicy.issue_id
+    )
+    .map((heuristic) => ({
+      issue_id: heuristic.id,
+      type: heuristic.type,
+      why_deferred: "not_selected_for_live_teaching",
+      first_observed_turn: session.workingMemory?.turnNumber || 0,
+    }));
 
   // What the deterministic layer already did this turn, by name only.
   //
@@ -437,8 +645,35 @@ export function buildMentorBrief({
 
   return {
     moves: focusedMoves,
+    candidateIssues,
+    mentorPolicy: {
+      policy_version: mentorPolicy.policy_version,
+      mode: mentorPolicy.mode,
+      adequacy: mentorPolicy.adequacy,
+      priority: mentorPolicy.priority,
+      issue_id: mentorPolicy.issue_id,
+      why_now: mentorPolicy.why_now,
+      scaffolding_level: mentorPolicy.scaffolding_level,
+      expected_answer_domains: mentorPolicy.expected_answer_domains,
+      question_domain: mentorPolicy.question_domain,
+      allowed_clinical_rule_ids: mentorPolicy.allowed_clinical_rule_ids,
+      safety_critical: mentorPolicy.safety_critical,
+      governance_stop: mentorPolicy.governance_stop,
+      consultation_preserved: mentorPolicy.consultation_preserved,
+      reasoning_sufficient_to_advance: mentorPolicy.reasoning_sufficient_to_advance,
+    },
+    approvedTeachingRules: mentorPolicy.approved_teaching_rules || [],
+    deferredIssues: debriefOnlyIssues,
     justPerformed,
     learnerReasoning: learnerReasoning(session.workingMemory?.reasoningState),
+    reasoningDeltaThisTurn: plan.parsed?.reasoning || null,
+    accumulatedReasoningState: session.workingMemory?.reasoningState || null,
+    recentDialogue: (session.messages || []).slice(-6),
+    previousMentorIntervention: session.workingMemory?.lastMentorIntervention || null,
+    previousMentorQuestionContract:
+      plan.pendingMentorQuestionBeforeTurn || session.workingMemory?.pendingMentorQuestion || null,
+    safetyFlags: plan.parameterSafetySignals || [],
+    simulatorProducedResults: Boolean(simulatorProducedResults),
     silent,
     // The engine folds these into working memory so a heuristic speaks once per
     // session. A supervisor who repeats the same remark every turn stops being
@@ -452,6 +687,7 @@ export function buildMentorBrief({
     allowedFactSourceIds: revealedFacts.map((fact) => fact.source_id),
     turnNumber: session.workingMemory?.turnNumber || 0,
     phase: session.phase,
+    pathState: session.pathState || null,
     locale: session.locale || "ru",
   };
 }

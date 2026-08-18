@@ -63,12 +63,17 @@ test("the manifest validates against the real case, with every reference resolvi
   assert.equal(result.ok, true);
 });
 
-test("the manifest accepts population-gated aliases removed from a generated patient", () => {
+test("the manifest accepts population-gated actions retained as non-expected", () => {
   const generated = buildV35Case({
     seed: "manifest-runtime-case",
     requestedPresetId: "APP-001",
   }).caseData;
-  assert.ok(generated.v35_removed_action_ids.length > 0);
+  assert.deepEqual(generated.v35_removed_action_ids, []);
+  assert.ok(generated.v35_non_expected_action_ids.length > 0);
+  const pregnancy = generated.expected_actions.find((action) => action.id === "pregnancy_test");
+  assert.equal(pregnancy.available_to_order, true);
+  assert.equal(pregnancy.expected_for_this_patient, false);
+  assert.equal(pregnancy.eligible_for_scoring, false);
   assert.deepEqual(validateV35Manifest(generated).errors, []);
 });
 
@@ -681,7 +686,7 @@ test("every playable V3.5 case disables the legacy numeric rubric at case level"
 test("a gate has a scope, a target and a waiver - not a boolean", () => {
   const consent = SCORING_CONTRACT.find((e) => e.canonical_id === "informed_consent");
   assert.equal(consent.gate.gate_scope, "before_intervention");
-  assert.deepEqual(consent.gate.blocks_action_ids, ["open_appendectomy_here"]);
+  assert.deepEqual(consent.gate.blocks_action_ids, ["appendectomy_here"]);
   // The surgeon's example: emergency surgery on a patient without capacity.
   assert.ok(consent.gate.waiver_conditions.length > 0);
 

@@ -20,7 +20,7 @@
 // replaying the effective seed; auditing the selector means replaying the
 // requested one.
 
-import { learnerSelectablePresets, presetsById } from "./phenotypes.js";
+import { CASE_PRESETS, learnerSelectablePresets, presetsById } from "./phenotypes.js";
 import { coherenceViolations, generatePatient } from "./patientGenerator.js";
 
 function hashSeed(seed) {
@@ -73,7 +73,7 @@ function reseedUntilCoherent(casePresetId, seed) {
  * @param {string} options.seed                    requested seed
  * @param {string|null} [options.previousPresetId] what the learner had last
  * @param {string|null} [options.requestedPresetId] faculty override
- * @param {"learner"|"faculty"} [options.mode]
+ * @param {"learner"|"faculty"|"internal_test"} [options.mode]
  * @returns {{preset, patient, selection}}
  */
 export function selectV35Case({
@@ -89,7 +89,7 @@ export function selectV35Case({
   if (requestedPresetId) {
     const preset = presetsById.get(requestedPresetId);
     if (!preset) throw new Error(`Unknown case preset "${requestedPresetId}".`);
-    if (mode !== "faculty" && preset.runtime_status !== "learner_active") {
+    if (!["faculty", "internal_test"].includes(mode) && preset.runtime_status !== "learner_active") {
       throw new Error(
         `Preset "${requestedPresetId}" is ${preset.runtime_status} and cannot be selected in learner mode.`
       );
@@ -132,7 +132,7 @@ export function selectV35Case({
     };
   }
 
-  const pool = learnerSelectablePresets();
+  const pool = mode === "internal_test" ? CASE_PRESETS : learnerSelectablePresets();
   if (pool.length === 0) throw new Error("No learner-selectable case presets.");
 
   const attempts = [];

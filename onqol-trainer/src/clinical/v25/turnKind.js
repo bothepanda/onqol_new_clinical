@@ -30,6 +30,9 @@
 export const TURN_KINDS = Object.freeze([
   "clinical_action",
   "clinical_reasoning",
+  "mentor_answer",
+  "patient_question",
+  "conversation_management",
   "clarification_request",
   "repeat_or_correction",
   "interface_command",
@@ -65,6 +68,8 @@ const CLARIFICATION_RE =
 /** "I already said that." Prefix only - what follows may be the plan itself. */
 const REPEAT_RE =
   /^(я\s+же\s+(сказал|сказала|говорил|говорила)|я\s+уже\s+(сказал|сказала|говорил|говорила|ответил|ответила)|повторяю|это\s+и\s+есть\s+мо[йе]\s+(план|ответ)|как\s+я\s+(сказал|сказала)\s+выше)(\s|$)/;
+const MEMORY_DISPUTE_RE =
+  /^(я\s+же\s+(?:сделал[аи]?|указал[аи]?|написал[аи]?)\s+(?:все|всё|это)(?:\s+выше)?|я\s+уже\s+(?:это\s+)?(?:сделал[аи]?|указал[аи]?|написал[аи]?)|это\s+(?:было|есть)\s+(?:выше|в\s+прошлом\s+сообщении)|я\s+же\s+все\s+это\s+выше)(\s|$)/;
 
 /**
  * An explicit request to do something AGAIN, which is a real clinical order.
@@ -93,8 +98,19 @@ export function classifyTurn(input) {
   if (CLARIFICATION_RE.test(text) && words <= CLARIFICATION_MAX_WORDS) {
     return {
       kind: "clarification_request",
+      semantic_kind: "conversation_management",
       reason: "learner asked for the previous question to be restated",
       // The only kind that stops the clinical path outright.
+      blocks_clinical_turn: true,
+    };
+  }
+
+  if (MEMORY_DISPUTE_RE.test(text) && words <= 14) {
+    return {
+      kind: "repeat_or_correction",
+      semantic_kind: "conversation_management",
+      reason: "learner disputed whether prerequisite actions were already recorded",
+      reason_code: "memory_dispute",
       blocks_clinical_turn: true,
     };
   }
@@ -102,6 +118,7 @@ export function classifyTurn(input) {
   if (REPEAT_RE.test(text)) {
     return {
       kind: "repeat_or_correction",
+      semantic_kind: "unknown",
       reason: "learner restated an answer already given",
       // NOT blocking: the restatement usually carries the plan, and the learner's
       // reasoning still deserves to be recorded. Re-execution is prevented by
@@ -110,7 +127,192 @@ export function classifyTurn(input) {
     };
   }
 
-  return { kind: "unknown", reason: null, blocks_clinical_turn: false };
+  return { kind: "unknown", semantic_kind: "unknown", reason: null, blocks_clinical_turn: false };
+}
+
+function emptyContextualReasoning() {
+  return {
+    stability: { stated: false, learner_assessment: null },
+    problem_representation: { stated: false, verbatim: null },
+    working_diagnosis: { stated: false, concept_id: null, uncertainty_stated: false },
+    differential: {
+      stated: false,
+      ranked: false,
+      has_dangerous_alternative: false,
+      concept_ids: [],
+      items: [],
+    },
+    investigations: [],
+    management: { plan_stated: false, urgency_stated: false, rationale_stated: false },
+    observation: {
+      active: false,
+      goal_stated: false,
+      reassessment_interval_stated: false,
+      escalation_criteria_stated: false,
+    },
+    reassessment: { stated: false },
+    contingency: {
+      stated: false,
+      specificity: null,
+      trigger_concept_ids: [],
+      trigger_verbatim: [],
+    },
+    disposition: { stated: false, destination: null },
+    consultation: { own_assessment_stated: false, consultation_question_stated: false },
+  };
+}
+
+/**
+ * Resolve elliptical answers against the immediately preceding mentor question.
+ * The text remains a learner claim and never becomes a patient fact.
+ */
+export function interpretPendingMentorAnswer(input, pendingQuestion, context = {}) {
+  if (!pendingQuestion || !String(input || "").trim()) return null;
+  const expects = new Set(pendingQuestion.expects || []);
+  if (!expects.size) return null;
+  const delta = emptyContextualReasoning();
+  const verbatim = String(input).trim();
+  const observationList =
+    (verbatim.match(/(?:^|[^\p{L}])ли(?=$|[^\p{L}])/giu) || []).length >= 2;
+  const explicitConditional = /(?:^|\s)(если|при\s+ухудш|ухудшени|изменени)/iu.test(verbatim);
+  const parameterReply =
+    expects.has("treatment_parameter") &&
+    (/\d+(?:[.,]\d+)?\s*(?:мл|mg|мг|ml)(?:\s*\/\s*(?:кг|kg))?/iu.test(verbatim) ||
+      /(отменяю|убираю|без\s+расч[её]та|не\s+применяю)/iu.test(verbatim));
+  if (
+    context.hasClinicalAction &&
+    !observationList &&
+    !explicitConditional &&
+    !parameterReply &&
+    verbatim.split(/\s+/u).length > 6
+  ) {
+    return null;
+  }
+  if (context.hasPatientQuestion && !observationList && !explicitConditional) return null;
+
+  let matched = false;
+  if (expects.has("contingency")) {
+    matched = true;
+    delta.contingency = {
+      stated: true,
+      specificity: observationList
+        ? "partial"
+        : verbatim.split(/\s+/u).length <= 4
+          ? "vague"
+          : "specific",
+      trigger_concept_ids: [],
+      trigger_verbatim: [verbatim],
+    };
+  }
+  if (observationList) {
+    delta.observation.active = true;
+    delta.observation.goal_stated = true;
+    delta.observation.escalation_criteria_stated = true;
+  }
+  if (expects.has("observation")) {
+    matched = true;
+    delta.observation.active = true;
+    delta.observation.goal_stated = true;
+    delta.observation.escalation_criteria_stated = true;
+    delta.contingency = {
+      stated: true,
+      specificity: "specific",
+      trigger_concept_ids: [],
+      trigger_verbatim: [verbatim],
+    };
+  }
+  if (expects.has("stability")) {
+    matched = true;
+    delta.stability.stated = true;
+    delta.stability.learner_assessment = null;
+  }
+  if (expects.has("management")) {
+    matched = true;
+    delta.management.plan_stated = true;
+  }
+  if (expects.has("reassessment")) {
+    matched = true;
+    delta.reassessment.stated = true;
+  }
+  if (expects.has("treatment_parameter")) {
+    matched = parameterReply;
+  }
+  if (
+    [...expects].some((domain) =>
+      [
+        "current_decision",
+        "immediate_actions",
+        "ownership",
+        "action_scope",
+        "operative_objective",
+        "operative_approach",
+      ].includes(domain)
+    ) &&
+    (context.hasClinicalAction || context.hasReasoning)
+  ) {
+    matched = true;
+  }
+  if (!matched) return null;
+
+  return {
+    reasoning: delta,
+    issue_id: pendingQuestion.issue_id,
+    answered_contract: true,
+  };
+}
+
+/** Recognise an explicit list of future monitoring/escalation criteria. */
+export function interpretStandaloneReasoning(input) {
+  const verbatim = String(input || "").trim();
+  if ((verbatim.match(/(?:^|[^\p{L}])ли(?=$|[^\p{L}])/giu) || []).length < 2) return null;
+  const delta = emptyContextualReasoning();
+  delta.observation.active = true;
+  delta.observation.goal_stated = true;
+  delta.observation.escalation_criteria_stated = true;
+  delta.contingency = {
+    stated: true,
+    specificity: "partial",
+    trigger_concept_ids: [],
+    trigger_verbatim: [verbatim],
+  };
+  return delta;
+}
+
+/** Classify the effective clinical semantics after routing and contextual interpretation. */
+export function resolveTurnSemantics({ base, actions = [], parsed = {}, mentorAnswer = null }) {
+  if (base?.blocks_clinical_turn) {
+    return {
+      ...base,
+      kind: "conversation_management",
+      legacy_kind: base.kind,
+      semantic_kind: "conversation_management",
+      components: ["conversation_management"],
+    };
+  }
+  const hasAction = actions.length > 0 || (parsed.managementDecisions || []).length > 0;
+  const hasReasoning = Boolean(parsed.reasoning);
+  const hasPatientQuestion = (parsed.intents || []).some((intent) => intent.type === "question");
+  const components = [];
+  if (hasAction) components.push("clinical_action");
+  if (mentorAnswer) components.push("mentor_answer");
+  else if (hasReasoning) components.push("clinical_reasoning");
+  if (hasPatientQuestion && !mentorAnswer) components.push("patient_question");
+  const semanticKind = hasAction
+    ? "clinical_action"
+    : mentorAnswer
+      ? "mentor_answer"
+      : hasReasoning
+        ? "clinical_reasoning"
+        : hasPatientQuestion
+          ? "patient_question"
+          : "unknown";
+  return {
+    ...base,
+    kind: semanticKind,
+    legacy_kind: base?.kind || "unknown",
+    semantic_kind: semanticKind,
+    components: [...new Set(components.length ? components : [semanticKind])],
+  };
 }
 
 /** Did the learner explicitly ask for something to be done again? */

@@ -172,7 +172,7 @@ test("status declares gateway and strict schema versions without credentials", a
   assert.equal(recorder.response.statusCode, 200);
   assert.ok(recorder.body().gatewayVersion);
   assert.equal(recorder.body().schemas.router.ready, true);
-  assert.equal(recorder.body().schemas.mentor.version, "mentor-revealed-facts-v1");
+  assert.equal(recorder.body().schemas.mentor.version, "mentor-policy-rendering-v3");
   assert.doesNotMatch(JSON.stringify(recorder.body()), /provider-secret|pilot-code/);
 });
 

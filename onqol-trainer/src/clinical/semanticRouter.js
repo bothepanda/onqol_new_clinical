@@ -69,9 +69,13 @@ export function buildSemanticRouterPrompt({ input, caseData, session, locale = "
       "You must not create findings, scores, medical advice, guideline references, or new concept IDs.",
       "Use only concept_id values from the allowed concepts list.",
       "A single message may contain multiple intents.",
+      "For every intent, copy the shortest exact contiguous span that requested it into requested_fragment. Never paraphrase that field.",
       "Use recent conversation only to resolve pronouns or elliptical follow-ups. Extract actions only from raw_user_text, never repeat actions merely because they appear in history.",
       "The separate simulator handles arbitrary questions. A question does not need a concept_id unless it expresses a scoring-relevant action.",
       "Broad requests should map to the relevant available sub-concepts.",
+      "OPERATIVE LANGUAGE. A possibility is not a decision and a decision is not a performed procedure.",
+      "Map hypothetical/tentative language (for example possible surgery, preparing for a potential operation, considering surgery) only to operative_intent or prepare_for_possible_surgery when those concepts are allowed. Never map it to procedure start or source-control completion.",
+      "Map a committed appendectomy decision without an access to decision_for_appendectomy. Map an explicitly committed open or laparoscopic procedure to the corresponding operative_approach concept.",
       "If part of the message is unclear, return unknown only for that part.",
       "Return JSON only, with no Markdown.",
       "",
@@ -132,6 +136,7 @@ export function buildSemanticRouterPrompt({ input, caseData, session, locale = "
               type: "request_history | request_examination | request_test | diagnosis | management | question | unknown",
               concept_id: "allowed_concept_id | null",
               confidence: "0.0-1.0",
+              requested_fragment: "exact span of raw_user_text for this intent | null",
             },
           ],
           unresolved_fragments: [],
@@ -291,6 +296,7 @@ export function validateRouterOutput(routerPayload, caseData, options = {}) {
   const invalidConcepts = [];
   const recognizedButUndefined = [];
   const unresolvedByKind = [];
+  const managementDecisions = [];
   const seenActions = new Set();
 
   for (const rawIntent of parsed.intents || []) {
@@ -299,14 +305,36 @@ export function validateRouterOutput(routerPayload, caseData, options = {}) {
     const confidence = Number.isFinite(Number(rawIntent?.confidence))
       ? Math.max(0, Math.min(1, Number(rawIntent.confidence)))
       : 0;
+    const requestedFragment = verbatimOrNull(rawIntent?.requested_fragment, options.learnerText);
 
     if (conceptId && !allowed.has(conceptId) && !Object.hasOwn(conceptMap, conceptId)) {
       invalidConcepts.push(conceptId);
-      intents.push({ type: "unknown", concept_id: null, confidence: 0 });
+      intents.push({
+        type: "unknown",
+        concept_id: null,
+        confidence: 0,
+        requested_fragment: requestedFragment,
+      });
+      if (requestedFragment) {
+        unresolvedByKind.push({
+          concept_id: null,
+          kind: "unrecognized_fragment",
+          requested_fragment: requestedFragment,
+          reason_code: "invalid_router_concept",
+        });
+      }
       continue;
     }
 
-    intents.push({ type, concept_id: conceptId, confidence });
+    intents.push({ type, concept_id: conceptId, confidence, requested_fragment: requestedFragment });
+    if (type === "unknown" && requestedFragment) {
+      unresolvedByKind.push({
+        concept_id: null,
+        kind: "unrecognized_fragment",
+        requested_fragment: requestedFragment,
+        reason_code: "router_unrecognized",
+      });
+    }
     // What KIND of thing is this? An empty mapping used to mean six different
     // things; the registry says which one, so the engine can answer each
     // honestly instead of falling silent. See conceptRegistry.js.
@@ -316,6 +344,24 @@ export function validateRouterOutput(routerPayload, caseData, options = {}) {
     // kinds answer whatever intent type they arrive under.
     const answersAnyIntent = typed && ["resource_query", "unsupported"].includes(typed.kind);
     if (conceptId && (answersAnyIntent || (type !== "question" && type !== "unknown"))) {
+      if (typed?.kind === "management_decision") {
+        managementDecisions.push({
+          concept_id: conceptId,
+          decision_id: typed.decision_id,
+          commitment: "ordered",
+        });
+        continue;
+      }
+      if (typed?.kind === "operative_approach") {
+        managementDecisions.push({
+          concept_id: conceptId,
+          decision_id: "operative_approach",
+          approach: typed.approach,
+          commitment: "selected",
+          requested_fragment: requestedFragment,
+        });
+        continue;
+      }
       if (typed && typed.kind !== "action" && typed.kind !== "finding_bundle") {
         unresolvedByKind.push({
           concept_id: conceptId,
@@ -328,6 +374,8 @@ export function validateRouterOutput(routerPayload, caseData, options = {}) {
           finding_bundle: typed.finding_bundle || null,
           candidates: typed.candidates || [],
           findings_status: typed.findings_status || null,
+          requested_fragment: requestedFragment,
+          reason_code: `typed_${typed.kind}`,
         });
         continue;
       }
@@ -343,6 +391,8 @@ export function validateRouterOutput(routerPayload, caseData, options = {}) {
           finding_bundle: null,
           candidates: [],
           question_ru: null,
+          requested_fragment: requestedFragment,
+          reason_code: "authored_finding_unavailable",
         });
         continue;
       }
@@ -352,6 +402,12 @@ export function validateRouterOutput(routerPayload, caseData, options = {}) {
 
       if (validMappedIds.length === 0) {
         recognizedButUndefined.push(conceptId);
+        unresolvedByKind.push({
+          concept_id: conceptId,
+          kind: "action_not_available_for_patient",
+          requested_fragment: requestedFragment,
+          reason_code: "action_absent_from_patient_variant",
+        });
         continue;
       }
 
@@ -363,6 +419,7 @@ export function validateRouterOutput(routerPayload, caseData, options = {}) {
             intent_type: type,
             confidence,
             routed_concept_id: conceptId,
+            ...(requestedFragment ? { requested_fragment: requestedFragment } : {}),
           });
           seenActions.add(mappedId);
         }
@@ -397,13 +454,16 @@ export function validateRouterOutput(routerPayload, caseData, options = {}) {
     // questions, orders too vague to act on, and actions whose authored result
     // is not signed. Each gets its own answer downstream.
     unresolvedByKind,
+    managementDecisions,
     reasoning,
     actionParameters: normalizeActionParameters(parsed.action_parameters, {
       allowedConceptIds: new Set([...allowed.keys(), ...Object.keys(conceptMap)]),
       learnerText: options.learnerText,
     }),
     routerSchemaVersion: ROUTER_SCHEMA_VERSION,
-    unresolvedFragments: parsed.unresolved_fragments || [],
+    unresolvedFragments: (parsed.unresolved_fragments || [])
+      .map((fragment) => verbatimOrNull(fragment, options.learnerText))
+      .filter(Boolean),
     unknownText: intents.some((intent) => intent.type === "unknown") ? "unresolved_intent" : "",
     source: "semantic_router",
   };

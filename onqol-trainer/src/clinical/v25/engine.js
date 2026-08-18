@@ -17,9 +17,15 @@ import { describeEta, resolveActionEta, turnEtaMinutes } from "./resourceTiming.
 import { planClinicalTurn } from "./turnPlanner.js";
 import { buildMentorBrief, prerequisiteMeta } from "../core/mentorBrief.js";
 import { runMentorAgent } from "../core/mentorAgent.js";
+import { MENTOR_MODE, MENTOR_POLICY_VERSION } from "../core/mentorPolicy.js";
 import { buildReasoningSnapshot, deriveV35PathState } from "../v35/runtimePath.js";
+import {
+  CLINICAL_GOVERNANCE_VERSION,
+  CLINICAL_RULE_REGISTRY_VERSION,
+  SOURCE_REGISTRY_VERSION,
+} from "../governance/clinicalGovernance.js";
 
-export const V25_ENGINE_VERSION = "2.5.2";
+export const V25_ENGINE_VERSION = "2.5.3";
 export const V25_TERMINAL_STATUSES = Object.freeze([
   "in_progress",
   "completed",
@@ -77,6 +83,17 @@ function nonActionReplies(caseData, session, entries) {
       if (entry.reason_ru) replies.push(entry.reason_ru);
       continue;
     }
+    if (entry.kind === "action_not_available_for_patient") {
+      const fragment = entry.requested_fragment || entry.concept_id || "запрошенное действие";
+      replies.push(`«${fragment}»: действие распознано, но результат не авторизован для этого варианта пациента.`);
+      continue;
+    }
+    if (entry.kind === "unrecognized_fragment") {
+      if (entry.requested_fragment) {
+        replies.push(`Не распознано: «${entry.requested_fragment}». Уточни, что именно назначаешь.`);
+      }
+      continue;
+    }
     if (entry.kind === "needs_specification") {
       if (entry.question_ru) replies.push(entry.question_ru);
       continue;
@@ -132,6 +149,25 @@ function createWorkingMemory() {
     // in here may move the score. See core/reasoningState.js.
     reasoningState: createEmptyReasoningState(),
     reasoningSnapshotIds: [],
+    // A focused mentor question is a small routing contract for the next turn,
+    // not just text in the transcript.
+    pendingMentorQuestion: null,
+    lastMentorIntervention: null,
+    mentorScaffoldingState: {
+      issue_id: null,
+      scaffolding_level: 0,
+      expected_answer_domains: [],
+    },
+    deferredMentorIssues: [],
+    operativeDecision: null,
+    operativeApproach: null,
+    operativeState: {
+      appendectomy_decided: false,
+      operative_approach_selected: false,
+      preop_ready: false,
+      procedure_started: false,
+      source_control_completed: false,
+    },
   };
 }
 
@@ -200,10 +236,19 @@ function prerequisiteBlocks(caseData, plan, actionId) {
 
 function resourceChecks(session, operation, input) {
   const clockMinutes = session.temporalState?.clockMinutes || 0;
-  const checks = [
-    resolveActionResource(session.scenario, operation.action_id, input, clockMinutes),
-  ];
-  if (operation.action_id === "open_appendectomy_here" && operation.commitment !== "proposed") {
+  const operativeAction = ["appendectomy_procedure_start", "appendectomy_here"].includes(
+    operation.action_id
+  );
+  const approach =
+    operation.technique || session.workingMemory?.operativeApproach?.approach || null;
+  const checks = [operativeAction && approach
+    ? resolveScenarioResource(
+        session.scenario,
+        approach === "laparoscopic" ? "laparoscopy" : "operatingRoom",
+        clockMinutes
+      )
+    : resolveActionResource(session.scenario, operation.action_id, input, clockMinutes)];
+  if (operativeAction && operation.commitment !== "proposed") {
     checks.push(resolveScenarioResource(session.scenario, "anesthesia", clockMinutes));
     checks.push(resolveScenarioResource(session.scenario, "operatingRoom", clockMinutes));
   }
@@ -211,6 +256,40 @@ function resourceChecks(session, operation, input) {
 }
 
 function pathwayBlock(session, operation) {
+  const completed = new Set(session.completedActions || []);
+  const approach = session.workingMemory?.operativeApproach?.approach || operation.technique || null;
+  if (operation.action_id === "appendectomy_procedure_start") {
+    if (!approach) {
+      return {
+        reasonId: "operative_approach_not_selected",
+        text: "До начала вмешательства отдельно выбери операционный доступ.",
+      };
+    }
+    if (!completed.has("who_sign_in")) {
+      return {
+        reasonId: "sign_in_before_induction",
+        missing: ["who_sign_in"],
+        text: "Перед индукцией отдельно зафиксируй Sign In. Согласие и вызов команды его не заменяют.",
+      };
+    }
+    if (!completed.has("who_time_out")) {
+      return {
+        reasonId: "time_out_before_incision",
+        missing: ["who_time_out"],
+        text: "Sign In зафиксирован. Перед разрезом отдельно выполни Time Out.",
+      };
+    }
+  }
+  if (
+    operation.action_id === "appendectomy_here" &&
+    !completed.has("appendectomy_procedure_start")
+  ) {
+    return {
+      reasonId: "source_control_before_procedure_start",
+      missing: ["appendectomy_procedure_start"],
+      text: "Контроль источника нельзя отметить завершённым до явного начала вмешательства.",
+    };
+  }
   if (operation.action_id === "postoperative_reassessment" && !session.temporalState.sourceControl) {
     return {
       reasonId: "postoperative_reassessment_before_source_control",
@@ -291,8 +370,43 @@ function lastQuestionAsked(session) {
   return null;
 }
 
+function recordedActionDisputeReply(session) {
+  const completed = new Set(session.completedActions || []);
+  const completedLabels = [
+    ["informed_consent", "согласие"],
+    ["notify_anesthesia", "уведомление анестезиолога"],
+    ["notify_operating_team", "готовность операционной"],
+  ]
+    .filter(([id]) => completed.has(id))
+    .map(([, label]) => label);
+  const missing = [
+    ["who_sign_in", "Sign In"],
+    ["who_time_out", "Time Out"],
+  ]
+    .filter(([id]) => !completed.has(id))
+    .map(([, label]) => label);
+
+  const recorded = completedLabels.length
+    ? `${completedLabels.join(", ")} уже зафиксированы.`
+    : "Согласие, уведомление анестезиолога и готовность операционной выше не зафиксированы.";
+  if (!missing.length) return `${recorded} Sign In и Time Out тоже уже зафиксированы.`;
+  const next = missing.includes("Sign In")
+    ? "Перед индукцией выполни Sign In."
+    : "Перед разрезом выполни Time Out.";
+  return `${recorded} Отдельно не зафиксированы ${missing.join(" и ")}. ${next}`;
+}
+
 function closingPrompt(session, plan, blockedOperations) {
   if (blockedOperations.length) return "Как меняешь план с учётом этого ограничения?";
+  if (session.workingMemory?.operativeState?.procedure_started && !session.temporalState.sourceControl) {
+    return "Вмешательство начато. Когда контроль источника будет завершён, зафиксируй это отдельно.";
+  }
+  if (
+    session.workingMemory?.operativeApproach?.status === "selected" &&
+    !session.workingMemory?.operativeState?.procedure_started
+  ) {
+    return "Доступ выбран. Какой следующий операционный шаг?";
+  }
   if (session.pathState === "operation") {
     return "Контроль источника завершён. Где и с каким мониторингом пациент продолжит наблюдение?";
   }
@@ -334,7 +448,27 @@ function applyPlan(caseData, session, plan, options = {}) {
     lastLearnerMove: plan.learnerMove,
     unresolvedFragments: plan.parsed.unresolvedFragments || [],
     reasoningState,
+    pendingMentorQuestion: plan.mentorAnswer
+      ? null
+      : session.workingMemory.pendingMentorQuestion || null,
   };
+  if ((plan.managementDecisions || []).some((decision) => decision.decision_id === "appendectomy")) {
+    const diagnosisSupportsDecision =
+      session.completedActions.includes("diagnosis_acute_appendicitis") ||
+      reasoningState.working_diagnosis?.stated;
+    memory = {
+      ...memory,
+      operativeDecision: {
+        decision_id: "appendectomy",
+        status: diagnosisSupportsDecision ? "committed" : "proposed",
+        updated_turn: turnNumber,
+      },
+      operativeState: {
+        ...memory.operativeState,
+        appendectomy_decided: diagnosisSupportsDecision,
+      },
+    };
+  }
   const replies = [];
   const scoringEvents = [];
   const actionLogEntries = [];
@@ -343,11 +477,143 @@ function applyPlan(caseData, session, plan, options = {}) {
   const revealedResources = [];
   const blockedOperations = [];
 
+  const approachDecision = (plan.managementDecisions || []).find(
+    (decision) => decision.decision_id === "operative_approach"
+  );
+  if (approachDecision?.approach) {
+    const resource = approachDecision.approach === "laparoscopic" ? "laparoscopy" : "operatingRoom";
+    const resolution = resolveScenarioResource(
+      nextSession.scenario,
+      resource,
+      nextSession.temporalState?.clockMinutes || 0
+    );
+    if (resolution.available) {
+      memory = {
+        ...memory,
+        operativeApproach: {
+          approach: approachDecision.approach,
+          status: "selected",
+          updated_turn: turnNumber,
+        },
+        operativeState: {
+          ...memory.operativeState,
+          operative_approach_selected: true,
+        },
+      };
+      replies.push(
+        `**Операционный доступ:** ${
+          approachDecision.approach === "laparoscopic" ? "лапароскопический" : "открытый"
+        } доступ выбран; ресурс доступен.`
+      );
+      actionLogEntries.push({
+        turn: turnNumber,
+        action_id: "operative_approach",
+        approach: approachDecision.approach,
+        action_decision: "selected",
+        lifecycle_before: session.workingMemory?.operativeApproach?.status || null,
+        lifecycle_after: "selected",
+        applied_to_patient: false,
+      });
+    } else {
+      memory = {
+        ...memory,
+        operativeApproach: {
+          approach: approachDecision.approach,
+          status: "blocked",
+          blocked_by: resolution.reasonId,
+          updated_turn: turnNumber,
+        },
+      };
+      blockedOperations.push({
+        action_id: "operative_approach",
+        technique: approachDecision.approach,
+        resource_block: resolution.reasonId,
+      });
+      if (resolution.revealText) replies.push(`**Доступность ресурса:** ${resolution.revealText}`);
+      if (!revealedResources.includes(resource)) revealedResources.push(resource);
+      actionLogEntries.push({
+        turn: turnNumber,
+        action_id: "operative_approach",
+        approach: approachDecision.approach,
+        action_decision: "blocked",
+        lifecycle_before: session.workingMemory?.operativeApproach?.status || null,
+        lifecycle_after: "blocked",
+        resource_blocks: [resolution.reasonId],
+        applied_to_patient: false,
+      });
+    }
+  }
+
   for (const operation of plan.operations) {
     const action = getAction(caseData, operation.action_id);
     if (!action) continue;
     const kind = actionKind(caseData, operation.action_id);
     const beforeStatus = memory.actionStates[operation.action_id]?.status || null;
+
+    if (
+      ["request_history", "request_examination", "request_test"].includes(operation.intent_type) &&
+      !operation.finding &&
+      operation.findingStatus
+    ) {
+      const fragment = operation.requestedFragment || operation.action_id;
+      blockedOperations.push({
+        ...operation,
+        content_gap: operation.findingStatus,
+      });
+      replies.push(
+        `«${fragment}»: ${operation.unavailableReason || "результат пока не смоделирован для этого варианта кейса."}`
+      );
+      memory = updateActionState(memory, operation, "blocked", memory.turnNumber, {
+        blocked_by: [operation.findingStatus],
+      });
+      actionLogEntries.push({
+        turn: memory.turnNumber,
+        action_id: operation.action_id,
+        requested_fragment: fragment,
+        intent_type: operation.intent_type,
+        lifecycle_before: beforeStatus,
+        lifecycle_after: "blocked",
+        action_decision: "blocked",
+        applied_to_patient: false,
+        content_gap: operation.findingStatus,
+        confidence: operation.confidence,
+      });
+      continue;
+    }
+
+    const parameterSafety = (plan.parameterSafetySignals || []).find(
+      (signal) => signal.concept_id === operation.action_id
+    );
+    if (parameterSafety?.blocks_application) {
+      blockedOperations.push({ ...operation, parameter_safety: parameterSafety });
+      replies.push(
+        `**Проверка параметра:** «${
+          parameterSafety.verbatim || operation.requestedFragment || operation.action_id
+        }» требует клинической проверки: параметр не валидирован учебным контентом и не применён к пациенту.`
+      );
+      memory = updateActionState(memory, operation, "blocked", memory.turnNumber, {
+        blocked_by: [
+          parameterSafety.source_rule_id ||
+          parameterSafety.governance_policy_id ||
+          parameterSafety.blocking_reason,
+        ],
+      });
+      actionLogEntries.push({
+        turn: memory.turnNumber,
+        action_id: operation.action_id,
+        intent_type: operation.intent_type,
+        lifecycle_before: beforeStatus,
+        lifecycle_after: "blocked",
+        applied_to_patient: false,
+        action_decision: "blocked",
+        recognized_drug: parameterSafety.recognized_drug ?? null,
+        parameter_validation_status: parameterSafety.parameter_validation_status,
+        blocking_reason: parameterSafety.blocking_reason,
+        parameter_safety: parameterSafety,
+        confidence: operation.confidence,
+      });
+      continue;
+    }
 
     if (operation.commitment === "proposed" && !operation.countsAsDecision) {
       memory = updateActionState(memory, operation, "proposed", memory.turnNumber);
@@ -357,13 +623,30 @@ function applyPlan(caseData, session, plan, options = {}) {
         intent_type: operation.intent_type,
         lifecycle_before: beforeStatus,
         lifecycle_after: "proposed",
+        action_decision: "selected",
         applied_to_patient: false,
         confidence: operation.confidence,
       });
       continue;
     }
 
-    const blockedByPath = pathwayBlock(nextSession, operation);
+    if (operation.action_id === "appendectomy_here") {
+      memory = {
+        ...memory,
+        operativeDecision: {
+          decision_id: "appendectomy",
+          status: "committed",
+          updated_turn: memory.turnNumber,
+        },
+      };
+    }
+
+    const blockedByPath = options.enforcePathwayBlocks === false
+      ? null
+      : pathwayBlock(
+          { ...nextSession, workingMemory: memory },
+          operation
+        );
     if (blockedByPath) {
       blockedOperations.push(operation);
       replies.push(`**Граница пути:** ${blockedByPath.text}`);
@@ -376,6 +659,7 @@ function applyPlan(caseData, session, plan, options = {}) {
         intent_type: operation.intent_type,
         lifecycle_before: beforeStatus,
         lifecycle_after: "blocked",
+        action_decision: "blocked",
         applied_to_patient: false,
         pathway_block: blockedByPath.reasonId,
         missing_path_requirements: blockedByPath.missing || [],
@@ -398,6 +682,7 @@ function applyPlan(caseData, session, plan, options = {}) {
         intent_type: operation.intent_type,
         lifecycle_before: beforeStatus,
         lifecycle_after: "blocked",
+        action_decision: "blocked",
         applied_to_patient: false,
         prerequisite_blocks: missingBlocking.map((meta) => meta.reason_id),
         confidence: operation.confidence,
@@ -441,6 +726,7 @@ function applyPlan(caseData, session, plan, options = {}) {
         intent_type: operation.intent_type,
         lifecycle_before: beforeStatus,
         lifecycle_after: "blocked",
+        action_decision: "blocked",
         applied_to_patient: false,
         resource_blocks: blockedBy.map((block) => block.reasonId),
         resource_ready_at: blockedBy.map((block) => block.readyAt ?? null),
@@ -457,6 +743,25 @@ function applyPlan(caseData, session, plan, options = {}) {
         ? "proposed"
         : "performed";
     memory = updateActionState(memory, operation, afterStatus, memory.turnNumber);
+    if (operation.action_id === "appendectomy_procedure_start") {
+      memory = {
+        ...memory,
+        operativeState: {
+          ...memory.operativeState,
+          preop_ready: true,
+          procedure_started: true,
+        },
+      };
+    }
+    if (operation.action_id === "appendectomy_here") {
+      memory = {
+        ...memory,
+        operativeState: {
+          ...memory.operativeState,
+          source_control_completed: true,
+        },
+      };
+    }
     if (operation.action_id === "diagnosis_acute_appendicitis") {
       memory = {
         ...memory,
@@ -532,8 +837,11 @@ function applyPlan(caseData, session, plan, options = {}) {
       intent_type: operation.intent_type,
       lifecycle_before: beforeStatus,
       lifecycle_after: afterStatus,
+      action_decision: "performed",
       technique: operation.technique,
       applied_to_patient: true,
+      clinical_test_bypass: parameterSafety?.clinical_test_bypass || null,
+      parameter_safety: parameterSafety || null,
       minute_before: nextSession.temporalState.clockMinutes,
       confidence: operation.confidence,
     });
@@ -574,6 +882,20 @@ function applyPlan(caseData, session, plan, options = {}) {
       ],
     };
   }
+  const loggedActionEntries = actionLogEntries.map((entry) => {
+    const operation = plan.operations.find((candidate) => candidate.action_id === entry.action_id);
+    return {
+      ...entry,
+      requested_fragment: entry.requested_fragment || operation?.requestedFragment || null,
+      action_decision:
+        entry.action_decision ||
+        (entry.lifecycle_after === "blocked"
+          ? "blocked"
+          : entry.lifecycle_after === "proposed"
+            ? "selected"
+            : "performed"),
+    };
+  });
   nextSession = {
     ...nextSession,
     temporalState,
@@ -585,7 +907,7 @@ function applyPlan(caseData, session, plan, options = {}) {
         ...new Set([...memory.revealedConstraints, ...revealedResources]),
       ],
     },
-    actionLog: [...nextSession.actionLog, ...actionLogEntries],
+    actionLog: [...nextSession.actionLog, ...loggedActionEntries],
     prerequisiteWarnings: [
       ...nextSession.prerequisiteWarnings,
       ...plan.prerequisiteWarnings.filter((warning) => performedIds.includes(warning.action_id)),
@@ -609,14 +931,35 @@ function applyPlan(caseData, session, plan, options = {}) {
   // about the model of the case, and a patient cannot say it. Voiced by the
   // simulator it came out as the generic "эти данные не заданы", which is the
   // non-answer this whole change exists to remove.
-  const nonActionLines = nonActionReplies(caseData, nextSession, plan.parsed?.unresolvedByKind);
+  const addressedFragments = new Set(
+    (plan.parsed?.unresolvedByKind || [])
+      .map((entry) => entry.requested_fragment)
+      .filter(Boolean)
+  );
+  const unresolvedFragmentEntries = (plan.parsed?.unresolvedFragments || [])
+    .filter((fragment) => !addressedFragments.has(fragment))
+    .map((fragment) => ({
+      kind: "unrecognized_fragment",
+      requested_fragment: fragment,
+      reason_code: "router_unresolved_fragment",
+    }));
+  const nonActionLines = nonActionReplies(caseData, nextSession, [
+    ...(plan.parsed?.unresolvedByKind || []),
+    ...unresolvedFragmentEntries,
+  ]);
 
   const stateLine = neutralStateLine(previousTemporalState, temporalState);
   // A turn that asked for the question to be repeated gets the question back,
   // not a new one and not a state line about a patient who did not change.
-  const repaired = plan.mode === "conversational_turn" ? lastQuestionAsked(session) : null;
+  const repaired = plan.mode === "conversational_turn"
+    ? plan.responseAct === "explain_recorded_and_missing_actions"
+      ? recordedActionDisputeReply(session)
+      : lastQuestionAsked(session)
+    : null;
   const neutralPrompt = repaired
-    ? `Повторю вопрос. ${repaired}`
+    ? plan.responseAct === "explain_recorded_and_missing_actions"
+      ? repaired
+      : `Повторю вопрос. ${repaired}`
     : [stateLine, closingPrompt(nextSession, plan, blockedOperations)].filter(Boolean).join("\n\n");
   const reply = [...new Set(replies), ...nonActionLines, neutralPrompt]
     .filter(Boolean)
@@ -629,8 +972,16 @@ function applyPlan(caseData, session, plan, options = {}) {
       action_id: action.id,
       intent_type: action.intent_type,
       confidence: action.confidence,
+      requested_fragment: action.requested_fragment || null,
     })),
-    action_changes: actionLogEntries,
+    router_intents_before_mapping: plan.parsed?.intents || [],
+    unresolved_by_kind: plan.parsed?.unresolvedByKind || [],
+    unresolved_fragments: plan.parsed?.unresolvedFragments || [],
+    recognized_but_undefined: plan.parsed?.recognizedButUndefined || [],
+    action_changes: loggedActionEntries,
+    operative_state_after: memory.operativeState,
+    operative_approach_after: memory.operativeApproach,
+    management_decisions: plan.managementDecisions || [],
     findings_revealed: findingsRevealed,
     resources_revealed: revealedResources,
     elapsed_minutes: temporalState.clockMinutes - previousTemporalState.clockMinutes,
@@ -665,6 +1016,9 @@ function applyPlan(caseData, session, plan, options = {}) {
     // Without these two fields a reviewer reading the log cannot tell a repeated
     // order from a repeated sentence.
     turn_kind: plan.turnKind?.kind || "unknown",
+    turn_legacy_kind: plan.turnKind?.legacy_kind || null,
+    turn_semantic_kind: plan.turnKind?.semantic_kind || plan.turnKind?.kind || "unknown",
+    turn_components: plan.turnKind?.components || [],
     duplicate_suppressed: plan.suppressedOperations || [],
     // Where the routing came from, and under which contract. A session routed by
     // the local dictionary matcher and a session routed by the model are not the
@@ -674,6 +1028,9 @@ function applyPlan(caseData, session, plan, options = {}) {
     // What the learner specified, in their own words. Transcription only:
     // `eligible_for_scoring` is false on every entry.
     action_parameters: plan.parsed?.actionParameters || [],
+    parameter_safety: plan.parameterSafetySignals || [],
+    adequacy: plan.adequacyAssessment || null,
+    reasoning_sufficient_to_advance: Boolean(plan.reasoningSufficientToAdvance),
     // Research/mentor metadata, kept out of parsed_actions and out of scoring on
     // purpose: these are learner claims awaiting separate validation. Raw text
     // stays scrubbed above; nothing here carries free text.
@@ -704,6 +1061,7 @@ function applyPlan(caseData, session, plan, options = {}) {
     findingsRevealed,
     scoringEvents,
     blockedOperations,
+    performedIds,
   };
 }
 
@@ -734,7 +1092,12 @@ export function createV25Session(options = {}) {
     disease_card_id: caseData.disease_card_id,
     disease_card_version: caseData.disease_card_version,
     scoring_rubric_version: caseData.scoring_rubric_version,
+    clinical_test: caseData.clinical_test || null,
     router_version: caseData.router_version,
+    mentor_policy_version: MENTOR_POLICY_VERSION,
+    clinical_governance_version: CLINICAL_GOVERNANCE_VERSION,
+    source_registry_version: SOURCE_REGISTRY_VERSION,
+    clinical_rule_registry_version: CLINICAL_RULE_REGISTRY_VERSION,
     title: caseData.title,
     locale: options.locale === "kk" ? "kk" : "ru",
     institution_id: options.institutionId || "synthetic-pilot",
@@ -766,6 +1129,10 @@ export function createV25Session(options = {}) {
       engine_version: session.engine_version,
       product_version: session.product_version,
       content_version: session.content_version,
+      mentor_policy_version: session.mentor_policy_version,
+      clinical_governance_version: session.clinical_governance_version,
+      source_registry_version: session.source_registry_version,
+      clinical_rule_registry_version: session.clinical_rule_registry_version,
       mode: scenario.mode,
       facility_template_id: scenario.facility.id,
       declared_resource_profile_id: scenario.declaredResourceProfileId || null,
@@ -777,6 +1144,7 @@ export function createV25Session(options = {}) {
       requested_seed: session.v35_composition?.requested_seed || scenario.seed,
       effective_seed: session.v35_composition?.effective_seed || scenario.seed,
       selection_attempts: session.v35_composition?.selection_attempts || [],
+      clinical_test: session.clinical_test,
     })
   );
   return session;
@@ -790,7 +1158,21 @@ export async function advanceV25Session({
   options = {},
 }) {
   if (!session || session.finished) return { session, plan: null, reply: "" };
-  const plan = await planClinicalTurn({ input, caseData, session, options });
+  const fullClinicalTest = Boolean(
+    caseData.clinical_test?.enabled && options.fullClinicalTest === true
+  );
+  const rawPlan = await planClinicalTurn({ input, caseData, session, options });
+  const plan = fullClinicalTest
+    ? {
+        ...rawPlan,
+        parameterSafetySignals: (rawPlan.parameterSafetySignals || []).map((signal) => ({
+          ...signal,
+          blocks_application: false,
+          applied_to_patient: true,
+          clinical_test_bypass: "unvalidated_parameter_applied_in_internal_test",
+        })),
+      }
+    : rawPlan;
   let nextSession = {
     ...session,
     messages: [...session.messages, { role: "user", content: input }],
@@ -911,11 +1293,13 @@ export async function advanceV25Session({
 
   // V3 semantics: when the mentor is on, a blocking prerequisite stops the
   // action instead of merely docking points afterwards. Explicitly overridable.
-  const enforceBlockingPrerequisites =
-    options.enforceBlockingPrerequisites ?? Boolean(options.mentor);
+  const enforceBlockingPrerequisites = fullClinicalTest
+    ? false
+    : options.enforceBlockingPrerequisites ?? Boolean(options.mentor);
   const deterministicUpdate = applyPlan(caseData, nextSession, plan, {
     ...options,
     enforceBlockingPrerequisites,
+    enforcePathwayBlocks: !fullClinicalTest,
   });
   let simulator = null;
   let reply = deterministicUpdate.reply;
@@ -929,9 +1313,17 @@ export async function advanceV25Session({
   // what did happen. Left unguarded the simulator added its generic "эти данные
   // не заданы в карте пациента" underneath a specific answer, which reads as a
   // contradiction of it.
-  const turnTouchedThePatient =
-    plan.operations.length > 0 || !(deterministicUpdate.nonActionLines || []).length;
-  if (options.simulatorLLM && plan.mode !== "conversational_turn" && turnTouchedThePatient) {
+  const turnTouchedThePatient = Boolean(plan.patientInteraction);
+  const blockedOnly =
+    deterministicUpdate.blockedOperations.length > 0 && deterministicUpdate.performedIds.length === 0;
+  const addressedWithoutSimulator =
+    deterministicUpdate.nonActionLines.length > 0 || deterministicUpdate.blockedOperations.length > 0;
+  const shouldInvokeSimulator =
+    turnTouchedThePatient && !blockedOnly && !addressedWithoutSimulator && (
+      deterministicUpdate.findingsRevealed.length > 0 ||
+      plan.turnKind?.semantic_kind === "patient_question"
+    );
+  if (options.simulatorLLM && plan.mode !== "conversational_turn" && shouldInvokeSimulator) {
     const evidencePacket = retrieveEvidence(activeKnowledgeBase, input, { limit: 5 });
     simulator = await runClinicalSimulatorAgent(
       {
@@ -946,6 +1338,7 @@ export async function advanceV25Session({
           findingsRevealed: deterministicUpdate.findingsRevealed,
           neutralPrompt: deterministicUpdate.neutralPrompt,
           reply: deterministicUpdate.reply,
+          rawUserText: input,
         },
         locale: options.locale || session.locale,
       },
@@ -982,6 +1375,7 @@ export async function advanceV25Session({
       session: deterministicUpdate.session,
       plan,
       deterministicUpdate,
+      simulatorProducedResults: Boolean(simulator?.informationUsed?.length),
     });
     mentor = await runMentorAgent(
       {
@@ -1001,7 +1395,9 @@ export async function advanceV25Session({
     const facts = deterministicUpdate.neutralPrompt
       ? reply.split(deterministicUpdate.neutralPrompt).join("").trim()
       : reply;
-    const closing = brief.silent ? deterministicUpdate.neutralPrompt : mentor.text;
+    const closing = mentor.mode === MENTOR_MODE.CONTINUE
+      ? deterministicUpdate.neutralPrompt
+      : mentor.text;
     reply = [facts, closing].filter(Boolean).join("\n\n").trim();
   }
 
@@ -1016,9 +1412,63 @@ export async function advanceV25Session({
       ...deterministicUpdate.session.workingMemory,
       firedHeuristicIds: [
         ...(deterministicUpdate.session.workingMemory?.firedHeuristicIds || []),
-        ...(mentorBrief?.firedHeuristicKeys || []),
+        ...(mentor?.firedHeuristicKeys || mentorBrief?.firedHeuristicKeys || []),
       ],
+      pendingMentorQuestion: mentor?.pendingQuestion || (
+        mentor?.mode === MENTOR_MODE.CONTINUE && !plan.mentorAnswer
+          ? deterministicUpdate.session.workingMemory?.pendingMentorQuestion || null
+          : null
+      ),
+      lastMentorIntervention: mentor && mentor.mode !== MENTOR_MODE.CONTINUE
+        ? {
+            mode: mentor.mode,
+            issue_id: mentor.issueId || null,
+            asked_turn: deterministicUpdate.session.workingMemory?.turnNumber || null,
+            source: mentor.source,
+            adequacy: mentorBrief?.mentorPolicy?.adequacy || null,
+            scaffolding_level: mentorBrief?.mentorPolicy?.scaffolding_level || 0,
+          }
+        : deterministicUpdate.session.workingMemory?.lastMentorIntervention || null,
+      mentorScaffoldingState: mentorBrief?.mentorPolicy?.reasoning_sufficient_to_advance
+        ? { issue_id: null, scaffolding_level: 0, expected_answer_domains: [] }
+        : {
+            issue_id: mentorBrief?.mentorPolicy?.issue_id || null,
+            scaffolding_level: mentorBrief?.mentorPolicy?.scaffolding_level || 0,
+            expected_answer_domains:
+              mentorBrief?.mentorPolicy?.expected_answer_domains || [],
+          },
+      deferredMentorIssues: [
+        ...(deterministicUpdate.session.workingMemory?.deferredMentorIssues || []),
+        ...(mentorBrief?.deferredIssues || []),
+      ].filter(
+        (issue, index, all) =>
+          all.findIndex((candidate) => candidate.issue_id === issue.issue_id) === index
+      ),
     },
+  };
+  const turnNumber = nextSession.workingMemory?.turnNumber || null;
+  nextSession = {
+    ...nextSession,
+    eventLog: nextSession.eventLog.map((entry) =>
+      entry.event_type === "clinical_turn" && entry.turn_number === turnNumber
+        ? {
+            ...entry,
+            simulator_response_parts: simulator?.responseParts || [],
+            simulator_suppressed_response_parts: simulator?.suppressedResponseParts || [],
+            simulator_invocation_suppressed_reason: simulator
+              ? null
+              : plan.mode === "conversational_turn"
+                ? "conversation_management"
+                : blockedOnly
+                  ? "blocked_only_turn"
+                  : addressedWithoutSimulator
+                    ? "deterministic_environment_answer"
+                    : !turnTouchedThePatient
+                      ? "no_patient_interaction"
+                      : "no_patient_fact_requested",
+          }
+        : entry
+    ),
   };
   const routerExecution = plan.parsed?.source === "semantic_router" ? "model" : "local";
   const simulatorExecution = simulator
@@ -1045,6 +1495,16 @@ export async function advanceV25Session({
         router_model: routerExecution === "model" ? options.routerModel || null : null,
         simulator_model: simulatorExecution === "model" ? simulator?.model || options.model || null : null,
         mentor_model: mentorExecution === "model" ? options.mentorModel || null : null,
+        mentor_mode: mentor?.mode || null,
+        mentor_issue_id: mentor?.issueId || null,
+        mentor_adequacy: mentorBrief?.mentorPolicy?.adequacy || null,
+        mentor_scaffolding_level: mentorBrief?.mentorPolicy?.scaffolding_level || 0,
+        reasoning_sufficient_to_advance: Boolean(
+          mentorBrief?.mentorPolicy?.reasoning_sufficient_to_advance
+        ),
+        allowed_clinical_rule_ids:
+          mentorBrief?.mentorPolicy?.allowed_clinical_rule_ids || [],
+        mentor_rejection_reason: mentor?.rejectionReason || null,
         schema_versions: options.schemaVersions || null,
       }),
     ],
@@ -1058,6 +1518,7 @@ export async function advanceV25Session({
     reply,
     simulator,
     mentor,
+    mentorPolicy: mentorBrief?.mentorPolicy || null,
   };
 }
 

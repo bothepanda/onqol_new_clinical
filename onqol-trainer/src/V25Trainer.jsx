@@ -1,5 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { buildV35Case } from "./clinical/v35/createCase.js";
+import { CASE_PRESETS } from "./clinical/v35/phenotypes.js";
+import { enableFullClinicalTestCase } from "./clinical/testing/fullClinicalTest.js";
 import { getBrowserContentForCase } from "./clinical/browserContentRegistry.js";
 import {
   createSimulationRepository,
@@ -24,6 +26,8 @@ import "./V25Trainer.css";
 const ReactMarkdown = lazy(() => import("react-markdown"));
 
 const MAIN_ACCESS_TOKEN_KEY = "onqol_main_access_token";
+const FULL_CLINICAL_TEST =
+  import.meta.env.VITE_ONQOL_FULL_CLINICAL_TEST === "confirmed";
 
 const UI = {
   ru: {
@@ -56,11 +60,18 @@ const UI = {
     restart: "Новая смена",
     placeholder: "Что ты спрашиваешь или делаешь?",
     send: "Отправить",
+    loading: "Выполняю запрос…",
     localNotice:
       "OpenAI backend не настроен: временно работает ограниченный локальный matcher.",
     accessCode: "Код доступа к серверному интерпретатору",
     accessCodePlaceholder: "Введите внутренний код",
     accessCodeHelp: "Код хранится только до закрытия этой вкладки.",
+    fullTestChip: "FULL CLINICAL TEST",
+    fullTestTitle: "Локальный полный клинический тест",
+    fullTestBody:
+      "Открыты APP-005, невалидированная числовая оценка и действия, которые обычная версия блокирует до clinical review. Результаты нельзя использовать для оценки резидента.",
+    preset: "Клинический пресет",
+    randomPreset: "Случайный из всех, включая APP-005",
   },
   kk: {
     subtitle: "Клиникалық симулятор",
@@ -92,11 +103,18 @@ const UI = {
     restart: "Жаңа кезекшілік",
     placeholder: "Не сұрайсың немесе не істейсің?",
     send: "Жіберу",
+    loading: "Сұрауды орындаймын…",
     localNotice:
       "OpenAI backend бапталмаған: уақытша шектеулі жергілікті matcher жұмыс істейді.",
     accessCode: "Серверлік интерпретаторға кіру коды",
     accessCodePlaceholder: "Ішкі кодты енгізіңіз",
     accessCodeHelp: "Код осы қойынды жабылғанға дейін ғана сақталады.",
+    fullTestChip: "FULL CLINICAL TEST",
+    fullTestTitle: "Жергілікті толық клиникалық тест",
+    fullTestBody:
+      "APP-005, тексерілмеген сандық бағалау және clinical review-ға дейін жабық әрекеттер ашық. Нәтижелер резидентті бағалауға жарамсыз.",
+    preset: "Клиникалық пресет",
+    randomPreset: "Барлығынан кездейсоқ, APP-005 қоса",
   },
 };
 
@@ -185,6 +203,9 @@ function StartScreen({
   accessRequired,
   accessToken,
   onAccessTokenChange,
+  fullClinicalTest,
+  selectedPresetId,
+  onPresetChange,
 }) {
   const t = UI[locale];
   return (
@@ -193,6 +214,27 @@ function StartScreen({
       <main className="v25-classic-start">
         <h1>{t.landingTitle}</h1>
         <p className="v25-classic-lead">{t.landingBody}</p>
+
+        {fullClinicalTest && (
+          <section className="v25-full-test-panel" aria-label={t.fullTestTitle}>
+            <strong>{t.fullTestTitle}</strong>
+            <p>{t.fullTestBody}</p>
+            <label>
+              <span>{t.preset}</span>
+              <select
+                value={selectedPresetId}
+                onChange={(event) => onPresetChange(event.target.value)}
+              >
+                <option value="">{t.randomPreset}</option>
+                {CASE_PRESETS.map((preset) => (
+                  <option key={preset.case_preset_id} value={preset.case_preset_id}>
+                    {preset.case_preset_id} — {preset.title_ru}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </section>
+        )}
 
         {accessRequired && (
           <label className="v25-access-code">
@@ -318,6 +360,7 @@ export default function V25Trainer({ mentor = true }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [confirmInterrupt, setConfirmInterrupt] = useState(false);
+  const [selectedPresetId, setSelectedPresetId] = useState("");
   const [openAIStatus, setOpenAIStatus] = useState({
     checking: true,
     configured: false,
@@ -358,7 +401,9 @@ export default function V25Trainer({ mentor = true }) {
   }
 
   function start(mode) {
-    const seedOverride = new URLSearchParams(window.location.search).get("seed")?.trim();
+    const params = new URLSearchParams(window.location.search);
+    const seedOverride = params.get("seed")?.trim();
+    const presetOverride = params.get("preset")?.trim();
     // The mentor needs the core library: consent, anaesthesia, escalation and
     // the prerequisite graph all live there, not in the disease card.
     //
@@ -377,10 +422,17 @@ export default function V25Trainer({ mentor = true }) {
           seed: sessionSeed,
           locale,
           previousPresetId: lastPresetIdRef.current,
+          requestedPresetId: FULL_CLINICAL_TEST
+            ? presetOverride || selectedPresetId || null
+            : null,
+          mode: FULL_CLINICAL_TEST ? "internal_test" : "learner",
         })
       : null;
     if (built) lastPresetIdRef.current = built.selection.case_preset_id;
-    const nextCase = built ? built.caseData : createV25Case(locale);
+    const baseCase = built ? built.caseData : createV25Case(locale);
+    const nextCase = FULL_CLINICAL_TEST
+      ? enableFullClinicalTestCase(baseCase)
+      : baseCase;
     const nextSession = createV25Session({
       caseData: nextCase,
       mode,
@@ -441,6 +493,7 @@ export default function V25Trainer({ mentor = true }) {
           schemaVersions: openAIStatus.schemas || null,
           mentor,
           mentorLLM,
+          fullClinicalTest: FULL_CLINICAL_TEST,
         },
       });
       persistSession(result.session);
@@ -494,6 +547,9 @@ export default function V25Trainer({ mentor = true }) {
         accessRequired={openAIStatus.accessRequired}
         accessToken={accessToken}
         onAccessTokenChange={updateAccessToken}
+        fullClinicalTest={FULL_CLINICAL_TEST}
+        selectedPresetId={selectedPresetId}
+        onPresetChange={setSelectedPresetId}
       />
     );
   }
@@ -504,7 +560,9 @@ export default function V25Trainer({ mentor = true }) {
         locale={locale}
         setLocale={setLocale}
         actions={
-          <span className="v25-version-chip">{mentor ? t.alpha : "V2.5 · без наставника"}</span>
+          <span className="v25-version-chip">
+            {FULL_CLINICAL_TEST ? t.fullTestChip : mentor ? t.alpha : "V2.5 · без наставника"}
+          </span>
         }
       />
       <div className="v25-case-bar">
@@ -520,6 +578,12 @@ export default function V25Trainer({ mentor = true }) {
         </div>
       </div>
 
+      {FULL_CLINICAL_TEST && (
+        <div className="v25-full-test-strip">
+          {t.fullTestTitle}: clinical gates bypassed · результаты невалидированы
+        </div>
+      )}
+
       <main className="v25-workspace">
         <section className="v25-chat-column">
           {!modelBackendReady && <div className="v25-local-notice">{t.localNotice}</div>}
@@ -533,7 +597,7 @@ export default function V25Trainer({ mentor = true }) {
                 ) : message.content}
               </article>
             ))}
-            {loading && <div className="v25-thinking"><i /><i /><i /><span>Clinical turn planner</span></div>}
+            {loading && <div className="v25-thinking"><i /><i /><i /><span>{t.loading}</span></div>}
             <div ref={bottomRef} />
           </div>
 

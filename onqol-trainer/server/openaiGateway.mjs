@@ -4,15 +4,15 @@ import {
   ROUTER_SCHEMA_VERSION,
 } from "../src/clinical/schemas/routerSchema.js";
 
-export const OPENAI_GATEWAY_VERSION = "2026-08-10.2";
-const SIMULATOR_SCHEMA_VERSION = "simulator-envelope-v2";
-const MENTOR_SCHEMA_VERSION = "mentor-revealed-facts-v1";
+export const OPENAI_GATEWAY_VERSION = "2026-08-13.1";
+const SIMULATOR_SCHEMA_VERSION = "simulator-envelope-v3";
+const MENTOR_SCHEMA_VERSION = "mentor-policy-rendering-v3";
 
 const DEFAULT_MODELS = Object.freeze({
   router: "gpt-5.6-luna",
   simulator: "gpt-5.6-terra",
-  // The mentor only rephrases an authored brief. It needs fluency, not
-  // clinical reasoning: the clinical content is decided before it is called.
+  // Clinical truth stays deterministic; the mentor chooses whether and how to
+  // intervene among current, bounded candidate teaching issues.
   mentor: "gpt-5.6-luna",
 });
 
@@ -45,8 +45,25 @@ const TASKS = Object.freeze({
                 },
                 source_id: { type: ["string", "null"] },
                 exact_text: { type: ["string", "null"] },
+                requested_fragment: { type: ["string", "null"] },
+                reason_code: {
+                  type: ["string", "null"],
+                  enum: [
+                    "not_authorized_finding",
+                    "unrecognized_fragment",
+                    "unknown_medication",
+                    "not_modelled_for_variant",
+                    null,
+                  ],
+                },
               },
-              required: ["classification", "source_id", "exact_text"],
+              required: [
+                "classification",
+                "source_id",
+                "exact_text",
+                "requested_fragment",
+                "reason_code",
+              ],
               additionalProperties: false,
             },
           },
@@ -69,7 +86,20 @@ const TASKS = Object.freeze({
       schema: {
         type: "object",
         properties: {
+          mode: {
+            type: "string",
+            enum: [
+              "CONTINUE",
+              "REINFORCE",
+              "CLARIFY",
+              "CHALLENGE",
+              "TEACH",
+              "SAFETY_STOP",
+            ],
+          },
+          issue_id: { type: ["string", "null"] },
           mentor_text: { type: "string" },
+          question_domain: { type: ["string", "null"] },
           factual_claims: {
             type: "array",
             items: {
@@ -83,7 +113,7 @@ const TASKS = Object.freeze({
             },
           },
         },
-        required: ["mentor_text", "factual_claims"],
+        required: ["mode", "issue_id", "mentor_text", "factual_claims", "question_domain"],
         additionalProperties: false,
       },
     },

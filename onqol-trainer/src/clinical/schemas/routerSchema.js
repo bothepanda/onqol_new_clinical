@@ -36,7 +36,7 @@ import { DISPOSITION_DESTINATIONS, STABILITY_ASSESSMENTS } from "../core/reasoni
  * Logged with every routed turn, so a session recorded under one contract can
  * be told apart from a session recorded under another.
  */
-export const ROUTER_SCHEMA_VERSION = "router-v2";
+export const ROUTER_SCHEMA_VERSION = "router-v3";
 
 export const ROUTER_INTENT_TYPES = Object.freeze([
   "request_history",
@@ -179,6 +179,9 @@ export const ROUTER_JSON_SCHEMA = Object.freeze(
         type: { type: "string", enum: [...ROUTER_INTENT_TYPES] },
         concept_id: nullableString,
         confidence: { type: "number" },
+        // Exact learner span for this one intent. It is the audit link between
+        // a compound sentence, the mapped action and any addressed failure.
+        requested_fragment: nullableString,
       }),
     },
     unresolved_fragments: stringList,

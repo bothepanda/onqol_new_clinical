@@ -1,5 +1,6 @@
 import { localeReadiness } from "./locale.js";
 import { v35Readiness } from "./manifest.js";
+import { clinicalGovernanceReadiness } from "../governance/clinicalGovernance.js";
 
 const REQUIRED_CONFIRMATIONS = Object.freeze([
   ["ONQOL_PROVIDER_KEY_ROTATED", "confirmed", "provider_key_rotation_unconfirmed"],
@@ -19,11 +20,14 @@ function confirmed(value, exact = null) {
 export function evaluateReleaseGate(caseData, env = {}) {
   const readiness = v35Readiness(caseData);
   const locales = localeReadiness();
+  const governance = clinicalGovernanceReadiness();
   const ru = locales.find((row) => row.locale === "ru");
   const kk = locales.find((row) => row.locale === "kk");
   const blockers = [];
 
   if (!readiness.manifest_valid) blockers.push("v35_manifest_invalid");
+  if (!governance.structurally_valid) blockers.push("clinical_governance_invalid");
+  if (!governance.learner_release_ready) blockers.push("clinical_rule_registry_not_approved");
   blockers.push(...readiness.blocking_for_release.map((_, index) => `v35_runtime_blocker_${index + 1}`));
   if (!ru?.learner_ready) blockers.push("ru_locale_incomplete");
   if (env.ONQOL_ENABLE_KK === "confirmed" && !kk?.learner_ready) {
@@ -50,5 +54,6 @@ export function evaluateReleaseGate(caseData, env = {}) {
     })),
     blocker_codes: [...new Set(blockers)],
     runtime_blockers: readiness.blocking_for_release,
+    clinical_governance: governance,
   };
 }

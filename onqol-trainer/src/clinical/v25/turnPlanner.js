@@ -1,10 +1,39 @@
 import { extractLearnerActions } from "../actionExtraction.js";
 import { buildAllowedActionMap } from "../schemas/caseSchema.js";
 import { requestedTechnique } from "./scenarioEngine.js";
-import { classifyTurn, requestsExplicitRepeat, suppressDuplicateOperations } from "./turnKind.js";
+import {
+  classifyTurn,
+  interpretStandaloneReasoning,
+  interpretPendingMentorAnswer,
+  requestsExplicitRepeat,
+  resolveTurnSemantics,
+  suppressDuplicateOperations,
+} from "./turnKind.js";
+import { mergeTurnReasoningDeltas } from "../core/reasoningState.js";
+import { reviewActionParameters } from "../core/parameterSafety.js";
+import { classifyLearnerAdequacy } from "../core/mentorPolicy.js";
 
 const TENTATIVE_RE =
-  /\b(я\s+бы|можно\s+рассмотреть|рассмотрю|возможно|вероятно|если\s+будет|подумаю|предлагаю\s+обсудить)\b/i;
+  /(?:^|\s)(я\s+бы|можно(?:\s+подготовить|\s+рассмотреть)?|рассмотрю|возможно|вероятно|потенциальн[а-я]*|если\s+(?:будет|подтвердится)|подумаю|думаю\s+об|предлагаю\s+обсудить)(?:\s|$)/i;
+
+const OPERATIVE_MENTION_RE = /операци[а-я]*|аппендэктоми[а-я]*/i;
+const PROCEDURE_START_RE =
+  /(?:(?:начина(?:ю|ем)|приступа(?:ю|ем)|выполня(?:ю|ем))(?:\s+[а-я-]+){0,3}\s*(?:операци|аппендэктоми)|дела(?:ю|ем)\s+разрез|(?:начина(?:ю|ем)\s+)?индукци[а-я]*|(?:первый\s+)?разрез)/i;
+const SOURCE_CONTROL_COMPLETE_RE =
+  /(?:аппендэктоми[а-я]*\s+(?:выполн|заверш)|операци[а-я]*\s+заверш|контрол[ья]\s+источник[а-я]*\s+заверш)/i;
+const COMMITTED_APPENDECTOMY_RE =
+  /(готовим|подготов(?:ить|ка))\s+(?:пациент\w*\s+)?к\s+аппендэктоми|решение\s*:?\s*аппендэктоми|принято\s+решение\s+об\s+аппендэктоми|бер[её]м\s+(?:пациент\w*\s+)?на\s+аппендэктоми/i;
+
+export function classifyOperativeLanguage(input) {
+  const text = normalize(input);
+  if (!OPERATIVE_MENTION_RE.test(text)) return "none";
+  if (SOURCE_CONTROL_COMPLETE_RE.test(text)) return "source_control_completed";
+  if (PROCEDURE_START_RE.test(text)) return "procedure_start";
+  if (TENTATIVE_RE.test(text)) return "tentative_intent";
+  if (requestedTechnique(input)) return "committed_approach";
+  if (COMMITTED_APPENDECTOMY_RE.test(text)) return "committed_decision";
+  return "generic_mention";
+}
 
 function normalize(text) {
   return String(text || "")
@@ -99,7 +128,7 @@ function commitmentFor(action, input) {
   }
   if (action.intent_type === "diagnosis") return "proposed";
   if (TENTATIVE_RE.test(input)) return "proposed";
-  if (action.id === "open_appendectomy_here" && !requestedTechnique(input)) return "proposed";
+  if (["appendectomy_here", "appendectomy_procedure_start"].includes(action.id)) return "ordered";
   return "ordered";
 }
 
@@ -199,17 +228,21 @@ export async function planClinicalTurn({ input, caseData, session, options = {} 
   // all - see turnKind.js for what this cost in the first live run.
   const turnKind = classifyTurn(input);
   if (turnKind.blocks_clinical_turn) {
+    const conversationalKind = resolveTurnSemantics({ base: turnKind });
     return {
       input,
-      parsed: { actions: [], source: "conversational_resolver", turn_kind: turnKind.kind },
+      parsed: { actions: [], source: "conversational_resolver", turn_kind: conversationalKind.kind },
       actions: [],
       actionIds: [],
       operations: [],
       suppressedOperations: [],
-      turnKind,
+      turnKind: conversationalKind,
       mode: "conversational_turn",
-      learnerMove: turnKind.kind,
-      responseAct: "repair_previous_question",
+      learnerMove: conversationalKind.kind,
+      responseAct:
+        turnKind.reason_code === "memory_dispute"
+          ? "explain_recorded_and_missing_actions"
+          : "repair_previous_question",
       patientBoundary:
         "The learner is talking about the conversation, not to the patient. Reveal nothing and change nothing.",
       // The mentor restates its previous question; it does not pick a new topic.
@@ -219,22 +252,100 @@ export async function planClinicalTurn({ input, caseData, session, options = {} 
     };
   }
 
-  const { actions, parsed } = await resolveActions(input, caseData, session, options);
+  let { actions, parsed } = await resolveActions(input, caseData, session, options);
+  const operativeLanguage = classifyOperativeLanguage(input);
+  if (["tentative_intent", "committed_decision", "committed_approach"].includes(operativeLanguage)) {
+    actions = actions.filter(
+      (action) => !["appendectomy_here", "appendectomy_procedure_start"].includes(action.id)
+    );
+    parsed.actions = (parsed.actions || []).filter(
+      (action) => !["appendectomy_here", "appendectomy_procedure_start"].includes(action.id)
+    );
+  }
+  if (operativeLanguage === "committed_decision") {
+    parsed.managementDecisions = [
+      ...(parsed.managementDecisions || []).filter(
+        (decision) => decision.decision_id !== "appendectomy"
+      ),
+      {
+        concept_id: "decision_for_appendectomy",
+        decision_id: "appendectomy",
+        commitment: "ordered",
+      },
+    ];
+    parsed.reasoning = mergeTurnReasoningDeltas(parsed.reasoning || null, {
+      management: { plan_stated: true, urgency_stated: false, rationale_stated: false },
+    });
+  }
+  const selectedApproach = requestedTechnique(input);
+  if (operativeLanguage === "committed_approach" && selectedApproach) {
+    parsed.managementDecisions = [
+      ...(parsed.managementDecisions || []).filter(
+        (decision) => decision.decision_id !== "operative_approach"
+      ),
+      {
+        concept_id: `operative_approach_${selectedApproach}`,
+        decision_id: "operative_approach",
+        approach: selectedApproach,
+        commitment: "selected",
+        requested_fragment: String(input).trim(),
+      },
+    ];
+  }
+  const mentorAnswer = interpretPendingMentorAnswer(
+    input,
+    session.workingMemory?.pendingMentorQuestion,
+    {
+      hasClinicalAction: actions.length > 0 || (parsed.managementDecisions || []).length > 0,
+      hasPatientQuestion: (parsed.intents || []).some((intent) => intent.type === "question"),
+      hasReasoning: Boolean(parsed.reasoning),
+    }
+  );
+  const standaloneReasoning = mentorAnswer ? null : interpretStandaloneReasoning(input);
+  parsed.reasoning = mergeTurnReasoningDeltas(
+    mergeTurnReasoningDeltas(parsed.reasoning || null, mentorAnswer?.reasoning),
+    standaloneReasoning
+  );
+  if (mentorAnswer && actions.length === 0) {
+    parsed.unresolvedFragments = [];
+    parsed.unknownText = "";
+  }
   const actionIds = actions.map((action) => action.id).filter((id) => id !== "end_case");
+  const parameterReview = reviewActionParameters(
+    parsed.actionParameters || [],
+    input,
+    actionIds,
+    {
+      clinicalRules: options.clinicalRules,
+      sourceRegistry: options.sourceRegistry,
+    }
+  );
+  parsed.actionParameters = parameterReview.parameters;
+  parsed.parameterSafety = parameterReview.reviews;
   const technique = requestedTechnique(input);
   const plannedOperations = actions
     .filter((action) => action.id !== "end_case")
     .map((action) => {
       const commitment = commitmentFor(action, input);
+      const actionDefinition = buildAllowedActionMap(caseData).get(action.id);
       return {
         action_id: action.id,
         action_kind: action.action_kind,
         intent_type: action.intent_type,
         confidence: action.confidence,
         commitment,
-        technique: action.id === "open_appendectomy_here" ? technique : null,
-        needsOperationalization: action.id === "open_appendectomy_here" && !technique,
+        technique: ["appendectomy_here", "appendectomy_procedure_start"].includes(action.id)
+          ? technique || session.workingMemory?.operativeApproach?.approach || null
+          : null,
+        needsOperationalization:
+          ["appendectomy_here", "appendectomy_procedure_start"].includes(action.id) &&
+          !(technique || session.workingMemory?.operativeApproach?.approach),
         finding: findingForAction(caseData, action.id),
+        findingStatus: actionDefinition?.finding_status || null,
+        unavailableReason: actionDefinition?.unavailable_reason_ru || null,
+        requestedFragment: action.requested_fragment || action.matched_phrase || null,
+        availableToOrder: actionDefinition?.available_to_order !== false,
+        expectedForThisPatient: actionDefinition?.expected_for_this_patient !== false,
         countsAsDecision: action.intent_type === "diagnosis",
       };
     });
@@ -247,6 +358,30 @@ export async function planClinicalTurn({ input, caseData, session, options = {} 
   );
   const prerequisites = missingPrerequisites(caseData, session, actionIds);
   const mode = actions.some((action) => action.id === "end_case") ? "debrief" : "simulation_turn";
+  const resolvedTurnKind = resolveTurnSemantics({
+    base: turnKind,
+    actions,
+    parsed,
+    mentorAnswer,
+  });
+  const managementDecisions = parsed.managementDecisions || [];
+  const patientInteraction =
+    operations.some((operation) => operation.commitment !== "proposed") ||
+    resolvedTurnKind.semantic_kind === "patient_question";
+  const policyInput = {
+    pendingMentorQuestionBeforeTurn: session.workingMemory?.pendingMentorQuestion || null,
+    mentorAnswer,
+    parameterSafetySignals: parameterReview.reviews,
+    operations,
+    managementDecisions,
+    parsed,
+    turnKind: resolvedTurnKind,
+  };
+  const adequacyAssessment = classifyLearnerAdequacy({
+    learnerText: input,
+    plan: policyInput,
+    session,
+  });
 
   return {
     input,
@@ -255,13 +390,25 @@ export async function planClinicalTurn({ input, caseData, session, options = {} 
     actionIds,
     operations,
     suppressedOperations: suppressed,
-    turnKind,
+    turnKind: resolvedTurnKind,
+    mentorAnswer,
+    pendingMentorQuestionBeforeTurn: session.workingMemory?.pendingMentorQuestion || null,
+    managementDecisions,
+    parameterSafetySignals: parameterReview.reviews,
+    operativeLanguage,
+    patientInteraction,
+    adequacyAssessment,
+    reasoningSufficientToAdvance: adequacyAssessment.adequacy === "SUFFICIENT",
     mode,
     learnerMove: actions.length
       ? actions.length > 1
         ? "compound_move"
         : actions[0].intent_type || "clinical_move"
-      : "unresolved_or_conversational",
+      : mentorAnswer
+        ? "mentor_answer"
+        : parsed.reasoning
+          ? "clinical_reasoning"
+          : "unresolved_or_conversational",
     responseAct: operations.some((operation) => operation.needsOperationalization)
       ? "request_operationalization"
       : operations.some((operation) => operation.finding)

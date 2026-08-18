@@ -100,9 +100,9 @@ export const V35_MODIFIERS = Object.freeze({
   "MOD-PREGNANCY-POSSIBLE": Object.freeze({
     modifier_id: "MOD-PREGNANCY-POSSIBLE",
     title_ru: "Возможная беременность",
-    // What the modifier switches ON. Without it these actions do not belong to
-    // the case at all - not "present but worth zero". A patient who cannot be
-    // pregnant is not being tested on beta-hCG.
+    // What the modifier makes expected for this patient. The wider action
+    // universe stays orderable; modifier absence removes rubric obligation,
+    // not the clinician's ability to ask about pelvic pathology.
     enables_action_ids: [
       "pregnancy_test",
       "pelvic_gynecologic_screen",

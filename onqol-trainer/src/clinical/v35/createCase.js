@@ -24,11 +24,10 @@
 //
 // WHAT A MODIFIER DOES TO A CASE
 //
-// A patient without MOD-PREGNANCY-POSSIBLE does not have `pregnancy_test`
-// scored at zero - the action is REMOVED from the case, along with the pelvic
-// screen, the pelvic ultrasound and the ectopic alternative. The differential
-// depends on who is in front of you, and that lesson only lands if the required
-// work-up genuinely differs.
+// A modifier changes rubric relevance, not the physical universe. Pelvic
+// examination and pelvic ultrasound remain orderable when clinically discussed;
+// the pregnancy branch controls whether beta-hCG and ectopic reasoning are
+// expected for this patient. A non-required action is never silently deleted.
 
 import { createV25Case } from "../v25/caseFactory.js";
 import { KZ_RESOURCE_PROFILE_VERSION } from "../v25/scenarioEngine.js";
@@ -75,13 +74,10 @@ const V35_REWORDED_CARRIED = Object.freeze({
   }),
 });
 
-/** Actions that exist only when a modifier switches them on. */
-const MODIFIER_GATED_ACTION_IDS = Object.freeze([
+/** Actions whose rubric relevance is controlled by pregnancy possibility. */
+const MODIFIER_EXPECTED_ACTION_IDS = Object.freeze([
   "pregnancy_test",
-  "pelvic_gynecologic_screen",
-  "pelvic_ultrasound",
   "differential_ectopic",
-  "gynecology_consult",
 ]);
 
 /**
@@ -416,6 +412,12 @@ function buildFindings(baseCase, patient, phenotype, pregnancyPossible, composed
       provenance: GENERATED,
       review_status: "synthetic_case_fact_needs_external_review",
     };
+  }
+
+  // Pelvic pain and gynaecologic assessment are not synonyms for pregnancy.
+  // These owner-authored results remain available for women outside the
+  // pregnancy modifier; the modifier only changes what is expected/scored.
+  if (patient.demographics.sex === "female") {
     findings.pelvic_gynecologic_screen = {
       ...base.pelvic_gynecologic_screen,
       ...V35_REWORDED_CARRIED.pelvic_gynecologic_screen,
@@ -432,30 +434,48 @@ function buildFindings(baseCase, patient, phenotype, pregnancyPossible, composed
   return findings;
 }
 
-/** Drop actions whose modifier is absent, everywhere they appear. */
+/** Keep the action universe intact while changing patient-specific relevance. */
 function applyModifierGating(caseData, enabledActionIds) {
   const enabled = new Set(enabledActionIds);
-  const drop = MODIFIER_GATED_ACTION_IDS.filter((id) => !enabled.has(id));
-  if (drop.length === 0) return { caseData, removedActionIds: [] };
+  const nonExpected = MODIFIER_EXPECTED_ACTION_IDS.filter((id) => !enabled.has(id));
+  if (nonExpected.length === 0) {
+    return { caseData, removedActionIds: [], nonExpectedActionIds: [] };
+  }
 
-  const dropped = new Set(drop);
-  const filter = (list) => (list || []).filter((action) => !dropped.has(action.id));
+  const nonExpectedSet = new Set(nonExpected);
+  const annotate = (list) => (list || []).map((action) => {
+    if (!nonExpectedSet.has(action.id)) return action;
+    return {
+      ...action,
+      available_to_order: true,
+      expected_for_this_patient: false,
+      eligible_for_scoring: false,
+      score_weight: 0,
+      critical: false,
+      finding_status:
+        action.id === "pregnancy_test" ? "not_authorized_for_patient_variant" : null,
+      unavailable_reason_ru:
+        action.id === "pregnancy_test"
+          ? "Тест на беременность распознан, но для этого варианта пациента результат не авторизован."
+          : null,
+    };
+  });
 
   return {
-    removedActionIds: drop,
+    removedActionIds: [],
+    nonExpectedActionIds: nonExpected,
     caseData: {
       ...caseData,
-      expected_actions: filter(caseData.expected_actions),
-      acceptable_alternatives: filter(caseData.acceptable_alternatives),
-      unnecessary_actions: filter(caseData.unnecessary_actions),
-      unsafe_actions: filter(caseData.unsafe_actions),
-      // A critical omission that names a removed action would fail schema
-      // validation and, worse, would mark a male learner as having missed a
-      // pregnancy test.
-      critical_omissions: (caseData.critical_omissions || []).filter((id) => !dropped.has(id)),
+      expected_actions: annotate(caseData.expected_actions),
+      acceptable_alternatives: annotate(caseData.acceptable_alternatives),
+      unnecessary_actions: annotate(caseData.unnecessary_actions),
+      unsafe_actions: annotate(caseData.unsafe_actions),
+      critical_omissions: (caseData.critical_omissions || []).filter(
+        (id) => !nonExpectedSet.has(id)
+      ),
       state_transitions: (caseData.state_transitions || []).map((transition) => ({
         ...transition,
-        when_all_done: (transition.when_all_done || []).filter((id) => !dropped.has(id)),
+        when_all_done: (transition.when_all_done || []).filter((id) => !nonExpectedSet.has(id)),
       })),
     },
   };
@@ -468,7 +488,7 @@ function applyModifierGating(caseData, enabledActionIds) {
  * @param {string} options.seed
  * @param {string|null} [options.previousPresetId]
  * @param {string|null} [options.requestedPresetId]  faculty override
- * @param {"learner"|"faculty"} [options.mode]
+ * @param {"learner"|"faculty"|"internal_test"} [options.mode]
  * @param {string} [options.locale]
  * @returns {{caseData: object, patient: object, selection: object}}
  */
@@ -589,14 +609,22 @@ export function buildV35Case({
   // Dangerous alternatives are actions too: `differential_ectopic` is a concept
   // the learner names, and it belongs to the case only when the modifier that
   // makes it dangerous is present.
-  const { caseData, removedActionIds } = applyModifierGating(withPatient, [
+  const { caseData, removedActionIds, nonExpectedActionIds } = applyModifierGating(withPatient, [
     ...patient.enabled_action_ids,
     ...patient.enabled_dangerous_alternatives,
   ]);
 
   return {
     patient,
-    selection: { ...selection, removed_action_ids: removedActionIds },
-    caseData: { ...caseData, v35_removed_action_ids: removedActionIds },
+    selection: {
+      ...selection,
+      removed_action_ids: removedActionIds,
+      non_expected_action_ids: nonExpectedActionIds,
+    },
+    caseData: {
+      ...caseData,
+      v35_removed_action_ids: removedActionIds,
+      v35_non_expected_action_ids: nonExpectedActionIds,
+    },
   };
 }

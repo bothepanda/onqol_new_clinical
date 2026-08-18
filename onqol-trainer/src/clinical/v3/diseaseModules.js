@@ -19,7 +19,7 @@ import { appendicitisMentorRules } from "../diseases/appendicitis/mentorRules.js
 import { createV25Case } from "../v25/caseFactory.js";
 
 /** Case actions that acquire the standard operative prerequisites. */
-export const V3_OPERATIVE_ACTION_IDS = ["open_appendectomy_here"];
+export const V3_OPERATIVE_ACTION_IDS = ["appendectomy_here"];
 
 /**
  * The bar for "did the learner do the available minimum before calling for

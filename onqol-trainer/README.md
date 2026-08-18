@@ -241,6 +241,33 @@ npm run release:check
 `release:check` is expected to exit non-zero while the external owner gates are
 open. Local build and test remain available; production deployment does not.
 
+For a local single-reviewer build with the separate faculty corpus surface:
+
+```bash
+VITE_ONQOL_INTERNAL_FULL_TEST=confirmed npm run build
+npm run start:v25
+```
+
+The learner simulator remains at `/`; the internal corpus review surface is
+emitted separately at `/faculty.html`. The flag grants inspection access only:
+it does not promote faculty-preview rules into learner runtime or scoring.
+
+For a local full-clinical test of every currently implemented learner branch:
+
+```bash
+VITE_ONQOL_INTERNAL_FULL_TEST=confirmed \
+VITE_ONQOL_FULL_CLINICAL_TEST=confirmed npm run build
+npm run start:v25
+```
+
+This profile exposes APP-005, bypasses parameter, prerequisite and stable-path
+application gates, and emits unvalidated numeric scoring. Every session and
+action log records the bypass. It is intentionally compile-time, visibly
+labelled, and must never be used for pilot or production assessment. Alternative
+disease stubs and the postoperative deterioration path remain unavailable where
+their clinical state transitions have not been implemented; a flag cannot make
+missing clinical behavior testable.
+
 The tests cover ideal pathway, acceptable alternatives, missed critical action, unsafe action, excessive investigations, semantic routing, invalid concept rejection and final-score reproducibility.
 
 They also validate the appendicitis v0.2 source package:

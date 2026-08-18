@@ -49,7 +49,7 @@
 // the learner ("ты назначил"/"ты назначила"). Present tense, infinitives or
 // verbal nouns. A test enforces this too.
 
-import { reasoningFlags } from "./reasoningState.js";
+import { reasoningFlags, reasoningFlagsUpdatedOnTurn } from "./reasoningState.js";
 
 const AUTHORED = "EXPERT_OPINION_UNREVIEWED";
 const AUTHORED_WITH_SOURCE = "EXPERT_OPINION_NEEDS_SOURCE_VERIFICATION";
@@ -491,6 +491,8 @@ export function selectHeuristics({
   attempted,
   alreadyFired = [],
   heuristics = null,
+  currentTurn = null,
+  limit = MAX_HEURISTICS_PER_TURN,
 }) {
   // Core rules describe reasoning patterns and may name only core-library action
   // ids or intent types. Disease-specific coaching travels with the case in
@@ -509,6 +511,10 @@ export function selectHeuristics({
       ...(temporal.flow?.edDispositionCheckpointReached ? ["ed_disposition_checkpoint"] : []),
     ]),
     reasoning: reasoningFlags(session.workingMemory?.reasoningState),
+    reasoningUpdated: reasoningFlagsUpdatedOnTurn(
+      session.workingMemory?.reasoningState,
+      session.workingMemory?.turnNumber
+    ),
     // Intent types let a core rule say "imaging was ordered before anyone
     // examined the patient" without naming ct_abdomen or abdominal_exam, which
     // are appendicitis ids. This is what makes the rule portable.
@@ -524,12 +530,75 @@ export function selectHeuristics({
     // `not_completed` vacuously true and fire on every single turn of every
     // other nosology. Skip rather than nag.
     if (!referencesOnlyKnownActions(heuristic, known)) return false;
-    return matches(heuristic.when, context);
+    if (!matches(heuristic.when, context)) return false;
+    return isTimelyForLiveTurn(heuristic, context, currentTurn);
   });
 
   // Severity first, then file order. "Смотря что критичнее."
   eligible.sort((a, b) => b.severity - a.severity);
-  return eligible.slice(0, MAX_HEURISTICS_PER_TURN);
+  return eligible.slice(0, limit).map((heuristic) => ({
+    ...heuristic,
+    relevant_to_current_turn: currentTurn ? true : null,
+    why_now: whyNow(heuristic, context, currentTurn),
+  }));
+}
+
+function whyNow(heuristic, context, currentTurn) {
+  if (heuristic.severity === SEVERITY.SAFETY_CRITICAL) return "current_safety_signal";
+  if (!currentTurn) return "legacy_selection_without_turn_context";
+  if (currentTurn.previousIssueId === heuristic.id) return "answer_to_previous_mentor_question";
+  if ((heuristic.when.attempted || []).some((id) => context.attempted.has(id))) {
+    return "current_action_attempt";
+  }
+  if ((heuristic.when.attempted_intent || []).some((id) => context.attemptedIntents.has(id))) {
+    return "current_action_intent";
+  }
+  if ((heuristic.when.reasoning_all || []).some((flag) => context.reasoningUpdated.has(flag))) {
+    return "reasoning_changed_this_turn";
+  }
+  if (heuristic.type === "clock") return "current_flow_decision";
+  return "current_decision_point";
+}
+
+/**
+ * Rubric gaps remain measurable even when they are not useful interruptions.
+ * Live selection gets this extra relevance gate; debrief/legacy callers may
+ * inspect the complete accumulated state by omitting `currentTurn`.
+ */
+function isTimelyForLiveTurn(heuristic, context, currentTurn) {
+  if (!currentTurn) return true;
+  if (heuristic.severity === SEVERITY.SAFETY_CRITICAL) return true;
+  if (currentTurn.previousIssueId === heuristic.id) return true;
+  if ((heuristic.when.attempted || []).some((id) => context.attempted.has(id))) return true;
+  if (
+    (heuristic.when.attempted_intent || []).some((intent) =>
+      context.attemptedIntents.has(intent)
+    )
+  ) return true;
+  if (
+    (heuristic.when.reasoning_all || []).some((flag) =>
+      context.reasoningUpdated.has(flag)
+    )
+  ) return true;
+
+  const topic = currentTurn.topic || "unknown";
+  if (heuristic.type === "clock" && context.attempted.size > 0) return true;
+  if (
+    topic === "management" &&
+    ["no_contingency_plan", "observation_without_endpoint", "hypothesis_without_management"].includes(
+      heuristic.id
+    ) &&
+    ["decision", "preop", "reassessment"].includes(currentTurn.pathState)
+  ) return true;
+  if (
+    topic === "investigations" &&
+    heuristic.id === "investigation_without_purpose" &&
+    context.reasoningUpdated.has("investigation_without_stated_purpose")
+  ) return true;
+
+  // A checkpoint based only on an old false field is debrief material. It does
+  // not become a live questionnaire just because enough turns have elapsed.
+  return false;
 }
 
 /**

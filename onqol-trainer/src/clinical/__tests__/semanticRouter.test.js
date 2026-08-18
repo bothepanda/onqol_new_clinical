@@ -233,6 +233,40 @@ test("partial unknown does not suppress recognized findings or show global failu
   assert.doesNotMatch(result.reply, /не могу надежно сопоставить|Сформулируй как анамнез/i);
 });
 
+test("compound routing preserves an exact fragment for every addressed failure", () => {
+  const input = "ОАК и группа крови и кросс-матч";
+  const parsed = validateRouterOutput(
+    {
+      intents: [
+        {
+          type: "request_test",
+          concept_id: "cbc",
+          confidence: 0.99,
+          requested_fragment: "ОАК",
+        },
+        {
+          type: "unknown",
+          concept_id: null,
+          confidence: 0.4,
+          requested_fragment: "группа крови и кросс-матч",
+        },
+      ],
+      unresolved_fragments: ["группа крови и кросс-матч"],
+    },
+    acuteAppendicitisCase,
+    { learnerText: input }
+  );
+
+  assert.equal(parsed.actions[0].requested_fragment, "ОАК");
+  assert.deepEqual(parsed.unresolvedFragments, ["группа крови и кросс-матч"]);
+  assert.deepEqual(parsed.unresolvedByKind[0], {
+    concept_id: null,
+    kind: "unrecognized_fragment",
+    requested_fragment: "группа крови и кросс-матч",
+    reason_code: "router_unrecognized",
+  });
+});
+
 test("semantic router rejects hallucinated concept ids", () => {
   const parsed = validateRouterOutput(
     {

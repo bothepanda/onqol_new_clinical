@@ -8,6 +8,54 @@ function actionMap(actions) {
   return new Map(actions.map((action) => [action.id, action]));
 }
 
+const DEFERRED_ISSUE_LABELS = Object.freeze({
+  checkpoint_problem_representation: "Представление проблемы явно не сформулировано.",
+  checkpoint_hypotheses: "Гипотезы и опасная альтернатива явно не ранжированы.",
+  checkpoint_what_changes_the_plan: "Условие изменения плана осталось неявным.",
+  investigation_without_purpose: "Цель исследования не была вербализована.",
+  no_contingency_plan: "План на случай изменения ситуации не был сформулирован.",
+  observation_without_endpoint: "Критерии завершения наблюдения остались неполными.",
+  consultation_replacing_reasoning: "Собственная оценка перед консультацией осталась неявной.",
+});
+
+function deferredMentorRows(caseData, session) {
+  const investigations = session.workingMemory?.reasoningState?.investigations?.items || [];
+  const actionById = actionMap([
+    ...(caseData.expected_actions || []),
+    ...(caseData.acceptable_alternatives || []),
+    ...(caseData.unnecessary_actions || []),
+    ...(caseData.unsafe_actions || []),
+  ]);
+  const unpurposedInvestigations = investigations.filter(
+    (item) => !item.purpose_stated && !item.justification
+  );
+  const hasArticulatedPurpose = investigations.some(
+    (item) => item.purpose_stated || item.justification
+  );
+
+  return (session.workingMemory?.deferredMentorIssues || [])
+    .flatMap((issue) => {
+      if (issue.issue_id !== "investigation_without_purpose") {
+        return [DEFERRED_ISSUE_LABELS[issue.issue_id]];
+      }
+      if (!unpurposedInvestigations.length) return [];
+      if (!hasArticulatedPurpose) return [DEFERRED_ISSUE_LABELS[issue.issue_id]];
+      return unpurposedInvestigations.map((item) => {
+        const canonicalActionId = actionById.has(item.action_id)
+          ? item.action_id
+          : (caseData.v3_concept_map?.[item.action_id] || []).find((id) => actionById.has(id));
+        const action = actionById.get(canonicalActionId);
+        const findingId = action?.effects_on_case?.reveal || action?.maps_to || null;
+        const finding = findingId
+          ? caseData.available_findings?.[findingId] || caseData.hidden_findings?.[findingId]
+          : null;
+        return `Для «${finding?.title || action?.concept || item.action_id}» не было явно сказано, какой результат изменит тактику.`;
+      });
+    })
+    .filter(Boolean)
+    .filter((label, index, all) => all.indexOf(label) === index);
+}
+
 function evidenceForAction(knowledgeBase, action) {
   const query = [
     action.concept,
@@ -43,6 +91,7 @@ function buildFormativeDebrief({ caseData, session, scoring }) {
     .slice(-6)
     .map((entry) => `- T+${entry.minute} мин: ${entry.detail}`)
     .join("\n");
+  const deferredRows = deferredMentorRows(caseData, session);
 
   const markdown = `# Формирующий разбор V${caseData.product_version || "3.5"}
 
@@ -62,6 +111,11 @@ ${domainRows}
 
 **Клиническая временная линия**
 ${timeline || "- Временные события не зафиксированы."}
+
+**Отложено для разбора**
+${listOrDash(deferredRows)}
+
+Эти пункты не прерывали ведение пациента. Они фиксируют только то, что соответствующее рассуждение не было явно высказано; клиническую правильность они не устанавливают.
 
 **Статус данных**
 - Формирующий режим: \`${scoring.reviewStatus}\`.

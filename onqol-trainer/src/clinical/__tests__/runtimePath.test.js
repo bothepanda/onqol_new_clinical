@@ -71,6 +71,35 @@ test("V3.5 derives distinct learner-path states from current actions and state",
   );
 });
 
+test("operative approach and procedure start remain pre-source-control states", () => {
+  const selected = state({
+    pathState: "decision",
+    completedActions: ["diagnosis_acute_appendicitis"],
+    workingMemory: {
+      turnNumber: 4,
+      pendingOperationalization: [],
+      reasoningState: {},
+      operativeApproach: { approach: "laparoscopic", status: "selected" },
+      operativeState: { procedure_started: false, source_control_completed: false },
+    },
+  });
+  assert.notEqual(deriveV35PathState(selected, []), "operation");
+
+  const started = {
+    ...selected,
+    completedActions: [...selected.completedActions, "appendectomy_procedure_start"],
+    workingMemory: {
+      ...selected.workingMemory,
+      operativeState: { procedure_started: true, source_control_completed: false },
+    },
+  };
+  assert.notEqual(deriveV35PathState(started, ["appendectomy_procedure_start"]), "operation");
+  assert.equal(
+    deriveV35PathState({ ...started, temporalState: { sourceControl: true } }, []),
+    "operation"
+  );
+});
+
 test("reasoning snapshots are state-specific learner claims and redact identifiers", () => {
   const snapshot = buildReasoningSnapshot(
     "differential_1",
@@ -119,4 +148,3 @@ test("the engine emits a reasoning snapshot once on entry to a declared snapshot
   assert.equal(snapshots[0].snapshot_id, "definitive_decision");
   assert.doesNotMatch(JSON.stringify(snapshots[0]), /123456789012/);
 });
-

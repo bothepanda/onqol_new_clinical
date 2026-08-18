@@ -13,6 +13,8 @@ test("production release is NO-GO while owner gates remain open", () => {
   assert.equal(result.decision, "NO-GO");
   assert.equal(result.deploy_allowed, false);
   assert.ok(result.blocker_codes.includes("provider_key_rotation_unconfirmed"));
+  assert.ok(result.blocker_codes.includes("clinical_rule_registry_not_approved"));
+  assert.equal(result.clinical_governance.structurally_valid, true);
   assert.equal(result.blocker_codes.some((code) => code.startsWith("v35_runtime_blocker_")), false);
   assert.equal(result.scoring_mode, "formative_only");
 });

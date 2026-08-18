@@ -18,7 +18,8 @@ const ACTION_MINUTES = {
   active_observation: 120,
   serial_reexamination: 45,
   transfer_before_source_control: 150,
-  open_appendectomy_here: 90,
+  appendectomy_procedure_start: 15,
+  appendectomy_here: 75,
   preop_single_antibiotic_prophylaxis: 5,
   analgesia: 5,
   npo: 2,
@@ -135,7 +136,7 @@ export function projectTemporalState(caseData, previousState, actionIds, options
     : actionTimeCost(actions);
   const clockMinutes = previousState.clockMinutes + addedMinutes;
   const timeFromOnsetMinutes = previousState.timeFromOnsetMinutes + addedMinutes;
-  const sourceControl = previousState.sourceControl || actions.includes("open_appendectomy_here");
+  const sourceControl = previousState.sourceControl || actions.includes("appendectomy_here");
   const antibioticProphylaxis =
     previousState.antibioticProphylaxis || actions.includes("preop_single_antibiotic_prophylaxis");
   const flags = new Set(previousState.flags || []);

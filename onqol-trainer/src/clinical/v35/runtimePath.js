@@ -50,7 +50,10 @@ export function deriveV35PathState(session, performedActionIds = []) {
     if (completed.has("structured_handover")) return "postop_destination";
     return "operation";
   }
-  if (hasAny(performed, PREOP_ACTIONS) || session.workingMemory?.pendingOperationalization?.includes("open_appendectomy_here")) {
+  if (
+    hasAny(performed, PREOP_ACTIONS) ||
+    session.workingMemory?.operativeDecision?.status === "committed"
+  ) {
     return "preop";
   }
   if (hasAny(performed, REASSESSMENT_ACTIONS)) return "reassessment";
@@ -122,4 +125,3 @@ export function buildReasoningSnapshot(pathState, reasoningState, turnNumber) {
     learner_claims: scrubSensitiveData(snapshotClaims(snapshotId, reasoningState || {})),
   };
 }
-

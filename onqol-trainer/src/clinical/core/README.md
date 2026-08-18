@@ -63,7 +63,7 @@
 
 ```js
 composeCaseWithCore(acuteAppendicitisCase, {
-  operativeActionIds: ["open_appendectomy_here"],
+  operativeActionIds: ["appendectomy_here"],
   conceptMap: appendicitisRouterConceptMap,
 });
 ```

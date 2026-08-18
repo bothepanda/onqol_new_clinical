@@ -1152,10 +1152,36 @@ concepts:
     - gynecology consult
     - call gynecologist
     - gynecologic review
+- concept_id: operative_intent
+  intent: management
+  category: management_reasoning
+  description: Tentative or hypothetical operative intent without a committed decision.
+  aliases:
+    ru:
+    - думаю об операции
+    - вероятно понадобится операция
+    - возможно потребуется операция
+    - если подтвердится понадобится операция
+    kk: []
+    en:
+    - considering surgery
+    - may need surgery
+- concept_id: prepare_for_possible_surgery
+  intent: management
+  category: management_reasoning
+  description: Preparation for possible surgery without a committed operative decision.
+  aliases:
+    ru:
+    - подготовить к потенциальной операции
+    - подготовить к возможной операции
+    - можно подготовить к операции
+    kk: []
+    en:
+    - prepare for possible surgery
 - concept_id: appendectomy
   intent: management
-  category: management
-  description: Appendectomy without specifying access.
+  category: management_reasoning
+  description: Generic appendectomy mention without commitment or access.
   aliases:
     ru:
     - аппендэктомия
@@ -1170,6 +1196,42 @@ concepts:
     - appendectomy
     - remove appendix
     - operate for appendicitis
+- concept_id: decision_for_appendectomy
+  intent: management
+  category: management_decision
+  description: Committed decision to proceed with appendectomy, access not yet selected.
+  aliases:
+    ru:
+    - готовим к аппендэктомии
+    - решение аппендэктомия
+    - принято решение об аппендэктомии
+    - берем на аппендэктомию
+    kk: []
+    en:
+    - decision appendectomy
+    - prepare for appendectomy
+- concept_id: operative_approach_laparoscopic
+  intent: management
+  category: operative_approach
+  description: Committed laparoscopic operative approach.
+  aliases:
+    ru:
+    - выполняем лапароскопическую аппендэктомию
+    - начинаем лапароскопическую аппендэктомию
+    kk: []
+    en:
+    - perform laparoscopic appendectomy
+- concept_id: operative_approach_open
+  intent: management
+  category: operative_approach
+  description: Committed open operative approach.
+  aliases:
+    ru:
+    - выполняем открытую аппендэктомию
+    - начинаем открытую аппендэктомию
+    kk: []
+    en:
+    - perform open appendectomy
 - concept_id: laparoscopic_appendectomy
   intent: management
   category: management
@@ -1203,6 +1265,37 @@ concepts:
     en:
     - open appendectomy
     - open appendicectomy
+- concept_id: procedure_start
+  intent: management
+  category: procedure_stage
+  description: Explicit start of the operation, induction or incision after access selection.
+  aliases:
+    ru:
+    - начинаю операцию
+    - приступаем к операции
+    - начинаю аппендэктомию
+    - выполняю операцию
+    - делаю разрез
+    - начинаем индукцию
+    kk: []
+    en:
+    - start the operation
+    - begin appendectomy
+- concept_id: source_control_completed
+  intent: management
+  category: procedure_stage
+  description: Explicit statement that appendectomy or source control has been completed.
+  aliases:
+    ru:
+    - аппендэктомия выполнена
+    - операция завершена
+    - завершаю аппендэктомию
+    - контроль источника завершен
+    - контроль источника завершён
+    kk: []
+    en:
+    - appendectomy completed
+    - source control completed
 - concept_id: active_observation
   intent: management
   category: management

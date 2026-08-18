@@ -335,7 +335,7 @@ export function requestedTechnique(input) {
 }
 
 export function resourceForAction(actionId, input = "") {
-  if (actionId === "open_appendectomy_here") {
+  if (["appendectomy_procedure_start", "appendectomy_here"].includes(actionId)) {
     return requestedTechnique(input) === "laparoscopic" ? "laparoscopy" : "operatingRoom";
   }
   return ACTION_RESOURCES[actionId] || null;
@@ -486,7 +486,7 @@ export function revealedScenarioFacts(scenario, revealedResourceIds = []) {
     if (matching) return { resource, status: matching.status, text: matching.revealText };
     const resolution = resolveActionResource(
       scenario,
-      resource === "operatingRoom" ? "open_appendectomy_here" : Object.keys(ACTION_RESOURCES).find((id) => ACTION_RESOURCES[id] === resource)
+      resource === "operatingRoom" ? "appendectomy_procedure_start" : Object.keys(ACTION_RESOURCES).find((id) => ACTION_RESOURCES[id] === resource)
     );
     return { resource, status: resolution.status, text: resolution.revealText || "Ресурс доступен." };
   });

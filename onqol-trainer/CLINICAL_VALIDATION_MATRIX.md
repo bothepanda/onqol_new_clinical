@@ -14,6 +14,9 @@ approval, and source review is not Kazakhstan-local or language review.
 | Semantic router RU | concept dictionary and tests complete | narrow-intent behavior implemented | terminology pending | pending independent review | n/a | active | cannot create actions from reasoning alone |
 | Semantic router KK | concept dictionary and tests complete | behavior parity tests present | terminology pending | n/a | pending full learner-copy review | router vocabulary active; learner locale disabled | ineligible while locale disabled |
 | Mentor revealed-facts policy | evidence/source allowlist implemented | teaching policy pending independent review | pending | pending | pending | active with deterministic fallback | cannot change score |
+| Mentor V2 behavior contract | product contract versioned; no clinical claims imported | pedagogical review pending | pending | RU behavior tests active | KK copy remains gated | deterministic adequacy/policy/scaffolding active | cannot change score |
+| Clinical source registry v1.0 | WSES2025 and KZ_AA_2018 metadata migrated without fabricated check dates | source verification pending | KZ source verification pending | n/a | n/a | provenance scaffold active | no authority by source metadata alone |
+| Clinical rule registry v1.0 | first legacy mapping recorded | independent approval pending | pending | n/a | n/a | non-approved rules have zero runtime effects | release-blocking until approved |
 | Numeric rubric | provisional source mapping only | not signed | not signed | n/a | n/a | disabled | numeric totals/domains `null` |
 | Privacy/retention | technical policy documented | n/a | owner approval pending | participant copy pending | participant copy pending | raw persistence off; 7-day structured local retention | n/a |
 
@@ -24,4 +27,3 @@ approval, and source review is not Kazakhstan-local or language review.
 - Imaging findings: radiology reviewer.
 - Scoring: clinical panel plus assessment methodologist and pilot calibration.
 - Kazakh learner mode: Kazakhstan clinical reviewer and medical-language reviewer.
-

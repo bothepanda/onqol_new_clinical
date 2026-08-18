@@ -22,22 +22,53 @@ export function createV25Case() {
     if (action.id !== "open_appendectomy_here") return { ...action };
     return {
       ...action,
-      concept: "appendectomy at current hospital",
+      id: "appendectomy_here",
+      legacy_action_aliases: ["open_appendectomy_here"],
+      concept: "completed appendectomy at current hospital",
       router_description:
-        "appendectomy or source control at the current hospital, open or laparoscopic",
+        "explicit completion of appendectomy or source control at the current hospital",
       accepted_phrasings: [
-        ...action.accepted_phrasings,
-        "лапароскопическая аппендэктомия",
-        "лапароскопически",
-        "лаэ",
-        "открытая аппендэктомия",
-        "беру пациентку на операцию",
-        "беру пациента на операцию",
+        "аппендэктомия выполнена",
+        "операция завершена",
+        "завершаю аппендэктомию",
+        "контроль источника завершен",
+        "контроль источника завершён",
       ],
+      prerequisites: ["appendectomy_procedure_start"],
       feedback_if_done:
         "Выполнен контроль источника в текущем стационаре выбранным и доступным доступом.",
       feedback_if_missed: "Тактика не дошла до выполнимого контроля источника.",
     };
+  });
+  expectedActions.push({
+    id: "appendectomy_procedure_start",
+    phase: "management",
+    concept: "start appendectomy procedure",
+    intent_type: "management",
+    router_description:
+      "explicit start of the operation, induction or incision after the approach was selected",
+    accepted_phrasings: [
+      "начинаю операцию",
+      "приступаем к операции",
+      "начинаю аппендэктомию",
+      "выполняю операцию",
+      "делаю разрез",
+      "начинаем индукцию",
+    ],
+    importance: "workflow",
+    score_weight: 0,
+    domain: "Management",
+    critical: false,
+    time_window: "preoperative",
+    prerequisites: [],
+    effects_on_case: {},
+    feedback_if_done: "Начало вмешательства зафиксировано отдельно от выбора доступа.",
+    feedback_if_missed: "Начало вмешательства не было зафиксировано.",
+    evidence_reference_ids: ["who-ssc-sign-in", "who-ssc-time-out"],
+    eligible_for_scoring: false,
+    available_to_order: true,
+    expected_for_this_patient: true,
+    finding_status: "not_applicable",
   });
   const ctAction = acuteAppendicitisCase.unnecessary_actions.find((action) => action.id === "ct_abdomen");
 
@@ -49,6 +80,32 @@ export function createV25Case() {
     title: "Боль в правой подвздошной области",
     initial_presentation: { text: V25_PRESENTATION },
     expected_actions: expectedActions,
+    state_transitions: acuteAppendicitisCase.state_transitions.map((transition) => ({
+      ...transition,
+      when_all_done: (transition.when_all_done || []).map((id) =>
+        id === "open_appendectomy_here" ? "appendectomy_here" : id
+      ),
+      when_any_done: (transition.when_any_done || []).map((id) =>
+        id === "open_appendectomy_here" ? "appendectomy_here" : id
+      ),
+    })),
+    critical_omissions: acuteAppendicitisCase.critical_omissions.map((id) =>
+      id === "open_appendectomy_here" ? "appendectomy_here" : id
+    ),
+    dependent_omissions: Object.fromEntries(
+      Object.entries(acuteAppendicitisCase.dependent_omissions || {}).map(([id, dependencies]) => [
+        id === "open_appendectomy_here" ? "appendectomy_here" : id,
+        dependencies.map((dependency) =>
+          dependency === "open_appendectomy_here" ? "appendectomy_here" : dependency
+        ),
+      ])
+    ),
+    diagnostic_milestones: (acuteAppendicitisCase.diagnostic_milestones || []).map((id) =>
+      id === "open_appendectomy_here" ? "appendectomy_here" : id
+    ),
+    management_milestones: (acuteAppendicitisCase.management_milestones || []).map((id) =>
+      id === "open_appendectomy_here" ? "appendectomy_here" : id
+    ),
     acceptable_alternatives: [
       ...acuteAppendicitisCase.acceptable_alternatives.map((action) => ({ ...action })),
       ...(ctAction
@@ -104,6 +161,7 @@ export function createV25Case() {
     ],
     _v25: {
       sourceSurgeryAction: surgeryAction?.id,
+      canonicalSurgeryAction: "appendectomy_here",
       resourceProfile: "generated_at_session_start",
     },
   };

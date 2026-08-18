@@ -123,6 +123,9 @@ export function createEmptyReasoningState() {
     reassessment: { stated: false, updated_turn: null },
     contingency: {
       stated: false,
+      // Presence and quality are separate. A short contextual answer such as
+      // "резкое ухудшение" is a real contingency, but remains vague.
+      specificity: null,
       // Which investigations the learner named as able to change the plan.
       //
       // Concept ids only, never a result. "Если ХГЧ положительный — меняю
@@ -332,6 +335,9 @@ export function normalizeReasoningDelta(raw, options = {}) {
         bool(raw.contingency?.stated) ||
         contingencyTriggers.length > 0 ||
         contingencyQuotes.length > 0,
+      specificity: ["vague", "partial", "specific"].includes(raw.contingency?.specificity)
+        ? raw.contingency.specificity
+        : null,
       trigger_concept_ids: contingencyTriggers,
       trigger_verbatim: contingencyQuotes,
     },
@@ -379,6 +385,7 @@ export function mergeReasoningState(previous, delta, turnNumber) {
     state.contingency.trigger_concept_ids = [];
   }
   if (!Array.isArray(state.contingency.trigger_verbatim)) state.contingency.trigger_verbatim = [];
+  if (!("specificity" in state.contingency)) state.contingency.specificity = null;
   for (const item of state.differential.items) {
     if (!Array.isArray(item.evidence_for)) item.evidence_for = [];
     if (!Array.isArray(item.evidence_against)) item.evidence_against = [];
@@ -514,6 +521,15 @@ export function mergeReasoningState(previous, delta, turnNumber) {
   touch(state.reassessment, latch(state.reassessment, "stated", delta.reassessment?.stated));
 
   hit = latch(state.contingency, "stated", delta.contingency?.stated);
+  if (
+    delta.contingency?.specificity &&
+    state.contingency.specificity !== delta.contingency.specificity
+  ) {
+    state.contingency.specificity = delta.contingency.specificity;
+    state.contingency.stated = true;
+    changed = true;
+    hit = true;
+  }
   for (const [field, incoming] of [
     ["trigger_concept_ids", delta.contingency?.trigger_concept_ids],
     ["trigger_verbatim", delta.contingency?.trigger_verbatim],
@@ -545,6 +561,105 @@ export function mergeReasoningState(previous, delta, turnNumber) {
   touch(state.consultation, hit);
 
   return { state, changed };
+}
+
+/** Merge two normalised deltas from the same learner turn. */
+export function mergeTurnReasoningDeltas(primary, contextual) {
+  if (!primary) return contextual || null;
+  if (!contextual) return primary;
+  const merged = structuredClone(primary);
+  const combine = (target, incoming, fields) => {
+    for (const field of fields) target[field] = Boolean(target[field] || incoming?.[field]);
+  };
+  combine(merged.stability, contextual.stability, ["stated"]);
+  combine(merged.problem_representation, contextual.problem_representation, ["stated"]);
+  combine(merged.working_diagnosis, contextual.working_diagnosis, [
+    "stated",
+    "uncertainty_stated",
+  ]);
+  combine(merged.differential, contextual.differential, [
+    "stated",
+    "ranked",
+    "has_dangerous_alternative",
+  ]);
+  combine(merged.management, contextual.management, [
+    "plan_stated",
+    "urgency_stated",
+    "rationale_stated",
+  ]);
+  combine(merged.observation, contextual.observation, [
+    "active",
+    "goal_stated",
+    "reassessment_interval_stated",
+    "escalation_criteria_stated",
+  ]);
+  combine(merged.reassessment, contextual.reassessment, ["stated"]);
+  combine(merged.contingency, contextual.contingency, ["stated"]);
+  combine(merged.disposition, contextual.disposition, ["stated"]);
+  combine(merged.consultation, contextual.consultation, [
+    "own_assessment_stated",
+    "consultation_question_stated",
+  ]);
+  if (contextual.contingency?.specificity) {
+    merged.contingency.specificity = contextual.contingency.specificity;
+  }
+  for (const field of ["trigger_concept_ids", "trigger_verbatim"]) {
+    merged.contingency[field] = [
+      ...new Set([...(merged.contingency[field] || []), ...(contextual.contingency?.[field] || [])]),
+    ];
+  }
+  merged.investigations = [
+    ...(merged.investigations || []),
+    ...(contextual.investigations || []),
+  ];
+  return merged;
+}
+
+/** Which reasoning measurements materially changed on a given turn. */
+export function reasoningFlagsUpdatedOnTurn(state, turnNumber) {
+  if (!state || !Number.isInteger(turnNumber)) return new Set();
+  const flags = reasoningFlags(state);
+  const updated = new Set();
+  const sectionFor = {
+    stability_stated: state.stability,
+    problem_representation_stated: state.problem_representation,
+    working_diagnosis_stated: state.working_diagnosis,
+    diagnostic_uncertainty_stated: state.working_diagnosis,
+    differential_stated: state.differential,
+    differential_ranked: state.differential,
+    dangerous_alternative_stated: state.differential,
+    leading_hypothesis_named: state.working_diagnosis,
+    multiple_hypotheses_stated: state.differential,
+    dangerous_alternative_named: state.differential,
+    hypothesis_evidence_for_stated: state.differential,
+    hypothesis_evidence_against_stated: state.differential,
+    management_plan_stated: state.management,
+    management_urgency_stated: state.management,
+    management_rationale_stated: state.management,
+    observation_active: state.observation,
+    observation_goal_stated: state.observation,
+    observation_interval_stated: state.observation,
+    observation_escalation_stated: state.observation,
+    observation_plan_complete: state.observation,
+    reassessment_stated: state.reassessment,
+    contingency_stated: state.contingency,
+    contingency_trigger_named: state.contingency,
+    disposition_stated: state.disposition,
+    consultation_own_assessment_stated: state.consultation,
+    consultation_question_stated: state.consultation,
+  };
+  for (const flag of flags) {
+    const section = sectionFor[flag];
+    if (section?.updated_turn === turnNumber) updated.add(flag);
+  }
+  if (
+    (state.investigations?.items || []).some((item) => item.updated_turn === turnNumber)
+  ) {
+    for (const flag of ["investigation_justified", "investigation_without_stated_purpose"]) {
+      if (flags.has(flag)) updated.add(flag);
+    }
+  }
+  return updated;
 }
 
 /**

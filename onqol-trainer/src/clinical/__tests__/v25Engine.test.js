@@ -100,10 +100,10 @@ test("busy laparoscopic stack is revealed only on request and does not penalize 
   const blocked = await advanceV25Session({
     caseData,
     session,
-    input: "Выполняю лапароскопическую аппендэктомию",
+    input: "Выбираю лапароскопическую аппендэктомию",
   });
   assert.match(blocked.reply, /гинекологической операции/);
-  assert.equal(blocked.session.completedActions.includes("open_appendectomy_here"), false);
+  assert.equal(blocked.session.temporalState.sourceControl, false);
   assert.equal(blocked.session.unnecessaryActions.length, 0);
   assert.deepEqual(blocked.session.workingMemory.revealedConstraints, ["laparoscopy"]);
   assert.equal(blocked.session.actionLog.at(-1).lifecycle_after, "blocked");
@@ -112,12 +112,11 @@ test("busy laparoscopic stack is revealed only on request and does not penalize 
   const adapted = await advanceV25Session({
     caseData,
     session,
-    input: "Тогда выполняю открытую аппендэктомию, антибиотикопрофилактика до разреза",
+    input: "Тогда выбираю открытую аппендэктомию",
   });
-  assert.equal(adapted.session.completedActions.includes("open_appendectomy_here"), true);
-  assert.equal(adapted.session.completedActions.includes("preop_single_antibiotic_prophylaxis"), true);
-  assert.equal(adapted.session.temporalState.sourceControl, true);
-  assert.equal(adapted.session.actionLog.at(-2).technique, "open");
+  assert.equal(adapted.session.workingMemory.operativeApproach.approach, "open");
+  assert.equal(adapted.session.workingMemory.operativeApproach.status, "selected");
+  assert.equal(adapted.session.temporalState.sourceControl, false);
 });
 
 test("permanent CT absence is discovered on request without creating a low-value penalty", async () => {
@@ -134,10 +133,10 @@ test("permanent CT absence is discovered on request without creating a low-value
 test("generic operation proposal is remembered but not applied until access is operationalized", async () => {
   const caseData = createV25Case();
   const session = createV25Session({ caseData, mode: "reference", seed: "reference" });
-  const proposed = await advanceV25Session({ caseData, session, input: "Беру пациентку на операцию" });
+  const proposed = await advanceV25Session({ caseData, session, input: "Готовим к аппендэктомии" });
   assert.equal(proposed.session.temporalState.sourceControl, false);
-  assert.equal(proposed.session.workingMemory.actionStates.open_appendectomy_here.status, "proposed");
-  assert.match(proposed.reply, /Какой операционный доступ/);
+  assert.equal(proposed.session.workingMemory.operativeDecision.status, "proposed");
+  assert.equal(proposed.session.workingMemory.operativeState.procedure_started, false);
 });
 
 test("parallel diagnostic orders advance by the longest turnaround, not the sum", async () => {
@@ -305,15 +304,60 @@ test("V3.5 stable runtime path reaches discharge before a completed debrief", as
   result = await advanceV25Session({
     caseData,
     session,
-    input: "Выполняю лапароскопическую аппендэктомию, антибиотикопрофилактика до разреза",
+    input: "Предоперационная подготовка и чек-лист",
     options: {
       actionExtractorLLM: actionExtractorFor([
+        { type: "management", concept_id: "informed_consent", confidence: 0.99 },
+        { type: "management", concept_id: "notify_anesthesia", confidence: 0.99 },
+        { type: "management", concept_id: "notify_operating_team", confidence: 0.99 },
+        { type: "management", concept_id: "who_sign_in", confidence: 0.99 },
+        { type: "management", concept_id: "who_time_out", confidence: 0.99 },
         {
           type: "management",
           concept_id: "preop_single_antibiotic_prophylaxis",
           confidence: 0.99,
         },
-        { type: "management", concept_id: "open_appendectomy_here", confidence: 0.99 },
+      ]),
+    },
+  });
+  session = result.session;
+  result = await advanceV25Session({
+    caseData,
+    session,
+    input: "Выбираю лапароскопическую аппендэктомию",
+    options: {
+      actionExtractorLLM: actionExtractorFor([
+        {
+          type: "management",
+          concept_id: "operative_approach_laparoscopic",
+          confidence: 0.99,
+        },
+      ]),
+      conceptMap: appendicitisRouterConceptMap,
+      conceptRegistry: resolveConcept,
+    },
+  });
+  assert.equal(result.session.temporalState.sourceControl, false);
+  session = result.session;
+  result = await advanceV25Session({
+    caseData,
+    session,
+    input: "Начинаю операцию",
+    options: {
+      actionExtractorLLM: actionExtractorFor([
+        { type: "management", concept_id: "appendectomy_procedure_start", confidence: 0.99 },
+      ]),
+    },
+  });
+  assert.equal(result.session.workingMemory.operativeState.procedure_started, true);
+  session = result.session;
+  result = await advanceV25Session({
+    caseData,
+    session,
+    input: "Аппендэктомия выполнена",
+    options: {
+      actionExtractorLLM: actionExtractorFor([
+        { type: "management", concept_id: "appendectomy_here", confidence: 0.99 },
       ]),
     },
   });
@@ -509,7 +553,8 @@ test("asking for the question to be repeated is not a clinical action", async ()
   });
 
   assert.equal(result.plan.mode, "conversational_turn");
-  assert.equal(result.plan.turnKind.kind, "clarification_request");
+  assert.equal(result.plan.turnKind.kind, "conversation_management");
+  assert.equal(result.plan.turnKind.legacy_kind, "clarification_request");
   assert.deepEqual(result.plan.operations, []);
   assert.equal(result.session.completedActions.length, 0);
   assert.equal(result.session.temporalState.clockMinutes, before, "часы не должны идти");
@@ -564,7 +609,8 @@ test("repeating a plan does not run the orders a second time", async () => {
     options: { actionExtractorLLM: extractor },
   });
 
-  assert.equal(second.plan.turnKind.kind, "repeat_or_correction");
+  assert.equal(second.plan.turnKind.kind, "clinical_action");
+  assert.equal(second.plan.turnKind.legacy_kind, "repeat_or_correction");
   assert.deepEqual(second.plan.operations, [], "повтор не выполняет назначения заново");
   assert.deepEqual(
     second.plan.suppressedOperations.map((entry) => entry.action_id).sort(),
@@ -623,7 +669,8 @@ test("the log records the turn kind and what was not repeated", async () => {
 
   const turn = lastEvent(second.session, "clinical_turn");
   assert.equal(turn.event_type, "clinical_turn");
-  assert.equal(turn.turn_kind, "repeat_or_correction");
+  assert.equal(turn.turn_kind, "clinical_action");
+  assert.equal(turn.turn_legacy_kind, "repeat_or_correction");
   assert.deepEqual(
     turn.duplicate_suppressed.map((entry) => entry.action_id),
     ["npo"]

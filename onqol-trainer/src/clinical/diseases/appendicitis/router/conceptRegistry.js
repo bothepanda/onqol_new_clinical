@@ -39,6 +39,8 @@
  */
 export const CONCEPT_KINDS = Object.freeze([
   "action",
+  "management_decision",
+  "operative_approach",
   "finding_slot",
   "finding_bundle",
   "reasoning_only",
@@ -59,6 +61,17 @@ const slot = (bundleAction, slotId) => ({
   slot_id: slotId,
 });
 const reasoning = (note) => ({ kind: "reasoning_only", maps_to: [], note_ru: note });
+const managementDecision = (decisionId) => ({
+  kind: "management_decision",
+  maps_to: [],
+  decision_id: decisionId,
+});
+const operativeApproach = (approach) => ({
+  kind: "operative_approach",
+  maps_to: [],
+  decision_id: "operative_approach",
+  approach,
+});
 const unsupported = (reason) => ({ kind: "unsupported", maps_to: [], reason_ru: reason });
 
 export const APPENDICITIS_CONCEPTS = Object.freeze({
@@ -155,14 +168,24 @@ export const APPENDICITIS_CONCEPTS = Object.freeze({
   npo: action(["npo"]),
   surgical_consult: action(["surgical_consult"]),
   gynecology_consult: action(["gynecology_consult"]),
-  appendectomy: action(["open_appendectomy_here"]),
-  open_appendectomy: action(["open_appendectomy_here"]),
+  // Mentioning surgery, deciding on appendectomy and choosing an operative
+  // access are three different meanings. Access selection is state, not source
+  // control; only explicit procedure start/completion reaches a procedure action.
+  operative_intent: reasoning("Оперативная возможность названа, но решение ещё не принято."),
+  prepare_for_possible_surgery: reasoning(
+    "Подготовка к возможной операции названа как условный план, не как решение."
+  ),
+  appendectomy: reasoning("Аппендэктомия упомянута без зафиксированного решения или доступа."),
+  decision_for_appendectomy: managementDecision("appendectomy"),
+  operative_approach_open: operativeApproach("open"),
+  open_appendectomy: operativeApproach("open"),
   active_observation: action(["active_observation"]),
   serial_reexamination: action(["serial_reexamination"]),
   transfer: action(["transfer_before_source_control"]),
-  laparoscopic_appendectomy: unsupported(
-    "В этом кейсе смоделирован только открытый доступ."
-  ),
+  operative_approach_laparoscopic: operativeApproach("laparoscopic"),
+  laparoscopic_appendectomy: operativeApproach("laparoscopic"),
+  procedure_start: action(["appendectomy_procedure_start"]),
+  source_control_completed: action(["appendectomy_here"]),
   nonoperative_management: reasoning(
     "Стратегия, которую резидент может назвать; отдельного действия в кейсе нет."
   ),

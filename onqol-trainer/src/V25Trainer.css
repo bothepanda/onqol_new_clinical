@@ -36,10 +36,11 @@
 }
 
 .v25-shell * { box-sizing: border-box; }
-.v25-shell button, .v25-shell input, .v25-shell textarea { font: inherit; }
+.v25-shell button, .v25-shell input, .v25-shell textarea, .v25-shell select { font: inherit; }
 .v25-shell button:focus-visible,
 .v25-shell input:focus-visible,
-.v25-shell textarea:focus-visible {
+.v25-shell textarea:focus-visible,
+.v25-shell select:focus-visible {
   outline: 3px solid #0b7189;
   outline-offset: 3px;
 }
@@ -129,6 +130,29 @@
   line-height: 1.45;
 }
 
+.v25-full-test-panel {
+  display: grid;
+  gap: 10px;
+  margin: -8px 0 28px;
+  padding: 18px;
+  border: 1px solid #b86a5b;
+  border-radius: 8px;
+  background: #fff3ef;
+  color: #71372f;
+}
+.v25-full-test-panel > strong { font-size: 15px; letter-spacing: .04em; text-transform: uppercase; }
+.v25-full-test-panel p { max-width: 760px; margin: 0; font: 14px/1.55 var(--v25-sans); }
+.v25-full-test-panel label { display: grid; gap: 7px; margin-top: 4px; font-size: 12px; font-weight: 800; }
+.v25-full-test-panel select {
+  min-height: 46px;
+  width: 100%;
+  border: 1px solid rgba(113, 55, 47, .35);
+  border-radius: 8px;
+  background: #fff;
+  color: #3f211d;
+  padding: 9px 12px;
+}
+
 .v25-access-code {
   max-width: 520px;
   display: grid;
@@ -178,7 +202,7 @@
 .v25-classic-mode-card strong { color: var(--v25-brand); font-size: 26px; line-height: 1.2; }
 .v25-classic-mode-card span { color: var(--v25-brand-soft); font-size: 20px; line-height: 1.45; }
 
-.v25-session-shell { height: 100svh; display: flex; flex-direction: column; overflow: hidden; }
+.v25-session-shell { min-height: 100svh; display: flex; flex-direction: column; overflow: visible; }
 .v25-case-bar {
   min-height: 78px;
   padding: 13px 30px;
@@ -193,13 +217,23 @@
 .v25-case-bar strong { font-size: 17px; }
 .v25-case-meta { display: flex; align-items: center; gap: 10px; }
 .v25-case-meta small { max-width: 220px; color: var(--v25-muted); font-size: 12px; line-height: 1.35; text-align: right; }
+.v25-full-test-strip {
+  padding: 8px 24px;
+  border-bottom: 1px solid #b86a5b;
+  background: #71372f;
+  color: #fff;
+  font: 700 12px/1.35 var(--v25-mono);
+  letter-spacing: .03em;
+  text-align: center;
+  text-transform: uppercase;
+}
 .mode-real { background: var(--v25-warn-bg); border-color: var(--v25-warn-line); color: var(--v25-warn-ink); }
 .mode-reference { background: var(--v25-soft); }
 
-.v25-workspace { min-height: 0; flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 330px; }
+.v25-workspace { min-height: 0; flex: none; display: grid; grid-template-columns: minmax(0, 1fr) 330px; align-items: stretch; }
 .v25-chat-column { min-width: 0; display: flex; flex-direction: column; border-right: 1px solid var(--v25-line); background: var(--v25-paper); }
 .v25-local-notice { padding: 9px 24px; border-bottom: 1px solid var(--v25-warn-line); background: var(--v25-warn-bg); color: var(--v25-warn-ink); font-size: 13px; line-height: 1.4; }
-.v25-messages { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; padding: 28px max(24px, calc((100% - 760px) / 2)); }
+.v25-messages { flex: none; overflow: visible; display: flex; flex-direction: column; gap: 15px; padding: 28px max(24px, calc((100% - 760px) / 2)); }
 .v25-message { max-width: 84%; border-radius: 16px; font-size: 15px; line-height: 1.65; }
 .v25-message-assistant { align-self: flex-start; padding: 15px 18px; border: 1px solid var(--v25-line); border-radius: 4px 16px 16px 16px; background: var(--v25-white); box-shadow: 0 4px 15px rgba(18, 53, 46, .04); }
 .v25-message-user { align-self: flex-end; padding: 12px 16px; border-radius: 16px 4px 16px 16px; background: var(--v25-ink); color: white; white-space: pre-wrap; }
@@ -229,7 +263,7 @@
 .v25-composer button { width: 42px; height: 42px; border: 0; border-radius: 10px; background: var(--v25-ink); color: white; cursor: pointer; font-size: 21px; }
 .v25-composer button:disabled { opacity: .3; cursor: default; }
 
-.v25-sidebar { min-height: 0; overflow-y: auto; background: var(--v25-soft); }
+.v25-sidebar { min-height: 0; overflow: visible; background: var(--v25-soft); }
 .v25-side-section { padding: 20px; border-bottom: 1px solid var(--v25-line); }
 .v25-side-heading { display: flex; align-items: center; justify-content: space-between; color: var(--v25-muted); font: 800 12px/1.3 var(--v25-mono); letter-spacing: .07em; text-transform: uppercase; }
 .v25-side-heading small { font-size: 12px; }

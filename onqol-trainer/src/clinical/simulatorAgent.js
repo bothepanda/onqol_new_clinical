@@ -71,6 +71,7 @@ export function buildClinicalSimulatorPrompt({
       "The action extraction and scoring pipeline is separate. Never score the learner, grade them, confirm correctness, teach guideline reasoning, or reveal the expected next decision during simulation.",
       "Return only data explicitly requested, automatically visible, caused by a performed action, or required by an applied state transition.",
       "Every LOCKED_FACT source_id must appear in allowed_locked_sources and its text must come from patient_view. Otherwise use UNKNOWN.",
+      "Every UNKNOWN must identify exactly one requested_fragment copied verbatim from raw_user_text and one reason_code. Never emit an unanchored UNKNOWN.",
       "INFERABLE_FINDING is allowed only when listed by id in the authored policy and must not alter diagnosis, severity, timeline, resources, or key decisions.",
       "No disease card, answer key, rubric, hidden truth, future result, or retrieval corpus is available to you.",
       "Return strict JSON only. Do not include a closing tutoring question; the application appends the neutral prompt.",
@@ -96,6 +97,10 @@ export function buildClinicalSimulatorPrompt({
                 "available_findings.<id> | hidden_findings.<id> | initial_presentation | authored inferable finding id | null",
               exact_text:
                 "Only for a short exact substring copied from initial_presentation, or authored inferable text. Omit for finding source ids and UNKNOWN.",
+              requested_fragment:
+                "For UNKNOWN only: exact contiguous substring copied from raw_user_text; otherwise null.",
+              reason_code:
+                "not_authorized_finding | unrecognized_fragment | unknown_medication | not_modelled_for_variant | null",
             },
           ],
           retrieval_sources_used: [],
@@ -118,47 +123,88 @@ function formatFinding(caseData, sourceId) {
   return finding ? `**${finding.title}:** ${finding.text}` : "";
 }
 
-function validateAndMaterializePart(caseData, part, revealedFindingIds, allowedSourceIds) {
+function addressedUnknownText(reasonCode, fragment) {
+  if (reasonCode === "unknown_medication") {
+    return `Не распознано лекарство: «${fragment}». Уточни название и назначение; действие не применено.`;
+  }
+  if (["not_authorized_finding", "not_modelled_for_variant"].includes(reasonCode)) {
+    return `«${fragment}»: результат пока не смоделирован для этого варианта кейса.`;
+  }
+  return `Не распознано: «${fragment}». Уточни, что именно назначаешь.`;
+}
+
+function validateAndMaterializePart(
+  caseData,
+  part,
+  revealedFindingIds,
+  allowedSourceIds,
+  rawUserText
+) {
   if (!isAuthorizedInformationSource(caseData, part, revealedFindingIds, allowedSourceIds)) {
-    return null;
+    return { part: null, suppressReason: "unauthorized_information_source" };
   }
 
   if (part.classification === PATIENT_INFORMATION_CLASS.UNKNOWN) {
+    const fragment = String(part.requested_fragment || "").trim();
+    const reasonCode = String(part.reason_code || "").trim();
+    if (!fragment || !String(rawUserText || "").includes(fragment)) {
+      return { part: null, suppressReason: "unknown_without_exact_requested_fragment" };
+    }
+    if (![
+      "not_authorized_finding",
+      "unrecognized_fragment",
+      "unknown_medication",
+      "not_modelled_for_variant",
+    ].includes(reasonCode)) {
+      return { part: null, suppressReason: "unknown_without_reason_code" };
+    }
     return {
-      text: "Эти данные не заданы в карте пациента.",
-      findingId: null,
-      source: { classification: part.classification, source_id: null },
+      part: {
+        text: addressedUnknownText(reasonCode, fragment),
+        findingId: null,
+        source: {
+          classification: part.classification,
+          source_id: null,
+          requested_fragment: fragment,
+          reason_code: reasonCode,
+        },
+      },
+      suppressReason: null,
     };
   }
 
   if (part.classification === PATIENT_INFORMATION_CLASS.INFERABLE_FINDING) {
     const authored = (caseData.inferable_findings || []).find((finding) => finding.id === part.source_id);
     const text = String(part.exact_text || authored?.text || "").trim();
-    if (!text || PREMATURE_TEACHING_RE.test(text)) return null;
-    return {
+    if (!text || PREMATURE_TEACHING_RE.test(text)) {
+      return { part: null, suppressReason: "invalid_inferable_finding" };
+    }
+    return { part: {
       text,
       findingId: null,
       source: { classification: part.classification, source_id: part.source_id },
-    };
+    }, suppressReason: null };
   }
 
   if (part.source_id === "initial_presentation") {
     const exactText = String(part.exact_text || "").trim();
-    if (!exactText || !caseData.initial_presentation.text.includes(exactText)) return null;
-    return {
+    if (!exactText || !caseData.initial_presentation.text.includes(exactText)) {
+      return { part: null, suppressReason: "initial_presentation_text_not_exact" };
+    }
+    return { part: {
       text: exactText,
       findingId: null,
       source: { classification: part.classification, source_id: part.source_id },
-    };
+    }, suppressReason: null };
   }
 
   const text = formatFinding(caseData, part.source_id);
-  if (!text) return null;
-  return {
+  if (!text) return { part: null, suppressReason: "authored_finding_missing" };
+  return { part: {
     text,
     findingId: sourceFindingId(part.source_id),
     source: { classification: part.classification, source_id: part.source_id },
-  };
+  }, suppressReason: null };
 }
 
 function requiredFindingParts(caseData, deterministicUpdate) {
@@ -187,18 +233,36 @@ function materializeEnvelope(caseData, envelope, deterministicUpdate, sessionBef
     ]),
   ];
   const materialized = requiredFindingParts(caseData, deterministicUpdate);
-  const seenSources = new Set(materialized.map((part) => part.source.source_id));
+  const partKey = (part) =>
+    part.source.source_id || `${part.source.classification}:${part.source.requested_fragment || ""}`;
+  const seenSources = new Set(materialized.map(partKey));
+  const responseParts = [];
+  const suppressedResponseParts = [];
 
   for (const rawPart of envelope.response_parts || []) {
-    const part = validateAndMaterializePart(
+    const validation = validateAndMaterializePart(
       caseData,
       rawPart,
       revealed,
-      allowedSourceIds
+      allowedSourceIds,
+      deterministicUpdate.rawUserText
     );
-    if (!part || seenSources.has(part.source.source_id)) continue;
+    const part = validation.part;
+    if (!part) {
+      suppressedResponseParts.push({
+        ...rawPart,
+        suppress_reason: validation.suppressReason || "invalid_part",
+      });
+      continue;
+    }
+    const key = partKey(part);
+    if (seenSources.has(key)) {
+      suppressedResponseParts.push({ ...rawPart, suppress_reason: "duplicate_part" });
+      continue;
+    }
     materialized.push(part);
-    seenSources.add(part.source.source_id);
+    seenSources.add(key);
+    responseParts.push({ ...part.source, suppress_reason: null });
   }
 
   const body = [...new Set(materialized.map((part) => part.text).filter(Boolean))];
@@ -217,6 +281,8 @@ function materializeEnvelope(caseData, envelope, deterministicUpdate, sessionBef
     // No retrieval corpus is provided to the simulator. A model cannot claim
     // provenance for sources it was never allowed to read.
     retrievalSourcesUsed: [],
+    responseParts,
+    suppressedResponseParts,
   };
 }
 
@@ -228,6 +294,8 @@ export async function runClinicalSimulatorAgent(context, options = {}) {
     ),
     additionalFindingIds: [],
     retrievalSourcesUsed: [],
+    responseParts: [],
+    suppressedResponseParts: [],
     provider: "deterministic_fallback",
     model: null,
     version: options.simulatorVersion || "0.1.0",

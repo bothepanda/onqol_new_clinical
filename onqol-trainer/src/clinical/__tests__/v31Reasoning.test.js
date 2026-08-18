@@ -968,12 +968,14 @@ test("prophylaxis does not require the operation to have happened", async () => 
 test("appendectomy is blocked before the patient when prophylaxis is missing", async () => {
   const { session, result } = await playV3([
     ...PREOP,
-    "открытая аппендэктомия по волковичу-дьяконову прямо сейчас",
+    "выбираю открытую аппендэктомию",
+    "начинаю операцию",
+    "аппендэктомия выполнена",
   ]);
 
   assert.deepEqual(
     (result.blockedOperations || []).map((operation) => operation.action_id),
-    ["open_appendectomy_here"]
+    ["appendectomy_here"]
   );
   assert.equal(session.temporalState.sourceControl, false);
   assert.ok(!session.revealedFindings.includes("operative_finding"), "a blocked operation reveals nothing");
@@ -983,7 +985,9 @@ test("appendectomy is blocked before the patient when prophylaxis is missing", a
 test("prophylaxis and surgery in one turn are accepted", async () => {
   const { session } = await playV3([
     ...PREOP,
-    "антибиотикопрофилактика однократно и открытая аппендэктомия по волковичу-дьяконову прямо сейчас",
+    "выбираю открытую аппендэктомию",
+    "начинаю операцию",
+    "антибиотикопрофилактика однократно и аппендэктомия выполнена",
   ]);
 
   assert.equal(session.temporalState.sourceControl, true);
@@ -994,7 +998,9 @@ test("prophylaxis and surgery in one turn are accepted", async () => {
 test("the normal V3 path never ends in the antibiotic-gap state", async () => {
   const { session } = await playV3([
     ...PREOP,
-    "антибиотикопрофилактика однократно и открытая аппендэктомия по волковичу-дьяконову прямо сейчас",
+    "выбираю открытую аппендэктомию",
+    "начинаю операцию",
+    "антибиотикопрофилактика однократно и аппендэктомия выполнена",
   ]);
   assert.notEqual(session.temporalState.status, "controlled_with_antibiotic_gap");
 });

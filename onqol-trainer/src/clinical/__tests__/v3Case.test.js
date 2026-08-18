@@ -73,14 +73,23 @@ test("end to end: the mentor speaks and the operation is stopped before it happe
   });
   session = diagnosed.session;
 
-  const committed = await advanceV25Session({
+  const selected = await advanceV25Session({
     caseData,
     session,
     input: "Открытая аппендэктомия сейчас",
     options: { mentor: true },
   });
+  assert.equal(selected.session.workingMemory.operativeApproach.approach, "open");
+  assert.equal(selected.session.temporalState.sourceControl, false);
 
-  assert.match(committed.reply, /информированное согласие|анестезиолог/i);
+  const committed = await advanceV25Session({
+    caseData,
+    session: selected.session,
+    input: "Начинаю операцию",
+    options: { mentor: true },
+  });
+
+  assert.match(committed.reply, /Sign In/i);
   assert.ok(!committed.session.revealedFindings.includes("operative_finding"));
   assert.equal(committed.session.temporalState.sourceControl, false);
 });

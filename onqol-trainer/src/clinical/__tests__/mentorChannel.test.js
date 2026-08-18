@@ -121,12 +121,23 @@ test("mentor factual claims require an allowed source and exact support", () => 
     plan: plan(),
     deterministicUpdate: update(),
   });
+  brief.candidateIssues = [
+    { issue_id: "fact_probe", type: "probe", safety_critical: false, evidence: [] },
+  ];
+  brief.mentorPolicy = {
+    mode: "CLARIFY",
+    issue_id: "fact_probe",
+    question_domain: "diagnostic_reasoning",
+  };
   const exact = "Локальная болезненность и мышечный дефанс в правой подвздошной области.";
   assert.equal(
     validateMentorPayload(
       {
+        mode: "CLARIFY",
+        issue_id: "fact_probe",
         mentor_text: `${exact} Что это меняет в твоей оценке?`,
         factual_claims: [{ source_id: "finding.abdominal_exam", text: exact }],
+        question_domain: "diagnostic_reasoning",
       },
       brief,
       caseData,
@@ -137,8 +148,11 @@ test("mentor factual claims require an allowed source and exact support", () => 
   assert.equal(
     validateMentorPayload(
       {
+        mode: "CLARIFY",
+        issue_id: "fact_probe",
         mentor_text: "Лейкоциты 13,8. Что это меняет?",
         factual_claims: [{ source_id: "finding.cbc", text: "Лейкоциты 13,8" }],
+        question_domain: "diagnostic_reasoning",
       },
       brief,
       caseData,
@@ -148,7 +162,7 @@ test("mentor factual claims require an allowed source and exact support", () => 
   );
   assert.equal(
     validateMentorPayload(
-      { mentor_text: "Температура 39. Что это меняет?", factual_claims: [] },
+      { mode: "CLARIFY", issue_id: "fact_probe", mentor_text: "Температура 39. Что это меняет?", factual_claims: [], question_domain: "diagnostic_reasoning" },
       brief,
       caseData,
       ["abdominal_exam"]
@@ -261,7 +275,7 @@ test("calling intensive care is not gated on completing the assessment first", (
   assert.ok(moveTypes(brief).includes(MENTOR_MOVE.ESCALATION_APPROPRIATE));
 });
 
-test("declared uncertainty is normalised and narrowed", () => {
+test("declared uncertainty alone does not trigger automatic praise", () => {
   const brief = buildMentorBrief({
     caseData,
     session: session(),
@@ -269,13 +283,12 @@ test("declared uncertainty is normalised and narrowed", () => {
     deterministicUpdate: update({ scoringEvents: [{ action_id: "declare_uncertainty" }] }),
   });
 
-  assert.ok(moveTypes(brief).includes(MENTOR_MOVE.UNCERTAINTY_DECLARED));
-  const text = renderMentorBrief(brief);
-  assert.match(text, /не провал|правильный ход/i);
-  assert.match(text, /\?$/);
+  assert.equal(moveTypes(brief).includes(MENTOR_MOVE.UNCERTAINTY_DECLARED), false);
+  assert.equal(brief.mentorPolicy.mode, "CONTINUE");
+  assert.equal(renderMentorBrief(brief), "");
 });
 
-test("a sensible action outside the library is acknowledged instead of dropped", () => {
+test("a library content gap is not converted into mentor praise", () => {
   const brief = buildMentorBrief({
     caseData,
     session: session(),
@@ -283,10 +296,11 @@ test("a sensible action outside the library is acknowledged instead of dropped",
     deterministicUpdate: update(),
   });
 
-  const move = brief.moves.find((item) => item.type === MENTOR_MOVE.OUT_OF_SCOPE_RECOGNIZED);
-  assert.ok(move);
-  assert.equal(move.concept_id, "nasogastric_tube");
-  assert.match(move.template, /не войдёт/i);
+  assert.equal(
+    brief.moves.some((item) => item.type === MENTOR_MOVE.OUT_OF_SCOPE_RECOGNIZED),
+    false
+  );
+  assert.equal(brief.mentorPolicy.mode, "CONTINUE");
 });
 
 // POLICY CHANGE, deliberate. This test used to read "the mentor is never mute:
@@ -299,7 +313,7 @@ test("a sensible action outside the library is acknowledged instead of dropped",
 // What survives is the narrower guarantee that actually mattered: the mentor
 // never *fails* to speak when it has something to say. A brief with moves always
 // renders to text, with or without a model.
-test("a brief with moves always renders to something, with or without a model", () => {
+test("a bare uncertainty event leaves the mentor silent", () => {
   const brief = buildMentorBrief({
     caseData,
     session: session(),
@@ -309,9 +323,9 @@ test("a brief with moves always renders to something, with or without a model", 
       scoringEvents: [{ action_id: "declare_uncertainty" }],
     }),
   });
-  assert.ok(brief.moves.length > 0);
-  assert.equal(brief.silent, false);
-  assert.ok(renderMentorBrief(brief).trim().length > 0);
+  assert.equal(brief.moves.length, 0);
+  assert.equal(brief.silent, true);
+  assert.equal(renderMentorBrief(brief), "");
 });
 
 test("deterministic rendering passes the mentor's own validator", () => {
@@ -400,7 +414,16 @@ test("a rejected model reply falls back to deterministic text, never to silence"
 
   const result = await runMentorAgent(
     { brief, learnerText: "зову старшего", caseData, revealedFindingIds: [] },
-    { llm: async () => JSON.stringify({ mentor_text: "Правильный диагноз, оперируй." }) }
+    {
+      llm: async () =>
+        JSON.stringify({
+          mode: brief.mentorPolicy.mode,
+          issue_id: brief.mentorPolicy.issue_id,
+          mentor_text: "Правильный диагноз, оперируй.",
+          factual_claims: [],
+          question_domain: brief.mentorPolicy.question_domain,
+        }),
+    }
   );
 
   assert.equal(result.source, "deterministic");
@@ -427,7 +450,8 @@ test("a model error falls back instead of failing the turn", async () => {
 
   assert.equal(result.source, "deterministic");
   assert.equal(result.rejectionReason, "mentor_agent_error");
-  assert.ok(result.text.length > 0);
+  assert.equal(result.mode, "CONTINUE");
+  assert.equal(result.text, "");
 });
 
 test("a valid model reply is used and reports its move types", async () => {
@@ -443,8 +467,12 @@ test("a valid model reply is used and reports its move types", async () => {
     {
       llm: async () =>
         JSON.stringify({
+          mode: brief.mentorPolicy.mode,
+          issue_id: brief.mentorPolicy.issue_id,
           mentor_text:
-            "Хорошо, что зовёшь. Осмотр уже выполнен, значит вызов идёт после работы, а не вместо неё — это зрелое решение. Что именно тебя остановило?",
+            "Вызов старшего после собственной оценки — зрелое решение.",
+          factual_claims: [],
+          question_domain: brief.mentorPolicy.question_domain,
         }),
     }
   );
@@ -457,7 +485,7 @@ test("a valid model reply is used and reports its move types", async () => {
   assert.deepEqual(result.moveTypes, [MENTOR_MOVE.ESCALATION_APPROPRIATE]);
 });
 
-test("without a configured model the mentor still speaks", async () => {
+test("without a configured model the mentor remains silent when policy says CONTINUE", async () => {
   const brief = buildMentorBrief({
     caseData,
     session: session(),
@@ -467,7 +495,8 @@ test("without a configured model the mentor still speaks", async () => {
 
   const result = await runMentorAgent({ brief, learnerText: "я не знаю", caseData }, {});
   assert.equal(result.source, "deterministic");
-  assert.match(result.text, /неопределённость/i);
+  assert.equal(result.mode, "CONTINUE");
+  assert.equal(result.text, "");
 });
 
 // --- integration with the V2.5 engine ------------------------------------
@@ -503,9 +532,9 @@ test("mentor on: the closing prompt is replaced by a pedagogical reply, facts su
   assert.ok(result.reply.includes(result.mentor.text));
 });
 
-test("mentor on: operating without consent is stopped out loud", async () => {
+test("procedure start is stopped at Sign In after approach selection", async () => {
   const composed = composeCaseWithCore(createV25Case(), {
-    operativeActionIds: ["open_appendectomy_here"],
+    operativeActionIds: ["appendectomy_here"],
     minimumAssessmentActionIds: ["focused_history", "abdominal_exam"],
   });
   const session = createV25Session({ caseData: composed.caseData, mode: "reference", seed: "stop" });
@@ -520,19 +549,22 @@ test("mentor on: operating without consent is stopped out loud", async () => {
   });
   assert.doesNotMatch(proposed.reply, /информированное согласие/i);
 
-  const committed = await advanceV25Session({
+  const selected = await advanceV25Session({
     caseData: composed.caseData,
     session: proposed.session,
     input: "Открытая аппендэктомия сейчас",
     options: { mentor: true },
   });
+  assert.equal(selected.session.workingMemory.operativeApproach.approach, "open");
+  assert.equal(selected.session.temporalState.sourceControl, false);
 
-  assert.ok(committed.mentor);
-  assert.ok(
-    committed.mentor.moveTypes.includes(MENTOR_MOVE.PREREQUISITE_STOP),
-    `expected a stop, got ${committed.mentor.moveTypes.join(", ")}`
-  );
-  assert.match(committed.reply, /информированное согласие|анестезиолог/i);
+  const committed = await advanceV25Session({
+    caseData: composed.caseData,
+    session: selected.session,
+    input: "Начинаю операцию",
+    options: { mentor: true },
+  });
+  assert.match(committed.reply, /Перед индукцией.*Sign In/is);
 
   // A stop that arrives after the appendix is out is not a stop: the operation
   // must not have been applied to the patient.
@@ -542,20 +574,16 @@ test("mentor on: operating without consent is stopped out loud", async () => {
   );
   assert.equal(committed.session.temporalState.sourceControl, false);
   assert.equal(
-    committed.session.workingMemory.actionStates.open_appendectomy_here.status,
+    committed.session.workingMemory.actionStates.appendectomy_procedure_start.status,
     "blocked"
   );
-
-  // One highest-priority block speaks. The next remains pending for a later turn.
-  const stops = committed.mentor.moveTypes.filter((type) => type === MENTOR_MOVE.PREREQUISITE_STOP);
-  assert.equal(stops.length, 1);
 });
 
 test("advisory prerequisites never block the operation", async () => {
   const composed = composeCaseWithCore(createV25Case(), {
     // consent and anaesthesia are already satisfied below, leaving only the
     // advisory items outstanding
-    operativeActionIds: ["open_appendectomy_here"],
+    operativeActionIds: ["appendectomy_here"],
   });
   let session = createV25Session({
     caseData: composed.caseData,
@@ -573,10 +601,22 @@ test("advisory prerequisites never block the operation", async () => {
     ],
   };
 
-  const result = await advanceV25Session({
+  const selected = await advanceV25Session({
     caseData: composed.caseData,
     session,
     input: "Открытая аппендэктомия сейчас",
+    options: { mentor: true },
+  });
+  const started = await advanceV25Session({
+    caseData: composed.caseData,
+    session: selected.session,
+    input: "Начинаю операцию",
+    options: { mentor: true },
+  });
+  const result = await advanceV25Session({
+    caseData: composed.caseData,
+    session: started.session,
+    input: "Аппендэктомия выполнена",
     options: { mentor: true },
   });
 
@@ -586,15 +626,30 @@ test("advisory prerequisites never block the operation", async () => {
 
 test("blocking enforcement can be turned off independently of the mentor", async () => {
   const composed = composeCaseWithCore(createV25Case(), {
-    operativeActionIds: ["open_appendectomy_here"],
+    operativeActionIds: ["appendectomy_here"],
   });
   let session = createV25Session({ caseData: composed.caseData, mode: "reference", seed: "off" });
-  session = { ...session, completedActions: ["diagnosis_acute_appendicitis"] };
+  session = {
+    ...session,
+    completedActions: ["diagnosis_acute_appendicitis", "who_sign_in", "who_time_out"],
+  };
 
-  const result = await advanceV25Session({
+  const selected = await advanceV25Session({
     caseData: composed.caseData,
     session,
     input: "Открытая аппендэктомия сейчас",
+    options: { mentor: true, enforceBlockingPrerequisites: false },
+  });
+  const started = await advanceV25Session({
+    caseData: composed.caseData,
+    session: selected.session,
+    input: "Начинаю операцию",
+    options: { mentor: true, enforceBlockingPrerequisites: false },
+  });
+  const result = await advanceV25Session({
+    caseData: composed.caseData,
+    session: started.session,
+    input: "Аппендэктомия выполнена",
     options: { mentor: true, enforceBlockingPrerequisites: false },
   });
 
@@ -627,6 +682,18 @@ test("neutral phrasings are accepted", () => {
   for (const text of neutral) {
     const validation = validateMentorText(text, caseData, []);
     assert.ok(validation.ok, `wrongly rejected (${validation.reason}): ${text}`);
+  }
+});
+
+test("abstract meta-praise without a current process anchor is rejected", () => {
+  for (const text of [
+    "Это помогает сохранять диагностическое мышление.",
+    "Можно двигаться дальше.",
+    "Такой ход сохраняет широту диагностического поиска.",
+  ]) {
+    const validation = validateMentorText(text, caseData, []);
+    assert.equal(validation.ok, false, text);
+    assert.equal(validation.reason, "unanchored_meta_praise");
   }
 });
 
@@ -670,7 +737,16 @@ test("a gendered model reply falls back to the neutral authored text", async () 
 
   const result = await runMentorAgent(
     { brief, learnerText: "зову старшего", caseData },
-    { llm: async () => JSON.stringify({ mentor_text: "Молодец, ты правильно поступил." }) }
+    {
+      llm: async () =>
+        JSON.stringify({
+          mode: brief.mentorPolicy.mode,
+          issue_id: brief.mentorPolicy.issue_id,
+          mentor_text: "Молодец, ты правильно поступил.",
+          factual_claims: [],
+          question_domain: brief.mentorPolicy.question_domain,
+        }),
+    }
   );
 
   assert.equal(result.source, "deterministic");
@@ -954,13 +1030,9 @@ test("heuristics gate on real engine phases", () => {
   }
 });
 
-test("a heuristic fires in a real session, not only in a hand-built one", async () => {
-  // Regression. The first version of these heuristics gated on phase names taken
-  // from the case action vocabulary ("diagnosis", "management") instead of the
-  // engine's temporal phases ("diagnostic_workup", "decision"). Every unit test
-  // passed, because each one handed buildMentorBrief the same wrong name it was
-  // asserting against. Nothing fired in an actual session. Only a run through
-  // the engine can catch that class of mistake.
+test("a real session does not revive an old ordinary gap on a later topic", async () => {
+  // Rubric state still records the omissions, but the live mentor relevance
+  // gate must not turn them into a checklist several turns later.
   const v3Case = createV3Case();
   let session = createV25Session({ caseData: v3Case, mode: "reference", seed: "heuristics" });
 
@@ -981,8 +1053,5 @@ test("a heuristic fires in a real session, not only in a hand-built one", async 
     session = result.session;
   }
 
-  assert.ok(
-    session.workingMemory.firedHeuristicIds.length > 0,
-    "no heuristic spoke across a whole diagnostic workup - check the `when` gates against real engine phases"
-  );
+  assert.deepEqual(session.workingMemory.firedHeuristicIds, []);
 });

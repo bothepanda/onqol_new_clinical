@@ -10,7 +10,10 @@ import {
   isAuthorizedInformationSource,
   PATIENT_INFORMATION_CLASS,
 } from "../informationPolicy.js";
-import { buildClinicalSimulatorPrompt } from "../simulatorAgent.js";
+import {
+  buildClinicalSimulatorPrompt,
+  runClinicalSimulatorAgent,
+} from "../simulatorAgent.js";
 
 function actionExtractorFor(intents) {
   return () => JSON.stringify({ intents, unresolved_fragments: [] });
@@ -141,6 +144,54 @@ test("generated simulator fields cannot modify deterministic actions or Case Car
   assert.match(result.reply, /лейкоциты 13,8 x 10\^9\/л/i);
   assert.doesNotMatch(result.reply, /99,9|overall score/i);
   assert.equal(result.session.scoring, undefined);
+});
+
+test("UNKNOWN is materialized only with an exact addressed fragment and reason", async () => {
+  const session = createInitialSession(acuteAppendicitisCase);
+  const input = "ектотоп 30 мг в/м";
+  const deterministicUpdate = {
+    session,
+    parsed: { actions: [] },
+    findingsRevealed: [],
+    neutralPrompt: "Уточни назначение.",
+    reply: "Уточни назначение.",
+    rawUserText: input,
+  };
+  const result = await runClinicalSimulatorAgent(
+    {
+      input,
+      caseData: acuteAppendicitisCase,
+      sessionBefore: session,
+      deterministicUpdate,
+      locale: "ru",
+    },
+    {
+      llm: simulatorFor([
+        {
+          classification: "UNKNOWN",
+          source_id: null,
+          exact_text: null,
+          requested_fragment: null,
+          reason_code: "unknown_medication",
+        },
+        {
+          classification: "UNKNOWN",
+          source_id: null,
+          exact_text: null,
+          requested_fragment: input,
+          reason_code: "unknown_medication",
+        },
+      ]),
+    }
+  );
+
+  assert.match(result.reply, /Не распознано лекарство: «ектотоп 30 мг в\/м»/i);
+  assert.doesNotMatch(result.reply, /Эти данные не заданы в карте пациента/i);
+  assert.equal(result.responseParts[0].requested_fragment, input);
+  assert.equal(
+    result.suppressedResponseParts[0].suppress_reason,
+    "unknown_without_exact_requested_fragment"
+  );
 });
 
 test("case selection supports seed, immediate-repeat avoidance, filters, and faculty override", () => {

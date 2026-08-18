@@ -55,14 +55,14 @@ export const WHO_CHECKPOINTS = Object.freeze([
   Object.freeze({
     checkpoint_id: "sign_in",
     gate_scope: "before_induction",
-    blocks_action_ids: ["open_appendectomy_here"],
+    blocks_action_ids: ["appendectomy_here"],
     waiver_conditions: ["life_threatening_haemorrhage_documented"],
     clinical_review_status: "reviewed_provisional",
   }),
   Object.freeze({
     checkpoint_id: "time_out",
     gate_scope: "before_incision",
-    blocks_action_ids: ["open_appendectomy_here"],
+    blocks_action_ids: ["appendectomy_here"],
     waiver_conditions: [],
     clinical_review_status: "reviewed_provisional",
   }),
@@ -96,7 +96,7 @@ export const SCORING_CONTRACT = Object.freeze([
     criticality: 4,
     gate: {
       gate_scope: "before_intervention",
-      blocks_action_ids: ["open_appendectomy_here"],
+      blocks_action_ids: ["appendectomy_here"],
       // The surgeon's example: an emergency operation on a patient who cannot
       // consent is lawful when the exception is documented.
       waiver_conditions: [
@@ -113,7 +113,7 @@ export const SCORING_CONTRACT = Object.freeze([
     criticality: 3,
     gate: {
       gate_scope: "before_induction",
-      blocks_action_ids: ["open_appendectomy_here"],
+      blocks_action_ids: ["appendectomy_here"],
       waiver_conditions: [],
     },
   },
@@ -135,7 +135,7 @@ export const SCORING_CONTRACT = Object.freeze([
     // Phase-specific: the gate is whichever checkpoint the case has reached.
     gate: {
       gate_scope: "phase_specific",
-      blocks_action_ids: ["open_appendectomy_here"],
+      blocks_action_ids: ["appendectomy_here"],
       waiver_conditions: [],
       checkpoints: WHO_CHECKPOINTS.map((checkpoint) => checkpoint.checkpoint_id),
     },
@@ -148,7 +148,7 @@ export const SCORING_CONTRACT = Object.freeze([
     criticality: 3,
     gate: {
       gate_scope: "before_induction",
-      blocks_action_ids: ["open_appendectomy_here"],
+      blocks_action_ids: ["appendectomy_here"],
       waiver_conditions: [],
     },
   },
