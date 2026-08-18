@@ -36,6 +36,19 @@ const MAIN_ACCESS_TOKEN_KEY = "onqol_main_access_token";
 const FULL_CLINICAL_TEST =
   import.meta.env.VITE_ONQOL_FULL_CLINICAL_TEST === "confirmed";
 
+/**
+ * The Kazakhstan-profile shift is closed for the first pilot.
+ *
+ * The profiles are documented working assumptions awaiting owner confirmation
+ * (KZ_RESOURCE_PROFILES_REVIEW.md), and blood products and transfer
+ * destination are blank in every row. The pilot runs in reference conditions,
+ * so the mode stays visible and unusable rather than disappearing.
+ *
+ * The full clinical test build may still open it: that build is already
+ * labelled as unusable for teaching and exists to exercise every branch.
+ */
+const REAL_SHIFT_DISABLED = !FULL_CLINICAL_TEST;
+
 const UI = {
   ru: {
     subtitle: "Клинический симулятор",
@@ -46,6 +59,8 @@ const UI = {
     referenceBody: "Полный ресурс. Тактика ровно та, что в руководстве.",
     real: "Реальная смена",
     realBody: "Обстоятельства ночи выпадают вместе со случаем.",
+    realDisabledBody:
+      "Закрыто на время пилота: профили казахстанских больниц ещё не подтверждены. Пилот идёт в эталонных условиях.",
     case: "Экстренная абдоминальная хирургия",
     referenceShort: "Эталон",
     realShort: "Реальная смена",
@@ -89,6 +104,8 @@ const UI = {
     referenceBody: "Толық ресурс. Тактика нұсқаулыққа дәл сәйкес келеді.",
     real: "Нақты кезекшілік",
     realBody: "Түнгі кезекшіліктің жағдайлары кейспен бірге анықталады.",
+    realDisabledBody:
+      "Пилот кезеңінде жабық: қазақстандық аурухана профильдері әлі расталмаған. Пилот эталондық жағдайда өтеді.",
     case: "Шұғыл абдоминалдық хирургия",
     referenceShort: "Эталон",
     realShort: "Нақты кезекшілік",
@@ -303,12 +320,22 @@ function StartScreen({
             <strong>{t.reference}</strong>
             <span>{t.referenceBody}</span>
           </button>
+          {/* Реальная смена closed for the first pilot.
+              The KZ-R1/R2/R3 resource profiles are working assumptions, not
+              confirmed facility descriptions, and two cells - blood products
+              and transfer destination - are not authored at all. The pilot
+              runs in reference conditions, so the mode is disabled rather
+              than hidden: a resident should see that the trainer has a second
+              mode and that it is deliberately shut, not silently missing. */}
           <button
             className="v25-classic-mode-card"
             onClick={() => onStart("real")}
+            disabled={REAL_SHIFT_DISABLED}
+            aria-disabled={REAL_SHIFT_DISABLED}
+            title={REAL_SHIFT_DISABLED ? t.realDisabledBody : undefined}
           >
             <strong>{t.real}</strong>
-            <span>{t.realBody}</span>
+            <span>{REAL_SHIFT_DISABLED ? t.realDisabledBody : t.realBody}</span>
           </button>
         </section>
 

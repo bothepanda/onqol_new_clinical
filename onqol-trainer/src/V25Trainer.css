@@ -423,3 +423,14 @@
   font-size: 12px;
   opacity: 0.8;
 }
+
+/* A mode that is deliberately closed, not missing. It stays legible and
+   readable so a resident understands it exists and why it is shut. */
+.v25-classic-mode-card:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.v25-classic-mode-card:disabled:hover {
+  transform: none;
+}
