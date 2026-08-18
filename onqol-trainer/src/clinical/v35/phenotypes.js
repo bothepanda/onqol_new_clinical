@@ -416,6 +416,19 @@ export const PHENOTYPES = Object.freeze({
         // scattering it across the others would be decoration.
         obturator: ["положительный", "отрицательный"],
       }),
+      // The only phenotype with an authored rectal examination. Owner,
+      // 18.08.2026: a pelvic appendix is where DRE has something to find, so a
+      // resident who asks for it here gets a real result instead of "не
+      // смоделировано". The other three keep the non-answer.
+      //
+      // Fixed, not drawn: three states the owner signed as one finding. No
+      // prostate slot - APP-003 may be male or female. `нависание` is not used
+      // because APP-003 is uncomplicated and has no pelvic abscess.
+      rectal_exam_slots: Object.freeze({
+        sphincter_tone: "обычный",
+        rectal_wall_tenderness: "есть",
+        blood_or_discharge: "нет",
+      }),
       authored_source_ru: Object.freeze({
         story:
           "Надлобковая или глубокая тазовая боль, тенезмы, учащённое мочеиспускание или дискомфорт",

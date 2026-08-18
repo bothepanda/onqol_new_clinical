@@ -19,6 +19,13 @@ import {
   createOpenAIBackendClient,
   getOpenAIBackendStatus,
 } from "./clinical/v25/openAIBackendClient.js";
+import {
+  CLINICAL_REPORT_CATEGORIES,
+  createClinicalReport,
+  exportClinicalReports,
+  listClinicalReports,
+  saveClinicalReport,
+} from "./clinical/governance/clinicalReport.js";
 import { createScenarioSeed, resolveScenarioResource } from "./clinical/v25/scenarioEngine.js";
 import { buildV25ReplayExport } from "./clinical/v25/replayExport.js";
 import "./V25Trainer.css";
@@ -117,6 +124,44 @@ const UI = {
     randomPreset: "Барлығынан кездейсоқ, APP-005 қоса",
   },
 };
+
+/**
+ * Clinical error reporting copy.
+ *
+ * Russian only, deliberately. Kazakh learner mode is disabled, and filling this
+ * dictionary with Russian text under a `kk` key would be a Kazakh interface
+ * that is not in Kazakh. When KK learner copy is authored and reviewed, this
+ * gains a `kk` entry like everything else.
+ */
+const REPORT_UI = {
+  ru: {
+    open: "Сообщить об ошибке",
+    title: "Сообщить о клинической ошибке",
+    lead:
+      "Это замечание попадёт в очередь клинического ревью вместе с версией кейса и последними ходами. Оно ничего не меняет в тренажёре само по себе.",
+    category: "Что не так",
+    role: "Кто сообщает",
+    comment: "Что именно неверно",
+    commentPlaceholder: "Своими словами: что тренажёр сказал или сделал и почему это неправильно",
+    disputed: "Что сказал тренажёр (по желанию)",
+    disputedPlaceholder: "Скопируйте спорную фразу",
+    submit: "Отправить в очередь",
+    cancel: "Отмена",
+    saved: "Замечание записано. Спасибо.",
+    queue: "Очередь замечаний",
+    exportQueue: "Выгрузить замечания",
+    roles: {
+      resident_year_1: "Резидент, 1 курс",
+      resident_year_2: "Резидент, 2 курс",
+      resident_year_3: "Резидент, 3 курс",
+      resident_year_4: "Резидент, 4 курс",
+      faculty: "Преподаватель",
+      unspecified: "Не указано",
+    },
+  },
+};
+
+const reportCopy = (locale) => REPORT_UI[locale] || REPORT_UI.ru;
 
 function phaseLabel(phase, locale) {
   const labels = {
@@ -272,7 +317,85 @@ function StartScreen({
   );
 }
 
-function SessionSidebar({ session, caseData, locale, onDownload }) {
+/**
+ * The clinical error report dialog — governance §23.
+ *
+ * Deliberately small. Category, who is reporting, what is wrong, and optionally
+ * the disputed sentence; everything else (session, versions, seed, last three
+ * turns) is attached by the report module so the reporter does not have to
+ * remember any of it.
+ */
+function ClinicalReportDialog({ locale, onSubmit, onCancel }) {
+  const t = reportCopy(locale);
+  const [categoryId, setCategoryId] = useState(CLINICAL_REPORT_CATEGORIES[0].id);
+  const [role, setRole] = useState("unspecified");
+  const [comment, setComment] = useState("");
+  const [disputed, setDisputed] = useState("");
+  const category = CLINICAL_REPORT_CATEGORIES.find((entry) => entry.id === categoryId);
+
+  return (
+    <div
+      className="v25-report-dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="v25-report-title"
+    >
+      <h3 id="v25-report-title">{t.title}</h3>
+      <p className="v25-report-lead">{t.lead}</p>
+
+      <label>
+        <span>{t.category}</span>
+        <select value={categoryId} onChange={(event) => setCategoryId(event.target.value)}>
+          {CLINICAL_REPORT_CATEGORIES.map((entry) => (
+            <option key={entry.id} value={entry.id}>{entry.label_ru}</option>
+          ))}
+        </select>
+      </label>
+      {category ? <small className="v25-report-hint">{category.hint_ru}</small> : null}
+
+      <label>
+        <span>{t.role}</span>
+        <select value={role} onChange={(event) => setRole(event.target.value)}>
+          {Object.entries(t.roles).map(([value, label]) => (
+            <option key={value} value={value}>{label}</option>
+          ))}
+        </select>
+      </label>
+
+      <label>
+        <span>{t.comment}</span>
+        <textarea
+          value={comment}
+          onChange={(event) => setComment(event.target.value)}
+          placeholder={t.commentPlaceholder}
+          rows={3}
+        />
+      </label>
+
+      <label>
+        <span>{t.disputed}</span>
+        <textarea
+          value={disputed}
+          onChange={(event) => setDisputed(event.target.value)}
+          placeholder={t.disputedPlaceholder}
+          rows={2}
+        />
+      </label>
+
+      <div className="v25-report-actions">
+        <button onClick={onCancel}>{t.cancel}</button>
+        <button
+          disabled={comment.trim().length < 3}
+          onClick={() => onSubmit({ categoryId, reporterRole: role, comment, disputedContent: disputed })}
+        >
+          {t.submit}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SessionSidebar({ session, caseData, locale, onDownload, reportCount, onExportReports }) {
   const t = UI[locale];
   const states = Object.values(session.workingMemory.actionStates).slice(-6);
   const revealed = session.workingMemory.revealedConstraints.map((resource) => {
@@ -323,6 +446,11 @@ function SessionSidebar({ session, caseData, locale, onDownload }) {
       <section className="v25-side-section v25-log-section">
         <div className="v25-side-heading"><span>{t.log}</span><small>{session.eventLog.length} {t.events}</small></div>
         <button className="v25-download" onClick={onDownload}>{t.download} <span>↓</span></button>
+        {reportCount > 0 && (
+          <button className="v25-download" onClick={onExportReports}>
+            {reportCopy(locale).exportQueue} <small>{reportCount}</small>
+          </button>
+        )}
         <code>seed: {session.scenario.seed}</code>
       </section>
     </aside>
@@ -360,6 +488,9 @@ export default function V25Trainer({ mentor = true }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [confirmInterrupt, setConfirmInterrupt] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportNotice, setReportNotice] = useState("");
+  const [reportCount, setReportCount] = useState(() => listClinicalReports().length);
   const [selectedPresetId, setSelectedPresetId] = useState("");
   const [openAIStatus, setOpenAIStatus] = useState({
     checking: true,
@@ -519,16 +650,46 @@ export default function V25Trainer({ mentor = true }) {
     send(locale === "kk" ? "кейс соңы" : "конец кейса");
   }
 
-  function downloadLog() {
-    if (!session) return;
-    const payload = buildV25ReplayExport(session);
+  // A report never touches the session: it is written next to it, so a failure
+  // here cannot cost the learner their case.
+  function submitClinicalReport({ categoryId, reporterRole, comment, disputedContent }) {
+    const { ok, report } = createClinicalReport({
+      caseData,
+      session,
+      categoryId,
+      comment,
+      reporterRole,
+      disputedContent: disputedContent || null,
+    });
+    if (!ok) return;
+    try {
+      saveClinicalReport(report);
+      setReportCount(listClinicalReports().length);
+      setReportNotice(reportCopy(locale).saved);
+    } catch {
+      // Local storage is best-effort, exactly like session persistence.
+    }
+    setReportOpen(false);
+  }
+
+  function downloadReports() {
+    const payload = exportClinicalReports();
+    downloadJson(payload, `onqol-clinical-reports-${new Date().toISOString().slice(0, 10)}.json`);
+  }
+
+  function downloadJson(payload, filename) {
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = `onqol-replay-${session.session_id}.json`;
+    anchor.download = filename;
     anchor.click();
     URL.revokeObjectURL(url);
+  }
+
+  function downloadLog() {
+    if (!session) return;
+    downloadJson(buildV25ReplayExport(session), `onqol-replay-${session.session_id}.json`);
   }
 
   function onKeyDown(event) {
@@ -612,9 +773,25 @@ export default function V25Trainer({ mentor = true }) {
                 </div>
               </div>
             )}
+            {reportOpen && (
+              <ClinicalReportDialog
+                locale={locale}
+                onSubmit={submitClinicalReport}
+                onCancel={() => setReportOpen(false)}
+              />
+            )}
+            {reportNotice && (
+              <p className="v25-report-notice" role="status">{reportNotice}</p>
+            )}
             <div className="v25-session-actions">
               <button onClick={() => setConfirmInterrupt(true)} disabled={loading || session.finished}>{t.finish}</button>
               <button onClick={restart}>{t.restart}</button>
+              <button
+                onClick={() => { setReportNotice(""); setReportOpen(true); }}
+                disabled={reportOpen}
+              >
+                {reportCopy(locale).open}
+              </button>
             </div>
             <div className="v25-composer">
               <textarea
@@ -631,7 +808,14 @@ export default function V25Trainer({ mentor = true }) {
           </div>
         </section>
 
-        <SessionSidebar session={session} caseData={caseData} locale={locale} onDownload={downloadLog} />
+        <SessionSidebar
+          session={session}
+          caseData={caseData}
+          locale={locale}
+          onDownload={downloadLog}
+          reportCount={reportCount}
+          onExportReports={downloadReports}
+        />
       </main>
     </div>
   );

@@ -34,7 +34,7 @@ import { KZ_RESOURCE_PROFILE_VERSION } from "../v25/scenarioEngine.js";
 import { composeV3Case } from "../v3/createCase.js";
 import { getDiseaseModule } from "../v3/diseaseModules.js";
 import { PHENOTYPES } from "./phenotypes.js";
-import { renderExamination } from "./examSlots.js";
+import { renderExamination, renderRectalExamination } from "./examSlots.js";
 import { selectV35Case } from "./sessionSelector.js";
 import { V35_CONTENT_VERSION } from "./manifest.js";
 import {
@@ -44,6 +44,8 @@ import {
 
 const CARRIED = "CARRIED_OVER_UNREVIEWED";
 const GENERATED = "GENERATED_FROM_AUTHORED_RANGE";
+// Text a clinician wrote and signed for this phenotype, not drawn from a range.
+const AUTHORED = "OWNER_AUTHORED_SIGNED";
 const REWORDED = "reworded_by_owner_20260809_clinical_content_unchanged";
 
 /**
@@ -302,6 +304,14 @@ function handoffText(patient, composed) {
   ].join(" ");
 }
 
+/** Did this phenotype author a rectal examination? Owner-signed content only. */
+function rectalExamAuthored(phenotype) {
+  return Boolean(
+    phenotype?.presentation?.rectal_exam_slots &&
+      Object.keys(phenotype.presentation.rectal_exam_slots).length
+  );
+}
+
 /**
  * Findings for this patient.
  *
@@ -352,6 +362,28 @@ function buildFindings(baseCase, patient, phenotype, pregnancyPossible, composed
     provenance: GENERATED,
     review_status: "synthetic_case_fact_needs_external_review",
   };
+
+  // ПРИ, only where the phenotype authored it. A phenotype that authored
+  // nothing gets no finding at all, and the action keeps its
+  // `not_authorized_for_patient_variant` flags from the base card - so the
+  // learner is told the result is not modelled instead of reading a plausible
+  // normal nobody signed.
+  const rectalText = renderRectalExamination(phenotype.presentation?.rectal_exam_slots);
+  if (rectalText) {
+    findings.rectal_exam = {
+      title: "Пальцевое ректальное исследование",
+      text: rectalText,
+      slots: { ...phenotype.presentation.rectal_exam_slots },
+      slot_text: Object.fromEntries(
+        Object.entries(phenotype.presentation.rectal_exam_slots).map(([slotId, state]) => [
+          slotId,
+          renderRectalExamination({ [slotId]: state }),
+        ])
+      ),
+      provenance: AUTHORED,
+      review_status: "owner_signed_20260818",
+    };
+  }
 
   findings.cbc = {
     title: base.cbc.title,
@@ -519,6 +551,22 @@ export function buildV35Case({
 
   const withPatient = {
     ...v3Composed,
+    // ПРИ is orderable in every case and modelled in only one. Clearing the
+    // base card's "not modelled" flags where the phenotype authored the slots
+    // is what lets the engine hand over the finding; leaving them everywhere
+    // else is what keeps the honest non-answer.
+    acceptable_alternatives: rectalExamAuthored(phenotype)
+      ? (v3Composed.acceptable_alternatives || []).map((action) =>
+          action.id === "rectal_exam"
+            ? {
+                ...action,
+                finding_status: null,
+                unavailable_reason_ru: null,
+                effects_on_case: { reveal: "rectal_exam" },
+              }
+            : action
+        )
+      : v3Composed.acceptable_alternatives,
     case_id: `app-v35-${preset.case_preset_id.toLowerCase()}`,
     case_version: V35_CONTENT_VERSION,
     product_version: "3.5",

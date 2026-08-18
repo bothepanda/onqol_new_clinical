@@ -361,3 +361,65 @@
   .v25-classic-mode-card strong { font-size: 21px; }
   .v25-classic-mode-card span { font-size: 16px; }
 }
+
+/* Clinical error report — governance §23.
+   Sits in the composer area, above the session actions, so reporting is one
+   click from the moment being disputed rather than a menu somewhere else. */
+.v25-report-dialog {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  margin-bottom: 12px;
+  border: 1px solid var(--v25-border, rgba(120, 130, 150, 0.35));
+  border-radius: 10px;
+  background: var(--v25-surface, rgba(255, 255, 255, 0.04));
+}
+
+.v25-report-dialog h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.v25-report-lead {
+  margin: 0;
+  font-size: 12px;
+  opacity: 0.75;
+  line-height: 1.45;
+}
+
+.v25-report-dialog label {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.v25-report-dialog select,
+.v25-report-dialog textarea {
+  width: 100%;
+  padding: 8px;
+  font: inherit;
+  font-size: 13px;
+  border-radius: 6px;
+  border: 1px solid var(--v25-border, rgba(120, 130, 150, 0.35));
+  background: transparent;
+  color: inherit;
+  resize: vertical;
+}
+
+.v25-report-hint {
+  margin-top: -4px;
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.v25-report-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.v25-report-notice {
+  margin: 0 0 8px;
+  font-size: 12px;
+  opacity: 0.8;
+}

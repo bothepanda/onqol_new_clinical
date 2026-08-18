@@ -111,14 +111,13 @@ export const APPENDICITIS_CONCEPTS = Object.freeze({
 
   // --- rectal examination and prostate -------------------------------------
   //
-  // The action exists and is recognised; its FINDINGS are unsigned, so it
-  // answers that it is not modelled instead of inventing a prostate. The slot
-  // table awaiting signature is in RECTAL_EXAM_REVIEW.md.
-  rectal_examination: action([], {
-    findings_status: "AWAITING_CLINICAL_SIGNATURE",
-    unavailable_reason_ru:
-      "Пальцевое ректальное исследование пока не смоделировано в этом кейсе: результат не подписан клиницистом.",
-  }),
+  // The action exists and is recognised. Its findings are authored per
+  // phenotype: signed for the pelvic case on 18.08.2026, absent everywhere
+  // else. Where they are absent the case card carries the "not modelled"
+  // reason on the action itself, so the learner still gets a straight answer
+  // rather than an invented normal. See v35/examSlots.js and
+  // RECTAL_EXAM_REVIEW.md.
+  rectal_examination: action(["rectal_exam"]),
   prostate_examination: action([], {
     findings_status: "AWAITING_CLINICAL_SIGNATURE",
     // Part of the rectal bundle for a male patient, never a separate diagnosis.

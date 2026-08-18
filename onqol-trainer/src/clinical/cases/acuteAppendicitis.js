@@ -531,6 +531,33 @@ export const acuteAppendicitisCase = {
       feedback: "Биохимия допустима для общей предоперационной оценки, но не ключевая для этого решения.",
       evidence_reference_ids: [],
     },
+    {
+      // Пальцевое ректальное исследование. Available to order, never expected
+      // and never scored: DRE has low diagnostic value in acute appendicitis,
+      // so requiring it of every patient would teach the wrong reflex.
+      //
+      // Its findings are authored per phenotype (v35/examSlots.js). Where the
+      // phenotype authored none, the flags below stay as written and the
+      // learner is told the result is not modelled rather than handed an
+      // invented normal.
+      id: "rectal_exam",
+      maps_to: "rectal_exam",
+      concept: "digital rectal examination",
+      intent_type: "request_examination",
+      router_description: "digital rectal examination, per rectum examination",
+      accepted_phrasings: ["при", "ректальное исследование", "пальцевое ректальное", "per rectum"],
+      domain: "Initial assessment",
+      score_weight: 0,
+      eligible_for_scoring: false,
+      critical: false,
+      expected_for_this_patient: false,
+      finding_status: "not_authorized_for_patient_variant",
+      unavailable_reason_ru:
+        "Пальцевое ректальное исследование пока не смоделировано в этом кейсе: результат не подписан клиницистом.",
+      feedback:
+        "ПРИ распознаётся и допустимо, но не является обязательным шагом при подозрении на острый аппендицит и не оценивается.",
+      evidence_reference_ids: [],
+    },
   ],
   unnecessary_actions: [
     {

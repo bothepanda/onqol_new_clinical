@@ -246,3 +246,116 @@ export const SLOT_REVIEW_STATUS = Object.freeze({
   state_assignment: "per_phenotype_see_examination_slots",
   eligible_for_scoring: false,
 });
+
+// ---------------------------------------------------------------------------
+// Пальцевое ректальное исследование (ПРИ)
+//
+// Same contract as the abdominal examination: a PHENOTYPE declares STATES, this
+// file owns WORDS. Signed by the owner on 18.08.2026 for APP-003 only.
+//
+// WHY ONLY APP-003
+//
+// DRE has low diagnostic value in acute appendicitis and is not a required or
+// scored action here. It is authored for the pelvic phenotype because that is
+// where a resident who asks for it should get a real finding rather than "не
+// смоделировано"; the other three phenotypes keep the honest non-answer.
+//
+// PROSTATE IS DELIBERATELY ABSENT
+//
+// APP-003 can be drawn male or female, so no prostate finding may be attached
+// to the phenotype. `prostate_examination` stays AWAITING_CLINICAL_SIGNATURE in
+// the router registry.
+//
+// "нависание" IS DEFINED BUT UNUSED
+//
+// It is the state a complicated case with a pelvic abscess would take. APP-003
+// is uncomplicated, so the owner did not assign it here. The state exists so
+// that authoring the complication package later does not require reopening
+// this file.
+
+export const RECTAL_EXAM_SLOTS = Object.freeze([
+  Object.freeze({
+    id: "sphincter_tone",
+    group: "rectal",
+    title_ru: "тонус сфинктера",
+    states: Object.freeze({
+      обычный: "тонус сфинктера обычный",
+      снижен: "тонус сфинктера снижен",
+      повышен: "тонус сфинктера повышен",
+    }),
+  }),
+  Object.freeze({
+    id: "rectal_wall_tenderness",
+    group: "rectal",
+    title_ru: "болезненность стенок прямой кишки",
+    states: Object.freeze({
+      есть:
+        "при пальпации определяется болезненность стенки прямой кишки справа и спереди",
+      нет: "болезненности стенок прямой кишки нет",
+      нависание:
+        "определяется нависание и болезненность передней стенки прямой кишки",
+    }),
+  }),
+  Object.freeze({
+    id: "blood_or_discharge",
+    group: "rectal",
+    title_ru: "кровь или патологическое содержимое",
+    states: Object.freeze({
+      нет: "крови и патологического содержимого на перчатке нет",
+      есть: "на перчатке следы крови или патологического содержимого",
+    }),
+  }),
+]);
+
+export const RECTAL_EXAM_SLOT_IDS = Object.freeze(
+  RECTAL_EXAM_SLOTS.map((slot) => slot.id)
+);
+
+const RECTAL_SLOT_BY_ID = new Map(RECTAL_EXAM_SLOTS.map((slot) => [slot.id, slot]));
+
+/** Which states a phenotype may legally claim for a rectal slot. */
+export function rectalStatesFor(slotId) {
+  const slot = RECTAL_SLOT_BY_ID.get(slotId);
+  return slot ? Object.keys(slot.states) : [];
+}
+
+/**
+ * Render one patient's rectal examination.
+ *
+ * Returns an empty string when the phenotype authored nothing, so a caller can
+ * distinguish "not modelled" from "modelled and negative".
+ *
+ * @param {Object} states  slot id -> state name; missing or UNSPECIFIED prints nothing
+ * @returns {string}
+ */
+export function renderRectalExamination(states = {}) {
+  const parts = [];
+  for (const slot of RECTAL_EXAM_SLOTS) {
+    const state = states[slot.id];
+    if (!state || state === UNSPECIFIED) continue;
+    const template = slot.states[state];
+    if (!template) {
+      throw new Error(`Ректальный слот "${slot.id}" не знает состояния "${state}"`);
+    }
+    parts.push(template);
+  }
+  if (!parts.length) return "";
+  // Each slot is its own sentence here, unlike the abdominal examination: the
+  // owner's authored text reads as three statements, not one clause chain.
+  return parts
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1) + ".")
+    .join(" ");
+}
+
+/**
+ * Review status of the rectal slot layer.
+ *
+ * Prose and the APP-003 state assignment are both the owner's, 18.08.2026.
+ * The action stays out of scoring: DRE is not a required step in this case.
+ */
+export const RECTAL_SLOT_REVIEW_STATUS = Object.freeze({
+  prose: "owner_authored_20260818",
+  state_assignment: "authored_for_pelvic_only",
+  prostate: "not_authored_phenotype_may_be_female",
+  eligible_for_scoring: false,
+});
