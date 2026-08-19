@@ -138,6 +138,79 @@ async function currentPath(llm) {
   return { turns, session, telemetry: buildMentorTelemetry(session) };
 }
 
+/**
+ * Is the path to theatre actually open, and after how many turns?
+ *
+ * The recorded learner never said "начинаю операцию" - she gave up on turn 7 -
+ * so the acceptance criterion "reaches theatre in <=6 turns" cannot be read off
+ * her transcript. This replays her turns and then asks for the operation, which
+ * answers the question the criterion was really asking: is anything still in
+ * the way, and what.
+ */
+async function theatreProbe() {
+  const { caseData } = buildV35Case({
+    seed: fixture.effective_seed,
+    requestedPresetId: fixture.case_preset_id,
+  });
+  let session = createV25Session({
+    caseData,
+    mode: fixture.mode,
+    seed: fixture.effective_seed,
+  });
+  const options = {
+    mentor: true,
+    actionExtractorLLM: replay91baRouter,
+    conceptMap: appendicitisRouterConceptMap,
+    conceptRegistry: resolveConcept,
+  };
+  const recorded = learnerTurns();
+  for (let index = 0; index < recorded.length; index += 1) {
+    const result = await advanceV25Session({
+      caseData,
+      session,
+      input: recorded[index],
+      options,
+    });
+    session = result.session;
+    const probe = await advanceV25Session({
+      caseData,
+      session,
+      input: "начинаю операцию",
+      options: {
+        ...options,
+        actionExtractorLLM: () =>
+          JSON.stringify({
+            intents: [
+              {
+                type: "management",
+                concept_id: "procedure_start",
+                confidence: 0.99,
+                requested_fragment: "начинаю операцию",
+              },
+            ],
+            unresolved_fragments: [],
+            action_parameters: [],
+          }),
+      },
+    });
+    if (probe.session.workingMemory?.operativeState?.procedure_started) {
+      return { turn: index + 2, blocked: null };
+    }
+    if (index === recorded.length - 1) {
+      return {
+        turn: null,
+        blocked: (probe.plan?.prerequisiteWarnings || [])
+          .map((warning) => warning.missing)
+          .concat(
+            (probe.blockedOperations || []).map((operation) => operation.reason_id || "pathway")
+          ),
+        reply: probe.reply,
+      };
+    }
+  }
+  return { turn: null, blocked: [] };
+}
+
 function repeatedQuestions(turns) {
   const seen = new Map();
   const repeats = [];
@@ -183,17 +256,13 @@ function printTranscripts(a, b) {
   }
 }
 
-function printStats(a, b, telemetry) {
+function printStats(a, b, telemetry, probe) {
   console.log(box("СТАТИСТИКА"));
   const rows = [
     ["ходов", a.length, b.turns.length],
     ["запрещённых строк", forbiddenHits(a).length, forbiddenHits(b.turns).length],
     ["дословных повторов вопроса", repeatedQuestions(a).length, repeatedQuestions(b.turns).length],
-    [
-      "дошли до операционной",
-      a.some((turn) => /контроль источника|операционн/i.test(turn.reply)) ? "?" : "нет",
-      b.turns.some((turn) => turn.procedureStarted || turn.sourceControl) ? "да" : "нет",
-    ],
+    ["дошли до операционной сами", "нет (сессия брошена)", b.turns.some((turn) => turn.procedureStarted || turn.sourceControl) ? "да" : "нет"],
   ];
   console.log(["", "A (запись)", "B (текущий код)"].map((cell) => String(cell).padEnd(28)).join(""));
   for (const row of rows) {
@@ -213,6 +282,14 @@ function printStats(a, b, telemetry) {
   const flags = [...new Set(telemetry.turns.flatMap((turn) => turn.telemetry_flags))];
   if (flags.length) console.log(`  телеметрия:            ${flags.join(", ")}`);
 
+  console.log("\nПуть в операционную (зонд «начинаю операцию» после каждого хода):");
+  if (probe.turn) {
+    console.log(`  ✓ операция начинается с хода ${probe.turn} — путь открыт, ничего не мешает`);
+  } else {
+    console.log(`  ✗ операция не начинается ни на одном ходе. Блокирует: ${probe.blocked.join(", ") || "неизвестно"}`);
+    if (probe.reply) console.log(`    последний ответ: ${probe.reply.split("\n")[0]}`);
+  }
+
   for (const hit of forbiddenHits(b.turns)) {
     console.log(`\n  ✗ ход ${hit.turn}: «${hit.needle}» всё ещё в ответе резиденту`);
   }
@@ -230,10 +307,11 @@ function printStats(a, b, telemetry) {
 const llm = await mentorLLM();
 const a = recordedPath();
 const b = await currentPath(llm);
+const probe = await theatreProbe();
 
 if (asJson) {
-  console.log(JSON.stringify({ recorded: a, current: b.turns, telemetry: b.telemetry }, null, 2));
+  console.log(JSON.stringify({ recorded: a, current: b.turns, telemetry: b.telemetry, theatre: probe }, null, 2));
 } else {
   printTranscripts(a, b.turns);
-  printStats(a, b, b.telemetry);
+  printStats(a, b, b.telemetry, probe);
 }

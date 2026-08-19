@@ -14,21 +14,15 @@
  * operationalization registry. Not by matching a phrase inside the current
  * message, and not by the learner repeating a magic word.
  *
- * WHAT IT DELIBERATELY DOES NOT DO. The WHO surgical safety checkpoints are not
- * closed by content. Sign In, Time Out and Sign Out are separate verifications
- * whose whole purpose is to be performed as their own act; consent and a phone
- * call to the anaesthetist are inputs to Sign In, not substitutes for it, and
- * the case's own action contract lists them as distinct checkpoints. Softening
- * that is a clinical decision for the reviewer, not a code change - see
- * CLINICAL_DECISIONS_REQUIRED.md.
+ * WHAT IS NOT A PREREQUISITE ANY MORE. The WHO checkpoints - Sign In, Time Out,
+ * Sign Out - were blocking gates until the owner's decision of 20.08.2026
+ * (CDR-18). They are run in theatre, largely by the nursing team; making a
+ * resident's path depend on their naming the checkpoint taught the password
+ * rather than the medicine. What those checkpoints are about is gated on its own
+ * terms - consent, the anaesthetist, a ready team - and that is what a
+ * prerequisite check is for. The actions themselves remain performable and
+ * recordable and appear in the debrief; they block nothing.
  */
-
-/** Checkpoints that are never satisfied by other actions having happened. */
-export const NON_SUBSTITUTABLE_PREREQUISITES = Object.freeze([
-  "who_sign_in",
-  "who_time_out",
-  "who_sign_out",
-]);
 
 /** Action states that mean "the learner expressed this action". */
 const EXPRESSED_STATUSES = Object.freeze(["performed", "ordered", "proposed"]);
@@ -62,13 +56,5 @@ export function expressedActionIds(session) {
  * @param {string[]} [alsoThisTurn]  action ids named in the current turn
  */
 export function prerequisiteSatisfied(session, prerequisiteId, alsoThisTurn = []) {
-  if (NON_SUBSTITUTABLE_PREREQUISITES.includes(prerequisiteId)) {
-    // Still transcript-wide - performing Sign In on turn 3 counts on turn 9 -
-    // but only the checkpoint itself closes the checkpoint.
-    return (
-      (session?.completedActions || []).includes(prerequisiteId) ||
-      alsoThisTurn.includes(prerequisiteId)
-    );
-  }
   return expressedActionIds(session).has(prerequisiteId) || alsoThisTurn.includes(prerequisiteId);
 }

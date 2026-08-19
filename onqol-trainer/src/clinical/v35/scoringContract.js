@@ -55,14 +55,18 @@ export const WHO_CHECKPOINTS = Object.freeze([
   Object.freeze({
     checkpoint_id: "sign_in",
     gate_scope: "before_induction",
-    blocks_action_ids: ["appendectomy_here"],
+    // Empty since CDR-18 (owner, 20.08.2026). The checkpoints remain real and
+    // remain part of the rubric; they are theatre work, largely the nursing
+    // team's, and they no longer block a resident's path. What they protect -
+    // consent and a warned anaesthetist - blocks induction on its own terms.
+    blocks_action_ids: [],
     waiver_conditions: ["life_threatening_haemorrhage_documented"],
     clinical_review_status: "reviewed_provisional",
   }),
   Object.freeze({
     checkpoint_id: "time_out",
     gate_scope: "before_incision",
-    blocks_action_ids: ["appendectomy_here"],
+    blocks_action_ids: [],
     waiver_conditions: [],
     clinical_review_status: "reviewed_provisional",
   }),
@@ -132,10 +136,12 @@ export const SCORING_CONTRACT = Object.freeze([
     domain: "perioperative_safety",
     score_weight: 2,
     criticality: 4,
-    // Phase-specific: the gate is whichever checkpoint the case has reached.
+    // No longer a gate: see CDR-18 and the note on WHO_CHECKPOINTS above. The
+    // row stays in the rubric - the checkpoints are still worth discussing in
+    // the debrief - and its weight and criticality remain a CDR-10 question.
     gate: {
-      gate_scope: "phase_specific",
-      blocks_action_ids: ["appendectomy_here"],
+      gate_scope: "none",
+      blocks_action_ids: [],
       waiver_conditions: [],
       checkpoints: WHO_CHECKPOINTS.map((checkpoint) => checkpoint.checkpoint_id),
     },

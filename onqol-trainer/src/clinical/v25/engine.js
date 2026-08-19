@@ -293,8 +293,9 @@ function resourceChecks(session, operation, input) {
 }
 
 function pathwayBlock(session, operation) {
-  // Transcript-wide. The WHO checkpoints below stay non-substitutable by design;
-  // see core/prerequisiteClosure.js.
+  // Transcript-wide: an action expressed on any earlier turn counts, so the
+  // learner is never asked for something they have already done. See
+  // core/prerequisiteClosure.js.
   const completed = {
     has: (actionId) => prerequisiteSatisfied(session, actionId),
   };
@@ -306,18 +307,22 @@ function pathwayBlock(session, operation) {
         text: "До начала вмешательства отдельно выбери операционный доступ.",
       };
     }
-    if (!completed.has("who_sign_in")) {
+    // What Sign In was actually protecting: a patient who is about to be
+    // anaesthetised without having consented, and an anaesthetist nobody told.
+    // Since CDR-18 that is checked here, on the substance, at the moment it
+    // matters - before induction - instead of on whether the learner named the
+    // checkpoint. Either counts from ANY earlier turn.
+    const missingBeforeInduction = [
+      ["informed_consent", "информированное согласие"],
+      ["notify_anesthesia", "оповещение анестезиолога"],
+    ].filter(([actionId]) => !completed.has(actionId));
+    if (missingBeforeInduction.length) {
       return {
-        reasonId: "sign_in_before_induction",
-        missing: ["who_sign_in"],
-        text: "Перед индукцией отдельно зафиксируй Sign In. Согласие и вызов команды его не заменяют.",
-      };
-    }
-    if (!completed.has("who_time_out")) {
-      return {
-        reasonId: "time_out_before_incision",
-        missing: ["who_time_out"],
-        text: "Sign In зафиксирован. Перед разрезом отдельно выполни Time Out.",
+        reasonId: "consent_or_anaesthesia_before_induction",
+        missing: missingBeforeInduction.map(([actionId]) => actionId),
+        text: `До индукции не хватает: ${missingBeforeInduction
+          .map(([, label]) => label)
+          .join(", ")}.`,
       };
     }
   }
@@ -335,17 +340,6 @@ function pathwayBlock(session, operation) {
     return {
       reasonId: "postoperative_reassessment_before_source_control",
       text: "Послеоперационная переоценка доступна после завершённого контроля источника.",
-    };
-  }
-  if (
-    operation.action_id === "structured_handover"
-    && session.temporalState.sourceControl
-    && !session.completedActions.includes("who_sign_out")
-  ) {
-    return {
-      reasonId: "sign_out_before_leaving_theatre",
-      missing: ["who_sign_out"],
-      text: "Перед выходом пациента из операционной нужно отдельно зафиксировать Sign Out.",
     };
   }
   if (operation.action_id !== "discharge_and_followup") return null;
@@ -411,32 +405,33 @@ function lastQuestionAsked(session) {
   return null;
 }
 
+/**
+ * "Я же сделала все это выше!"
+ *
+ * Answered from everything the learner has expressed in the session, not only
+ * from what the engine could execute - and it answers with what IS on record,
+ * not with a list of ritual words still missing. Since CDR-18 the WHO
+ * checkpoints are not on that list at all.
+ */
 function recordedActionDisputeReply(session) {
-  // "Я же сделала все это выше" is answered from everything the learner has
-  // expressed in the session, not only from what the engine could execute.
-  const completed = { has: (actionId) => prerequisiteSatisfied(session, actionId) };
-  const completedLabels = [
+  const preop = [
     ["informed_consent", "согласие"],
     ["notify_anesthesia", "уведомление анестезиолога"],
     ["notify_operating_team", "готовность операционной"],
-  ]
-    .filter(([id]) => completed.has(id))
+    ["preop_risk_assessment", "оценка операционного риска"],
+  ];
+  const recorded = preop
+    .filter(([id]) => prerequisiteSatisfied(session, id))
     .map(([, label]) => label);
-  const missing = [
-    ["who_sign_in", "Sign In"],
-    ["who_time_out", "Time Out"],
-  ]
-    .filter(([id]) => !completed.has(id))
+  const missing = preop
+    .filter(([id]) => !prerequisiteSatisfied(session, id))
     .map(([, label]) => label);
 
-  const recorded = completedLabels.length
-    ? `${completedLabels.join(", ")} уже зафиксированы.`
-    : "Согласие, уведомление анестезиолога и готовность операционной выше не зафиксированы.";
-  if (!missing.length) return `${recorded} Sign In и Time Out тоже уже зафиксированы.`;
-  const next = missing.includes("Sign In")
-    ? "Перед индукцией выполни Sign In."
-    : "Перед разрезом выполни Time Out.";
-  return `${recorded} Отдельно не зафиксированы ${missing.join(" и ")}. ${next}`;
+  if (!recorded.length) {
+    return "Из подготовки к операции выше пока ничего не зафиксировано: ни согласия, ни уведомления анестезиолога, ни готовности операционной.";
+  }
+  const head = `Зафиксировано с твоих слов: ${recorded.join(", ")}.`;
+  return missing.length ? `${head} Не зафиксировано: ${missing.join(", ")}.` : head;
 }
 
 function closingPrompt(session, plan, blockedOperations) {

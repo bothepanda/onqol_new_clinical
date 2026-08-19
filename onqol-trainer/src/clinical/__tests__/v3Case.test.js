@@ -89,7 +89,8 @@ test("end to end: the mentor speaks and the operation is stopped before it happe
     options: { mentor: true },
   });
 
-  assert.match(committed.reply, /Sign In/i);
+  // CDR-18: consent before induction, not the WHO checkpoint's name.
+  assert.match(committed.reply, /До индукции не хватает.*согласие/is);
   assert.ok(!committed.session.revealedFindings.includes("operative_finding"));
   assert.equal(committed.session.temporalState.sourceControl, false);
 });

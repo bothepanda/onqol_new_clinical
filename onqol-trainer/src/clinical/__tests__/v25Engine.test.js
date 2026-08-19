@@ -374,21 +374,10 @@ test("V3.5 stable runtime path reaches discharge before a completed debrief", as
       ]),
     },
   });
-  assert.equal(result.session.completedActions.includes("structured_handover"), false);
-  assert.match(result.reply, /Sign Out/);
-
-  session = result.session;
-  result = await advanceV25Session({
-    caseData,
-    session,
-    input: "Выполняю Sign Out и передаю пациента в хирургическое отделение структурированно",
-    options: {
-      actionExtractorLLM: actionExtractorFor([
-        { type: "management", concept_id: "who_sign_out", confidence: 0.99 },
-        { type: "management", concept_id: "structured_handover", confidence: 0.99 },
-      ]),
-    },
-  });
+  // CONTRACT CHANGED, CDR-18 (owner, 20.08.2026): Sign Out is theatre work and
+  // no longer gates the handover. The handover itself still has to be given.
+  assert.equal(result.session.completedActions.includes("structured_handover"), true);
+  assert.doesNotMatch(result.reply, /Sign Out/);
   assert.equal(result.session.pathState, "postop_destination");
 
   session = result.session;

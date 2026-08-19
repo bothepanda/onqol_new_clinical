@@ -601,7 +601,10 @@ test("mentor on: the closing prompt is replaced by a pedagogical reply, facts su
   assert.ok(result.reply.includes(result.mentor.text));
 });
 
-test("procedure start is stopped at Sign In after approach selection", async () => {
+// CONTRACT CHANGED, CDR-18: the stop before induction is consent and the
+// anaesthetist, not the WHO checkpoint. The property that mattered is unchanged
+// and asserted below: the operation does not happen.
+test("procedure start is stopped before induction when consent is missing", async () => {
   const composed = composeCaseWithCore(createV25Case(), {
     operativeActionIds: ["appendectomy_here"],
     minimumAssessmentActionIds: ["focused_history", "abdominal_exam"],
@@ -633,7 +636,7 @@ test("procedure start is stopped at Sign In after approach selection", async () 
     input: "Начинаю операцию",
     options: { mentor: true },
   });
-  assert.match(committed.reply, /Перед индукцией.*Sign In/is);
+  assert.match(committed.reply, /До индукции не хватает.*согласие/is);
 
   // A stop that arrives after the appendix is out is not a stop: the operation
   // must not have been applied to the patient.
@@ -664,8 +667,6 @@ test("advisory prerequisites never block the operation", async () => {
     completedActions: [
       "informed_consent",
       "notify_anesthesia",
-      "who_sign_in",
-      "who_time_out",
       "diagnosis_acute_appendicitis",
     ],
   };
@@ -700,7 +701,7 @@ test("blocking enforcement can be turned off independently of the mentor", async
   let session = createV25Session({ caseData: composed.caseData, mode: "reference", seed: "off" });
   session = {
     ...session,
-    completedActions: ["diagnosis_acute_appendicitis", "who_sign_in", "who_time_out"],
+    completedActions: ["diagnosis_acute_appendicitis", "informed_consent", "notify_anesthesia"],
   };
 
   const selected = await advanceV25Session({

@@ -610,10 +610,16 @@ export const operativePrerequisites = [
   { action_id: "informed_consent", severity: "blocking", reason_id: "consent_not_obtained" },
   { action_id: "notify_anesthesia", severity: "blocking", reason_id: "anaesthesia_not_notified" },
   { action_id: "preop_risk_assessment", severity: "advisory", reason_id: "risk_not_assessed" },
-  { action_id: "who_sign_in", severity: "blocking", reason_id: "sign_in_not_performed" },
-  { action_id: "who_time_out", severity: "blocking", reason_id: "time_out_not_performed" },
   { action_id: "notify_operating_team", severity: "advisory", reason_id: "theatre_not_notified" },
 ];
+
+// The WHO checkpoints are NOT here, by the owner's decision of 20.08.2026
+// (CDR-18). Sign In, Time Out and Sign Out are run in theatre, largely by the
+// nursing team; gating a resident's path on their reciting the words taught the
+// password, not the medicine, and it is what ended replay 91ba7206. What the
+// checkpoints are actually about - consent, the anaesthetist, a ready team - is
+// gated above, on its own terms. The three actions remain performable and
+// recordable; they simply stop blocking anything.
 
 /**
  * Domains introduced by the core library that may not exist in a disease case.

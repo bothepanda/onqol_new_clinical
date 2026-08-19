@@ -172,7 +172,8 @@ test("approach selection, procedure start and conversation dispute remain separa
       }),
     }),
   });
-  assert.match(result.reply, /Перед индукцией.*Sign In/is);
+  // CDR-18: the stop before induction is consent and the anaesthetist.
+  assert.match(result.reply, /До индукции не хватает/i);
   assert.equal(result.session.workingMemory.operativeState.procedure_started, false);
 
   session = {
@@ -193,7 +194,8 @@ test("approach selection, procedure start and conversation dispute remain separa
   });
   assert.equal(result.session.temporalState.clockMinutes, clockBefore);
   assert.match(result.reply, /согласие.*уведомление анестезиолога.*готовность операционной/is);
-  assert.match(result.reply, /не зафиксированы Sign In и Time Out/i);
+  // CDR-18: the answer is what IS on record, not a list of checkpoints missing.
+  assert.doesNotMatch(result.reply, /Sign In|Time Out/i);
   assert.doesNotMatch(result.reply, /Уточни, какие данные хочешь/i);
 });
 

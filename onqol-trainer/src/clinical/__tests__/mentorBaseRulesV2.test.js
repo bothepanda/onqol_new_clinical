@@ -24,7 +24,6 @@ import {
 } from "../core/mentorBehaviorSpec.js";
 import { detectLegacyPractices } from "../core/legacyPractices.js";
 import {
-  NON_SUBSTITUTABLE_PREREQUISITES,
   expressedActionIds,
   prerequisiteSatisfied,
 } from "../core/prerequisiteClosure.js";
@@ -358,11 +357,66 @@ test("a prerequisite is closed by an action expressed in an earlier turn", async
   }
   assert.ok(expressedActionIds(session).has("iv_access"));
 
-  // And the WHO checkpoints are not closed by any of it - see
-  // core/prerequisiteClosure.js and CLINICAL_DECISIONS_REQUIRED.md.
-  for (const checkpoint of NON_SUBSTITUTABLE_PREREQUISITES) {
-    assert.equal(prerequisiteSatisfied(session, checkpoint), false, `${checkpoint} was substituted`);
+});
+
+// CDR-18 (owner, 20.08.2026): the WHO checkpoints are theatre work, largely the
+// nursing team's, and stop gating the resident. What they were protecting is
+// gated on its own terms, before induction.
+test("the WHO checkpoints no longer block, consent before induction does", async () => {
+  const caseData = replayCase();
+  let session = createV25Session({ caseData, mode: fixture.mode, seed: fixture.effective_seed });
+  const start = () =>
+    JSON.stringify({
+      intents: [
+        { type: "management", concept_id: "procedure_start", confidence: 0.99, requested_fragment: "начинаю операцию" },
+      ],
+      unresolved_fragments: [],
+      action_parameters: [],
+    });
+
+  // Approach chosen, nothing else: the stop names consent, and never a checkpoint.
+  for (const entry of fixture.transcript
+    .filter((item) => item.role === "user")
+    .slice(0, 5)) {
+    const result = await advanceV25Session({
+      caseData,
+      session,
+      input: entry.content,
+      options: replayOptions(),
+    });
+    session = result.session;
   }
+  const withoutConsent = {
+    ...session,
+    completedActions: session.completedActions.filter((id) => id !== "informed_consent"),
+    workingMemory: {
+      ...session.workingMemory,
+      actionStates: Object.fromEntries(
+        Object.entries(session.workingMemory.actionStates).filter(
+          ([actionId]) => actionId !== "informed_consent"
+        )
+      ),
+    },
+  };
+  const bare = await advanceV25Session({
+    caseData,
+    session: withoutConsent,
+    input: "начинаю операцию",
+    options: replayOptions({ actionExtractorLLM: start }),
+  });
+  assert.match(bare.reply, /До индукции не хватает.*согласие/is);
+  assert.doesNotMatch(bare.reply, /Sign In|Time Out/i);
+  assert.equal(bare.session.workingMemory.operativeState.procedure_started, false);
+
+  // Consent and the anaesthetist were named on turn 4. No checkpoint is needed.
+  const started = await advanceV25Session({
+    caseData,
+    session,
+    input: "начинаю операцию",
+    options: replayOptions({ actionExtractorLLM: start }),
+  });
+  assert.equal(started.session.workingMemory.operativeState.procedure_started, true);
+  assert.doesNotMatch(started.reply, /Sign In|Time Out/i);
 });
 
 test("an order transcribed but not applied still closes its prerequisite", () => {

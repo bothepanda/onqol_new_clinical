@@ -200,9 +200,13 @@ test("operative prerequisites are attached and every one of them exists", () => 
   assert.ok(report.prerequisitesAttachedTo.includes("open_appendectomy_here"));
   assert.ok(surgery.prerequisites.includes("informed_consent"));
   assert.ok(surgery.prerequisites.includes("notify_anesthesia"));
-  assert.ok(surgery.prerequisites.includes("who_sign_in"));
-  assert.ok(surgery.prerequisites.includes("who_time_out"));
-  assert.ok(!surgery.prerequisites.includes("who_sign_out"));
+  // CONTRACT CHANGED, CDR-18 (owner, 20.08.2026). The WHO checkpoints are run in
+  // theatre, largely by the nursing team, and no longer gate the resident's
+  // path. What they were protecting - consent and a warned anaesthetist - is
+  // gated on its own terms, above and before induction.
+  for (const checkpoint of ["who_sign_in", "who_time_out", "who_sign_out"]) {
+    assert.ok(!surgery.prerequisites.includes(checkpoint), `${checkpoint} still gates surgery`);
+  }
   // the case's own prerequisite must survive
   assert.ok(surgery.prerequisites.includes("diagnosis_acute_appendicitis"));
 
