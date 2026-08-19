@@ -83,6 +83,27 @@ const MODIFIER_EXPECTED_ACTION_IDS = Object.freeze([
 ]);
 
 /**
+ * Orderable for every patient, expected for none.
+ *
+ * These used to be dragged into the rubric by MOD-PREGNANCY-POSSIBLE, so every
+ * woman of reproductive age owed a pelvic ultrasound and a gynaecology
+ * consultation whether or not anything pointed at the pelvis. Reproductive age
+ * is not a finding. What makes them relevant is a trigger - a positive or
+ * unknown pregnancy result, pelvic findings, bleeding or discharge,
+ * instability, or a gynaecologic differential the learner actually stated -
+ * and until the case models those triggers, the honest rubric position is that
+ * they are available and not required.
+ *
+ * They are NOT removed: a resident may order any of them at any time and gets
+ * the authored result.
+ */
+const CONDITIONALLY_RELEVANT_ACTION_IDS = Object.freeze([
+  "pelvic_gynecologic_screen",
+  "pelvic_ultrasound",
+  "gynecology_consult",
+]);
+
+/**
  * Compose one patient's presentation from the phenotype's authored variants.
  *
  * The phenotype describes what this presentation MAY contain; a patient has one
@@ -402,13 +423,25 @@ function buildFindings(baseCase, patient, phenotype, pregnancyPossible, composed
     review_status: "synthetic_case_fact_needs_external_review",
   };
 
+  // CRP IS GENERATED AND NOT SHOWN.
+  //
+  // `patient.labs.crp` still exists: the latent physiology is coherent because
+  // inflammatory burden drives white count and CRP together, and removing one
+  // of them would destabilise the other. What changed is that the number no
+  // longer reaches a learner. The measured distribution over the learner
+  // presets is not validated - a median near 39 mg/L in the first six hours,
+  // barely moving over the first day - and a review flag does not stop a
+  // resident learning that pattern by reading it four times.
+  //
+  // The honest result is the one that says so. Nothing in the case requires
+  // this value: no transition, no diagnosis, no endpoint, no score.
   findings.crp = {
-    // The card's title is "CRP"; the text the owner rewrote says
-    // "С-реактивный белок". The learner sees both, so they say the same thing.
     title: "С-реактивный белок",
-    text: `С-реактивный белок ${patient.labs.crp} мг/л.`,
-    provenance: GENERATED,
-    review_status: "synthetic_case_fact_needs_external_review",
+    text:
+      "С-реактивный белок в этой версии не моделируется: временная кривая и диапазоны ещё не прошли клиническое ревью.",
+    modelled: false,
+    provenance: AUTHORED,
+    review_status: "learner_inactive_pending_reviewed_time_response_model",
   };
 
   for (const id of ["urinalysis", "biochemistry", "abdominal_ultrasound", "ct_abdomen"]) {
@@ -469,7 +502,11 @@ function buildFindings(baseCase, patient, phenotype, pregnancyPossible, composed
 /** Keep the action universe intact while changing patient-specific relevance. */
 function applyModifierGating(caseData, enabledActionIds) {
   const enabled = new Set(enabledActionIds);
-  const nonExpected = MODIFIER_EXPECTED_ACTION_IDS.filter((id) => !enabled.has(id));
+  const nonExpected = [
+    ...MODIFIER_EXPECTED_ACTION_IDS.filter((id) => !enabled.has(id)),
+    // Always, for every patient: conditional relevance is not an obligation.
+    ...CONDITIONALLY_RELEVANT_ACTION_IDS,
+  ];
   if (nonExpected.length === 0) {
     return { caseData, removedActionIds: [], nonExpectedActionIds: [] };
   }
@@ -484,12 +521,17 @@ function applyModifierGating(caseData, enabledActionIds) {
       eligible_for_scoring: false,
       score_weight: 0,
       critical: false,
+      // A conditional action keeps its authored result: it is orderable and
+      // answers normally. Only its rubric obligation is removed.
       finding_status:
         action.id === "pregnancy_test" ? "not_authorized_for_patient_variant" : null,
       unavailable_reason_ru:
         action.id === "pregnancy_test"
           ? "Тест на беременность распознан, но для этого варианта пациента результат не авторизован."
           : null,
+      relevance: CONDITIONALLY_RELEVANT_ACTION_IDS.includes(action.id)
+        ? "conditional_on_findings"
+        : "modifier_gated",
     };
   });
 

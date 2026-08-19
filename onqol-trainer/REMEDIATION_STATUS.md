@@ -24,6 +24,33 @@ completion from approvals that cannot be manufactured in the repository.
 | Browser privacy | verified | raw persistence off by default; seven-day structured snapshot retention; deletion removes all local session artifacts |
 | Release gate | verified closed | Vercel build runs `npm run release:check`; deployment cannot proceed without the owner-controlled confirmations below |
 
+## P0 clinical remediation, 19.08.2026
+
+An independent clinical read found six places where learner-facing content
+overstated its evidence. All are corrected in code, data and tests; none of them
+approved a rule.
+
+| # | Overstatement | Corrected behaviour |
+| --- | --- | --- |
+| P0.1 | PAS offered to adults alongside AIR and AAS | adult slice names AIR or AAS only; PAS kept as paediatric metadata; no numeric cutoff anywhere |
+| P0.2 | nonoperative management sat in `unsafe_actions` with a penalty | conditional option carrying its selection conditions; never penalised, never a safety stop; unqualified recurrence range withdrawn |
+| P0.3 | a morning operation inside the 24-hour window read as an error | acceptable for a stable uncomplicated adult; the window is a ceiling, and deterioration still escalates |
+| P0.4 | prophylaxis taught "broad-spectrum" as a local choice | one dose per the local approved protocol; no molecule, dose or interval |
+| P0.5 | two conditional recommendations encoded as bans | postoperative antibiotics: no penalty, no ban, debrief only; normal appendix: "may be considered", inactive |
+| P0.6 | the pregnancy modifier made a whole pelvic workup expected | pregnancy status expected; pelvic ultrasound, pelvic examination and gynaecology consultation orderable and conditional |
+| P0.7 | every APP-003 patient received the same positive rectal finding | no phenotype carries an authored DRE result; recognised, answered as not modelled; source re-attributed to Takada 2015 |
+| P0.8 | an unvalidated CRP curve was printed as a number | generated internally for physiology coherence, never shown; gates no transition, diagnosis, endpoint or score |
+| P0.9 | ICD note claimed K35.0/K35.1/K35.9 as the Kazakhstan codes | claim withdrawn; category K35 only pending formal local coding review |
+
+18 regression tests hold these, including repository-wide text guards so a
+corrected sentence cannot drift back through documentation alone.
+
+Status after this work: **P0 clinical remediation implemented and technically
+verified; independent clinical, Kazakhstan-local, language and assessment
+validation remain open.** The product is a candidate for a small
+formative/usability pilot and is not clinically validated, not efficacy
+validated, not production-ready and not suitable for summative assessment.
+
 ## External/owner gates still open
 
 1. Rotate the provider credential that previously appeared in a shared archive

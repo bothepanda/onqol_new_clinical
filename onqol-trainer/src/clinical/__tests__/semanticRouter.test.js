@@ -173,7 +173,11 @@ test("mixed diagnosis and test request returns only requested test findings with
   );
 
   assert.match(result.reply, /\*\*ОАК:\*\*/);
-  assert.match(result.reply, /\*\*CRP:\*\*/);
+  // CRP answers, and answers that it is not modelled. No number reaches the
+  // learner while the time-response curve is unreviewed.
+  assert.match(result.reply, /\*\*С-реактивный белок:\*\*/);
+  assert.match(result.reply, /не моделируется/);
+  assert.doesNotMatch(result.reply, /С-реактивный белок\s*\d/);
   assert.match(result.reply, /\*\*Тест на беременность:\*\*/);
   assert.match(result.reply, /\*\*УЗИ брюшной полости:\*\*/);
   assert.match(result.reply, /\*\*УЗИ органов малого таза:\*\*/);
@@ -196,6 +200,9 @@ test("diagnosis intent is recorded without mid-case confirmation", async () => {
   assert.match(result.reply, /Что думаешь и что будешь делать дальше\?/);
 });
 
+// Nonoperative management is a conditional option, not an error. It is recorded
+// like any other management choice, it is not flagged unsafe, and the reply does
+// not tell the learner they are wrong.
 test("management choice is recorded without correction and receives a neutral operational prompt", async () => {
   const session = createInitialSession(acuteAppendicitisCase);
   const result = await advanceCaseWithSemanticRouter(
@@ -205,7 +212,8 @@ test("management choice is recorded without correction and receives a neutral op
     { llm: fakeRouterLLM, locale: "ru" }
   );
 
-  assert.ok(result.session.unsafeActions.includes("antibiotic_observation_course"));
+  assert.ok(result.session.completedActions.includes("antibiotic_observation_course"));
+  assert.ok(!result.session.unsafeActions.includes("antibiotic_observation_course"));
   assert.doesNotMatch(result.reply, /неправильно|ошибка|противопоказано|верно|правильно/i);
   assert.match(result.reply, /Как реализуешь выбранную тактику и что контролируешь дальше\?/);
 });

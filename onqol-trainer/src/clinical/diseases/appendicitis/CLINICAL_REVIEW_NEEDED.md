@@ -8,10 +8,12 @@ This package is **not `approved`**. The core is `reviewed_internal`; the Kazakh 
 
 1. **Independent clinical review of the whole card.** Production gate stays closed until an independent reviewer signs off.
 2. **Kazakh clinical-language review.** Check the full `kk.yaml`, especially: `қауіп стратификациясы`, `инфекция ошағын санациялау/бақылау`, `интервалды аппендэктомия`, and transfer terminology.
-3. **ICD-10 subcodes used by the pilot institutions.** The Kazakhstan 2018/2019 protocol lists K35.0/K35.1/K35.9, while the previous corpus used K35.2/K35.3/K35.8. The MVP core therefore stores only category K35 until local coding is confirmed.
-4. **AIR/AAS/PAS numeric cutoffs.** Add primary validation sources before the simulator can display or score exact numeric thresholds.
+3. **ICD-10 subcodes used by the pilot institutions.** Current Kazakhstan documents include K35.2, K35.3 and K35.8. The exact coding system/version and the subcodes used by pilot institutions require formal local coding review; until then the MVP stores category K35 only. The earlier claim that the 2018/2019 protocol lists K35.0/K35.1/K35.9 was not reliable and has been withdrawn.
+4. **Risk-score numeric cutoffs.** Add primary validation sources before the simulator can display or score exact numeric thresholds. Adult and paediatric tools are now separated: the adult vertical slice may name AIR or AAS only, because PAS is a paediatric score.
 5. **Local antibiotic formulary.** WSES does not provide a specific molecule in the recommendation set. Any drug/dose shown to learners needs a separately reviewed Kazakhstan formulary layer.
-6. **NOM recurrence 15–20%.** Preserved from the internally reviewed card, but direct source-line verification should be attached before release.
+6. **Recurrence after nonoperative management.** The previously stored range was withdrawn on 19.08.2026: it came from an internal card and was never verified against a source line. Reviewer documentation may cite APPAC (Salminen 2018, JAMA, DOI 10.1001/jama.2018.13201) — 27.3% at 1 year, 39.1% at 5 years — always with the time horizon and the trial population stated. No recurrence percentage may reach a learner until a rule carrying it completes the approval workflow.
+7. **Digital rectal examination.** No phenotype carries an authored result. Takada 2015 (PLoS One 10:e0136996, PMID 26332867) supports one negative claim only: routine DRE cannot rule appendicitis in or out. It authorises no positive patient finding. A reviewed pelvic finding would need its own source and its own signature.
+8. **CRP time-response model.** The generated CRP distribution is not validated, so no numeric CRP value is shown to a learner. Reopening it requires a reviewed time-response curve, not a narrower envelope.
 
 ## Operational rules that must NOT score yet
 

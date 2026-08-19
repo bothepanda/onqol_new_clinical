@@ -14,10 +14,11 @@ The detailed v0.2 appendicitis review queue is stored with the source package:
    - Required review: add a source-backed mini-row for ectopic pregnancy exclusion criteria and minimum safe screening.
    - Current in-product marker: `NEEDS_CLINICAL_REVIEW`.
 
-2. Numeric thresholds for AIR / AAS / PAS
+2. Numeric thresholds for adult risk scores (AIR, AAS)
    - Current status: V2 accepts risk-stratification language and risk level, but does not calculate a numeric score.
    - Gap: corpus states WSES 2025 names tools but does not provide cutoff tables.
    - Required review: add primary-source thresholds for any scale the product will score numerically.
+   - Adult and paediatric tools are separated: the adult vertical slice names AIR or AAS only. PAS is paediatric and is not offered to adult learners.
 
 3. Local antibiotic molecules and doses
    - Current status: V2 teaches the decision boundary: single preoperative prophylaxis, no observation course for uncomplicated appendicitis selected for surgery.

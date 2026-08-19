@@ -251,27 +251,30 @@ export const SLOT_REVIEW_STATUS = Object.freeze({
 // Пальцевое ректальное исследование (ПРИ)
 //
 // Same contract as the abdominal examination: a PHENOTYPE declares STATES, this
-// file owns WORDS. Signed by the owner on 18.08.2026 for APP-003 only.
+// file owns WORDS. The words are here; NO PHENOTYPE ASSIGNS A STATE.
 //
-// WHY ONLY APP-003
+// WHY NOTHING IS ASSIGNED - WITHDRAWN 19.08.2026
 //
-// DRE has low diagnostic value in acute appendicitis and is not a required or
-// scored action here. It is authored for the pelvic phenotype because that is
-// where a resident who asks for it should get a real finding rather than "не
-// смоделировано"; the other three phenotypes keep the honest non-answer.
+// APP-003 briefly carried an authored finding: normal sphincter tone,
+// right/anterior rectal-wall tenderness, no blood. It was withdrawn because the
+// evidence does not support handing every pelvic patient the same positive
+// sign. Takada 2015 (PLoS One 10:e0136996) found poor overall diagnostic
+// performance for DRE; in the limited pelvic subgroup sensitivity was about
+// 0.38 and specificity was not established. A number that weak cannot become a
+// deterministic finding, and it was not replaced by an invented probability.
+//
+// WHY THE VOCABULARY SURVIVES
+//
+// These are words, not claims. Nothing here asserts anything about a patient
+// until a phenotype names a state, and none does. Keeping the table means a
+// reviewed finding - most likely from the complication package, where a pelvic
+// abscess makes `нависание` meaningful - plugs in without reopening this file.
 //
 // PROSTATE IS DELIBERATELY ABSENT
 //
 // APP-003 can be drawn male or female, so no prostate finding may be attached
 // to the phenotype. `prostate_examination` stays AWAITING_CLINICAL_SIGNATURE in
 // the router registry.
-//
-// "нависание" IS DEFINED BUT UNUSED
-//
-// It is the state a complicated case with a pelvic abscess would take. APP-003
-// is uncomplicated, so the owner did not assign it here. The state exists so
-// that authoring the complication package later does not require reopening
-// this file.
 
 export const RECTAL_EXAM_SLOTS = Object.freeze([
   Object.freeze({
@@ -350,12 +353,16 @@ export function renderRectalExamination(states = {}) {
 /**
  * Review status of the rectal slot layer.
  *
- * Prose and the APP-003 state assignment are both the owner's, 18.08.2026.
- * The action stays out of scoring: DRE is not a required step in this case.
+ * The prose is the owner's, 18.08.2026. No state assignment exists. The action
+ * stays out of scoring either way: routine DRE does not rule appendicitis in or
+ * out, so requiring it of every patient would teach the wrong reflex.
  */
 export const RECTAL_SLOT_REVIEW_STATUS = Object.freeze({
   prose: "owner_authored_20260818",
-  state_assignment: "authored_for_pelvic_only",
+  // No phenotype assigns a state. The APP-003 assignment was withdrawn on
+  // 19.08.2026: see the header, and takada-2015-dre in the evidence layer.
+  state_assignment: "none_authored",
+  withdrawn_assignment: "pelvic_20260819_evidence_does_not_support_deterministic_finding",
   prostate: "not_authored_phenotype_may_be_female",
   eligible_for_scoring: false,
 });

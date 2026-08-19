@@ -19,7 +19,7 @@ coding:
   system: ICD-10
   category: K35
   subcodes_status: needs_local_coding_review
-  note: "Keep the K35 category as canonical for MVP. Kazakhstan protocol 2018/2019 lists K35.0/K35.1/K35.9; the prior corpus used K35.2/K35.3/K35.8. Resolve against the coding version actually used by pilot institutions before release."
+  note: "Keep the K35 category as canonical for MVP. Current Kazakhstan documents include K35.2, K35.3 and K35.8. The exact coding system/version and the subcodes used by pilot institutions require formal local coding review; until then the MVP stores category K35 only. The earlier claim that the 2018/2019 protocol lists K35.0/K35.1/K35.9 was not reliable and is withdrawn."
 
 sources:
   - id: WSES2025
@@ -440,9 +440,10 @@ numeric_facts:
     value_up_to_percent: 14.3
     source_ids: [WSES2025]
   nom_recurrence_uncomplicated:
-    value_percent_range: [15, 20]
-    source_ids: [WSES2025]
-    verification_status: preserve_from_internal_review_needs_direct_source_line_for_release
+    value_percent_range: null
+    source_ids: []
+    verification_status: withdrawn_2026_08_19_unqualified_range_not_supported
+    withdrawal_note: "The previously stored recurrence range was carried from an internal card and never verified against a source line. It is not learner-visible and not reviewer-facing. Reviewer documentation may cite APPAC (Salminen 2018, JAMA, DOI 10.1001/jama.2018.13201) recurrence of 27.3% at 1 year and 39.1% at 5 years, always with the time horizon and the study population stated. No recurrence percentage reaches a learner until a rule carrying it completes the approval workflow."
   surgery_window_uncomplicated_selected_for_surgery:
     max_hours_from_admission: 24
     source_ids: [WSES2025]
@@ -454,7 +455,12 @@ numeric_facts:
     source_ids: [WSES2025]
 
 risk_scores:
+  # The guideline names all three. What the PRODUCT may name is split by
+  # population: PAS is a paediatric score and the current vertical slice is
+  # adult, so the adult runtime never suggests it.
   allowed_names: [AIR, AAS, PAS]
+  adult_allowed_names: [AIR, AAS]
+  pediatric_only_names: [PAS]
   numeric_cutoffs_available_in_corpus: false
   generator_rule: "May name the score and qualitative stratum. Must not invent numeric cutoffs until primary score-validation sources are added."
 

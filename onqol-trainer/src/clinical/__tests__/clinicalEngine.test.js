@@ -93,7 +93,7 @@ test("missed critical pregnancy test is flagged", () => {
 
   assert.equal(session.scoring.criticalErrorFlag, true);
   assert.ok(session.scoring.criticalErrors.includes("pregnancy_test"));
-  assert.ok(session.report.markdown.includes("Тест на беременность"));
+  assert.match(session.report.markdown, /[Сс]татус беременности/);
 });
 
 test("operationalized transfer action is tracked but not scored before review", () => {
@@ -110,7 +110,11 @@ test("operationalized transfer action is tracked but not scored before review", 
   assert.equal(session.scoring.penalties, 0);
 });
 
-test("unsafe postoperative antibiotics action is scored", () => {
+// A conditional recommendation with low certainty is not a hard ban. Routine
+// postoperative antibiotics after uncomplicated appendectomy are usually not
+// recommended - so this belongs in the debrief, not in a penalty column and
+// not in a safety stop.
+test("postoperative antibiotics after uncomplicated appendectomy are discussed, not punished", () => {
   const session = play([
     { text: "анамнез и осмотр живота", concepts: ["focused_history", "abdominal_exam"] },
     { text: "ОАК, ОАМ, ХГЧ", concepts: ["cbc", "urinalysis", "pregnancy_test"] },
@@ -120,9 +124,10 @@ test("unsafe postoperative antibiotics action is scored", () => {
     { text: "конец кейса" },
   ]);
 
-  assert.ok(session.scoring.unsafeActions.includes("postop_antibiotics_uncomplicated"));
-  assert.ok(session.scoring.penalties >= 8);
-  assert.ok(session.scoring.domainScores.Management < 100);
+  assert.ok(session.completedActions.includes("postop_antibiotics_uncomplicated"));
+  assert.ok(!session.scoring.unsafeActions.includes("postop_antibiotics_uncomplicated"));
+  assert.ok(!(session.unsafeActions || []).includes("postop_antibiotics_uncomplicated"));
+  assert.match(session.report.markdown, /обычно не рекомендуются/);
 });
 
 test("irrelevant or excessive investigations are deterministic penalties", () => {

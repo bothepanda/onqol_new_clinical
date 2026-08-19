@@ -100,11 +100,15 @@ export const V35_MODIFIERS = Object.freeze({
   "MOD-PREGNANCY-POSSIBLE": Object.freeze({
     modifier_id: "MOD-PREGNANCY-POSSIBLE",
     title_ru: "Возможная беременность",
-    // What the modifier makes expected for this patient. The wider action
-    // universe stays orderable; modifier absence removes rubric obligation,
-    // not the clinician's ability to ask about pelvic pathology.
-    enables_action_ids: [
-      "pregnancy_test",
+    // What the modifier makes EXPECTED is pregnancy status and the dangerous
+    // ectopic alternative - nothing else. Pelvic ultrasound, the pelvic
+    // examination and a gynaecology consultation stay orderable for every
+    // patient and expected for none: they become clinically relevant when
+    // something triggers them (a positive or unknown pregnancy result, pelvic
+    // findings, bleeding, instability, or a stated gynaecologic differential),
+    // not because the patient is a woman of reproductive age.
+    enables_action_ids: ["pregnancy_test"],
+    conditionally_relevant_action_ids: [
       "pelvic_gynecologic_screen",
       "pelvic_ultrasound",
       "gynecology_consult",
@@ -416,19 +420,17 @@ export const PHENOTYPES = Object.freeze({
         // scattering it across the others would be decoration.
         obturator: ["положительный", "отрицательный"],
       }),
-      // The only phenotype with an authored rectal examination. Owner,
-      // 18.08.2026: a pelvic appendix is where DRE has something to find, so a
-      // resident who asks for it here gets a real result instead of "не
-      // смоделировано". The other three keep the non-answer.
+      // NO AUTHORED RECTAL EXAMINATION - WITHDRAWN 19.08.2026.
       //
-      // Fixed, not drawn: three states the owner signed as one finding. No
-      // prostate slot - APP-003 may be male or female. `нависание` is not used
-      // because APP-003 is uncomplicated and has no pelvic abscess.
-      rectal_exam_slots: Object.freeze({
-        sphincter_tone: "обычный",
-        rectal_wall_tenderness: "есть",
-        blood_or_discharge: "нет",
-      }),
+      // This phenotype briefly carried a fixed DRE finding: normal sphincter
+      // tone, right/anterior rectal-wall tenderness, no blood. The cited
+      // evidence does not support it. Takada 2015 found poor overall diagnostic
+      // performance for DRE, and in the limited pelvic subgroup sensitivity was
+      // about 0.38 with specificity not established - which cannot justify
+      // giving EVERY pelvic patient the same positive sign.
+      //
+      // It is not replaced by an invented probability. DRE stays recognised and
+      // answers that the patient-specific result is not modelled.
       authored_source_ru: Object.freeze({
         story:
           "Надлобковая или глубокая тазовая боль, тенезмы, учащённое мочеиспускание или дискомфорт",

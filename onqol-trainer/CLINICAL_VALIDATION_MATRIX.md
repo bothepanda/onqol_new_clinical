@@ -5,7 +5,12 @@ approval, and source review is not Kazakhstan-local or language review.
 
 | Package | Source review | Clinical review | Kazakhstan local review | RU language review | KK language review | Runtime state | Scoring state |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Stable appendicitis APP-001–004 | partial; versioned citations resolve | pending independent sign-off | pending | pending independent review | pending; 65 keys missing | active, deterministic to discharge | formative-only |
+| Stable appendicitis APP-001–004 | partial; versioned citations resolve | pending independent sign-off; P0 overstatements corrected 19.08.2026 | pending | pending independent review | pending; 65 keys missing | active, deterministic to discharge | formative-only |
+| Adult risk scores (AIR, AAS) | WSES 2025 names the tools; no cutoff tables in any source | pending | pending | pending | pending | named qualitatively; PAS excluded as paediatric | no numeric score computed or scored |
+| Nonoperative management (WSES R5.1) | source and selection conditions recorded | pending | pending | pending | pending | orderable, discussed with its conditions | never penalised, never a safety stop |
+| Digital rectal examination | Takada 2015 verified for one negative claim | no authored finding in any phenotype | n/a | n/a | n/a | recognised; answers "not modelled" | ineligible; never expected or critical |
+| CRP numeric value | generated distribution explicitly unvalidated | pending reviewed time-response curve | pending | n/a | n/a | generated internally, learner-inactive | ineligible; gates no transition |
+| Reproductive safety branch | ACEP measure and ACR criteria recorded | pending obstetric/gynaecologic reviewer | pending | pending | pending | pregnancy status expected; pelvic workup conditional | pregnancy status only; pelvic workup ineligible |
 | APP-005 unstable appendicitis | source stubs only | pending surgery + EM/ICU | pending | pending | pending | faculty preview; learner-inactive | ineligible |
 | Postoperative complication/rescue | source stubs only | pending | pending | pending | pending | declared states; learner-inactive | ineligible |
 | Alternative hidden truths (8) | package-specific sources missing | pending by specialty | pending where applicable | pending | pending | inactive stubs | ineligible |
@@ -27,3 +32,11 @@ approval, and source review is not Kazakhstan-local or language review.
 - Imaging findings: radiology reviewer.
 - Scoring: clinical panel plus assessment methodologist and pilot calibration.
 - Kazakh learner mode: Kazakhstan clinical reviewer and medical-language reviewer.
+- Imaging findings and image-guided drainage: radiologist.
+- Antibiotic implementation, agents and doses: pharmacist, infectious-disease clinician or antimicrobial-stewardship reviewer.
+- Reproductive branches: obstetrician-gynaecologist.
+- Any future numeric score: assessment methodologist.
+- Facility capability and routing claims: Kazakhstan-local reviewer.
+
+Two signatures are a project minimum, not proof of validity. A high-risk rule
+that touches one of the areas above needs that area's reviewer as well.

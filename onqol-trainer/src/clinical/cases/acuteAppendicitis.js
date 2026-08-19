@@ -78,8 +78,10 @@ export const acuteAppendicitisCase = {
       text: "Мочевой beta-hCG отрицательный.",
     },
     crp: {
-      title: "CRP",
-      text: "CRP 34 мг/л.",
+      title: "С-реактивный белок",
+      text:
+        "С-реактивный белок в этой версии не моделируется: временная кривая и диапазоны ещё не прошли клиническое ревью.",
+      modelled: false,
     },
     biochemistry: {
       title: "Биохимия крови",
@@ -181,10 +183,14 @@ export const acuteAppendicitisCase = {
       time_window: "early",
       prerequisites: [],
       effects_on_case: { reveal: "pregnancy_test" },
-      feedback_if_done: "Беременность исключена до операции и до потенциальной лучевой диагностики.",
+      feedback_if_done:
+        "Статус беременности оценён; беременность не выявлена. Это снимает связанные с беременностью альтернативы, но не подтверждает аппендицит.",
       feedback_if_missed:
-        "Тест на беременность у женщины репродуктивного возраста был критически важен: без него нельзя надежно исключить внематочную беременность.",
-      evidence_reference_ids: ["wses-2025-rec-1"],
+        "Статус беременности у женщины репродуктивного возраста не был установлен: без него нельзя надёжно оценить внематочную беременность и нельзя безопасно планировать лучевую диагностику и операцию.",
+      evidence_reference_ids: [
+        "acep-pregnancy-test-abdominal-pain",
+        "acr-pelvic-pain-reproductive-age",
+      ],
     },
     {
       id: "cbc",
@@ -227,7 +233,12 @@ export const acuteAppendicitisCase = {
       phase: "diagnostic reasoning",
       concept: "risk stratification",
       intent_type: "diagnosis",
-      router_description: "qualitative risk stratification with AIR, AAS or PAS, no numeric score",
+      router_description:
+        // PAS is a paediatric score and APP-001..004 are adult cases, so the adult
+        // slice never names it. "pas" stays in accepted_phrasings below: a
+        // resident who types it must still be understood, and understanding an
+        // input is not the same as suggesting it.
+        "qualitative risk stratification with AIR or AAS in adults, no numeric score",
       accepted_phrasings: ["air", "aas", "pas", "шкала", "стратификация", "высокий риск"],
       importance: "important",
       score_weight: 8,
@@ -237,7 +248,7 @@ export const acuteAppendicitisCase = {
       prerequisites: ["focused_history", "abdominal_exam"],
       effects_on_case: {},
       feedback_if_done:
-        "Шкала/страта риска использована как маршрутизация. Числовой балл не нужен: пороги шкал пока не внесены в источник истины.",
+        "Шкала/страта риска использована как маршрутизация. У взрослых это AIR или AAS. Числовые пороги не внесены и не оцениваются.",
       feedback_if_missed: "Риск не был явно стратифицирован: важно отделять высокую вероятность от абсолютной уверенности.",
       evidence_reference_ids: ["wses-2025-rec-1"],
     },
@@ -310,7 +321,7 @@ export const acuteAppendicitisCase = {
       prerequisites: ["diagnosis_acute_appendicitis"],
       effects_on_case: {},
       feedback_if_done:
-        "Выбрана аппендэктомия в текущем стационаре: при basic resource это допустимый путь к контролю источника.",
+        "Выбрана аппендэктомия в текущем стационаре: при basic resource это допустимый путь к контролю источника. У стабильного взрослого с неосложнённым аппендицитом операция в пределах 24 часов от госпитализации приемлема, и назначение её на утро внутри этого окна ошибкой не является. 24 часа — это потолок, а не цель, до которой нужно ждать: ухудшение, подозрение на осложнённый процесс или отсутствие переоценки требуют вмешаться раньше.",
       feedback_if_missed: "Тактика не дошла до контроля источника при высокой вероятности аппендицита.",
       evidence_reference_ids: ["wses-2025-rec-9-1", "rk-appendicitis-2018-resource"],
     },
@@ -440,8 +451,10 @@ export const acuteAppendicitisCase = {
       // operate, then be asked what was forgotten. Prophylaxis stands alone.
       prerequisites: [],
       effects_on_case: {},
-      feedback_if_done: "Назначена однократная предоперационная антибиотикопрофилактика.",
-      feedback_if_missed: "Не была обозначена однократная предоперационная антибиотикопрофилактика.",
+      feedback_if_done:
+        "Назначена однократная предоперационная антибиотикопрофилактика по локальному утверждённому протоколу. Если аппендэктомия выполняется в пределах 24 часов, лечебный курс только за ожидание не добавляется.",
+      feedback_if_missed:
+        "Не была обозначена однократная предоперационная антибиотикопрофилактика по локальному утверждённому протоколу. Препарат и доза берутся из локального формуляра и в тренажёре не задаются.",
       evidence_reference_ids: ["wses-2025-rec-15-1"],
     },
     {
@@ -508,6 +521,42 @@ export const acuteAppendicitisCase = {
       evidence_reference_ids: [],
     },
     {
+      // NONOPERATIVE MANAGEMENT IS AN OPTION, NOT AN ERROR.
+      //
+      // This used to sit in `unsafe_actions` with a penalty, which turned a
+      // conditional guideline recommendation into a mistake and taught the
+      // resident that surgery is the only defensible answer. WSES R5.1 says the
+      // opposite: antibiotics are acceptable for SELECTED adults. What the case
+      // cannot establish is whether this patient is one of them - so the plan is
+      // neither accepted nor marked wrong; the missing condition is what gets
+      // asked about, and nothing here moves a score.
+      id: "antibiotic_observation_course",
+      maps_to: "antibiotic_observation_course",
+      concept: "antibiotic-first nonoperative management",
+      intent_type: "management",
+      router_description:
+        "conservative or nonoperative management with antibiotics, including a plan chosen because imaging, laparoscopy, or transfer is difficult",
+      accepted_phrasings: [
+        "курс антибиотиков",
+        "антибиотики пока наблюдаем",
+        "антибиотики на сутки",
+        "эмпирическая терапия",
+        "консервативно антибиотиками",
+        "консервативное лечение антибиотиками",
+      ],
+      domain: "Management",
+      score_weight: 0,
+      eligible_for_scoring: false,
+      critical: false,
+      feedback:
+        "Антибактериальная терапия — приемлемая альтернатива операции у отобранных взрослых с подтверждённым неосложнённым аппендицитом: при адекватном наблюдении, доступной переоценке и возможности операции спасения, и при совместном решении с пациентом. Нужно учитывать аппендиколит и риск того, что процесс окажется осложнённым. Пока эти условия в кейсе не установлены, план нельзя ни принять, ни назвать ошибкой — назови, что именно обеспечит наблюдение и переоценку.",
+      evidence_reference_ids: ["wses-2025-rec-5-1"],
+    },
+    {
+      // CRP stays a recognized request and returns no number. The generated
+      // time-response curve is explicitly unvalidated, and a `review_status`
+      // flag does not stop a learner absorbing the pattern anyway - so the
+      // value is not shown, and nothing depends on it.
       id: "crp",
       maps_to: "crp",
       concept: "c-reactive protein",
@@ -515,8 +564,11 @@ export const acuteAppendicitisCase = {
       router_description: "CRP, C-reactive protein",
       accepted_phrasings: ["crp", "срб", "с-реактивный белок"],
       domain: "Investigations",
-      score_weight: 1,
-      feedback: "CRP может поддержать воспаление, но не должен становиться решающим тестом.",
+      score_weight: 0,
+      eligible_for_scoring: false,
+      critical: false,
+      feedback:
+        "СРБ в этой версии не моделируется: временная кривая и диапазоны ещё не прошли клиническое ревью. Решение здесь на него не опирается.",
       evidence_reference_ids: ["wses-2025-rec-1"],
     },
     {
@@ -555,8 +607,8 @@ export const acuteAppendicitisCase = {
       unavailable_reason_ru:
         "Пальцевое ректальное исследование пока не смоделировано в этом кейсе: результат не подписан клиницистом.",
       feedback:
-        "ПРИ распознаётся и допустимо, но не является обязательным шагом при подозрении на острый аппендицит и не оценивается.",
-      evidence_reference_ids: [],
+        "ПРИ распознаётся и допустимо, но не является обязательным шагом при подозрении на острый аппендицит и не оценивается: рутинное ПРИ не подтверждает и не исключает диагноз.",
+      evidence_reference_ids: ["takada-2015-dre"],
     },
   ],
   unnecessary_actions: [
@@ -582,8 +634,29 @@ export const acuteAppendicitisCase = {
       domain: "Prioritization",
       penalty: 8,
       feedback:
-        "Ожидание УЗИ до утра при высокой вероятности аппендицита превращает допустимую визуализацию в задержку контроля источника.",
+        "Ожидание УЗИ становится проблемой тогда, когда оно съедает окно контроля источника или подменяет переоценку. Плановая операция на утро у стабильного пациента в пределах 24 часов сама по себе ошибкой не является; вопрос в том, что именно даст ожидание и что заставит вмешаться раньше.",
       evidence_reference_ids: ["wses-2025-rec-3-1", "wses-2025-rec-9-1"],
+    },
+    {
+      // Conditional recommendation, low certainty. Routine postoperative
+      // antibiotics are usually not recommended - which is not a prohibition,
+      // so this carries no penalty, no safety stop and no score. It is a
+      // debrief conversation.
+      id: "postop_antibiotics_uncomplicated",
+      concept: "postoperative antibiotics for uncomplicated appendicitis",
+      intent_type: "management",
+      router_description: "postoperative antibiotics after uncomplicated appendectomy",
+      accepted_phrasings: ["послеоперационные антибиотики", "антибиотики после операции", "5 дней антибиотиков"],
+      domain: "Management",
+      penalty: 0,
+      score_weight: 0,
+      eligible_for_scoring: false,
+      critical: false,
+      recommendation_strength: "conditional",
+      recommendation_certainty: "low",
+      feedback:
+        "Рутинные послеоперационные антибиотики после аппендэктомии по поводу неосложнённого аппендицита обычно не рекомендуются. Рекомендация условная, уверенность низкая: клинически обоснованное отклонение допустимо, разбираем это в дебрифе.",
+      evidence_reference_ids: ["wses-2025-rec-17-1"],
     },
   ],
   unsafe_actions: [
@@ -601,40 +674,6 @@ export const acuteAppendicitisCase = {
       feedback:
         "Перевод в областную больницу до локального лечения здесь оставлен как discussion point, но по v0.2 operationalized transfer rules не score'ятся до отдельной клинической валидации.",
       evidence_reference_ids: ["wses-2025-rec-9-1", "rk-appendicitis-2018-resource"],
-    },
-    {
-      id: "antibiotic_observation_course",
-      concept: "antibiotic course while observing",
-      intent_type: "management",
-      router_description:
-        "conservative or nonoperative management with antibiotics, including a plan chosen because imaging, laparoscopy, or transfer is difficult",
-      accepted_phrasings: [
-        "курс антибиотиков",
-        "антибиотики пока наблюдаем",
-        "антибиотики на сутки",
-        "эмпирическая терапия",
-        "консервативно антибиотиками",
-        "консервативное лечение антибиотиками",
-      ],
-      domain: "Management",
-      penalty: 10,
-      critical: false,
-      feedback:
-        "При неосложненном аппендиците, выбранном на операцию в пределах 24 часов, WSES 2025 выступает против антибиотиков сверх однократной профилактики. v0.2 уточняет: позиция КП РК 2018 про эмпирическую терапию при 12/24-часовом наблюдении может быть scope mismatch, поэтому это нужно показывать как расхождение контекстов, а не как простую ошибку протокола.",
-      evidence_reference_ids: ["wses-2025-rec-15-1"],
-    },
-    {
-      id: "postop_antibiotics_uncomplicated",
-      concept: "postoperative antibiotics for uncomplicated appendicitis",
-      intent_type: "management",
-      router_description: "postoperative antibiotics after uncomplicated appendectomy",
-      accepted_phrasings: ["послеоперационные антибиотики", "антибиотики после операции", "5 дней антибиотиков"],
-      domain: "Management",
-      penalty: 8,
-      critical: false,
-      feedback:
-        "Послеоперационные антибиотики при неосложненном аппендиците у взрослого не показаны.",
-      evidence_reference_ids: ["wses-2025-rec-17-1"],
     },
   ],
   critical_omissions: [

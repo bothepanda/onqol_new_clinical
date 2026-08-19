@@ -3,7 +3,7 @@
 ## Priority 1 - Clinical content hardening
 
 1. Add source-backed ectopic pregnancy distractor criteria.
-2. Add primary-source AIR/AAS/PAS cutoff data or explicitly choose one scale for MVP scoring.
+2. Add primary-source AIR/AAS cutoff data or explicitly decide the product never computes a numeric score. PAS stays out of the adult slice as a paediatric tool.
 3. Decide how Kazakhstan protocol antibiotic agents/doses should appear in feedback.
 4. Clinician-review `acuteAppendicitis.js` weights and criticality flags.
 5. Close the appendicitis v0.2 source package production gate: independent clinical review, Kazakh clinical-language review, ICD-10 subcodes, local formulary layer, and NOM recurrence source-line verification.
