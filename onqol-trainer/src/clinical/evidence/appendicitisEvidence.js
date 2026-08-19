@@ -179,18 +179,18 @@ export const appendicitisEvidence = {
       name: "APPAC randomized clinical trial, five-year follow-up",
       year: 2018,
       citation:
-        "Salminen P, Tuominen R, Paajanen H, et al. Five-Year Follow-up of Antibiotic Therapy for Uncomplicated Acute Appendicitis in the APPAC Randomized Clinical Trial. JAMA. 2018;320(12):1259-1265. DOI 10.1001/jama.2018.13201.",
+        "Salminen P, Tuominen R, Paajanen H, et al. Five-Year Follow-up of Antibiotic Therapy for Uncomplicated Acute Appendicitis in the APPAC Randomized Clinical Trial. JAMA. 2018;320(12):1259-1265. DOI 10.1001/jama.2018.13201. PMID 30264120.",
       section: "Appendectomy and recurrence after antibiotic therapy",
       recommendation:
-        "After initial antibiotic therapy in APPAC, the cumulative incidence of appendectomy was 27.3% at 1 year and 39.1% at 5 years. Histologically confirmed true recurrence was 32.4% at 5 years.",
+        "After initial antibiotic therapy in APPAC, 27.3% (95% CI 22.0-33.2; 70/256) underwent appendectomy within the first year, and the cumulative incidence of appendicitis recurrence was 39.1% (95% CI 33.1-45.3; 100/256) at 5 years.",
       strength: "primary study",
       certainty: "single trial population",
       provenance: "T1",
       kz_protocol_status: "n/a",
       last_checked: "2026-08-19",
-      checked_by: "Сарина Т.Т.",
+      checked_by: "Сарина Т.Т.; independently re-checked against the PubMed record 2026-08-19",
       local_note:
-        "Reviewer context, not learner content. Cumulative appendectomy and histologically confirmed recurrence are DIFFERENT endpoints and must never be presented as one number. Study population: selected adults 18-60 with CT-confirmed uncomplicated appendicitis; patients with an appendicolith were not included.",
+        "Reviewer context, not learner content. Verified against the source abstract 2026-08-19: the 39.1% is what THIS paper calls cumulative incidence of appendicitis recurrence, and the 27.3% is appendectomy within the first year - the two are not the same endpoint and neither is interchangeable with the ten-year figures, which add histopathological confirmation. A separate 32.4% five-year figure circulated during review and is NOT in this source; it is deliberately not recorded. Study population: 530 adults 18-60 with CT-confirmed uncomplicated appendicitis at six Finnish hospitals, 257 randomised to antibiotics; patients with an appendicolith were not included.",
       learner_visible: false,
     },
     {
@@ -198,18 +198,18 @@ export const appendicitisEvidence = {
       name: "APPAC randomized clinical trial, ten-year follow-up",
       year: 2026,
       citation:
-        "Salminen P, et al. Antibiotic Therapy for Uncomplicated Acute Appendicitis: Ten-Year Follow-Up of the APPAC Randomized Clinical Trial. JAMA. Published online January 21, 2026. DOI 10.1001/jama.2025.25921.",
+        "Salminen P, Salminen R, Kallio J, et al. Antibiotic Therapy for Uncomplicated Acute Appendicitis: Ten-Year Follow-Up of the APPAC Randomized Clinical Trial. JAMA. 2026;335(12):1041-1049. DOI 10.1001/jama.2025.25921. PMID 41563747.",
       section: "Appendectomy and recurrence at ten years",
       recommendation:
-        "At ten years the cumulative incidence of appendectomy after initial antibiotic therapy was 44.3%, and histologically confirmed true recurrence was 37.8%.",
+        "At ten years, true appendicitis recurrence confirmed at histopathology was 37.8% (95% CI 31.6-44.1; 87/230) and the cumulative appendectomy rate was 44.3% (95% CI 38.2-50.4; 112/253).",
       strength: "primary study",
       certainty: "single trial population",
       provenance: "T1",
       kz_protocol_status: "n/a",
       last_checked: "2026-08-19",
-      checked_by: "Сарина Т.Т.",
+      checked_by: "Сарина Т.Т.; independently re-checked against the PubMed record 2026-08-19",
       local_note:
-        "37.8% does not replace the 39.1% of the five-year report: the first is histologically confirmed recurrence, the second is cumulative appendectomy. Extends the five-year entry rather than superseding it. Same selected population, so the figures are not a universal prognosis for an individual patient.",
+        "Verified against the source abstract 2026-08-19. 37.8% does not replace the 39.1% of the five-year report: this paper reports true recurrence CONFIRMED AT HISTOPATHOLOGY, while the five-year paper reports cumulative incidence of recurrence without that requirement. Different definitions, so the two are not a trend line. The endpoint that is directly comparable across the two horizons is the operation itself. Extends the five-year entry rather than superseding it; same selected population, so the figures are not a universal prognosis for an individual patient.",
       learner_visible: false,
     },
     {

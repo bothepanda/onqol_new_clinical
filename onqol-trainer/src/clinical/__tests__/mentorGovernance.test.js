@@ -14,6 +14,7 @@ import { reviewActionParameters } from "../core/parameterSafety.js";
 import { validateMentorPayload } from "../core/mentorAgent.js";
 import { buildEvidenceGroundedDebrief } from "../v25/debrief.js";
 import {
+  CLINICAL_RULE_REGISTRY,
   CLINICAL_RULE_STATUS,
   CLINICAL_RUNTIME_EFFECT,
   SOURCE_REGISTRY,
@@ -100,8 +101,18 @@ test("source and rule registries reject V1 authority and remain release gated", 
   assert.equal(SOURCE_REGISTRY.some((source) => source.legacy_v1), false);
   const readiness = clinicalGovernanceReadiness();
   assert.equal(readiness.structurally_valid, true);
-  assert.equal(readiness.learner_release_ready, false);
-  assert.ok(readiness.pending_rule_ids.includes("APP-WSES-R9.1"));
+  // Twelve rules were approved on 19.08.2026 on two signatures, so the registry
+  // is no longer the thing holding the learner release. What must stay true is
+  // that every one of them carries two reviewers and teaches only: no rule in
+  // this package may score, stop a simulation or override a learner.
+  assert.equal(readiness.learner_release_ready, true);
+  assert.deepEqual(readiness.pending_rule_ids, []);
+  assert.equal(CLINICAL_RULE_REGISTRY.length, 12);
+  for (const rule of CLINICAL_RULE_REGISTRY) {
+    assert.equal(validateClinicalRule(rule).ok, true, rule.rule_id);
+    assert.ok(rule.reviewed_by.length >= 2, rule.rule_id);
+    assert.deepEqual(rule.allowed_runtime_effects, ["mentor_teaching"], rule.rule_id);
+  }
 });
 
 test("only approved rules can receive an authoritative runtime effect", () => {

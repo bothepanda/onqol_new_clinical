@@ -28,10 +28,18 @@ export function buildClinicalReasoningReport(caseData, scoring) {
     .filter(Boolean)
     .map((action) => action.feedback_if_missed);
 
-  const unnecessaryItems = scoring.unnecessaryActions
+  // Условная рекомендация с низкой уверенностью - не "ненужное действие".
+  // Печатать её под этим заголовком значит называть суждение ошибкой, даже
+  // когда штрафа нет. Такие пункты уходят в отдельный раздел для разбора.
+  const unnecessaryDone = scoring.unnecessaryActions
     .map((id) => unnecessary.get(id))
-    .filter(Boolean)
+    .filter(Boolean);
+  const isDiscussionPoint = (action) =>
+    action.eligible_for_scoring === false || action.recommendation_strength === "conditional";
+  const unnecessaryItems = unnecessaryDone
+    .filter((action) => !isDiscussionPoint(action))
     .map((action) => action.feedback);
+  const discussionItems = unnecessaryDone.filter(isDiscussionPoint).map((action) => action.feedback);
 
   const unsafeItems = scoring.unsafeActions
     .map((id) => unsafe.get(id))
@@ -85,6 +93,9 @@ ${listOrDash(missed)}
 
 **UNNECESSARY ACTIONS**
 ${listOrDash(unnecessaryItems)}
+
+**К ОБСУЖДЕНИЮ**
+${listOrDash(discussionItems)}
 
 **CRITICAL / UNSAFE ACTIONS**
 ${listOrDash([...criticalOmissions, ...unsafeItems])}
