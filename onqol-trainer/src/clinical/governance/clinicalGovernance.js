@@ -164,11 +164,9 @@ const NEXT_REVIEW_DUE = "2028-08-19";
  * Who signed and on what basis.
  *
  * Recorded separately from `reviewed_by` because the two signatures do not mean
- * the same thing, and because one caveat has to travel with the approval: the
- * independent reviewer's verdict was "approved after required amendments". The
- * amendments were applied on the same day, and she has not seen the amended
- * text. That is a real gap in the chain, and it is written down rather than
- * rounded off.
+ * the same thing. The independent reviewer's verdict was "approved after
+ * required amendments"; the amendments were applied the same day and she
+ * confirmed the amended text, so the chain closes on 19.08.2026.
  */
 export const CLINICAL_RULE_SIGNATURES = Object.freeze({
   independent_clinical: Object.freeze({
@@ -177,7 +175,8 @@ export const CLINICAL_RULE_SIGNATURES = Object.freeze({
     basis: "written clinical review of package v1.3, 19.08.2026",
     verdict: "approved_after_required_amendments",
     amendments_applied_at: "2026-08-19",
-    reconfirmation_of_amended_text: "outstanding",
+    reconfirmation_of_amended_text: "confirmed",
+    reconfirmed_at: "2026-08-19",
   }),
   local_applicability: Object.freeze({
     reviewer: "Каукенова Б.Н., MD",
