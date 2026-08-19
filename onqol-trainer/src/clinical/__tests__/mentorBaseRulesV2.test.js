@@ -1,0 +1,576 @@
+// The contracts base rules v2 introduced (BASE_RULES_V2_PROPOSAL.md,
+// CLAUDE_CODE_TASK_BASE_RULES_V2.md). Everything here is new behaviour; the
+// contracts it replaces are marked "CONTRACT CHANGED" in the older mentor tests.
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import test from "node:test";
+
+import { advanceV25Session, createV25Session } from "../v25/engine.js";
+import { buildV35Case } from "../v35/createCase.js";
+import { createV25Case } from "../v25/caseFactory.js";
+import { composeCaseWithCore } from "../core/composeCase.js";
+import { buildMentorBrief, buildMentorCaseCard } from "../core/mentorBrief.js";
+import {
+  MAX_MENTOR_CHARS,
+  MAX_MENTOR_CHARS_TEACHING,
+  buildMentorPrompt,
+  maxMentorChars,
+  runMentorAgent,
+  validateMentorPayload,
+} from "../core/mentorAgent.js";
+import {
+  MENTOR_BEHAVIOR_SPEC,
+  MENTOR_BEHAVIOR_SPEC_SOURCE,
+} from "../core/mentorBehaviorSpec.js";
+import { detectLegacyPractices } from "../core/legacyPractices.js";
+import {
+  NON_SUBSTITUTABLE_PREREQUISITES,
+  expressedActionIds,
+  prerequisiteSatisfied,
+} from "../core/prerequisiteClosure.js";
+import {
+  CLINICAL_RULE_STATUS,
+  DOSING_RULE_REGISTRY,
+  approvedDosingRules,
+  validateDosingRule,
+} from "../governance/clinicalGovernance.js";
+import { replay91baRouter } from "./fixtures/replay91baRouter.js";
+import {
+  appendicitisRouterConceptMap,
+  resolveConcept,
+} from "../diseases/appendicitis/router/conceptRegistry.js";
+
+const fixture = JSON.parse(
+  readFileSync(new URL("./fixtures/replay-91ba7206.json", import.meta.url), "utf8")
+);
+
+function replayCase() {
+  return buildV35Case({
+    seed: fixture.effective_seed,
+    requestedPresetId: fixture.case_preset_id,
+  }).caseData;
+}
+
+function replayOptions(overrides = {}) {
+  return {
+    mentor: true,
+    actionExtractorLLM: replay91baRouter,
+    conceptMap: appendicitisRouterConceptMap,
+    conceptRegistry: resolveConcept,
+    ...overrides,
+  };
+}
+
+function briefFor(caseData, overrides = {}) {
+  return buildMentorBrief({
+    caseData,
+    session: createV25Session({ caseData, mode: "reference", seed: "v2" }),
+    plan: { parsed: {} },
+    deterministicUpdate: {},
+    ...overrides,
+  });
+}
+
+// --- 1.1 the specification IS the prompt ----------------------------------
+
+test("the system prompt reproduces the behaviour specification verbatim", () => {
+  const markdown = readFileSync(
+    new URL(`../../../${MENTOR_BEHAVIOR_SPEC_SOURCE}`, import.meta.url),
+    "utf8"
+  );
+  assert.equal(
+    MENTOR_BEHAVIOR_SPEC,
+    markdown,
+    `${MENTOR_BEHAVIOR_SPEC_SOURCE} changed. Run: npm run spec:sync`
+  );
+
+  const prompt = buildMentorPrompt({ brief: briefFor(replayCase()), learnerText: "дальше?" });
+  assert.ok(prompt.system.includes(markdown));
+  // The four base rules follow the specification and outrank it.
+  for (const bound of [
+    "THE WORLD IS DETERMINISTIC",
+    "NUMBERS COME FROM THE KNOWLEDGE BASE",
+    "NO DIAGNOSTIC CONFIRMATION BEFORE THE DEBRIEF",
+    "ZERO OR ONE QUESTION PER TURN",
+  ]) {
+    assert.ok(prompt.system.includes(bound), `hard bound missing: ${bound}`);
+  }
+});
+
+// --- 1.2 full context ------------------------------------------------------
+
+test("the mentor receives the whole transcript, not a six-message window", async () => {
+  const caseData = replayCase();
+  let session = createV25Session({ caseData, mode: fixture.mode, seed: fixture.effective_seed });
+  for (const entry of fixture.transcript.filter((item) => item.role === "user").slice(0, 5)) {
+    const result = await advanceV25Session({
+      caseData,
+      session,
+      input: entry.content,
+      options: replayOptions(),
+    });
+    session = result.session;
+  }
+  const brief = buildMentorBrief({
+    caseData,
+    session,
+    plan: { parsed: {} },
+    deterministicUpdate: {},
+  });
+  assert.ok(brief.transcript.length > 6);
+  assert.equal(brief.learnerTurns.length, 5);
+  assert.ok(brief.learnerTurns[0].includes("физикальный осмотр"));
+  // The first turn is still readable on turn five - that is the whole point.
+  assert.ok(JSON.stringify(brief.transcript).includes("физикальный осмотр"));
+});
+
+test("the case card marks what the learner has not been given", () => {
+  const caseData = replayCase();
+  const session = {
+    ...createV25Session({ caseData, mode: "reference", seed: "card" }),
+    revealedFindings: ["abdominal_exam"],
+  };
+  const card = buildMentorCaseCard(caseData, session);
+  assert.deepEqual(
+    card.revealed_findings.map((finding) => finding.finding_id),
+    ["abdominal_exam"]
+  );
+  assert.ok(card.unrevealed_findings.length > 0);
+  assert.ok(card.unrevealed_findings.every((finding) => finding.do_not_mention === true));
+  assert.ok(card.modelled_actions.some((action) => action.action_id === "ct_abdomen"));
+  assert.equal(card.patient.age, 56);
+  // The answer key is not in the card, by construction.
+  assert.ok(!JSON.stringify(card).includes(caseData.patient_state.diagnosis_truth));
+});
+
+// --- 1.6 length by mode ----------------------------------------------------
+
+test("the length limit follows the teaching move", () => {
+  assert.equal(maxMentorChars({ mode: "CLARIFY", scaffoldingLevel: 4 }), MAX_MENTOR_CHARS);
+  assert.equal(maxMentorChars({ mode: "TEACH", scaffoldingLevel: 2 }), MAX_MENTOR_CHARS);
+  assert.equal(maxMentorChars({ mode: "TEACH", scaffoldingLevel: 3 }), MAX_MENTOR_CHARS_TEACHING);
+  assert.equal(maxMentorChars({ mode: "TEACH", scaffoldingLevel: 4 }), MAX_MENTOR_CHARS_TEACHING);
+
+  const caseData = replayCase();
+  const brief = {
+    ...briefFor(caseData),
+    candidateIssues: [{ issue_id: "stuck", safety_critical: false }],
+    mentorPolicy: null,
+  };
+  const long = `${"Разбираем по шагам. ".repeat(45)}Что делаешь первым?`;
+  assert.ok(long.length > MAX_MENTOR_CHARS && long.length < MAX_MENTOR_CHARS_TEACHING);
+
+  assert.equal(
+    validateMentorPayload(
+      { mode: "CLARIFY", issue_id: "stuck", mentor_text: long, factual_claims: [], scaffolding_level: 4 },
+      brief,
+      caseData,
+      []
+    ).reason,
+    "too_long"
+  );
+  assert.equal(
+    validateMentorPayload(
+      { mode: "TEACH", issue_id: "stuck", mentor_text: long, factual_claims: [], scaffolding_level: 3 },
+      brief,
+      caseData,
+      []
+    ).ok,
+    true
+  );
+});
+
+// --- 1.7 repair loop -------------------------------------------------------
+
+test("a rejected reply buys one repair before the template", async () => {
+  const caseData = replayCase();
+  const brief = {
+    ...briefFor(caseData),
+    candidateIssues: [
+      {
+        issue_id: "current",
+        type: "current_decision",
+        safety_critical: false,
+        fallback_text: "Авторский шаблон.",
+        evidence: [],
+      },
+    ],
+    mentorPolicy: null,
+  };
+  const prompts = [];
+  const result = await runMentorAgent(
+    { brief, learnerText: "что дальше?", caseData, revealedFindingIds: [] },
+    {
+      llm: async (prompt) => {
+        prompts.push(JSON.parse(prompt.user));
+        return JSON.stringify(
+          prompts.length === 1
+            ? {
+                mode: "CLARIFY",
+                issue_id: "current",
+                mentor_text: "Держи давление выше 90. Что дальше?",
+                factual_claims: [],
+                question_domain: null,
+              }
+            : {
+                mode: "CLARIFY",
+                issue_id: "current",
+                mentor_text: "Что считаешь порогом для смены плана?",
+                factual_claims: [],
+                question_domain: null,
+              }
+        );
+      },
+    }
+  );
+
+  assert.equal(prompts.length, 2, "the first rejection must be repaired, not abandoned");
+  assert.equal(result.source, "llm");
+  assert.equal(result.repairAttempted, true);
+  assert.deepEqual(result.rejectionReasons, ["uncited_numeric_fact"]);
+  assert.equal(result.text, "Что считаешь порогом для смены плана?");
+  // The repair call names the reason and the offending number.
+  assert.equal(prompts[1].repair_request.rejected_reason, "uncited_numeric_fact");
+  assert.match(prompts[1].repair_request.instruction_ru, /90/);
+});
+
+test("a second failure falls back to the authored template", async () => {
+  const caseData = replayCase();
+  const brief = {
+    ...briefFor(caseData),
+    candidateIssues: [
+      {
+        issue_id: "current",
+        type: "current_decision",
+        safety_critical: false,
+        fallback_text: "Авторский шаблон.",
+        evidence: [],
+      },
+    ],
+    mentorPolicy: null,
+  };
+  let calls = 0;
+  const result = await runMentorAgent(
+    { brief, learnerText: "что дальше?", caseData, revealedFindingIds: [] },
+    {
+      llm: async () => {
+        calls += 1;
+        return JSON.stringify({
+          mode: "CLARIFY",
+          issue_id: "current",
+          mentor_text: "Держи давление выше 90. Что дальше?",
+          factual_claims: [],
+          question_domain: null,
+        });
+      },
+    }
+  );
+  assert.equal(calls, 2, "exactly one repair, never a third attempt");
+  assert.equal(result.source, "deterministic");
+  assert.equal(result.text, "Авторский шаблон.");
+  assert.deepEqual(result.rejectionReasons, ["uncited_numeric_fact", "uncited_numeric_fact"]);
+});
+
+// --- 2.1 the router gates execution, not speech ----------------------------
+
+test("an unrecognised fragment reaches the mentor and is never executed", async () => {
+  const caseData = replayCase();
+  const session = createV25Session({ caseData, mode: "reference", seed: "unmapped" });
+  const spoken = [];
+  const result = await advanceV25Session({
+    caseData,
+    session,
+    input: "группа крови и кросс-матч",
+    options: replayOptions({
+      actionExtractorLLM: () =>
+        JSON.stringify({
+          intents: [],
+          unresolved_fragments: ["группа крови и кросс-матч"],
+          action_parameters: [],
+        }),
+      mentorLLM: async (prompt) => {
+        spoken.push(JSON.parse(prompt.user));
+        return JSON.stringify({
+          mode: "CLARIFY",
+          issue_id: null,
+          mentor_text: "Кросс-матч в этом кейсе не смоделирован. Что ещё готовишь к операции?",
+          factual_claims: [],
+          question_domain: "management",
+        });
+      },
+    }),
+  });
+
+  assert.doesNotMatch(result.reply, /Не распознано/);
+  assert.match(result.reply, /Кросс-матч в этом кейсе не смоделирован/);
+  assert.deepEqual(
+    spoken[0].brief.unrecognized_fragments,
+    ["группа крови и кросс-матч"],
+    "the fragment has to reach the mentor for it to answer honestly"
+  );
+  // Speech only. Nothing was applied to the patient and the clock did not move.
+  assert.deepEqual(result.session.completedActions, []);
+  assert.equal(
+    result.session.temporalState.clockMinutes,
+    session.temporalState.clockMinutes
+  );
+});
+
+test("without a mentor the honest deterministic line stays", async () => {
+  const caseData = replayCase();
+  const result = await advanceV25Session({
+    caseData,
+    session: createV25Session({ caseData, mode: "reference", seed: "no-mentor" }),
+    input: "группа крови и кросс-матч",
+    options: {
+      actionExtractorLLM: () =>
+        JSON.stringify({
+          intents: [],
+          unresolved_fragments: ["группа крови и кросс-матч"],
+          action_parameters: [],
+        }),
+      conceptMap: appendicitisRouterConceptMap,
+      conceptRegistry: resolveConcept,
+    },
+  });
+  assert.match(result.reply, /Не распознано/);
+});
+
+// --- 2.2 prerequisites close over the whole transcript ---------------------
+
+test("a prerequisite is closed by an action expressed in an earlier turn", async () => {
+  const caseData = replayCase();
+  let session = createV25Session({ caseData, mode: fixture.mode, seed: fixture.effective_seed });
+  for (const entry of fixture.transcript.filter((item) => item.role === "user").slice(0, 4)) {
+    const result = await advanceV25Session({
+      caseData,
+      session,
+      input: entry.content,
+      options: replayOptions(),
+    });
+    session = result.session;
+  }
+
+  // Turn 4 named consent, the anaesthetist and the theatre. Two turns later they
+  // are still closed, without the learner repeating a phrase.
+  for (const actionId of ["informed_consent", "notify_anesthesia", "notify_operating_team"]) {
+    assert.equal(prerequisiteSatisfied(session, actionId), true, `${actionId} not closed`);
+  }
+  assert.ok(expressedActionIds(session).has("iv_access"));
+
+  // And the WHO checkpoints are not closed by any of it - see
+  // core/prerequisiteClosure.js and CLINICAL_DECISIONS_REQUIRED.md.
+  for (const checkpoint of NON_SUBSTITUTABLE_PREREQUISITES) {
+    assert.equal(prerequisiteSatisfied(session, checkpoint), false, `${checkpoint} was substituted`);
+  }
+});
+
+test("an order transcribed but not applied still closes its prerequisite", () => {
+  const session = {
+    completedActions: [],
+    workingMemory: {
+      actionStates: { analgesia: { action_id: "analgesia", status: "blocked" } },
+      orderRecords: { analgesia: { action_id: "analgesia", slots: { agent: "кеторолак" } } },
+    },
+  };
+  assert.equal(prerequisiteSatisfied(session, "analgesia"), true);
+  assert.equal(prerequisiteSatisfied(session, "iv_fluids"), false);
+});
+
+// --- 2.3 the parameter stop is stated once ---------------------------------
+
+test("the same governance stop is not repeated verbatim on a later turn", async () => {
+  const caseData = replayCase();
+  let session = createV25Session({ caseData, mode: fixture.mode, seed: fixture.effective_seed });
+  const replies = [];
+  for (const entry of fixture.transcript.filter((item) => item.role === "user")) {
+    const result = await advanceV25Session({
+      caseData,
+      session,
+      input: entry.content,
+      options: replayOptions(),
+    });
+    session = result.session;
+    replies.push(result.reply);
+  }
+  const questions = replies.flatMap((reply) => reply.match(/[^.!?\n]*\?/g) || []);
+  assert.equal(
+    questions.length,
+    new Set(questions.map((question) => question.trim())).size,
+    "the mentor asked the same question twice"
+  );
+  assert.equal(replies.some((reply) => reply.includes("Не распознано")), false);
+  assert.equal(
+    replies.some((reply) => reply.includes("Эти данные не заданы в карте пациента.")),
+    false
+  );
+  // The dangerous parameter is still blocked. Saying it once is not accepting it.
+  assert.equal(session.completedActions.includes("iv_fluids"), false);
+});
+
+// --- 3.1 dosing rules ------------------------------------------------------
+
+test("the dosing registry starts empty and gives the mentor no numbers", () => {
+  assert.deepEqual(DOSING_RULE_REGISTRY, []);
+  assert.deepEqual(approvedDosingRules(), []);
+  assert.deepEqual(briefFor(replayCase()).approvedDosingRules, []);
+});
+
+test("a dosing rule teaches only after approval, and only teaches", () => {
+  const draft = {
+    rule_id: "dosing.test.adult",
+    rule_type: "dosing_rule",
+    agent: "тестовый препарат",
+    indication: "фикстура",
+    dose: "1 г",
+    route: "IV",
+    timing: "за 60 мин до разреза",
+    adjustments: [],
+    source_ids: ["WSES2025"],
+    source_line_verbatim: "fixture line",
+    license_note: "fixture",
+    kp_rk_status: "КНФ?",
+    review_status: "NEEDS_CLINICAL_REVIEW",
+    allowed_runtime_effects: [],
+  };
+  assert.equal(validateDosingRule(draft).ok, true);
+  assert.deepEqual(approvedDosingRules([draft]), []);
+
+  // Approved but with one reviewer, or claiming an effect beyond teaching: no.
+  assert.equal(
+    validateDosingRule({
+      ...draft,
+      review_status: CLINICAL_RULE_STATUS.APPROVED,
+      reviewed_by: ["one"],
+      allowed_runtime_effects: ["mentor_teaching"],
+    }).ok,
+    false
+  );
+  assert.equal(
+    validateDosingRule({
+      ...draft,
+      review_status: CLINICAL_RULE_STATUS.APPROVED,
+      reviewed_by: ["a", "b"],
+      allowed_runtime_effects: ["patient_truth"],
+    }).ok,
+    false
+  );
+
+  const approved = {
+    ...draft,
+    review_status: CLINICAL_RULE_STATUS.APPROVED,
+    reviewed_by: ["a", "b"],
+    allowed_runtime_effects: ["mentor_teaching"],
+  };
+  assert.equal(validateDosingRule(approved).ok, true);
+  assert.deepEqual(approvedDosingRules([approved]), [approved]);
+
+  // 3.3: an approved dose is a source of allowed numbers; a draft one is not.
+  const caseData = replayCase();
+  const base = {
+    ...briefFor(caseData),
+    candidateIssues: [{ issue_id: "current", safety_critical: false }],
+    mentorPolicy: null,
+  };
+  const payload = {
+    mode: "CLARIFY",
+    issue_id: "current",
+    mentor_text: "Профилактика — 1 г до разреза. Кто вводит?",
+    factual_claims: [],
+    question_domain: null,
+  };
+  assert.equal(
+    validateMentorPayload(payload, { ...base, approvedDosingRules: [] }, caseData, []).reason,
+    "uncited_numeric_fact"
+  );
+  assert.equal(
+    validateMentorPayload(payload, { ...base, approvedDosingRules: [approved] }, caseData, []).ok,
+    true
+  );
+});
+
+// --- 3.2 legacy practices --------------------------------------------------
+
+test("a legacy practice is recognised, carries no clinical claim, and reaches the mentor", () => {
+  const detected = detectLegacyPractices("назначаю литическую смесь в/м");
+  assert.deepEqual(
+    detected.map((practice) => practice.practice_id),
+    ["legacy.lytic-mixture"]
+  );
+  for (const practice of detected) {
+    assert.equal(practice.review_status, "NEEDS_CLINICAL_REVIEW");
+    assert.equal(practice.teaching_rule_id, null);
+    assert.equal(practice.what_it_is, null);
+    assert.equal(practice.why_alternatives_exist, null);
+    assert.equal(practice.what_instead, null);
+    assert.equal(practice.executes_on_patient, false);
+  }
+  assert.deepEqual(detectLegacyPractices("кеторолак 30 мг в/в"), []);
+
+  const composed = composeCaseWithCore(createV25Case(), {});
+  const brief = buildMentorBrief({
+    caseData: composed.caseData,
+    session: createV25Session({ caseData: composed.caseData, mode: "reference", seed: "legacy" }),
+    plan: { input: "голод, холод и покой", parsed: {} },
+    deterministicUpdate: {},
+  });
+  assert.ok(brief.moves.some((move) => move.type === "legacy_practice"));
+  const prompt = buildMentorPrompt({ brief, learnerText: "голод, холод и покой" });
+  assert.match(prompt.user, /legacy_practices_named/);
+});
+
+// --- 0.2 telemetry ---------------------------------------------------------
+
+test("the execution profile records source, repairs and the policy shadow", async () => {
+  const caseData = replayCase();
+  const result = await advanceV25Session({
+    caseData,
+    session: createV25Session({ caseData, mode: "reference", seed: "telemetry" }),
+    input: "физикальный осмотр и анамнез",
+    options: replayOptions({
+      mentorLLM: async () =>
+        JSON.stringify({
+          mode: "CLARIFY",
+          issue_id: "my_own_issue",
+          mentor_text: "Что из осмотра меняет твой план?",
+          factual_claims: [],
+          question_domain: "management",
+        }),
+    }),
+  });
+  const profile = result.session.eventLog.findLast(
+    (entry) => entry.event_type === "execution_profile"
+  );
+  assert.equal(profile.mentor_source, "llm");
+  assert.equal(profile.repair_attempted, false);
+  assert.deepEqual(profile.mentor_rejection_reasons, []);
+  assert.ok(profile.regex_policy_shadow);
+  assert.equal(profile.regex_policy_shadow.agreed_with_mentor, false);
+  assert.ok(profile.mentor_telemetry_flags.includes("issue_not_in_brief"));
+  assert.equal(profile.learner_address_form, "neutral");
+});
+
+test("the session may declare the address form, and the mentor follows it", () => {
+  const caseData = replayCase();
+  const declared = createV25Session({
+    caseData,
+    mode: "reference",
+    seed: "address",
+    learnerAddressForm: "feminine",
+  });
+  assert.equal(declared.learnerAddressForm, "feminine");
+  const brief = buildMentorBrief({
+    caseData,
+    session: declared,
+    plan: { parsed: {} },
+    deterministicUpdate: {},
+  });
+  assert.equal(brief.learnerAddressForm, "feminine");
+  assert.match(buildMentorPrompt({ brief, learnerText: "дальше?" }).system, /feminine forms/);
+
+  // Nothing declared and nothing said: neutral, as before v2.
+  assert.equal(
+    createV25Session({ caseData, mode: "reference", seed: "address-2" }).learnerAddressForm,
+    null
+  );
+});

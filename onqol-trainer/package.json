@@ -12,7 +12,9 @@
     "test": "node --test \"src/**/*.test.js\"",
     "preview": "vite preview",
     "pack:safe": "node scripts/packSafe.mjs",
-    "release:check": "node scripts/releaseGate.mjs"
+    "release:check": "node scripts/releaseGate.mjs",
+    "ab:mentor": "node scripts/abMentor.mjs",
+    "spec:sync": "node scripts/buildMentorSpec.mjs"
   },
   "dependencies": {
     "react": "^19.2.6",

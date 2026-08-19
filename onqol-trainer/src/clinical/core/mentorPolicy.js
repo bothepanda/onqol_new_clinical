@@ -50,9 +50,42 @@ function expectedDomainsFromPending(pending) {
     : [];
 }
 
-function blockedParameterAssessment(signals) {
-  const blocked = (signals || []).find((signal) => signal.blocks_application);
+/**
+ * Identity of a parameter stop, for "say it once".
+ *
+ * A governance stop - "the pilot has no reviewed rule for this parameter" -
+ * carries no answer the learner can give. Delivering it a second time for the
+ * same order is the loop that ended replay 91ba7206 on turn 7, where the
+ * learner pasted her preparation again and got the same sentence back. The key
+ * includes the verbatim, so a CHANGED order is a new stop and re-arms.
+ */
+export function parameterStopKey(signal) {
+  return [
+    "parameter_safety",
+    signal?.concept_id || "unknown",
+    signal?.source_rule_id || signal?.governance_policy_id || "unknown",
+    (signal?.verbatim || "").trim().toLowerCase(),
+  ].join(":");
+}
+
+function blockedParameterAssessment(signals, plan, session) {
+  const alreadyDelivered = new Set(session?.workingMemory?.firedHeuristicIds || []);
+  const blocked = (signals || []).find(
+    (signal) =>
+      signal.blocks_application &&
+      // A reviewed-unsafe verdict repeats for as long as the learner insists.
+      // A governance stop is stated once; see parameterStopKey.
+      (["reviewed_unsafe", "reviewed_questionable"].includes(signal.safety_verdict) ||
+        !alreadyDelivered.has(parameterStopKey(signal)))
+  );
   if (!blocked) return null;
+  // The order is fully stated and the pilot still cannot validate it. The engine
+  // says so once; the mentor must not ask for the same parameters again, which
+  // is what turned replay b9d7a831 into a loop the learner walked out of.
+  const stated = (plan?.operationalizationStates || []).find(
+    (state) => state.action_id === blocked.concept_id
+  );
+  if (stated?.complete) return null;
   const reviewedUnsafe = ["reviewed_unsafe", "reviewed_questionable"].includes(
     blocked.safety_verdict
   );
@@ -75,9 +108,18 @@ function blockedParameterAssessment(signals) {
 export function classifyLearnerAdequacy({ learnerText, plan, session }) {
   const text = String(learnerText || "").trim();
   const pending = plan.pendingMentorQuestionBeforeTurn || session?.workingMemory?.pendingMentorQuestion;
-  const parameterAssessment = blockedParameterAssessment(plan.parameterSafetySignals);
+  const parameterAssessment = blockedParameterAssessment(plan.parameterSafetySignals, plan, session);
   if (parameterAssessment) return parameterAssessment;
-  if (pending?.safety_critical && !plan.mentorAnswer?.answered_contract) {
+  // A REVIEWED safety verdict re-arms until it is answered. A governance stop -
+  // "the pilot has no reviewed rule for this parameter" - does not: it is stated
+  // once and the case moves on. Re-arming it is what turned replay 91ba7206
+  // into a loop demanding the learner revise a parameter against a rule that
+  // does not exist, and there is no answer that can satisfy it.
+  if (
+    pending?.safety_critical &&
+    !pending?.governance_stop &&
+    !plan.mentorAnswer?.answered_contract
+  ) {
     return {
       adequacy: ADEQUACY.PARTIAL,
       reason: "unresolved_safety_stop",
@@ -139,11 +181,30 @@ export function classifyLearnerAdequacy({ learnerText, plan, session }) {
     };
   }
 
-  if ((plan.operations || []).some((operation) => operation.needsOperationalization)) {
+  // An unspecified order is asked about, not held against the learner: the
+  // question is operational, and the reasoning behind the plan may be perfectly
+  // adequate. Only the operative approach, where the choice itself is the
+  // reasoning, still degrades adequacy.
+  if (
+    (plan.operations || []).some(
+      (operation) =>
+        operation.needsOperationalization &&
+        ["appendectomy_here", "appendectomy_procedure_start"].includes(operation.action_id)
+    )
+  ) {
+    // The domains name the slots the team is actually waiting for, so the next
+    // turn is routed as an answer to them rather than as fresh unrecognised text.
+    const missingSlots = [
+      ...new Set(
+        (plan.operationalizationStates || [])
+          .filter((state) => state && !state.complete)
+          .flatMap((state) => state.missing || [])
+      ),
+    ];
     return {
       adequacy: ADEQUACY.PARTIAL,
       reason: "action_needs_operationalization",
-      expected_answer_domains: ["operative_approach"],
+      expected_answer_domains: missingSlots.length ? missingSlots : ["operative_approach"],
       safety_critical: false,
       governance_stop: false,
       consultation_preserved: false,

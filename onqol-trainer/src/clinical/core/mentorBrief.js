@@ -4,17 +4,39 @@ import { resolveScenarioResource } from "../v25/scenarioEngine.js";
 import {
   ADEQUACY,
   MENTOR_MODE,
+  parameterStopKey,
   selectMentorPolicy,
 } from "./mentorPolicy.js";
+import { operationalizationQuestion } from "./operationalization.js";
+import { resolveLearnerAddressForm } from "./learnerAddress.js";
+import { detectLegacyPractices, legacyPracticeBriefEntry } from "./legacyPractices.js";
+import {
+  CLINICAL_RULE_REGISTRY,
+  CLINICAL_RUNTIME_EFFECT,
+  approvedDosingRules,
+  ruleAllowsRuntimeEffect,
+} from "../governance/clinicalGovernance.js";
 
 /**
  * The mentor brief: a deterministic description of what is pedagogically true
  * on this turn.
  *
- * This is the whole safety argument for letting the mentor speak freely. The
- * brief contains action ids, verdicts, authored template text and a strict
- * allowlist of facts already visible to the learner. It never contains hidden
- * truth, unrevealed results, future states or answer keys.
+ * BASE RULES V2 CHANGED WHAT THIS IS. Until v3.5 the brief was a starvation
+ * diet: action ids, verdicts, authored templates and an allowlist of facts the
+ * learner could already see, and nothing else, because a mentor that cannot see
+ * the case cannot leak it. The cost was a mentor that could not teach - it did
+ * not know what the case models, so "УЗИ малого таза здесь не смоделировано"
+ * came out as "эти данные не заданы в карте пациента".
+ *
+ * The brief now carries the case card (see buildMentorCaseCard), the whole
+ * transcript, every approved rule and the accumulated reasoning state. What it
+ * still withholds is the ANSWER KEY: diagnosis_truth, which actions are
+ * expected or critical, their weights and their authored feedback. Knowing what
+ * exists in the world is what supervision needs; knowing the grade is what
+ * turns a supervisor into an answer sheet.
+ *
+ * Unrevealed findings travel marked `unrevealed: true, do_not_mention: true`,
+ * and `leaksUnrevealedFinding` in mentorAgent.js is the judge of that marking.
  *
  * It does carry `learnerReasoning`: sentences the learner wrote themselves,
  * quoted exactly and checked against their message before they got here (see
@@ -45,6 +67,15 @@ export const MENTOR_MOVE = {
   // the case, not because anything is wrong. See mentorHeuristics.js.
   CHECKPOINT: "checkpoint",
   PARAMETER_SAFETY: "parameter_safety",
+  // "Хорошо, а чем и как?" — the order is named but not specified enough to be
+  // carried out. See core/operationalization.js.
+  OPERATIONALIZATION: "operationalization",
+  // The router could not map the words. Base rules v2: the mentor answers it,
+  // the engine still refuses to execute it. See core/prerequisiteClosure.js's
+  // sibling reasoning in engine.js nonActionReplies.
+  UNRECOGNIZED_FRAGMENT: "unrecognized_fragment",
+  // A common regional practice with no approved rule behind it yet.
+  LEGACY_PRACTICE: "legacy_practice",
 };
 
 const ESCALATION_ACTION_IDS = ["call_senior_surgeon", "call_intensive_care"];
@@ -197,6 +228,76 @@ function currentStateFacts(session) {
  * Facts the learner can already see. Source ids are the authorization boundary:
  * a fact absent from this array cannot be voiced by the mentor agent.
  */
+/**
+ * The case card as the mentor may see it: the world, never the answer key.
+ *
+ * INCLUDED - what exists in this simulation. Revealed findings in full,
+ * unrevealed findings marked do_not_mention (so the mentor knows what the case
+ * models and can say honestly what it does not), and the action inventory by id
+ * and concept.
+ *
+ * EXCLUDED - what would make the mentor an answer sheet: diagnosis_truth, which
+ * actions are expected, critical or scored, their weights, and the authored
+ * feedback strings. Rule 3 of the base rules survives on the mentor not knowing
+ * the verdict, not merely on being told to keep quiet about it.
+ */
+export function buildMentorCaseCard(caseData, session) {
+  const revealed = new Set(session.revealedFindings || []);
+  const findingEntries = [
+    ...Object.entries(caseData.available_findings || {}),
+    ...Object.entries(caseData.hidden_findings || {}),
+  ];
+  const patient = caseData.patient_state || {};
+  const notModelled = new Set(caseData.v35_removed_action_ids || []);
+
+  return {
+    case_id: caseData.case_id,
+    title: caseData.title,
+    resource_setting: caseData.resource_setting || patient.resource_level || null,
+    patient: {
+      age: patient.age ?? null,
+      sex: patient.sex ?? null,
+      time_from_onset_hours: patient.time_from_onset_hours ?? null,
+      pregnancy_possible: patient.pregnancy_possible ?? null,
+      opening_vitals: patient.opening_vitals || null,
+    },
+    revealed_findings: findingEntries
+      .filter(([findingId]) => revealed.has(findingId))
+      .map(([findingId, finding]) => ({
+        finding_id: findingId,
+        title: finding.title,
+        text: finding.text,
+      })),
+    unrevealed_findings: findingEntries
+      .filter(([findingId]) => !revealed.has(findingId))
+      .map(([findingId, finding]) => ({
+        finding_id: findingId,
+        title: finding.title,
+        text: finding.text,
+        unrevealed: true,
+        do_not_mention: true,
+      })),
+    // What the learner can ask for, so "this case does not model that" is an
+    // answer the mentor can actually give instead of a generic non-answer.
+    modelled_actions: [
+      ...(caseData.expected_actions || []),
+      ...(caseData.acceptable_alternatives || []),
+      ...(caseData.unnecessary_actions || []),
+    ].map((action) => ({
+      action_id: action.id,
+      concept: action.concept,
+      intent_type: action.intent_type,
+    })),
+    not_modelled_action_ids: [...notModelled],
+    completed_actions: session.completedActions || [],
+    clock_minutes: session.temporalState?.clockMinutes ?? null,
+    // Prose, deliberately: naming the withheld fields by their field names put
+    // the answer key's vocabulary into the prompt a test then had to allow for.
+    answer_key_withheld:
+      "the true diagnosis, which actions are expected or critical, their weights, and the authored feedback",
+  };
+}
+
 export function buildRevealedMentorFacts(caseData, session, justPerformed = []) {
   const facts = [];
   if (caseData.initial_presentation?.text) {
@@ -359,10 +460,116 @@ export function buildMentorBrief({
     }
   }
 
+  // An order that has not been specified cannot be carried out, and that comes
+  // before every teaching move: the team is standing there waiting. One move
+  // covers every incomplete order in the turn, so a compound move gets one
+  // question rather than one question and a silent half.
+  const incompleteOrders = (plan.operationalizationStates || []).filter(
+    (state) => state && !state.complete && state.missing?.length
+  );
+  if (incompleteOrders.length) {
+    moves.push({
+      type: MENTOR_MOVE.OPERATIONALIZATION,
+      issue_id: `operationalization:${incompleteOrders
+        .map((state) => state.action_id)
+        .join("+")}`,
+      severity: 3,
+      hint_level: 1,
+      safety_critical: false,
+      why_now: "order_named_but_not_specified",
+      reasoning_gap: null,
+      relevant_to_current_turn: true,
+      action_ids: incompleteOrders.map((state) => state.action_id),
+      missing_slots: incompleteOrders.map((state) => ({
+        action_id: state.action_id,
+        missing: state.missing,
+      })),
+      template: operationalizationQuestion(incompleteOrders),
+      evidence: [],
+    });
+  }
+
+  // A fragment the router could not map is a conversation problem, not a
+  // clinical one. The engine no longer answers it with "Не распознано"; the
+  // mentor does, in words. This move exists so the mentor has something named to
+  // answer and so the deterministic fallback is not silent when the model is off.
+  const unrecognizedFragments = [
+    ...new Set(
+      [
+        ...(plan.parsed?.unresolvedFragments || []),
+        ...(plan.parsed?.unresolvedByKind || [])
+          .filter((entry) => entry.kind === "unrecognized_fragment")
+          .map((entry) => entry.requested_fragment),
+      ].filter(Boolean)
+    ),
+  ];
+  if (unrecognizedFragments.length) {
+    moves.push({
+      type: MENTOR_MOVE.UNRECOGNIZED_FRAGMENT,
+      issue_id: `unrecognized:${unrecognizedFragments.join("+")}`,
+      severity: 2,
+      hint_level: 1,
+      safety_critical: false,
+      why_now: "fragment_not_mapped_to_a_concept",
+      reasoning_gap: null,
+      relevant_to_current_turn: true,
+      fragments: unrecognizedFragments,
+      template: `${unrecognizedFragments
+        .map((fragment) => `«${fragment}»`)
+        .join(", ")} — не получается сопоставить с действием в этом кейсе. Скажи другими словами, что назначаешь.`,
+      evidence: [],
+    });
+  }
+
+  // A practice the region uses and the evidence base does not endorse. There is
+  // no approved teaching rule for it yet, so the move carries no clinical claim
+  // - it tells the mentor the practice was named and that nothing may be
+  // asserted about it. See core/legacyPractices.js.
+  const namedLegacyPractices = detectLegacyPractices(plan.input || "");
+  if (namedLegacyPractices.length) {
+    moves.push({
+      type: MENTOR_MOVE.LEGACY_PRACTICE,
+      issue_id: `legacy_practice:${namedLegacyPractices
+        .map((practice) => practice.practice_id)
+        .join("+")}`,
+      severity: 2,
+      hint_level: 1,
+      safety_critical: false,
+      why_now: "legacy_practice_named_by_learner",
+      reasoning_gap: null,
+      relevant_to_current_turn: true,
+      legacy_practice_ids: namedLegacyPractices.map((practice) => practice.practice_id),
+      template: `${namedLegacyPractices
+        .map((practice) => practice.label_ru)
+        .join(", ")}: назначение записано, но как одобренное действие не выполняется — отрецензированного правила по нему в тренажёре пока нет. Чем обосновываешь этот выбор?`,
+      evidence: [],
+    });
+  }
+
   // Parameter review precedes ordinary pedagogy. This says only that the pilot
   // cannot validate/apply the order; it does not invent a correction.
+  const stopsAlreadyDelivered = new Set(session.workingMemory?.firedHeuristicIds || []);
+  const parameterStopKeys = [];
   for (const signal of plan.parameterSafetySignals || []) {
     if (!signal.blocks_application) continue;
+    // Said once per order. A reviewed-unsafe verdict is exempt: that one is a
+    // clinical stop and repeats for as long as the learner insists on it.
+    const stopKey = parameterStopKey(signal);
+    if (
+      !["reviewed_unsafe", "reviewed_questionable"].includes(signal.safety_verdict) &&
+      stopsAlreadyDelivered.has(stopKey)
+    ) {
+      continue;
+    }
+    // Already answered in full: the engine records it and states why it is not
+    // applied. Repeating the request here is the loop this replaced.
+    if (
+      (plan.operationalizationStates || []).some(
+        (state) => state.action_id === signal.concept_id && state.complete
+      )
+    ) {
+      continue;
+    }
     moves.push({
       type: MENTOR_MOVE.PARAMETER_SAFETY,
       issue_id: signal.source_rule_id || signal.governance_policy_id,
@@ -372,12 +579,23 @@ export function buildMentorBrief({
       why_now: "current_parameter_requires_review",
       reasoning_gap: null,
       relevant_to_current_turn: true,
-      template:
-        "Стоп. Указанный расчёт инфузии требует клинической проверки и пока не применён. Что станет условием немедленного пересмотра плана?",
+      // When the order is still half-stated, the stop asks for the missing part
+      // rather than for something the learner was never asked for.
+      template: (() => {
+        const incomplete = (plan.operationalizationStates || []).find(
+          (state) => state.action_id === signal.concept_id && !state.complete
+        );
+        const question = incomplete ? operationalizationQuestion([incomplete]) : "";
+        return question
+          ? `Стоп. Это назначение пока нельзя выполнить: оно названо не полностью. ${question}`
+          : "Стоп. Указанный расчёт инфузии требует клинической проверки и пока не применён. Что станет условием немедленного пересмотра плана?";
+      })(),
       parameter_safety: signal,
       clinical_rule_ids: signal.source_rule_id ? [signal.source_rule_id] : [],
+      fired_key: stopKey,
       evidence: [],
     });
+    parameterStopKeys.push(stopKey);
   }
 
   // 1. Prerequisite stops. This is the "система говорила стоп" behaviour.
@@ -642,6 +860,18 @@ export function buildMentorBrief({
     })
     .filter(Boolean);
   const revealedFacts = buildRevealedMentorFacts(caseData, session, justPerformed);
+  const learnerTurns = (session.messages || [])
+    .filter((message) => message.role === "user")
+    .map((message) => String(message.content || ""));
+  // Every approved teaching rule, not only the ones the selected issue happened
+  // to name. The mentor now chooses the issue itself, so scoping its evidence to
+  // a policy decision it no longer takes would leave it teaching blind.
+  const allApprovedTeachingRules = CLINICAL_RULE_REGISTRY.filter((rule) =>
+    ruleAllowsRuntimeEffect(rule, CLINICAL_RUNTIME_EFFECT.MENTOR_TEACHING)
+  );
+  const legacyPracticesNamed = detectLegacyPractices(plan.input || "").map(
+    legacyPracticeBriefEntry
+  );
 
   return {
     moves: focusedMoves,
@@ -662,13 +892,42 @@ export function buildMentorBrief({
       consultation_preserved: mentorPolicy.consultation_preserved,
       reasoning_sufficient_to_advance: mentorPolicy.reasoning_sufficient_to_advance,
     },
-    approvedTeachingRules: mentorPolicy.approved_teaching_rules || [],
+    approvedTeachingRules: allApprovedTeachingRules,
+    // Named by the selected issue. Kept separate so the debrief and the
+    // telemetry can still say which rule the deterministic policy pointed at.
+    issueScopedTeachingRules: mentorPolicy.approved_teaching_rules || [],
+    // Empty until a reviewer signs the first dose. Until then the mentor has no
+    // number to give and says "сверь с формуляром" - the transitional state.
+    approvedDosingRules: approvedDosingRules(),
+    legacyPracticesNamed,
     deferredIssues: debriefOnlyIssues,
     justPerformed,
     learnerReasoning: learnerReasoning(session.workingMemory?.reasoningState),
     reasoningDeltaThisTurn: plan.parsed?.reasoning || null,
     accumulatedReasoningState: session.workingMemory?.reasoningState || null,
     recentDialogue: (session.messages || []).slice(-6),
+    // The whole session, not a window on it. Closing a prerequisite with what
+    // the learner already said requires having read what they said.
+    transcript: (session.messages || []).map((message) => ({
+      role: message.role,
+      content: message.content,
+    })),
+    learnerTurns,
+    caseCard: buildMentorCaseCard(caseData, session),
+    learnerAddressForm: resolveLearnerAddressForm({
+      sessionSetting: session.learnerAddressForm || null,
+      learnerTurns,
+    }).form,
+    // Fragments the router could not map. The mentor answers them in words; the
+    // engine still refuses to execute them. See engine.js.
+    unrecognizedFragments: [
+      ...new Set([
+        ...(plan.parsed?.unresolvedFragments || []),
+        ...(plan.parsed?.unresolvedByKind || [])
+          .filter((entry) => entry.kind === "unrecognized_fragment")
+          .map((entry) => entry.requested_fragment),
+      ].filter(Boolean)),
+    ],
     previousMentorIntervention: session.workingMemory?.lastMentorIntervention || null,
     previousMentorQuestionContract:
       plan.pendingMentorQuestionBeforeTurn || session.workingMemory?.pendingMentorQuestion || null,
@@ -680,7 +939,9 @@ export function buildMentorBrief({
     // heard after the second time. Deterioration re-arms; see firedKey.
     firedHeuristicKeys: focusedMoves
       .map((move) => move.fired_key)
-      .filter((key) => key && firedHeuristicKeys.includes(key)),
+      .filter(
+        (key) => key && (firedHeuristicKeys.includes(key) || parameterStopKeys.includes(key))
+      ),
     resultsAlreadyDelivered: (deterministicUpdate.findingsRevealed || []).length > 0,
     factsContract: "revealed_only",
     revealedFacts,

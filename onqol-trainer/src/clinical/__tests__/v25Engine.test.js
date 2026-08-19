@@ -579,8 +579,14 @@ test("a repair turn restates the previous question instead of asking a new one",
     options: { mentor: true },
   });
 
+  // CONTRACT CHANGED, base rules v2 §2.1: the router is the gate on execution,
+  // not on speech, so a conversation-management turn now reaches the mentor too.
+  // Nothing executed and the clock did not move (asserted above); a silent
+  // mentor still leaves the deterministic restatement standing, which is what
+  // happens here without a model.
   assert.match(result.reply, /Какой следующий клинический шаг\?/);
-  assert.equal(result.mentor, null, "наставник не выбирает новый ход на просьбу переспросить");
+  assert.equal(result.mentor.mode, "CONTINUE");
+  assert.equal(result.session.completedActions.length, 0);
 });
 
 test("repeating a plan does not run the orders a second time", async () => {

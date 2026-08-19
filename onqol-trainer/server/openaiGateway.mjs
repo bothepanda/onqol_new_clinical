@@ -6,13 +6,18 @@ import {
 
 export const OPENAI_GATEWAY_VERSION = "2026-08-13.1";
 const SIMULATOR_SCHEMA_VERSION = "simulator-envelope-v3";
-const MENTOR_SCHEMA_VERSION = "mentor-policy-rendering-v3";
+// v4: the model chooses mode, issue and scaffolding; the schema gained
+// scaffolding_level because the length limit depends on it.
+const MENTOR_SCHEMA_VERSION = "mentor-full-context-v4";
 
 const DEFAULT_MODELS = Object.freeze({
   router: "gpt-5.6-luna",
   simulator: "gpt-5.6-terra",
-  // Clinical truth stays deterministic; the mentor chooses whether and how to
-  // intervene among current, bounded candidate teaching issues.
+  // Clinical truth stays deterministic; the mentor now chooses whether and how
+  // to intervene from the full case context, which is the one call per turn
+  // worth spending a strong model on. Overridable with OPENAI_MENTOR_MODEL -
+  // the model choice and the cost of high effort are a product decision, not a
+  // code one (CDR, base rules v2).
   mentor: "gpt-5.6-luna",
 });
 
@@ -75,10 +80,17 @@ const TASKS = Object.freeze({
     },
   },
   mentor: {
-    // Deliberately small. The mentor speaks two to four sentences; a large
-    // budget invites it to start teaching, which is exactly what it must not do
-    // mid-case.
-    maxOutputTokens: 600,
+    // Base rules v2. The old budget (600) matched a mentor that only rendered a
+    // decision someone else had taken. The mentor now reads the case card, the
+    // whole transcript and the approved rules, decides whether and how to
+    // intervene, and at scaffolding 3-4 the specification asks it for options or
+    // an explanation. Output length is still capped where it matters - in
+    // mentorAgent's post-check, by mode - so this budget buys reasoning, not
+    // lecturing.
+    maxOutputTokens: 1600,
+    // One call per turn, and it is the call that decides what the learner is
+    // taught. Low effort was affordable when the decision was already made.
+    reasoningEffort: "high",
     format: {
       type: "json_schema",
       name: "onqol_mentor_reply",
@@ -100,6 +112,7 @@ const TASKS = Object.freeze({
           issue_id: { type: ["string", "null"] },
           mentor_text: { type: "string" },
           question_domain: { type: ["string", "null"] },
+          scaffolding_level: { type: ["integer", "null"] },
           factual_claims: {
             type: "array",
             items: {
@@ -113,7 +126,14 @@ const TASKS = Object.freeze({
             },
           },
         },
-        required: ["mode", "issue_id", "mentor_text", "factual_claims", "question_domain"],
+        required: [
+          "mode",
+          "issue_id",
+          "mentor_text",
+          "factual_claims",
+          "question_domain",
+          "scaffolding_level",
+        ],
         additionalProperties: false,
       },
     },
@@ -213,7 +233,7 @@ export function buildOpenAIRequest({ task, prompt, models = DEFAULT_MODELS }) {
 
   return {
     model: models[task],
-    reasoning: { effort: "low" },
+    reasoning: { effort: taskConfig.reasoningEffort || "low" },
     instructions: prompt.system,
     input: prompt.user,
     text: { format: taskConfig.format },

@@ -557,10 +557,24 @@ test("the mentor gets learner reasoning without unrevealed case findings", () =>
 
   // No finding the learner has not received is present. The opening handoff is
   // deliberately allowed because it is already on screen.
-  const serialized = JSON.stringify(brief);
+  // CONTRACT CHANGED, base rules v2: the case card travels with the brief, with
+  // every unrevealed finding marked do_not_mention. What may still not carry an
+  // unrevealed result is the fact ALLOWLIST - the set the mentor may assert from.
+  const serialized = JSON.stringify({
+    revealedFacts: brief.revealedFacts,
+    learnerReasoning: brief.learnerReasoning,
+    accumulatedReasoningState: brief.accumulatedReasoningState,
+    moves: brief.moves,
+  });
   for (const group of [v3Case.hidden_findings || {}, v3Case.available_findings || {}]) {
     for (const [findingId, finding] of Object.entries(group)) {
-      assert.ok(!serialized.includes(finding.text), `brief leaked ${findingId}`);
+      assert.ok(!serialized.includes(finding.text), `allowlist leaked ${findingId}`);
+    }
+    for (const findingId of Object.keys(group)) {
+      assert.ok(
+        brief.caseCard.unrevealed_findings.some((entry) => entry.finding_id === findingId),
+        `case card is missing ${findingId}`
+      );
     }
   }
   assert.equal(brief.factsContract, "revealed_only");
@@ -609,10 +623,24 @@ test("reasoning state reaches the mentor without carrying an unrevealed result",
     deterministicUpdate: { scoringEvents: [], blockedOperations: [], neutralPrompt: "?" },
   });
 
-  const serialized = JSON.stringify(brief);
+  // CONTRACT CHANGED, base rules v2: the case card travels with the brief, with
+  // every unrevealed finding marked do_not_mention. What may still not carry an
+  // unrevealed result is the fact ALLOWLIST - the set the mentor may assert from.
+  const serialized = JSON.stringify({
+    revealedFacts: brief.revealedFacts,
+    learnerReasoning: brief.learnerReasoning,
+    accumulatedReasoningState: brief.accumulatedReasoningState,
+    moves: brief.moves,
+  });
   for (const group of [v3Case.hidden_findings || {}, v3Case.available_findings || {}]) {
     for (const [findingId, finding] of Object.entries(group)) {
-      assert.ok(!serialized.includes(finding.text), `brief leaked ${findingId}`);
+      assert.ok(!serialized.includes(finding.text), `allowlist leaked ${findingId}`);
+    }
+    for (const findingId of Object.keys(group)) {
+      assert.ok(
+        brief.caseCard.unrevealed_findings.some((entry) => entry.finding_id === findingId),
+        `case card is missing ${findingId}`
+      );
     }
   }
   assert.equal(brief.factsContract, "revealed_only");

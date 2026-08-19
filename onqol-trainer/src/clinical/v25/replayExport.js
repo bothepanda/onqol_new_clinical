@@ -23,6 +23,47 @@ function withoutLearnerVerbatim(value) {
 }
 
 /**
+ * Per-turn mentor decision record, for the A/B harness and the pilot review.
+ *
+ * `regex_policy_shadow` is the pre-v2 deterministic policy's answer, kept
+ * alongside the model's so the two can be compared turn by turn rather than
+ * argued about. `rejection_reasons` has one entry per rejected attempt, so a
+ * turn that was repaired successfully still shows what it was repaired from.
+ */
+export function buildMentorTelemetry(session) {
+  const profiles = (session?.eventLog || []).filter(
+    (entry) => entry.event_type === "execution_profile"
+  );
+  const turns = profiles.map((entry) => ({
+    turn_number: entry.turn_number,
+    mentor_source: entry.mentor_source || (entry.mentor_execution === "model" ? "llm" : entry.mentor_execution),
+    mentor_mode: entry.mentor_mode || null,
+    mentor_issue_id: entry.mentor_issue_id || null,
+    rejection_reasons: entry.mentor_rejection_reasons || [],
+    repair_attempted: Boolean(entry.repair_attempted),
+    telemetry_flags: entry.mentor_telemetry_flags || [],
+    regex_policy_shadow: entry.regex_policy_shadow || null,
+    learner_address_form: entry.learner_address_form || null,
+  }));
+  const spoke = turns.filter((turn) => turn.mentor_source !== "not_invoked");
+  const rejections = {};
+  for (const reason of turns.flatMap((turn) => turn.rejection_reasons)) {
+    rejections[reason] = (rejections[reason] || 0) + 1;
+  }
+  return {
+    turns,
+    summary: {
+      mentor_turns: spoke.length,
+      from_model: spoke.filter((turn) => turn.mentor_source === "llm").length,
+      from_template: spoke.filter((turn) => turn.mentor_source === "deterministic").length,
+      repaired: spoke.filter((turn) => turn.repair_attempted).length,
+      rejection_reasons: rejections,
+      policy_agreement: spoke.filter((turn) => turn.regex_policy_shadow?.agreed_with_mentor).length,
+    },
+  };
+}
+
+/**
  * Build a self-contained audit/replay package without exporting unredacted
  * learner text. The deterministic replay inputs are the frozen case composition,
  * the full scenario and the ordered engine events/actions.
@@ -79,6 +120,10 @@ export function buildV25ReplayExport(session, exportedAt = new Date().toISOStrin
       temporal_state: session.temporalState || null,
       resource_queue: session.resourceQueue || {},
     },
+    // Additive since base rules v2: one place to read how the mentor decided
+    // across the session without walking the event log by hand. Everything here
+    // is derived from execution_profile events, which carry no learner text.
+    mentor_telemetry: buildMentorTelemetry(session),
     transcript: redactMessages(session.messages),
     events: withoutLearnerVerbatim(session.eventLog || []),
     action_log: session.actionLog || [],

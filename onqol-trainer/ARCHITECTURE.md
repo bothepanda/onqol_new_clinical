@@ -19,15 +19,30 @@ access token and storage namespace and is not reachable from the main UI.
 
 1. The deterministic engine owns state transitions, time, resources, authored
    findings, lifecycle and formative output.
-2. The semantic router may map free text to declared concepts, but schema and
-   Case Card validation decide what can execute.
+2. The semantic router may map free text to declared concepts, and schema and
+   Case Card validation decide what can EXECUTE. Since base rules v2 the router
+   is not a gate on SPEECH: a turn it could not map still reaches the mentor and
+   is answered in words, while nothing unrecognised is applied to the patient.
 3. The simulator receives only the current handoff and findings unlocked for
    that turn. It never receives hidden truth, answer keys, scoring rules or the
    retrieval corpus.
-4. The deterministic mentor policy classifies turn adequacy, selects one mode
-   and sets scaffolding. The renderer receives learner reasoning, an allowlist
-   of revealed facts and only `approved_for_training` clinical teaching rules;
-   it cannot change the selected policy.
+4. The mentor decides. Base rules v2 (`BASE_RULES_V2_PROPOSAL.md`, approved
+   19.08.2026) inverted the previous arrangement, in which a deterministic
+   policy chose the mode and the model only rendered it. The mentor now receives
+   the behaviour specification verbatim as its system prompt, the case card with
+   unrevealed findings marked `do_not_mention`, the whole transcript, the
+   accumulated reasoning state and every `approved_for_training` rule, and it
+   chooses mode, issue and scaffolding itself. The old policy still runs, in
+   shadow, as telemetry.
+
+   What binds the mentor is checked AFTER generation, on the output: no
+   unrevealed finding (`leaksUnrevealedFinding`), no number outside the revealed
+   facts, the approved rules and the learner's own words, no diagnostic
+   confirmation before the debrief, and no bypass of a reviewed parameter safety
+   stop. A failed check buys one repair; the authored template is the last
+   resort, not the first answer. The mentor never receives the answer key - the
+   true diagnosis, which actions are expected or critical, their weights or
+   their authored feedback.
 5. V3.5 numeric scoring is disabled. Reasoning snapshots and mentor output are
    non-scoreable by construction.
 

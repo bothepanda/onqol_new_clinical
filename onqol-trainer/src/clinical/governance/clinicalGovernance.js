@@ -9,6 +9,7 @@
 export const CLINICAL_GOVERNANCE_VERSION = "clinical-governance-v1.0";
 export const SOURCE_REGISTRY_VERSION = "source-registry-v1.0";
 export const CLINICAL_RULE_REGISTRY_VERSION = "clinical-rule-registry-v1.0";
+export const DOSING_RULE_REGISTRY_VERSION = "dosing-rule-registry-v0.1";
 
 export const CLINICAL_RULE_STATUS = Object.freeze({
   DRAFT: "draft",
@@ -27,6 +28,7 @@ export const CLINICAL_RUNTIME_EFFECT = Object.freeze({
 });
 
 export const HIGH_RISK_RULE_TYPES = Object.freeze([
+  "dosing_rule",
   "medication_dose",
   "fluid_dose",
   "fluid_rate",
@@ -373,6 +375,97 @@ export const CLINICAL_RULE_REGISTRY = Object.freeze([
       "The guidelines disagree, so this is teaching material and not a binary right/wrong action. Performing lavage is never coded as an error, a safety stop or a penalty. What is assessed is adequacy of source control and removal of the accessible contaminated material.",
   }),
 ]);
+
+/**
+ * Dosing rules.
+ *
+ * Base rules v2 reverses the standing position that "the trainer does not state
+ * a drug or a dose". Doses belong in the knowledge base - they are most of what
+ * a resident needs a supervisor for - but they enter through this pipeline and
+ * no other: an exact line copied from a named source, a licence note, a KNF RK
+ * status, two reviewers, and only then the right for the mentor to say the
+ * number out loud.
+ *
+ * Until a rule is approved the mentor's behaviour is unchanged: discuss the
+ * decision, name no number, send the learner to the local formulary. That is
+ * the safe transitional state, not a permanent policy.
+ *
+ * The registry below is deliberately EMPTY. Its content is authored by the
+ * clinical owner with verbatim source lines - the first draft is
+ * DOSING_RULES_DRAFT_v0.1.md, every row still NEEDS_CLINICAL_REVIEW and several
+ * marked needs-verification. Rows enter this file when a reviewer has signed
+ * them and the verbatim line has been confirmed against the source PDF, not
+ * before, and nothing here is ever written from memory.
+ */
+export const DOSING_RULE_STATUS = Object.freeze({
+  NEEDS_CLINICAL_REVIEW: "NEEDS_CLINICAL_REVIEW",
+  ...CLINICAL_RULE_STATUS,
+});
+
+export const DOSING_RULE_REGISTRY = Object.freeze([]);
+
+const DOSING_RULE_REQUIRED_FIELDS = Object.freeze([
+  "rule_id",
+  "agent",
+  "indication",
+  "dose",
+  "route",
+  "source_line_verbatim",
+  "license_note",
+  "kp_rk_status",
+]);
+
+export function validateDosingRule(rule, sources = SOURCE_REGISTRY) {
+  const errors = [];
+  const sourceIds = new Set(sources.map((source) => source.source_id));
+  for (const field of DOSING_RULE_REQUIRED_FIELDS) {
+    if (!rule?.[field]) errors.push(`${rule?.rule_id || "unknown"}: ${field} is required`);
+  }
+  if (rule?.rule_type !== "dosing_rule") {
+    errors.push(`${rule?.rule_id || "unknown"}: rule_type must be dosing_rule`);
+  }
+  const ruleSources = uniqueStrings(rule?.source_ids);
+  if (!ruleSources.length) errors.push(`${rule?.rule_id || "unknown"}: source_ids are required`);
+  for (const sourceId of ruleSources) {
+    if (!sourceIds.has(sourceId)) errors.push(`${rule.rule_id}: unknown source ${sourceId}`);
+  }
+  if (rule?.legacy_v1 === true) {
+    errors.push(`${rule.rule_id}: legacy V1 material cannot be a dosing source`);
+  }
+  const approved = rule?.review_status === CLINICAL_RULE_STATUS.APPROVED;
+  const effects = uniqueStrings(rule?.allowed_runtime_effects);
+  if (!approved && effects.length) {
+    errors.push(`${rule.rule_id}: a dosing rule without approval cannot have runtime effects`);
+  }
+  for (const effect of effects) {
+    if (effect !== CLINICAL_RUNTIME_EFFECT.MENTOR_TEACHING) {
+      errors.push(`${rule.rule_id}: a dosing rule may only teach, not ${effect}`);
+    }
+  }
+  // A dose is high-risk by construction, so the two-reviewer bar is not
+  // conditional on a risk_class field somebody could forget to set.
+  if (approved && uniqueStrings(rule?.reviewed_by).length < 2) {
+    errors.push(`${rule.rule_id}: dosing approval requires at least two reviewers`);
+  }
+  return { ok: errors.length === 0, errors };
+}
+
+/**
+ * The dosing rules the mentor may quote a number from. Anything short of
+ * approved_for_training returns nothing, which is what keeps "сверь с
+ * формуляром" the answer until a reviewer signs.
+ */
+export function approvedDosingRules(
+  registry = DOSING_RULE_REGISTRY,
+  sources = SOURCE_REGISTRY
+) {
+  return registry.filter(
+    (rule) =>
+      rule?.review_status === CLINICAL_RULE_STATUS.APPROVED &&
+      validateDosingRule(rule, sources).ok &&
+      uniqueStrings(rule.allowed_runtime_effects).includes(CLINICAL_RUNTIME_EFFECT.MENTOR_TEACHING)
+  );
+}
 
 function uniqueStrings(value) {
   return Array.isArray(value)

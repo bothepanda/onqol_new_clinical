@@ -16,6 +16,7 @@ import {
   buildMentorPrompt,
   leaksUnrevealedFinding,
   runMentorAgent,
+  resolveLearnerAddressForm,
   validateMentorPayload,
   validateMentorText,
 } from "../core/mentorAgent.js";
@@ -73,7 +74,18 @@ function moveTypes(brief) {
   return brief.moves.map((move) => move.type);
 }
 
-test("the brief carries only facts already revealed to the learner", () => {
+// CONTRACT CHANGED, base rules v2 (BASE_RULES_V2_PROPOSAL.md §3).
+//
+// Before: the brief carried no patient facts beyond the revealed allowlist, so
+// the mentor could not leak what it had never seen. The cost was a mentor that
+// did not know what the case models and answered "эти данные не заданы в карте
+// пациента" to a reasonable request.
+//
+// Now: the brief carries the case card, with unrevealed findings marked
+// do_not_mention and leaksUnrevealedFinding as the judge of that marking. The
+// fact ALLOWLIST is unchanged - what the mentor may assert is still only what
+// the learner can already see - and the answer key stays out.
+test("the brief separates the fact allowlist from the marked case card", () => {
   const brief = buildMentorBrief({
     caseData,
     session: session(),
@@ -83,13 +95,24 @@ test("the brief carries only facts already revealed to the learner", () => {
     deterministicUpdate: update({ scoringEvents: [{ action_id: "open_appendectomy_here" }] }),
   });
 
-  const serialized = JSON.stringify(brief);
+  const allowlist = JSON.stringify(brief.revealedFacts);
   for (const [findingId, finding] of Object.entries(caseData.available_findings)) {
-    assert.ok(!serialized.includes(finding.text), `brief leaked unrevealed finding ${findingId}`);
+    assert.ok(!allowlist.includes(finding.text), `allowlist leaked unrevealed finding ${findingId}`);
   }
-  assert.ok(!serialized.includes(caseData.hidden_findings.operative_finding.text));
+  assert.ok(!allowlist.includes(caseData.hidden_findings.operative_finding.text));
   assert.equal(brief.factsContract, "revealed_only");
   assert.ok(brief.allowedFactSourceIds.includes("initial_presentation"));
+
+  const unrevealed = brief.caseCard.unrevealed_findings;
+  assert.ok(unrevealed.some((finding) => finding.finding_id === "operative_finding"));
+  assert.ok(unrevealed.every((finding) => finding.unrevealed && finding.do_not_mention));
+  assert.equal(brief.caseCard.revealed_findings.length, 0);
+
+  // The answer key is still withheld: the mentor knows the world, not the grade.
+  const serialized = JSON.stringify(brief);
+  assert.ok(!serialized.includes(caseData.patient_state.diagnosis_truth));
+  assert.ok(!serialized.includes("score_weight"));
+  assert.ok(!serialized.includes("feedback_if_missed"));
 });
 
 test("revealed facts expose current state and only already delivered results", () => {
@@ -114,7 +137,12 @@ test("revealed facts expose current state and only already delivered results", (
   assert.ok(!serialized.includes(caseData.hidden_findings.operative_finding.text));
 });
 
-test("mentor factual claims require an allowed source and exact support", () => {
+// CONTRACT CHANGED, base rules v2 §2 rule 2 and the "запрет пересказа" row of §3.
+// Verbatim quotation of revealed facts is no longer required - the facts are on
+// the learner's screen and forcing quotation is what made the mentor sound like
+// a printer. Numbers are the exception and are checked harder than before:
+// against revealed facts, approved rules AND the learner's own words.
+test("numbers are checked against the sources, paraphrase is not", () => {
   const brief = buildMentorBrief({
     caseData,
     session: session({ revealedFindings: ["abdominal_exam"] }),
@@ -145,20 +173,55 @@ test("mentor factual claims require an allowed source and exact support", () => 
     ).ok,
     true
   );
+  // Paraphrase of a revealed fact, no declared claim at all: allowed now.
   assert.equal(
     validateMentorPayload(
       {
         mode: "CLARIFY",
         issue_id: "fact_probe",
-        mentor_text: "Лейкоциты 13,8. Что это меняет?",
-        factual_claims: [{ source_id: "finding.cbc", text: "Лейкоциты 13,8" }],
+        mentor_text: "Живот болезненный в правой подвздошной, с защитным напряжением. Что дальше?",
+        factual_claims: [],
         question_domain: "diagnostic_reasoning",
       },
       brief,
       caseData,
       ["abdominal_exam"]
-    ).reason,
-    "fact_source_not_allowed"
+    ).ok,
+    true
+  );
+  // A number from an unrevealed result is refused, and the bad source id is
+  // recorded as telemetry rather than becoming the rejection reason.
+  const unrevealedNumber = validateMentorPayload(
+    {
+      mode: "CLARIFY",
+      issue_id: "fact_probe",
+      mentor_text: "Лейкоциты 13,8. Что это меняет?",
+      factual_claims: [{ source_id: "finding.cbc", text: "Лейкоциты 13,8" }],
+      question_domain: "diagnostic_reasoning",
+    },
+    brief,
+    caseData,
+    ["abdominal_exam"]
+  );
+  assert.equal(unrevealedNumber.reason, "uncited_numeric_fact");
+  assert.ok(unrevealedNumber.telemetry.includes("fact_source_not_allowed"));
+
+  // A number the learner wrote themselves is theirs to be asked about.
+  const withLearnerWords = { ...brief, learnerTurns: ["физ-р-р 2 л через 16G"] };
+  assert.equal(
+    validateMentorPayload(
+      {
+        mode: "CLARIFY",
+        issue_id: "fact_probe",
+        mentor_text: "2 л кристаллоида на этом фоне — чем обосновываешь объём?",
+        factual_claims: [],
+        question_domain: "diagnostic_reasoning",
+      },
+      withLearnerWords,
+      caseData,
+      ["abdominal_exam"]
+    ).ok,
+    true
   );
   assert.equal(
     validateMentorPayload(
@@ -171,7 +234,9 @@ test("mentor factual claims require an allowed source and exact support", () => 
   );
 });
 
-test("the mentor prompt is built without the Case Card", () => {
+// CONTRACT CHANGED, base rules v2 §1: the mentor prompt IS the behaviour
+// specification plus the case card. What it still may not contain is the key.
+test("the mentor prompt carries the specification and the case card, not the answer key", () => {
   const brief = buildMentorBrief({
     caseData,
     session: session(),
@@ -181,11 +246,15 @@ test("the mentor prompt is built without the Case Card", () => {
   const prompt = buildMentorPrompt({ brief, learnerText: "что дальше?" });
   const serialized = `${prompt.system}\n${prompt.user}`;
 
+  assert.ok(prompt.system.includes("# ON QOL Mentor Behavior Specification"));
+  assert.ok(prompt.system.includes("HARD BOUNDS"));
   for (const [findingId, finding] of Object.entries(caseData.hidden_findings)) {
-    assert.ok(!serialized.includes(finding.text), `prompt exposed hidden finding ${findingId}`);
+    assert.ok(serialized.includes(finding.text), `case card is missing ${findingId}`);
+    assert.ok(serialized.includes("do_not_mention"));
   }
-  assert.ok(!serialized.includes("expected_actions"));
-  assert.ok(!serialized.includes("diagnosis_truth"));
+  assert.ok(!serialized.includes(caseData.patient_state.diagnosis_truth));
+  assert.ok(!serialized.includes("score_weight"));
+  assert.ok(!serialized.includes("feedback_if_missed"));
 });
 
 test("operating without consent produces a blocking stop, not a silent penalty", () => {
@@ -658,18 +727,57 @@ test("blocking enforcement can be turned off independently of the mentor", async
 
 // --- grammatical gender ---------------------------------------------------
 
-test("the mentor never assigns the learner a gender", () => {
-  const gendered = [
+// CONTRACT CHANGED, base rules v2 §3 ("запрет гендерного прошедшего времени").
+// A blanket rejection of gendered address cut natural Russian and fired while
+// the learner herself was writing "я же сделала". The form now comes from the
+// session setting or from the learner's own words, and the old pattern survives
+// only as telemetry.
+test("a gendered address is no longer a rejection", () => {
+  for (const text of [
     "Хорошо, что ты прямо обозначил неуверенность. Что дальше?",
     "Ты сделала правильный шаг, вызвав старшего. Что дальше?",
-    "Ты уже осмотрел живот. Каких данных не хватает?",
-    "Ты растерялся здесь. Что именно тебя остановило?",
-  ];
-  for (const text of gendered) {
-    const validation = validateMentorText(text, caseData, []);
-    assert.equal(validation.ok, false, `should have rejected: ${text}`);
-    assert.equal(validation.reason, "gendered_address");
+  ]) {
+    assert.equal(validateMentorText(text, caseData, []).ok, true, `wrongly rejected: ${text}`);
   }
+});
+
+test("the address form comes from the session setting, then from the learner's own words", () => {
+  assert.equal(
+    resolveLearnerAddressForm({ sessionSetting: "masculine", learnerTurns: ["я сделала осмотр"] }).form,
+    "masculine"
+  );
+  assert.equal(
+    resolveLearnerAddressForm({ learnerTurns: ["Я же сделала все это выше!"] }).form,
+    "feminine"
+  );
+  assert.equal(
+    resolveLearnerAddressForm({ learnerTurns: ["я не успел собрать анамнез"] }).form,
+    "masculine"
+  );
+  // Nothing about the learner: stays neutral. "была" here is the patient.
+  assert.equal(
+    resolveLearnerAddressForm({ learnerTurns: ["по описанию боль была в эпигастрии"] }).form,
+    "neutral"
+  );
+  // Contradictory evidence is not a guess to make.
+  assert.equal(
+    resolveLearnerAddressForm({ learnerTurns: ["я сделала осмотр", "я назначил кт"] }).form,
+    "neutral"
+  );
+});
+
+test("the prompt instructs the address form the session resolved", () => {
+  const brief = buildMentorBrief({
+    caseData,
+    session: {
+      ...session(),
+      messages: [{ role: "user", content: "я уже назначила оак" }],
+    },
+    plan: plan(),
+    deterministicUpdate: update(),
+  });
+  assert.equal(brief.learnerAddressForm, "feminine");
+  assert.match(buildMentorPrompt({ brief, learnerText: "дальше?" }).system, /feminine/);
 });
 
 test("neutral phrasings are accepted", () => {
@@ -749,10 +857,10 @@ test("a gendered model reply falls back to the neutral authored text", async () 
     }
   );
 
-  assert.equal(result.source, "deterministic");
-  assert.equal(result.rejectionReason, "gendered_address");
-  const validation = validateMentorText(result.text, caseData, []);
-  assert.ok(validation.ok);
+  // The reply now stands: gendered address is telemetry, not a rejection.
+  assert.equal(result.source, "llm");
+  assert.equal(result.rejectionReason, null);
+  assert.ok(result.telemetry.includes("gendered_address_without_known_form"));
 });
 
 // --- what already happened this turn --------------------------------------
@@ -775,8 +883,13 @@ test("the brief names what was just performed, without its results", () => {
   assert.ok(brief.justPerformed.every((entry) => entry.concept));
   assert.equal(brief.resultsAlreadyDelivered, true);
 
-  // Names, not findings: the no-facts invariant must still hold.
-  const serialized = JSON.stringify(brief);
+  // Names, not findings: justPerformed and the fact allowlist still carry no
+  // result text the learner has not been given. (The case card does, marked -
+  // see "the brief separates the fact allowlist from the marked case card".)
+  const serialized = JSON.stringify({
+    justPerformed: brief.justPerformed,
+    revealedFacts: brief.revealedFacts,
+  });
   for (const finding of Object.values(caseData.available_findings)) {
     assert.ok(!serialized.includes(finding.text));
   }
@@ -795,7 +908,7 @@ test("the mentor prompt states that those actions are already answered", () => {
   const prompt = buildMentorPrompt({ brief, learnerText: "физикальный осмотр и анамнез" });
 
   assert.match(prompt.system, /just_performed/);
-  assert.match(prompt.system, /Never instruct the learner to do something listed in just_performed/);
+  assert.match(prompt.system, /Never instruct the learner to start something already done/);
   assert.match(prompt.user, /"just_performed"/);
   assert.match(prompt.user, /abdominal_exam/);
   assert.match(prompt.user, /"results_already_delivered": true/);

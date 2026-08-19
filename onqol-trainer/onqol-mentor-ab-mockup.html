@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ON QOL — макет-сравнение ментора · реплей 91ba7206</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap');
+
+:root{
+  --green:#0e5c45;
+  --green-dark:#0a3d2e;
+  --green-pale:#e8f2ee;
+  --green-line:#bcd8cd;
+  --ink:#1a2420;
+  --muted:#5b6b64;
+  --old-bg:#f4f1ec;
+  --old-line:#d8d2c6;
+  --old-accent:#8a7d63;
+  --new-bg:#eef6f2;
+  --resident:#fdfdfc;
+  --warn:#a3452e;
+  --mono:'IBM Plex Mono',monospace;
+  --sans:'IBM Plex Sans',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--sans);color:var(--ink);background:#fafbfa;line-height:1.55;font-size:15.5px;padding-bottom:80px}
+.wrap{max-width:1060px;margin:0 auto;padding:0 24px}
+
+header{background:var(--green-dark);color:#fff;padding:36px 0 30px;margin-bottom:36px}
+header .wrap{max-width:1060px}
+.brand{font-family:var(--mono);font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:#9fd0bd;margin-bottom:10px}
+h1{font-family:var(--mono);font-size:24px;font-weight:600;line-height:1.3;margin-bottom:12px}
+.sub{color:#cfe4da;max-width:760px;font-size:15px}
+.meta{font-family:var(--mono);font-size:12.5px;color:#8fbcaa;margin-top:16px}
+
+h2{font-family:var(--mono);font-size:17px;color:var(--green-dark);margin:44px 0 14px;padding-top:10px;border-top:2px solid var(--green-line)}
+h3{font-family:var(--mono);font-size:13.5px;color:var(--green);margin-bottom:8px;letter-spacing:.04em}
+p{margin-bottom:10px}
+.small{font-size:13.5px;color:var(--muted)}
+
+.rules{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:18px 0 8px}
+.rule{background:var(--green-pale);border:1px solid var(--green-line);border-radius:8px;padding:14px 16px}
+.rule b{font-family:var(--mono);font-size:12.5px;color:var(--green-dark);display:block;margin-bottom:6px;letter-spacing:.03em}
+.rule span{font-size:13.5px}
+
+.turn{margin:34px 0}
+.turn-label{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.resident{background:var(--resident);border:1px solid #d9ddd9;border-left:4px solid var(--ink);border-radius:8px;padding:13px 16px;margin-bottom:14px;font-size:15px}
+.resident .who{font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:5px}
+
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:860px){.cols{grid-template-columns:1fr}.rules{grid-template-columns:1fr}}
+.col{border-radius:8px;padding:15px 17px;font-size:14.5px}
+.col .who{font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px}
+.col-old{background:var(--old-bg);border:1px solid var(--old-line)}
+.col-old .who{color:var(--old-accent)}
+.col-new{background:var(--new-bg);border:1px solid var(--green-line)}
+.col-new .who{color:var(--green)}
+.col p{margin-bottom:9px}
+.col p:last-child{margin-bottom:0}
+.engine{font-size:13.5px;color:var(--muted);border-left:3px solid #c9d4cf;padding:2px 0 2px 10px;margin-bottom:10px}
+.engine b{color:var(--ink);font-weight:600}
+.mentor-silent{font-style:italic;color:var(--muted)}
+.flag{display:inline-block;font-family:var(--mono);font-size:11px;background:#f3e3de;color:var(--warn);border-radius:4px;padding:1px 7px;margin:2px 4px 2px 0;letter-spacing:.02em}
+.ok{display:inline-block;font-family:var(--mono);font-size:11px;background:#dcece5;color:var(--green-dark);border-radius:4px;padding:1px 7px;margin:2px 4px 2px 0;letter-spacing:.02em}
+
+.note{background:#fff;border:1px dashed var(--green-line);border-radius:8px;padding:12px 16px;margin-top:12px;font-size:13.5px;color:#3c4a44}
+.note b{font-family:var(--mono);font-size:12px;color:var(--green-dark);letter-spacing:.05em}
+
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px}
+th{font-family:var(--mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;text-align:left;color:var(--muted);border-bottom:2px solid var(--green-line);padding:7px 10px}
+td{border-bottom:1px solid #e2e8e4;padding:8px 10px;vertical-align:top}
+td:first-child{font-family:var(--mono);font-size:12.5px;white-space:nowrap}
+
+.verdict{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:18px 0}
+@media(max-width:860px){.verdict{grid-template-columns:1fr}}
+.vcard{border-radius:8px;padding:16px 18px}
+.vcard.v-old{background:var(--old-bg);border:1px solid var(--old-line)}
+.vcard.v-new{background:var(--green-dark);color:#eaf5f0;border:1px solid var(--green-dark)}
+.vcard .t{font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px}
+.vcard.v-old .t{color:var(--old-accent)}
+.vcard.v-new .t{color:#9fd0bd}
+.vcard .big{font-size:19px;font-weight:600;font-family:var(--mono);margin-bottom:6px}
+.honest{background:#fff8ee;border:1px solid #e8d9b8;border-radius:8px;padding:15px 18px;margin-top:20px;font-size:14px}
+.honest b{font-family:var(--mono);font-size:12.5px;color:#8a6d2f;letter-spacing:.05em}
+ul{margin:6px 0 10px 20px}
+li{margin-bottom:5px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="brand">ON QOL · Клинический тренажёр</div>
+    <h1>Макет-сравнение: ментор V3.5 против «новой схемы»</h1>
+    <div class="sub">Один и тот же реальный реплей, ход за ходом. Слева — что тренажёр ответил на самом деле. Справа — что отвечает ментор, если дать ему полный контекст и спеку поведения, а безопасность проверять на выходе, а не голоданием на входе.</div>
+    <div class="meta">Реплей: 91ba7206 (фикстура репозитория, дословно) · Кейс APP-003: женщина 56 лет, тазовый аппендицит · 19.08.2026</div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<h2>Правила макета</h2>
+<p><b>Что НЕ менялось:</b> мир. Все находки, лабы, КТ, ресурсные ограничения — ровно те, что выдал детерминированный движок в реальном реплее. Ни одного нового факта о пациенте справа не появилось.</p>
+<p><b>Что менялось:</b> только голос ментора и обработка разговора. Ментор справа видит карточку кейса целиком, весь транскрипт и поведенческую спеку (ONQOL_MENTOR_BEHAVIOR_SPEC как системный промпт). После генерации каждая реплика проверена тремя контролями:</p>
+<div class="rules">
+  <div class="rule"><b>1 · МИР ДЕТЕРМИНИРОВАН</b><span>Находки и значения — только из карточки. Ментор мир не создаёт.</span></div>
+  <div class="rule"><b>2 · ЧИСЛА ТОЛЬКО ИЗ КАРТОЧКИ</b><span>Чего в базе нет (доза профилактики) — ментор не подтверждает и не выдумывает, отправляет к формуляру.</span></div>
+  <div class="rule"><b>3 · ДИАГНОЗ НЕ ПОДТВЕРЖДАЕТСЯ ДО ДЕБРИФА</b><span>Ментор обсуждает картину, но не говорит «диагноз верный».</span></div>
+  <div class="rule"><b>4 · SAFETY-СТОП ДЕТЕРМИНИРОВАН</b><span>Reviewed-правила останавливают опасный параметр до исполнения (в этом реплее не срабатывали).</span></div>
+</div>
+
+<h2>Транскрипт</h2>
+
+<div class="turn">
+  <div class="turn-label">Завязка · движок (одинакова в обеих схемах)</div>
+  <div class="col engine" style="background:#fff;border:1px solid #e2e8e4;border-radius:8px;padding:13px 16px">
+    Женщина, 56 лет. Доставлена в приёмное отделение. Жалобы: боль глубоко внизу живота, 23 часа. Интенсивность 5/10. Температура 37,0 °C, ЧСС 77/мин, сАД 138 мм рт. ст., ЧД 16/мин. С чего начнёшь?
+  </div>
+</div>
+
+<!-- TURN 1 -->
+<div class="turn">
+  <div class="turn-label">Ход 1</div>
+  <div class="resident"><div class="who">Резидент</div>физикальный осмотр и анамнез</div>
+  <div class="cols">
+    <div class="col col-old">
+      <div class="who">V3.5 — как было</div>
+      <div class="engine"><b>Осмотр живота:</b> живот мягкий, максимальная болезненность ниже точки Мак-Бурнея, защитного напряжения нет, запирательный симптом положительный. <b>Анамнез:</b> боль внизу живота, частые болезненные позывы к дефекации, учащённое мочеиспускание, диареи нет.</div>
+      <p class="small">Ментор молчит. Здесь V3.5 отработал нормально.</p>
+    </div>
+    <div class="col col-new">
+      <div class="who">Новая схема — макет</div>
+      <div class="engine">Тот же блок осмотра и анамнеза — мир не меняется.</div>
+      <p class="mentor-silent">Ментор: — (молчание)</p>
+    </div>
+  </div>
+  <div class="note"><b>АННОТАЦИЯ ·</b> Молчание — валидное решение и в новой схеме: резидент действует адекватно, вмешиваться не во что. Разница начинается со следующего хода.</div>
+</div>
+
+<!-- TURN 2 -->
+<div class="turn">
+  <div class="turn-label">Ход 2</div>
+  <div class="resident"><div class="who">Резидент</div>пока похоже не острый аппендицит нетипичной локализации. но надо исключить проблемы с гинекологической системой. поэтому - оак, оам, тест на беременность, узи омт и обп</div>
+  <div class="cols">
+    <div class="col col-old">
+      <div class="who">V3.5 — как было</div>
+      <div class="engine"><b>ОАК:</b> Hb 133, лейкоциты 9,5×10⁹/л, нейтрофилы 68%. <b>ОАМ:</b> лейкоцитов и нитритов нет. <b>УЗИ:</b> аппендикс достоверно не визуализирован.</div>
+      <p>«Эти данные не заданы в карте пациента.</p>
+      <p>Хорошо, что ты не ограничиваешься одной хирургической гипотезой и учитываешь смежную область. Такой ход сохраняет широту диагностического поиска; можно двигаться дальше, связывая каждое исследование с возможным изменением тактики.»</p>
+      <span class="flag">канцелярская мета-похвала</span><span class="flag">«не заданы в карте» без объяснения, ЧТО именно</span>
+    </div>
+    <div class="col col-new">
+      <div class="who">Новая схема — макет</div>
+      <div class="engine">Тот же блок ОАК / ОАМ / УЗИ — без изменений.</div>
+      <p>«УЗИ малого таза в этом кейсе не смоделировано — не жди его, гинекологическую версию закрывай клинически. Сама связка правильная: у женщины с болью внизу живота держать гинекологию рядом с хирургией — рабочая привычка.</p>
+      <p>Теперь смотри на кровь: лейкоциты 9,5, нейтрофилы 68% — это усиливает твою аппендикулярную версию или ослабляет?»</p>
+      <span class="ok">похвала привязана к конкретному ходу</span><span class="ok">честно названо, чего в кейсе нет</span><span class="ok">числа — из раскрытых лаб</span>
+    </div>
+  </div>
+  <div class="note"><b>АННОТАЦИЯ ·</b> «Не заданы в карте» превращается из роботной вставки в осмысленную фразу, потому что ментор ЗНАЕТ, чего в карте нет, и может сказать это по-человечески. Похвала перестаёт быть абстрактной («широта поиска») и цепляется за реальное действие. Вопрос про лейкоциты — это V1-приём: заставить интерпретировать данные, а не просто получить их.</div>
+</div>
+
+<!-- TURN 3 -->
+<div class="turn">
+  <div class="turn-label">Ход 3</div>
+  <div class="resident"><div class="who">Резидент</div>пока непонятно. кт обп</div>
+  <div class="cols">
+    <div class="col col-old">
+      <div class="who">V3.5 — как было</div>
+      <div class="engine"><b>КТ брюшной полости:</b> аппендикс расположен в малом тазу, увеличен и воспалительно изменён; признаков абсцесса нет.</div>
+      <p>«Неопределённость обозначена — это помогает сохранять диагностическое мышление и переходить к следующему решению, опираясь на полученные данные.»</p>
+      <span class="flag">пустая реплика ни о чём</span>
+    </div>
+    <div class="col col-new">
+      <div class="who">Новая схема — макет</div>
+      <div class="engine">Тот же результат КТ — без изменений.</div>
+      <p>«Смотри, как КТ склеивает картину: тазовое расположение объясняет и позывы к дефекации, и учащённое мочеиспускание, и болезненность ниже Мак-Бурнея — всё, что сбивало тебя с типичной картины.</p>
+      <p>«Непонятно» закончилось. Какое решение принимаешь?»</p>
+      <span class="ok">семиотика из раскрытых фактов</span><span class="ok">диагноз НЕ подтверждён — решение возвращено резиденту</span>
+    </div>
+  </div>
+  <div class="note"><b>АННОТАЦИЯ ·</b> Здесь видно правило 3 в работе: ментор связывает находки в картину (это обучение), но не говорит «у пациентки аппендицит, ты права» — он спрашивает решение. Это ровно та грань, которую держал V1-ментор («Эта гипотеза хорошо объясняет текущую картину»), и её сохраняет дешёвый пост-контроль, а не голодание модели.</div>
+</div>
+
+<!-- TURN 4 -->
+<div class="turn">
+  <div class="turn-label">Ход 4</div>
+  <div class="resident"><div class="who">Резидент</div>говтовим к операции - лапарочкопическая аппенденктомия. согласие пациента, уведомить анестезиолога, узнать оперблок, группа крови и кросс-матч, физ-р-р 2 л 16G, ектотоп 30 мг в/м, цефазолин 1 гр профилкатика в оперблок</div>
+  <div class="cols">
+    <div class="col col-old">
+      <div class="who">V3.5 — как было</div>
+      <p>«В этом кейсе смоделирован только открытый доступ.</p>
+      <p>Эти данные не заданы в карте пациента.</p>
+      <p>Как это меняет твой план?»</p>
+      <span class="flag">7 назначений резидента проигнорированы</span><span class="flag">«не заданы» — про что?</span>
+    </div>
+    <div class="col col-new">
+      <div class="who">Новая схема — макет</div>
+      <p>«Лапароскопической стойки в этой больнице нет — уровень basic, доступ открытый.</p>
+      <p>Остальное команда выполняет: согласие взято, анестезиолог предупреждён, оперблок запрошен, группа крови с кросс-матчем, доступ 16G с инфузией, обезболивание. По профилактике — да, однократно до разреза; препарат и дозу этот тренажёр не проверяет, сверь с локальным формуляром.</p>
+      <p>Открытый доступ вместо лапароскопии — меняет что-то ещё в твоей подготовке?»</p>
+      <span class="ok">все назначения признаны и записаны</span><span class="ok">доза цефазолина не подтверждена и не «исправлена» — её нет в карточке (правило 2)</span><span class="ok">ресурсное ограничение подано в мире, а не как ошибка</span>
+    </div>
+  </div>
+  <div class="note"><b>АННОТАЦИЯ ·</b> Ключевой ход. Резидент дал развёрнутую подготовку — V3.5 ответил тремя строками, не признав ни одного пункта. Новая схема признаёт сделанное (это и есть «живой» эффект V1: мир реагирует на твои слова) и честно останавливается на границе базы знаний: дозу профилактики карточка не задаёт — ментор не выдумывает «2 г, а не 1 г», как позволял себе V1, а отправляет к формуляру. Это компромисс правила 2: чуть менее эффектно, зато нечего рецензировать.</div>
+</div>
+
+<!-- TURN 5 -->
+<div class="turn">
+  <div class="turn-label">Ход 5</div>
+  <div class="resident"><div class="who">Резидент</div>ну значит открытая аппендектомия</div>
+  <div class="cols">
+    <div class="col col-old">
+      <div class="who">V3.5 — как было</div>
+      <p>«Эти данные не заданы в карте пациента.</p>
+      <p>Остановись: к началу операции переходить нельзя, пока не выполнен хирургический sign-in. Зафиксируй проверку личности пациента, планируемого вмешательства, информированного согласия и готовности команды.»</p>
+      <span class="flag">требует ритуал, хотя согласие и анестезиолог названы ходом раньше</span>
+    </div>
+    <div class="col col-new">
+      <div class="who">Новая схема — макет</div>
+      <p>«Принято, открытая. Sign-in закрывается тем, что уже сделано: личность сверена, согласие взято, вмешательство названо, команда собрана.</p>
+      <p>Идём в операционную.»</p>
+      <span class="ok">предусловие закрыто СОДЕРЖАНИЕМ предыдущего хода, не ритуальной фразой</span><span class="ok">мир движется</span>
+    </div>
+  </div>
+  <div class="note"><b>АННОТАЦИЯ ·</b> Точка, где реальная сессия умерла. Блокирующее предусловие (согласие + анестезиолог) резидент фактически выполнил на ходе 4 — но детерминированный слой не сумел связать это с «sign-in» и потребовал волшебное слово. Ментор с памятью транскрипта закрывает предусловие сказанным. Само предусловие ОСТАЁТСЯ — если бы согласия не прозвучало, стоп был бы легитимным.</div>
+</div>
+
+<!-- TURNS 6-7 -->
+<div class="turn">
+  <div class="turn-label">Ходы 6–7 · существуют только слева</div>
+  <div class="cols">
+    <div class="col col-old">
+      <div class="who">V3.5 — как было</div>
+      <p><b>Резидент:</b> «Я же сделала все это выше!»</p>
+      <p><b>Тренажёр:</b> «Уточни, какие данные хочешь получить или какое действие выполняешь.»</p>
+      <p><b>Резидент:</b> <i>(вставляет весь текст подготовки повторно)</i></p>
+      <p><b>Тренажёр:</b> «Эти данные не заданы в карте пациента. Стоп: переход к операции пока заблокирован. Выполни хирургический sign-in…» <i>(дословно тот же текст)</i></p>
+      <p><b>Резидент:</b> «конец кейса»</p>
+      <span class="flag">реплика починки не распознана</span><span class="flag">тот же стоп-текст второй раз</span><span class="flag">сессия брошена</span>
+    </div>
+    <div class="col col-new">
+      <div class="who">Новая схема — макет</div>
+      <p class="mentor-silent">Этих ходов не существует — цикл устранён на ходе 5. Пациентка в операционной на 5-м ходу вместо брошенной сессии на 7-м.</p>
+      <p class="small">Попутная деталь: «я же сделалА» — резидент сама раскрыла грамматический род. Ментор с памятью транскрипта может с этого момента зеркалить её форму — вместо тотального запрета прошедшего времени, который сейчас режет естественный русский.</p>
+    </div>
+  </div>
+</div>
+
+<!-- VERDICT -->
+<h2>Итог по сессии</h2>
+<div class="verdict">
+  <div class="vcard v-old">
+    <div class="t">V3.5 — факт</div>
+    <div class="big">7 ходов → брошена</div>
+    3 хода из 7 потрачены на цикл sign-in. Назначения резидента не признавались. Обе реплики поощрения — абстрактные. Резидент вышла из сессии.
+  </div>
+  <div class="vcard v-new">
+    <div class="t">Новая схема — макет</div>
+    <div class="big">5 ходов → операционная</div>
+    Ни одного выдуманного факта о пациентке. Ни одного неподтверждённого числа. Диагноз не подтверждён до дебрифа. Предусловия сохранены — но закрываются смыслом, а не паролем.
+  </div>
+</div>
+
+<h2>Пост-проверки каждой реплики макета</h2>
+<table>
+  <tr><th>Ход</th><th>Утечка нераскрытых находок</th><th>Числа</th><th>Подтверждение диагноза</th></tr>
+  <tr><td>2</td><td>нет — только факты с экрана</td><td>9,5 · 68% — из выданного ОАК</td><td>нет — вопрос, не вердикт</td></tr>
+  <tr><td>3</td><td>нет — КТ и осмотр уже раскрыты</td><td>чисел нет</td><td>нет — «какое решение принимаешь?»</td></tr>
+  <tr><td>4</td><td>нет</td><td>16G, 2 л — слова резидента; доза цефазолина сознательно НЕ подтверждена (в карточке отсутствует)</td><td>нет</td></tr>
+  <tr><td>5</td><td>нет</td><td>чисел нет</td><td>нет</td></tr>
+</table>
+<p class="small">Это те же три контроля, что уже написаны в mentorAgent.js (leaksUnrevealedFinding, числовой контроль, диагноз-регекс). Разница только в том, что они работают ПОСЛЕ свободной генерации с полным контекстом, а не вместо неё — и при срабатывании запускают починку реплики, а не откат на шаблон.</p>
+
+<!-- HONESTY -->
+<div class="honest">
+  <b>ЧТО МАКЕТ ДОКАЗЫВАЕТ — И ЧЕГО НЕ ДОКАЗЫВАЕТ</b>
+  <ul>
+    <li><b>Доказывает:</b> живость не требует права выдумывать медицину. Каждая реплика справа проходит все четыре базовых правила — и при этом читается как V1.</li>
+    <li><b>Не доказывает:</b> что продовая модель выдаст такое же качество. Правую колонку писал сильный ридер с полным контекстом — это верхняя граница. Насколько к ней подойдёт реальный вызов через gateway — вопрос следующего эксперимента: тот же промпт (спека + карточка + транскрипт), реальная модель, метрика — доля реплик, прошедших пост-проверки с первого раза.</li>
+    <li><b>Отдельно:</b> ход 5 (закрытие sign-in содержанием) — самое рискованное место схемы: модель решает, выполнено ли предусловие. Компромиссный вариант — предусловия проверяет движок, но по извлечённым моделью действиям из ВСЕГО транскрипта, а не по совпадению фраз в одном ходе.</li>
+  </ul>
+</div>
+
+<h2>Если решение — «да, пересматриваем»</h2>
+<p>Минимальный следующий шаг, не ломающий репозиторий: A/B-харнесс, который гоняет фикстуру 91ba7206 (и b9d7a831, когда найдётся файл) через два пути — текущий pipeline и «полный контекст + спека + пост-проверки + одна починка». Выход: два транскрипта + доля фолбэков. Движок, карточки, реплеи и тесты не трогаются — меняется только сборка промпта ментора и порядок проверок.</p>
+
+<p class="small" style="margin-top:30px">ON QOL · внутренний документ · макет подготовлен по реплею 91ba7206 и файлам репозитория on-qol (mentorAgent.js, mentorPolicy.js, ONQOL_MENTOR_BEHAVIOR_SPEC.md, acuteAppendicitis.js) · 19.08.2026</p>
+
+</div>
+</body>
+</html>

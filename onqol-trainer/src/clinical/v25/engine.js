@@ -16,8 +16,15 @@ import { createInitialTemporalState, projectTemporalState } from "./temporalPati
 import { describeEta, resolveActionEta, turnEtaMinutes } from "./resourceTiming.js";
 import { planClinicalTurn } from "./turnPlanner.js";
 import { buildMentorBrief, prerequisiteMeta } from "../core/mentorBrief.js";
+import { prerequisiteSatisfied } from "../core/prerequisiteClosure.js";
+import { LEARNER_ADDRESS_FORM } from "../core/learnerAddress.js";
 import { runMentorAgent } from "../core/mentorAgent.js";
 import { MENTOR_MODE, MENTOR_POLICY_VERSION } from "../core/mentorPolicy.js";
+import {
+  operationalizationQuestion,
+  orderLabel,
+  orderRecord,
+} from "../core/operationalization.js";
 import { buildReasoningSnapshot, deriveV35PathState } from "../v35/runtimePath.js";
 import {
   CLINICAL_GOVERNANCE_VERSION,
@@ -75,7 +82,7 @@ function findingText(finding) {
  *
  * None of these performs anything, moves the clock or touches the score.
  */
-function nonActionReplies(caseData, session, entries) {
+function nonActionReplies(caseData, session, entries, options = {}) {
   const replies = [];
   for (const entry of entries || []) {
     if (entry.kind === "reasoning_only") continue; // recorded, not answered
@@ -89,7 +96,12 @@ function nonActionReplies(caseData, session, entries) {
       continue;
     }
     if (entry.kind === "unrecognized_fragment") {
-      if (entry.requested_fragment) {
+      // Base rules v2: "Не распознано" is not an answer to a colleague. With the
+      // mentor on, the fragment travels to it in the brief and comes back as a
+      // human reply. The router stays the gate on EXECUTION - nothing
+      // unrecognised is ever applied to the patient - it stops being the gate on
+      // SPEECH. Without a mentor the honest deterministic line remains.
+      if (entry.requested_fragment && !options.mentorAnswersUnrecognized) {
         replies.push(`Не распознано: «${entry.requested_fragment}». Уточни, что именно назначаешь.`);
       }
       continue;
@@ -140,6 +152,10 @@ function createWorkingMemory() {
     differentials: [],
     actionStates: {},
     pendingOperationalization: [],
+    // What the learner actually ordered, transcribed slot by slot. Held so a
+    // learner who answers across two turns is never asked the same thing twice.
+    // See core/operationalization.js.
+    orderRecords: {},
     revealedConstraints: [],
     unresolvedFragments: [],
     lastLearnerMove: null,
@@ -193,6 +209,27 @@ function abandonedMessage(locale) {
   return locale === "kk"
     ? "Сессия алғашқы клиникалық қадамға дейін аяқталды. Бағалау және қалыптастырушы талдау жасалмады."
     : "Сессия завершена до первого клинического хода. Оценка и формирующий разбор не создавались.";
+}
+
+/**
+ * Keep what the learner has specified so far, without judging any of it.
+ *
+ * Slots accumulate across turns: a learner who names the solution now and the
+ * rate two turns later has named both, and the team stops asking.
+ */
+function capitalize(text) {
+  const value = String(text || "");
+  return value ? value[0].toUpperCase() + value.slice(1) : value;
+}
+
+function recordOrder(memory, state, verbatim) {
+  if (!state) return memory;
+  const previous = memory.orderRecords?.[state.action_id];
+  const record = orderRecord(state, verbatim || previous?.verbatim || null);
+  return {
+    ...memory,
+    orderRecords: { ...(memory.orderRecords || {}), [state.action_id]: record },
+  };
 }
 
 function updateActionState(memory, operation, status, turnNumber, extra = {}) {
@@ -256,7 +293,11 @@ function resourceChecks(session, operation, input) {
 }
 
 function pathwayBlock(session, operation) {
-  const completed = new Set(session.completedActions || []);
+  // Transcript-wide. The WHO checkpoints below stay non-substitutable by design;
+  // see core/prerequisiteClosure.js.
+  const completed = {
+    has: (actionId) => prerequisiteSatisfied(session, actionId),
+  };
   const approach = session.workingMemory?.operativeApproach?.approach || operation.technique || null;
   if (operation.action_id === "appendectomy_procedure_start") {
     if (!approach) {
@@ -371,7 +412,9 @@ function lastQuestionAsked(session) {
 }
 
 function recordedActionDisputeReply(session) {
-  const completed = new Set(session.completedActions || []);
+  // "Я же сделала все это выше" is answered from everything the learner has
+  // expressed in the session, not only from what the engine could execute.
+  const completed = { has: (actionId) => prerequisiteSatisfied(session, actionId) };
   const completedLabels = [
     ["informed_consent", "согласие"],
     ["notify_anesthesia", "уведомление анестезиолога"],
@@ -397,6 +440,12 @@ function recordedActionDisputeReply(session) {
 }
 
 function closingPrompt(session, plan, blockedOperations) {
+  // An order the team is waiting on outranks every generic closing line: the
+  // learner has to be able to finish stating it.
+  const awaiting = operationalizationQuestion(
+    (plan.operationalizationStates || []).filter((state) => !state.complete)
+  );
+  if (awaiting) return awaiting;
   if (blockedOperations.length) return "Как меняешь план с учётом этого ограничения?";
   if (session.workingMemory?.operativeState?.procedure_started && !session.temporalState.sourceControl) {
     return "Вмешательство начато. Когда контроль источника будет завершён, зафиксируй это отдельно.";
@@ -581,15 +630,27 @@ function applyPlan(caseData, session, plan, options = {}) {
       continue;
     }
 
+    // Slots are transcribed whatever happens next: an order the pilot cannot
+    // apply is still an order the learner stated, and the record must show it.
+    const orderState = operation.operationalization;
+    if (orderState) {
+      memory = recordOrder(memory, orderState, operation.requestedFragment || plan.input);
+    }
+
     const parameterSafety = (plan.parameterSafetySignals || []).find(
       (signal) => signal.concept_id === operation.action_id
     );
     if (parameterSafety?.blocks_application) {
       blockedOperations.push({ ...operation, parameter_safety: parameterSafety });
+      const verbatim =
+        parameterSafety.verbatim || operation.requestedFragment || operation.action_id;
+      // A complete order gets a terminal answer, not the question again. Asking
+      // a learner who has already answered to answer once more is what ended
+      // replay b9d7a831 after three turns on the same sentence.
       replies.push(
-        `**Проверка параметра:** «${
-          parameterSafety.verbatim || operation.requestedFragment || operation.action_id
-        }» требует клинической проверки: параметр не валидирован учебным контентом и не применён к пациенту.`
+        orderState?.complete
+          ? `**Назначение записано:** «${verbatim}». В пилоте нет отрецензированного правила дозирования, поэтому параметры не проверяются и эффект не моделируется. Повторять назначение не нужно.`
+          : `**Проверка параметра:** «${verbatim}» требует клинической проверки: параметр не валидирован учебным контентом и не применён к пациенту.`
       );
       memory = updateActionState(memory, operation, "blocked", memory.turnNumber, {
         blocked_by: [
@@ -610,6 +671,29 @@ function applyPlan(caseData, session, plan, options = {}) {
         parameter_validation_status: parameterSafety.parameter_validation_status,
         blocking_reason: parameterSafety.blocking_reason,
         parameter_safety: parameterSafety,
+        confidence: operation.confidence,
+      });
+      continue;
+    }
+
+    // An intention is not an order. The safety gate above runs first — a
+    // dangerous number must be caught even in a half-stated order — and only a
+    // parameter nobody objected to waits here for "чем и как".
+    if (orderState && !orderState.complete) {
+      memory = updateActionState(memory, operation, "proposed", memory.turnNumber, {
+        awaiting_slots: orderState.missing,
+      });
+      actionLogEntries.push({
+        turn: memory.turnNumber,
+        action_id: operation.action_id,
+        intent_type: operation.intent_type,
+        lifecycle_before: beforeStatus,
+        lifecycle_after: "proposed",
+        action_decision: "awaiting_operationalization",
+        applied_to_patient: false,
+        missing_slots: orderState.missing,
+        recorded_slots: Object.keys(orderState.filled),
+        requested_fragment: operation.requestedFragment,
         confidence: operation.confidence,
       });
       continue;
@@ -847,6 +931,87 @@ function applyPlan(caseData, session, plan, options = {}) {
     });
   }
 
+  // «Кеторолак 30 мг в/в» names no action — it answers the question asked about
+  // an action already on the table. Resolve it against that action instead of
+  // treating it as unrecognised text.
+  for (const state of plan.resumedOperationalization || []) {
+    memory = recordOrder(memory, state, plan.input);
+    const action = getAction(caseData, state.action_id);
+    const beforeStatus = memory.actionStates[state.action_id]?.status || null;
+    if (!state.complete || !action) {
+      memory = updateActionState(
+        memory,
+        { action_id: state.action_id, intent_type: "management" },
+        "proposed",
+        memory.turnNumber,
+        { awaiting_slots: state.missing }
+      );
+      continue;
+    }
+
+    const blockedByParameter = (plan.parameterSafetySignals || []).find(
+      (signal) => signal.concept_id === state.action_id && signal.blocks_application
+    );
+    if (blockedByParameter) {
+      replies.push(
+        `**Назначение записано:** «${plan.input}». В пилоте нет отрецензированного правила дозирования, поэтому параметры не проверяются и эффект не моделируется. Повторять назначение не нужно.`
+      );
+      continue;
+    }
+
+    memory = updateActionState(
+      memory,
+      { action_id: state.action_id, intent_type: "management" },
+      "performed",
+      memory.turnNumber
+    );
+    nextSession = {
+      ...nextSession,
+      completedActions: uniquePush(nextSession.completedActions, state.action_id),
+    };
+    performedIds.push(state.action_id);
+    replies.push(
+      `**${capitalize(orderLabel(state.action_id))} — выполнено:** ${Object.values(state.filled).join(", ")}.`
+    );
+    scoringEvents.push({
+      action_id: state.action_id,
+      action_kind: actionKind(caseData, state.action_id),
+      lifecycle: "performed",
+      eligible_for_scoring: action.eligible_for_scoring !== false,
+      critical: Boolean(action.critical),
+      score_weight: action.score_weight || 0,
+      penalty: action.penalty || 0,
+    });
+    actionLogEntries.push({
+      turn: memory.turnNumber,
+      action_id: state.action_id,
+      intent_type: "management",
+      lifecycle_before: beforeStatus,
+      lifecycle_after: "performed",
+      action_decision: "performed_after_operationalization",
+      applied_to_patient: true,
+      recorded_slots: Object.keys(state.filled),
+      requested_fragment: plan.input,
+      minute_before: nextSession.temporalState.clockMinutes,
+      confidence: 1,
+    });
+  }
+
+  // "я же написала!" is a repair move. Replay what is on record instead of
+  // answering it with "не распознано".
+  if (plan.repairMove && !(plan.operations || []).length) {
+    const recorded = Object.values(memory.orderRecords || {}).filter(
+      (record) => Object.keys(record.slots || {}).length
+    );
+    if (recorded.length) {
+      replies.push(
+        `**Записано с твоих слов:** ${recorded
+          .map((record) => `${orderLabel(record.action_id)} — ${Object.values(record.slots).join(", ")}`)
+          .join("; ")}.`
+      );
+    }
+  }
+
   const previousTemporalState = nextSession.temporalState;
   // The clock cost comes from the resource resolver, not from a flat table: an
   // ultrasound in a hospital that has one round the clock costs its turnaround,
@@ -943,10 +1108,12 @@ function applyPlan(caseData, session, plan, options = {}) {
       requested_fragment: fragment,
       reason_code: "router_unresolved_fragment",
     }));
-  const nonActionLines = nonActionReplies(caseData, nextSession, [
-    ...(plan.parsed?.unresolvedByKind || []),
-    ...unresolvedFragmentEntries,
-  ]);
+  const nonActionLines = nonActionReplies(
+    caseData,
+    nextSession,
+    [...(plan.parsed?.unresolvedByKind || []), ...unresolvedFragmentEntries],
+    { mentorAnswersUnrecognized: Boolean(options.mentor) }
+  );
 
   const stateLine = neutralStateLine(previousTemporalState, temporalState);
   // A turn that asked for the question to be repeated gets the question back,
@@ -1100,6 +1267,13 @@ export function createV25Session(options = {}) {
     clinical_rule_registry_version: CLINICAL_RULE_REGISTRY_VERSION,
     title: caseData.title,
     locale: options.locale === "kk" ? "kk" : "ru",
+    // How the mentor addresses this learner, when the cohort declares it. Left
+    // unset the mentor stays neutral until the learner's own past-tense forms
+    // say otherwise - it never guesses, and never infers from a name. See
+    // core/learnerAddress.js.
+    learnerAddressForm: Object.values(LEARNER_ADDRESS_FORM).includes(options.learnerAddressForm)
+      ? options.learnerAddressForm
+      : null,
     institution_id: options.institutionId || "synthetic-pilot",
     cohort_id: options.cohortId || null,
     learner_id: options.learnerId || `anon:${createUuid()}`,
@@ -1170,6 +1344,20 @@ export async function advanceV25Session({
           blocks_application: false,
           applied_to_patient: true,
           clinical_test_bypass: "unvalidated_parameter_applied_in_internal_test",
+        })),
+        // The internal test drives the whole path from a script, so it also
+        // waives the "чем и как" question — there is no learner to answer it.
+        operations: (rawPlan.operations || []).map((operation) => ({
+          ...operation,
+          needsOperationalization: false,
+          operationalization: operation.operationalization
+            ? { ...operation.operationalization, complete: true, missing: [] }
+            : null,
+        })),
+        operationalizationStates: (rawPlan.operationalizationStates || []).map((state) => ({
+          ...state,
+          complete: true,
+          missing: [],
         })),
       }
     : rawPlan;
@@ -1366,10 +1554,14 @@ export async function advanceV25Session({
   // contains no patient facts at all.
   let mentor = null;
   let mentorBrief = null;
-  // On a repair turn the mentor stays out of it: the learner did not understand
-  // the previous question, so answering with a different question is the one
-  // thing that cannot help. The deterministic repair restates it instead.
-  if (options.mentor && plan.mode !== "conversational_turn") {
+  // Base rules v2, 2.1: the router is the gate on EXECUTION, not on SPEECH. A
+  // turn the router could not map, and a turn about the conversation itself,
+  // both still reach the mentor - which now holds the whole transcript and the
+  // pending question contract and can restate it in context instead of leaving
+  // the learner with "Уточни, какие данные хочешь получить". Nothing about what
+  // may be applied to the patient changes: that is still decided above, by the
+  // recognised concepts and the Case Card.
+  if (options.mentor) {
     const brief = buildMentorBrief({
       caseData,
       session: deterministicUpdate.session,
@@ -1392,13 +1584,27 @@ export async function advanceV25Session({
     // deterministic layer's own operational prompt stays, so the turn still ends
     // with something to answer. Only a mentor with something to say takes the
     // closing prompt's place.
-    const facts = deterministicUpdate.neutralPrompt
-      ? reply.split(deterministicUpdate.neutralPrompt).join("").trim()
-      : reply;
-    const closing = mentor.mode === MENTOR_MODE.CONTINUE
-      ? deterministicUpdate.neutralPrompt
-      : mentor.text;
-    reply = [facts, closing].filter(Boolean).join("\n\n").trim();
+    if (plan.mode === "conversational_turn") {
+      // The deterministic answer here is a statement of record ("это уже
+      // зафиксировано") or a restatement of the last question. A silent mentor
+      // leaves it as it is. A speaking mentor keeps the record - it is a fact
+      // the learner disputed - and replaces the mechanical restatement, because
+      // restating a question the learner did not understand a second time
+      // verbatim is what the mentor is for.
+      reply = mentor.mode === MENTOR_MODE.CONTINUE
+        ? reply
+        : plan.responseAct === "explain_recorded_and_missing_actions"
+          ? [reply, mentor.text].filter(Boolean).join("\n\n").trim()
+          : mentor.text;
+    } else {
+      const facts = deterministicUpdate.neutralPrompt
+        ? reply.split(deterministicUpdate.neutralPrompt).join("").trim()
+        : reply;
+      const closing = mentor.mode === MENTOR_MODE.CONTINUE
+        ? deterministicUpdate.neutralPrompt
+        : mentor.text;
+      reply = [facts, closing].filter(Boolean).join("\n\n").trim();
+    }
   }
 
   nextSession = {
@@ -1505,6 +1711,28 @@ export async function advanceV25Session({
         allowed_clinical_rule_ids:
           mentorBrief?.mentorPolicy?.allowed_clinical_rule_ids || [],
         mentor_rejection_reason: mentor?.rejectionReason || null,
+        // Base rules v2 telemetry, additive. `regex_policy_shadow` is what the
+        // pre-v2 deterministic policy WOULD have dictated this turn; the mentor
+        // is no longer bound by it, and the pair is what makes the two decision
+        // procedures comparable on a replay instead of only arguable.
+        mentor_source: mentor?.source || "not_invoked",
+        mentor_rejection_reasons: mentor?.rejectionReasons || [],
+        repair_attempted: Boolean(mentor?.repairAttempted),
+        mentor_telemetry_flags: mentor?.telemetry || [],
+        regex_policy_shadow: mentorBrief?.mentorPolicy
+          ? {
+              policy_version: mentorBrief.mentorPolicy.policy_version,
+              mode: mentorBrief.mentorPolicy.mode,
+              adequacy: mentorBrief.mentorPolicy.adequacy,
+              issue_id: mentorBrief.mentorPolicy.issue_id,
+              scaffolding_level: mentorBrief.mentorPolicy.scaffolding_level,
+              question_domain: mentorBrief.mentorPolicy.question_domain,
+              agreed_with_mentor:
+                mentor?.mode === mentorBrief.mentorPolicy.mode &&
+                (mentor?.issueId || null) === (mentorBrief.mentorPolicy.issue_id || null),
+            }
+          : null,
+        learner_address_form: mentorBrief?.learnerAddressForm || null,
         schema_versions: options.schemaVersions || null,
       }),
     ],

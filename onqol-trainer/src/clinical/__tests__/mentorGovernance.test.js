@@ -12,6 +12,7 @@ import {
 } from "../core/mentorPolicy.js";
 import { reviewActionParameters } from "../core/parameterSafety.js";
 import { validateMentorPayload } from "../core/mentorAgent.js";
+import { buildMentorBrief } from "../core/mentorBrief.js";
 import { buildEvidenceGroundedDebrief } from "../v25/debrief.js";
 import {
   CLINICAL_RULE_REGISTRY,
@@ -192,8 +193,47 @@ test("mentor cannot state content from a non-approved clinical rule", () => {
     caseData,
     []
   );
-  assert.equal(result.ok, false);
-  assert.equal(result.reason, "fact_source_not_allowed");
+  // CONTRACT CHANGED, base rules v2. Citing an unapproved rule is no longer the
+  // rejection reason - it is telemetry - because the enforcement moved somewhere
+  // stronger: an unapproved rule never enters the brief in the first place (see
+  // the assertion below), and any NUMBER it might have carried is refused by the
+  // numeric post-check. Specification §17 is unchanged.
+  assert.equal(result.ok, true);
+  assert.ok(result.telemetry.includes("fact_source_not_allowed"));
+
+  const numeric = validateMentorPayload(
+    {
+      mode: "CLARIFY",
+      issue_id: "current",
+      mentor_text: "Ориентируйся на 30 мл/кг. Что дальше?",
+      factual_claims: [
+        { source_id: `clinical_rule.${draft.rule_id}`, text: "30 мл/кг" },
+      ],
+      question_domain: null,
+    },
+    brief,
+    caseData,
+    []
+  );
+  assert.equal(numeric.ok, false);
+  assert.equal(numeric.reason, "uncited_numeric_fact");
+});
+
+test("an unapproved rule never reaches the mentor brief", () => {
+  const brief = buildMentorBrief({
+    caseData,
+    session: createV25Session({ caseData, mode: "reference", seed: "governance" }),
+    plan: { parsed: {} },
+    deterministicUpdate: {},
+  });
+  assert.ok(brief.approvedTeachingRules.length > 0);
+  for (const rule of brief.approvedTeachingRules) {
+    assert.equal(
+      ruleAllowsRuntimeEffect(rule, CLINICAL_RUNTIME_EFFECT.MENTOR_TEACHING),
+      true,
+      `${rule.rule_id} is not approved for mentor teaching`
+    );
+  }
 });
 
 test("adequacy distinguishes vague, stuck, evasive and partial responses", () => {
@@ -418,7 +458,19 @@ test("nine-turn behavioral regression preserves patient-first progression", asyn
   assert.equal(results[3].mentor.mode, MENTOR_MODE.SAFETY_STOP);
   assert.equal(results[3].session.completedActions.includes("iv_fluids"), false);
   assert.equal(results[4].mentorPolicy.reasoning_sufficient_to_advance, true);
-  assert.equal(results[4].session.completedActions.includes("analgesia"), true);
+  // "обезболиваю" names no agent and no route, so the order is on the table and
+  // not in the patient until the team is told what and how. See
+  // core/operationalization.js.
+  assert.equal(results[4].session.completedActions.includes("analgesia"), false);
+  assert.equal(
+    results[4].session.workingMemory.actionStates.analgesia.status,
+    "proposed"
+  );
+  assert.deepEqual(
+    results[4].session.workingMemory.actionStates.analgesia.awaiting_slots,
+    ["agent", "route"]
+  );
+  assert.match(results[4].reply, /чем именно и каким путём/i);
   assert.equal(results[5].mentorPolicy.adequacy, ADEQUACY.STUCK);
   assert.equal(results[5].mentor.mode, MENTOR_MODE.TEACH);
   assert.ok(results[5].mentorPolicy.scaffolding_level >= 2);

@@ -12,6 +12,13 @@ import {
 import { mergeTurnReasoningDeltas } from "../core/reasoningState.js";
 import { reviewActionParameters } from "../core/parameterSafety.js";
 import { classifyLearnerAdequacy } from "../core/mentorPolicy.js";
+import { prerequisiteSatisfied } from "../core/prerequisiteClosure.js";
+import {
+  isRepairMove,
+  operationalizationFor,
+  operationalizationQuestion,
+  readOrderSlots,
+} from "../core/operationalization.js";
 
 const TENTATIVE_RE =
   /(?:^|\s)(я\s+бы|можно(?:\s+подготовить|\s+рассмотреть)?|рассмотрю|возможно|вероятно|потенциальн[а-я]*|если\s+(?:будет|подтвердится)|подумаю|думаю\s+об|предлагаю\s+обсудить)(?:\s|$)/i;
@@ -113,11 +120,13 @@ function findingForAction(caseData, actionId) {
 }
 
 function missingPrerequisites(caseData, session, actionIds) {
-  const completed = new Set(session.completedActions || []);
+  // Transcript-wide, not turn-local: "согласие пациента" said two turns ago
+  // closes the consent prerequisite. See core/prerequisiteClosure.js for what
+  // this deliberately does not do to the WHO checkpoints.
   return actionIds.flatMap((id) => {
     const action = buildAllowedActionMap(caseData).get(id);
     return (action?.prerequisites || [])
-      .filter((prerequisite) => !completed.has(prerequisite) && !actionIds.includes(prerequisite))
+      .filter((prerequisite) => !prerequisiteSatisfied(session, prerequisite, actionIds))
       .map((prerequisite) => ({ action_id: id, missing: prerequisite }));
   });
 }
@@ -132,11 +141,26 @@ function commitmentFor(action, input) {
   return "ordered";
 }
 
-function plannerPromptFor({ actions, operations, session, answeredNonAction }) {
+function plannerPromptFor({
+  actions,
+  operations,
+  session,
+  answeredNonAction,
+  operationalizationStates = [],
+  completedResumedOrders = false,
+}) {
+  // An incomplete order outranks every other prompt: the team cannot carry out
+  // what has not been specified, and asking anything else implies it can.
+  const orderQuestion = operationalizationQuestion(operationalizationStates);
+  if (orderQuestion) return orderQuestion;
+
   // The turn produced a real answer - "не смоделировано", "уточни какой
   // антибиотик", the one sign that was asked about. Following it with "уточни,
   // какое действие выполняешь" reads as if nothing had been understood.
   if (answeredNonAction) return "Как это меняет твой план?";
+  // The turn answered an outstanding order rather than naming a new action;
+  // "уточни, какое действие выполняешь" would read as if it went unheard.
+  if (completedResumedOrders) return "Назначение зафиксировано. Что дальше?";
   if (!actions.length) return "Уточни, какие данные хочешь получить или какое действие выполняешь.";
   if (operations.some((operation) => operation.needsOperationalization)) {
     return "Какой операционный доступ выбираешь и когда начинаешь?";
@@ -328,6 +352,14 @@ export async function planClinicalTurn({ input, caseData, session, options = {} 
     .map((action) => {
       const commitment = commitmentFor(action, input);
       const actionDefinition = buildAllowedActionMap(caseData).get(action.id);
+      // "Обезболю пациента" names an intention; the team still has to be told
+      // what and how. See core/operationalization.js.
+      const orderSlots = readOrderSlots({
+        actionId: action.id,
+        text: input,
+        parameters: parsed.actionParameters,
+        previouslyFilled: session.workingMemory?.orderRecords?.[action.id]?.slots,
+      });
       return {
         action_id: action.id,
         action_kind: action.action_kind,
@@ -338,8 +370,10 @@ export async function planClinicalTurn({ input, caseData, session, options = {} 
           ? technique || session.workingMemory?.operativeApproach?.approach || null
           : null,
         needsOperationalization:
-          ["appendectomy_here", "appendectomy_procedure_start"].includes(action.id) &&
-          !(technique || session.workingMemory?.operativeApproach?.approach),
+          (["appendectomy_here", "appendectomy_procedure_start"].includes(action.id) &&
+            !(technique || session.workingMemory?.operativeApproach?.approach)) ||
+          Boolean(orderSlots && !orderSlots.complete),
+        operationalization: orderSlots,
         finding: findingForAction(caseData, action.id),
         findingStatus: actionDefinition?.finding_status || null,
         unavailableReason: actionDefinition?.unavailable_reason_ru || null,
@@ -356,6 +390,39 @@ export async function planClinicalTurn({ input, caseData, session, options = {} 
     session.workingMemory?.actionStates,
     requestsExplicitRepeat(input)
   );
+  // An answer to "чем и как?" usually names no action at all: «кеторолак 30 мг
+  // в/в» is a parameter, not an order. Without this the answer is routed as
+  // unrecognised text and the same question is asked again.
+  const resumedOperationalization = (session.workingMemory?.pendingOperationalization || [])
+    .filter(
+      (actionId) =>
+        operationalizationFor(actionId) &&
+        !operations.some((operation) => operation.action_id === actionId)
+    )
+    .map((actionId) =>
+      readOrderSlots({
+        actionId,
+        text: input,
+        parameters: parsed.actionParameters,
+        previouslyFilled: session.workingMemory?.orderRecords?.[actionId]?.slots,
+      })
+    )
+    // A turn counts as an answer for an action only when it fills a slot that
+    // action was actually waiting for. Otherwise «5 мл на кг», written about an
+    // infusion, is filed as the dose of the analgesic nobody asked about.
+    .filter((state) => {
+      const contract = operationalizationFor(state.action_id);
+      const previous = session.workingMemory?.orderRecords?.[state.action_id]?.slots || {};
+      const before = contract.required.filter((slot) => previous[slot]).length;
+      const after = contract.required.filter((slot) => state.filled[slot]).length;
+      return after > before;
+    });
+
+  const operationalizationStates = [
+    ...operations.map((operation) => operation.operationalization).filter(Boolean),
+    ...resumedOperationalization,
+  ];
+
   const prerequisites = missingPrerequisites(caseData, session, actionIds);
   const mode = actions.some((action) => action.id === "end_case") ? "debrief" : "simulation_turn";
   const resolvedTurnKind = resolveTurnSemantics({
@@ -373,6 +440,8 @@ export async function planClinicalTurn({ input, caseData, session, options = {} 
     mentorAnswer,
     parameterSafetySignals: parameterReview.reviews,
     operations,
+    operationalizationStates,
+    repairMove: isRepairMove(input),
     managementDecisions,
     parsed,
     turnKind: resolvedTurnKind,
@@ -395,6 +464,9 @@ export async function planClinicalTurn({ input, caseData, session, options = {} 
     pendingMentorQuestionBeforeTurn: session.workingMemory?.pendingMentorQuestion || null,
     managementDecisions,
     parameterSafetySignals: parameterReview.reviews,
+    operationalizationStates,
+    resumedOperationalization,
+    repairMove: isRepairMove(input),
     operativeLanguage,
     patientInteraction,
     adequacyAssessment,
@@ -423,6 +495,8 @@ export async function planClinicalTurn({ input, caseData, session, options = {} 
             actions,
             operations,
             session,
+            operationalizationStates,
+            completedResumedOrders: resumedOperationalization.some((state) => state.complete),
             answeredNonAction: (parsed.unresolvedByKind || []).some(
               (entry) => entry.kind !== "reasoning_only"
             ),

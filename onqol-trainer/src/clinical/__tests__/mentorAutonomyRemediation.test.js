@@ -577,13 +577,21 @@ test("exact six-turn replay follows contextual mentor and runtime contract", asy
   assert.notEqual(results[2].session.pathState, "preop");
   assert.equal(results[3].session.workingMemory.actionStates.iv_fluids.status, "blocked");
   assert.equal(results[3].mentor.mode, "SAFETY_STOP");
+  // CONTRACT CHANGED, base rules v2. The parameter stop itself is unchanged:
+  // turn 4 stops, and iv_fluids stays `blocked` and is never applied. What
+  // changed is that a GOVERNANCE stop - "the pilot has no reviewed rule for this
+  // parameter" - is stated once instead of re-arming every later turn. There is
+  // no answer that can satisfy it, so repeating it was a demand the learner
+  // could only walk out of; that is how replay 91ba7206 ended. A REVIEWED unsafe
+  // verdict still repeats for as long as the learner insists on it - see
+  // parameterStopKey in mentorPolicy.js.
   assert.equal(results[4].plan.turnKind.semantic_kind, "clinical_reasoning");
-  assert.equal(results[4].mentor.mode, "SAFETY_STOP");
+  assert.equal(results[4].mentor.mode, "CONTINUE");
   assert.equal(results[5].plan.turnKind.semantic_kind, "unknown");
-  assert.equal(results[5].mentor.mode, "SAFETY_STOP");
+  assert.notEqual(results[5].mentor.mode, "SAFETY_STOP");
+  assert.equal(results[5].session.workingMemory.actionStates.iv_fluids.status, "blocked");
   assert.equal(session.workingMemory.reasoningState.contingency.stated, true);
   assert.equal(session.workingMemory.reasoningState.contingency.specificity, "partial");
-  assert.equal(session.workingMemory.pendingMentorQuestion.safety_critical, true);
   assert.equal(
     simulatorCalls,
     1,
@@ -624,7 +632,10 @@ test("model rejection logs a deterministic same-issue fallback reason", async ()
         }),
     }
   );
-  assert.equal(result.source, "deterministic");
-  assert.equal(result.issueId, issue.issue_id);
-  assert.equal(result.rejectionReason, "issue_not_in_brief");
+  // CONTRACT CHANGED, base rules v2 §1.3: the model chooses the issue, so naming
+  // one the heuristics did not enumerate is the point of giving it the case, not
+  // a violation. It is recorded for the shadow comparison and the reply stands.
+  assert.equal(result.source, "llm");
+  assert.equal(result.rejectionReason, null);
+  assert.ok(result.telemetry.includes("issue_not_in_brief"));
 });
