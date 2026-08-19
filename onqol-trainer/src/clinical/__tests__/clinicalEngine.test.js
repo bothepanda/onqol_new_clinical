@@ -127,7 +127,7 @@ test("postoperative antibiotics after uncomplicated appendectomy are discussed, 
   assert.ok(session.completedActions.includes("postop_antibiotics_uncomplicated"));
   assert.ok(!session.scoring.unsafeActions.includes("postop_antibiotics_uncomplicated"));
   assert.ok(!(session.unsafeActions || []).includes("postop_antibiotics_uncomplicated"));
-  assert.match(session.report.markdown, /обычно не рекомендуются/);
+  assert.match(session.report.markdown, /предлагает не назначать[^.]*рутинно/);
 });
 
 test("irrelevant or excessive investigations are deterministic penalties", () => {

@@ -253,10 +253,16 @@ recommendations:
     topic: lavage_adult
     populations: [adult]
     condition: complicated_undergoing_laparoscopic_appendectomy
-    action: suction_contaminated_fluid_without_lavage
+    action: evacuate_free_contaminated_fluid
+    preferred_by_wses: suction_without_routine_lavage
+    # Руководства расходятся: SAGES допускает и аспирацию, и аспирацию с лаважем.
+    # Поэтому действие не бинарное и не оценивается. Клиническое ревью 19.08.2026.
+    guideline_disagreement: true
+    accepted_alternatives: [suction_alone, suction_with_lavage]
+    eligible_for_scoring: false
     strength: conditional
     certainty: moderate
-    source_ids: [WSES2025]
+    source_ids: [WSES2025, SAGES_APPENDICITIS]
     text_key: rec.WSES-R10.1
   - id: WSES-R10.2
     topic: lavage_child
@@ -271,10 +277,13 @@ recommendations:
     topic: drain_adult
     populations: [adult]
     condition: complicated_undergoing_laparoscopic_appendectomy
-    action: avoid_routine_abdominal_drains
+    action: avoid_routine_prophylactic_abdominal_drainage
+    # Не запрет дренирования по конкретному показанию; сам факт дренажа не
+    # является критической ошибкой без оценки показаний.
+    prohibits_indicated_drainage: false
     strength: conditional
     certainty: low
-    source_ids: [WSES2025]
+    source_ids: [WSES2025, SAGES_APPENDICITIS]
     text_key: rec.WSES-R11.1
   - id: WSES-R11.2
     topic: drain_child

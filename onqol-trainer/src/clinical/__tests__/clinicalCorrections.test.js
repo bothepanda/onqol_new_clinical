@@ -204,7 +204,7 @@ test("postoperative antibiotics after uncomplicated appendectomy carry no penalt
     assert.equal(action.penalty, 0, presetId);
     assert.equal(action.eligible_for_scoring, false, presetId);
     assert.equal(action.critical, false, presetId);
-    assert.match(action.feedback, /обычно не рекомендуются/);
+    assert.match(action.feedback, /предлагает не назначать[^.]*рутинно/);
     assert.doesNotMatch(action.feedback, /не показаны|запрещ/i);
   }
 });

@@ -46,10 +46,16 @@ export const HIGH_RISK_RULE_TYPES = Object.freeze([
 ]);
 
 /**
- * Minimal registry scaffold. Metadata is migrated only from the existing
- * appendicitis source package. `last_checked` deliberately remains null: the
- * package's clinical-review date is not proof that either source was checked
- * on that date. Neither entry grants runtime authority by itself.
+ * Source registry.
+ *
+ * `last_checked` means one thing only: a named person opened the document and
+ * confirmed its imprint on that date. It is not a statement that the source is
+ * legally in force, and it grants no runtime authority by itself - a rule still
+ * has to be approved separately.
+ *
+ * Entries below were checked at the clinical review of 19.08.2026 by Сарина Т.Т.
+ * The Kazakhstan protocol is the one case where the two questions come apart:
+ * its text is verified, its current normative status is not.
  */
 export const SOURCE_REGISTRY = Object.freeze([
   Object.freeze({
@@ -58,11 +64,74 @@ export const SOURCE_REGISTRY = Object.freeze([
     title:
       "Diagnosis and Treatment of Acute Appendicitis: 2025 Edition of the World Society of Emergency Surgery Jerusalem Guidelines",
     year_version: "2025 edition; publication year 2026",
+    edition_year: 2025,
+    publication_year: 2026,
     identifier: "10.1001/jamasurg.2025.6218",
     jurisdiction: "reference",
-    last_checked: null,
-    status: "needs_verification",
+    last_checked: "2026-08-19",
+    checked_by: "Сарина Т.Т.",
+    status: "verified",
     migrated_from: "src/clinical/diseases/appendicitis/appendicitis.core.yaml",
+    legacy_v1: false,
+  }),
+  Object.freeze({
+    source_id: "APPAC_5Y",
+    organization: "APPAC randomized clinical trial investigators",
+    title:
+      "Five-Year Follow-up of Antibiotic Therapy for Uncomplicated Acute Appendicitis in the APPAC Randomized Clinical Trial",
+    year_version: "JAMA 2018;320(12):1259-1265",
+    publication_year: 2018,
+    identifier: "10.1001/jama.2018.13201",
+    jurisdiction: "reference",
+    last_checked: "2026-08-19",
+    checked_by: "Сарина Т.Т.",
+    status: "verified",
+    legacy_v1: false,
+  }),
+  Object.freeze({
+    // Adds a horizon to the same cohort. Explicitly NOT a replacement for the
+    // five-year entry: the two report different endpoints and both are needed
+    // to state either one honestly.
+    source_id: "APPAC_10Y",
+    organization: "APPAC randomized clinical trial investigators",
+    title:
+      "Antibiotic Therapy for Uncomplicated Acute Appendicitis: Ten-Year Follow-Up of the APPAC Randomized Clinical Trial",
+    year_version: "JAMA, published online 2026-01-21",
+    publication_year: 2026,
+    identifier: "10.1001/jama.2025.25921",
+    jurisdiction: "reference",
+    last_checked: "2026-08-19",
+    checked_by: "Сарина Т.Т.",
+    status: "verified",
+    extends: "APPAC_5Y",
+    legacy_v1: false,
+  }),
+  Object.freeze({
+    source_id: "PERFECT_ABX_2025",
+    organization: "PERFECT-Antibiotics trial investigators",
+    title:
+      "Role of Preoperative Antibiotic Treatment While Awaiting Appendectomy: The PERFECT-Antibiotics Randomized Clinical Trial",
+    year_version: "JAMA Surgery 2025",
+    publication_year: 2025,
+    identifier: "10.1001/jamasurg.2025.1212",
+    jurisdiction: "reference",
+    last_checked: "2026-08-19",
+    checked_by: "Сарина Т.Т.",
+    status: "verified",
+    supporting_only: true,
+    legacy_v1: false,
+  }),
+  Object.freeze({
+    source_id: "SAGES_APPENDICITIS",
+    organization: "Society of American Gastrointestinal and Endoscopic Surgeons",
+    title: "Guideline for the Diagnosis and Treatment of Appendicitis",
+    year_version: "SAGES guideline, accessed 2026-08-19",
+    identifier:
+      "https://www.sages.org/publications/guidelines/guideline-for-the-diagnosis-and-treatment-of-appendicitis/",
+    jurisdiction: "reference",
+    last_checked: "2026-08-19",
+    checked_by: "Сарина Т.Т.",
+    status: "verified",
     legacy_v1: false,
   }),
   Object.freeze({
@@ -71,10 +140,17 @@ export const SOURCE_REGISTRY = Object.freeze([
       "Объединенная комиссия по качеству медицинских услуг Министерства здравоохранения Республики Казахстан",
     title: "Клинический протокол диагностики и лечения: Острый аппендицит",
     year_version: "2018; approval 2019-03-04; protocol 61",
+    publication_year: 2018,
     identifier: "protocol-61",
     jurisdiction: "KZ",
-    last_checked: null,
-    status: "needs_verification",
+    last_checked: "2026-08-19",
+    checked_by: "Сарина Т.Т.",
+    // Text verified, force of law not. Keeping one status field for both would
+    // let "the PDF opens" pass for "the protocol is current".
+    status: "text_verified",
+    normative_status: "requires_separate_confirmation",
+    normative_status_note:
+      "Официальный текст протокола и его выходные данные проверены 19.08.2026. Доступность PDF не подтверждает, что протокол остаётся действующим нормативным документом на эту дату; статус требует подтверждения по официальному реестру или решению уполномоченного органа.",
     migrated_from: "src/clinical/diseases/appendicitis/appendicitis.core.yaml",
     legacy_v1: false,
   }),

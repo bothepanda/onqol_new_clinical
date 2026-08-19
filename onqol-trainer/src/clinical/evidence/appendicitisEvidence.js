@@ -24,13 +24,74 @@ export const appendicitisEvidence = {
         "Podda M, Ceresoli M, De Simone B, et al. Diagnosis and Treatment of Acute Appendicitis: 2025 Edition of the WSES Jerusalem Guidelines. JAMA Surg. 2026;161(3):283-295.",
       section: "Recommendation 3.1",
       recommendation:
-        "Risk stratification plus ultrasound is an acceptable first-line pathway where CT is unavailable or radiation minimization is prioritized; low-dose CT is preferred where available.",
+        "Imaging choice in an adult with suspected appendicitis follows the clinical probability of the diagnosis, the diagnostic question, patient factors and availability. Ultrasound is acceptable first-line where CT is unavailable or radiation minimization is prioritized. If ultrasound is inconclusive and clinical suspicion persists, perform low-dose CT where it is available and appropriate for that patient. Where CT is unavailable, the next step follows risk and may be active observation with reassessment, transfer, or an operative decision.",
       strength: "conditional",
       certainty: "moderate",
       provenance: "T2",
       kz_protocol_status: "КП=",
+      last_checked: "2026-08-19",
+      checked_by: "Сарина Т.Т.",
+      companion_reference_ids: [
+        "wses-2025-rec-3-3",
+        "wses-2025-rec-3-4",
+        "wses-2025-rec-4",
+      ],
       local_note:
-        "КП РК also uses resource language around availability of imaging and endovideosurgical equipment.",
+        "КП РК also uses resource language around availability of imaging and endovideosurgical equipment. Two corrections from clinical review 19.08.2026: 'inconclusive ultrasound therefore CT' is not unconditional - pregnancy and CT unavailability are separate branches, held in the companion entries - and no fixed effective dose in millisieverts reaches the learner, because the dose belongs to the local radiology protocol rather than to a clinical threshold.",
+    },
+    {
+      // Special populations were previously folded into R3.1, which made the
+      // adult imaging rule read as ultrasound-first for everyone.
+      id: "wses-2025-rec-3-3",
+      name: "WSES Jerusalem Guidelines",
+      year: 2025,
+      citation:
+        "Podda M, Ceresoli M, De Simone B, et al. Diagnosis and Treatment of Acute Appendicitis: 2025 Edition of the WSES Jerusalem Guidelines. JAMA Surg. 2026;161(3):283-295.",
+      section: "Recommendation 3.3",
+      recommendation:
+        "In adults with obesity (BMI 30 or above), CT, preferably low-dose, is the preferred first-line imaging modality over ultrasound where it is available.",
+      strength: "conditional",
+      certainty: "moderate",
+      provenance: "T2",
+      kz_protocol_status: "n/a",
+      last_checked: "2026-08-19",
+      checked_by: "Сарина Т.Т.",
+      local_note: "Carries the obesity branch of the imaging rule. Not a licence to skip ultrasound in anyone else.",
+    },
+    {
+      id: "wses-2025-rec-3-4",
+      name: "WSES Jerusalem Guidelines",
+      year: 2025,
+      citation:
+        "Podda M, Ceresoli M, De Simone B, et al. Diagnosis and Treatment of Acute Appendicitis: 2025 Edition of the WSES Jerusalem Guidelines. JAMA Surg. 2026;161(3):283-295.",
+      section: "Recommendation 3.4",
+      recommendation:
+        "In older adults (65 years and above), CT, preferably low-dose, is the preferred first-line imaging modality over ultrasound where it is available.",
+      strength: "conditional",
+      certainty: "moderate",
+      provenance: "T2",
+      kz_protocol_status: "n/a",
+      last_checked: "2026-08-19",
+      checked_by: "Сарина Т.Т.",
+      local_note: "Carries the older-adult branch of the imaging rule.",
+    },
+    {
+      id: "wses-2025-rec-4",
+      name: "WSES Jerusalem Guidelines",
+      year: 2025,
+      citation:
+        "Podda M, Ceresoli M, De Simone B, et al. Diagnosis and Treatment of Acute Appendicitis: 2025 Edition of the WSES Jerusalem Guidelines. JAMA Surg. 2026;161(3):283-295.",
+      section: "Recommendation 4",
+      recommendation:
+        "In pregnancy, where ultrasound is negative or inconclusive and suspicion persists, MRI is preferred, provided it does not cause a clinically significant delay in diagnosis or treatment.",
+      strength: "conditional",
+      certainty: "moderate",
+      provenance: "T2",
+      kz_protocol_status: "n/a",
+      last_checked: "2026-08-19",
+      checked_by: "Сарина Т.Т.",
+      local_note:
+        "The pregnancy branch of the imaging rule. The delay proviso is part of the recommendation: MRI that is not promptly obtainable is not a reason to defer treatment.",
     },
     {
       id: "wses-2025-rec-9-1",
@@ -72,12 +133,15 @@ export const appendicitisEvidence = {
         "Podda M, Ceresoli M, De Simone B, et al. Diagnosis and Treatment of Acute Appendicitis: 2025 Edition of the WSES Jerusalem Guidelines. JAMA Surg. 2026;161(3):283-295.",
       section: "Recommendation 17.1",
       recommendation:
-        "Routine postoperative antibiotics are usually not recommended in adults after appendectomy for uncomplicated appendicitis. Conditional recommendation, low certainty: a clinically justified deviation is permitted and this is never a safety stop.",
+        "After laparoscopic appendectomy for confirmed uncomplicated acute appendicitis, WSES suggests against giving postoperative antibiotics routinely. Conditional recommendation, low certainty: a clinically justified deviation is permitted and this is never a safety stop. If intraoperative or postoperative findings indicate complicated infection, the patient moves to the complicated pathway and this recommendation no longer applies to them.",
       strength: "conditional",
       certainty: "low",
       provenance: "T1",
       kz_protocol_status: "КП=",
-      local_note: "КП РК and WSES both reject postoperative antibiotics for uncomplicated adult appendicitis.",
+      last_checked: "2026-08-19",
+      checked_by: "Сарина Т.Т.",
+      local_note:
+        "КП РК and WSES both argue against routine postoperative antibiotics for uncomplicated adult appendicitis. Wording chosen at clinical review 19.08.2026: 'usually not recommended' blurred which way the recommendation points, and 'must not be given' read as an absolute ban on a conditional, low-certainty recommendation. 'WSES suggests against giving them routinely' keeps both the direction and the conditionality.",
     },
     {
       // The nonoperative option and, more importantly, the conditions under
@@ -90,32 +154,62 @@ export const appendicitisEvidence = {
         "Podda M, Ceresoli M, De Simone B, et al. Diagnosis and Treatment of Acute Appendicitis: 2025 Edition of the WSES Jerusalem Guidelines. JAMA Surg. 2026;161(3):283-295.",
       section: "Recommendation 5.1",
       recommendation:
-        "Antibiotic therapy is an acceptable alternative to appendectomy in selected adults with confirmed uncomplicated appendicitis, given adequate clinical monitoring, access to reassessment and rescue surgery, and shared decision-making. Appendicolith status and the possibility of misclassified complicated disease have to be considered.",
+        "Antibiotic therapy may be offered as an alternative to appendectomy in a carefully selected, haemodynamically stable adult with radiologically confirmed uncomplicated appendicitis and no appendicolith, within shared decision-making. Reliable monitoring, rapid reassessment and access to surgery on failure, deterioration or recurrence are mandatory. The patient has to be told that initial success of antibiotic therapy does not exclude recurrence and a later appendectomy.",
       strength: "conditional",
       certainty: "moderate",
       provenance: "T1",
       kz_protocol_status: "КП?",
+      last_checked: "2026-08-19",
+      checked_by: "Сарина Т.Т.",
+      recurrence_context_ids: ["appac-2018-five-year", "appac-2026-ten-year"],
       local_note:
-        "A nonoperative plan is never wrong merely for being nonoperative. Where the selection facts are not established in the case, the plan cannot yet be judged and the missing condition is what the mentor asks for.",
+        "A nonoperative plan is never wrong merely for being nonoperative. Where the selection facts are not established in the case, the plan cannot yet be judged and the missing condition is what the mentor asks for. Clinical review 19.08.2026 added two selection facts that were previously implicit: radiological confirmation and absence of an appendicolith, the latter because the APPAC population excluded it. The counselling duty about later appendectomy is part of the rule, not an optional extra.",
     },
     {
-      // Reviewer-facing only. Recurrence figures always travel with their time
-      // horizon and their study population; no percentage reaches a learner
-      // until a rule carrying it has completed the approval workflow.
-      id: "appac-2018-recurrence",
+      // Reviewer-facing only. Two endpoints, not one, and the earlier version of
+      // this entry collapsed them: it called the cumulative appendectomy rate
+      // "recurrence", which overstates histologically confirmed recurrence and
+      // understates how many patients reached an operation. Clinical review
+      // 19.08.2026 (Сарина Т.Т.) required them separated wherever they appear.
+      //
+      // Both APPAC entries are one cohort at successive horizons. The ten-year
+      // publication ADDS to the five-year one; it does not supersede it, and
+      // neither may be quoted without its horizon and its population.
+      id: "appac-2018-five-year",
       name: "APPAC randomized clinical trial, five-year follow-up",
       year: 2018,
       citation:
         "Salminen P, Tuominen R, Paajanen H, et al. Five-Year Follow-up of Antibiotic Therapy for Uncomplicated Acute Appendicitis in the APPAC Randomized Clinical Trial. JAMA. 2018;320(12):1259-1265. DOI 10.1001/jama.2018.13201.",
-      section: "Recurrence after antibiotic therapy",
+      section: "Appendectomy and recurrence after antibiotic therapy",
       recommendation:
-        "In the APPAC trial population, recurrence after antibiotic therapy was 27.3% at 1 year and 39.1% at 5 years.",
+        "After initial antibiotic therapy in APPAC, the cumulative incidence of appendectomy was 27.3% at 1 year and 39.1% at 5 years. Histologically confirmed true recurrence was 32.4% at 5 years.",
       strength: "primary study",
       certainty: "single trial population",
       provenance: "T1",
       kz_protocol_status: "n/a",
+      last_checked: "2026-08-19",
+      checked_by: "Сарина Т.Т.",
       local_note:
-        "Reviewer context, not learner content. These figures describe one trial population and must never be quoted without the time horizon and the population limitation.",
+        "Reviewer context, not learner content. Cumulative appendectomy and histologically confirmed recurrence are DIFFERENT endpoints and must never be presented as one number. Study population: selected adults 18-60 with CT-confirmed uncomplicated appendicitis; patients with an appendicolith were not included.",
+      learner_visible: false,
+    },
+    {
+      id: "appac-2026-ten-year",
+      name: "APPAC randomized clinical trial, ten-year follow-up",
+      year: 2026,
+      citation:
+        "Salminen P, et al. Antibiotic Therapy for Uncomplicated Acute Appendicitis: Ten-Year Follow-Up of the APPAC Randomized Clinical Trial. JAMA. Published online January 21, 2026. DOI 10.1001/jama.2025.25921.",
+      section: "Appendectomy and recurrence at ten years",
+      recommendation:
+        "At ten years the cumulative incidence of appendectomy after initial antibiotic therapy was 44.3%, and histologically confirmed true recurrence was 37.8%.",
+      strength: "primary study",
+      certainty: "single trial population",
+      provenance: "T1",
+      kz_protocol_status: "n/a",
+      last_checked: "2026-08-19",
+      checked_by: "Сарина Т.Т.",
+      local_note:
+        "37.8% does not replace the 39.1% of the five-year report: the first is histologically confirmed recurrence, the second is cumulative appendectomy. Extends the five-year entry rather than superseding it. Same selected population, so the figures are not a universal prognosis for an individual patient.",
       learner_visible: false,
     },
     {
@@ -171,6 +265,107 @@ export const appendicitisEvidence = {
         "Justifies keeping DRE out of expected actions and out of scoring. It does not support a deterministic positive rectal finding in any phenotype.",
     },
     {
+      // B1. Written to close a reading, not to add a drug: "prophylaxis PLUS
+      // therapy" was being understood as two mandatory parallel courses.
+      id: "wses-2025-rec-16-1",
+      name: "WSES Jerusalem Guidelines",
+      year: 2025,
+      citation:
+        "Podda M, Ceresoli M, De Simone B, et al. Diagnosis and Treatment of Acute Appendicitis: 2025 Edition of the WSES Jerusalem Guidelines. JAMA Surg. 2026;161(3):283-295.",
+      section: "Recommendation 16.1",
+      recommendation:
+        "In an adult with complicated acute appendicitis, start therapeutic antibiotic treatment before surgery, particularly where immediate operation is not possible. The chosen therapeutic regimen has to provide the required perioperative cover according to the local protocol.",
+      strength: "strong",
+      certainty: "high",
+      provenance: "T1",
+      kz_protocol_status: "КП?",
+      last_checked: "2026-08-19",
+      checked_by: "Сарина Т.Т.",
+      local_note:
+        "Prophylactic and therapeutic intent differ, but that does not mean two parallel courses or duplicated agents are automatically required. Whether a separate perioperative dose is needed, which regimen, when it is given and when it is redosed are decided by the approved hospital protocol.",
+    },
+    {
+      // B4. The Russian rendering matters here: "дренирование не предлагается"
+      // can be read as "no recommendation exists", which is the opposite of a
+      // conditional recommendation against routine drainage.
+      id: "wses-2025-rec-11-1",
+      name: "WSES Jerusalem Guidelines",
+      year: 2025,
+      citation:
+        "Podda M, Ceresoli M, De Simone B, et al. Diagnosis and Treatment of Acute Appendicitis: 2025 Edition of the WSES Jerusalem Guidelines. JAMA Surg. 2026;161(3):283-295.",
+      section: "Recommendation 11.1",
+      recommendation:
+        "In adults after laparoscopic appendectomy for complicated appendicitis, avoiding routine prophylactic abdominal drainage is suggested. Conditional recommendation, low certainty.",
+      strength: "conditional",
+      certainty: "low",
+      provenance: "T1",
+      kz_protocol_status: "n/a",
+      last_checked: "2026-08-19",
+      checked_by: "Сарина Т.Т.",
+      corroborating_reference_ids: ["sages-appendicitis"],
+      local_note:
+        "The rule is about ROUTINE placement. It does not forbid a drain placed for a specific established indication, and the presence of a drain is not a critical error without assessing the intraoperative situation and the indication.",
+    },
+    {
+      // B5. Kept as one entry with the disagreement inside it, so the mentor
+      // cannot quote the WSES preference without the SAGES position.
+      id: "wses-2025-rec-10-1",
+      name: "WSES Jerusalem Guidelines",
+      year: 2025,
+      citation:
+        "Podda M, Ceresoli M, De Simone B, et al. Diagnosis and Treatment of Acute Appendicitis: 2025 Edition of the WSES Jerusalem Guidelines. JAMA Surg. 2026;161(3):283-295.",
+      section: "Recommendation 10.1",
+      recommendation:
+        "In complicated appendicitis, free contaminated fluid has to be evacuated. WSES suggests suction without routine lavage rather than lavage combined with suction. SAGES holds both suction alone and suction with lavage to be acceptable, depending on the intraoperative situation and surgeon preference.",
+      strength: "conditional",
+      certainty: "moderate",
+      provenance: "T1",
+      kz_protocol_status: "n/a",
+      last_checked: "2026-08-19",
+      checked_by: "Сарина Т.Т.",
+      guideline_disagreement: true,
+      corroborating_reference_ids: ["sages-appendicitis"],
+      local_note:
+        "The guidelines do not agree here, so this is teaching material and not a binary right/wrong action. Performing lavage must never be coded as an error, a safety stop or a penalty. What is assessed is adequacy of source control and removal of the accessible contaminated material.",
+    },
+    {
+      id: "sages-appendicitis",
+      name: "SAGES Guideline for the Diagnosis and Treatment of Appendicitis",
+      year: 2025,
+      citation:
+        "Society of American Gastrointestinal and Endoscopic Surgeons. Guideline for the Diagnosis and Treatment of Appendicitis. https://www.sages.org/publications/guidelines/guideline-for-the-diagnosis-and-treatment-of-appendicitis/",
+      section: "Intraoperative management of complicated appendicitis",
+      recommendation:
+        "SAGES recommends against routine drainage after appendectomy for complicated appendicitis, and accepts either suction alone or suction with lavage for peritoneal contamination, noting very low certainty of evidence in adults.",
+      strength: "guideline",
+      certainty: "very low",
+      provenance: "T2",
+      kz_protocol_status: "n/a",
+      last_checked: "2026-08-19",
+      checked_by: "Сарина Т.Т.",
+      local_note:
+        "Independent check on the two contested intraoperative rules: it corroborates B4 and it diverges from B5. Held so the divergence can be shown to the learner rather than hidden.",
+    },
+    {
+      id: "perfect-antibiotics-2025",
+      name: "PERFECT-Antibiotics randomized clinical trial",
+      year: 2025,
+      citation:
+        "Role of Preoperative Antibiotic Treatment While Awaiting Appendectomy: The PERFECT-Antibiotics Randomized Clinical Trial. JAMA Surg. 2025. DOI 10.1001/jamasurg.2025.1212.",
+      section: "Antibiotics while awaiting appendectomy",
+      recommendation:
+        "In adults with suspected uncomplicated appendicitis operated within 24 hours, adding a therapeutic antibiotic course while awaiting appendectomy did not significantly reduce perforation. Surgical site infection was reported in 1.6% with the added antibiotics and 3.2% without. All patients received the standard single prophylactic dose at induction.",
+      strength: "primary study",
+      certainty: "single trial population",
+      provenance: "T1",
+      kz_protocol_status: "n/a",
+      last_checked: "2026-08-19",
+      checked_by: "Сарина Т.Т.",
+      local_note:
+        "Supporting evidence for A4 and A5, never the sole basis of either rule. The secondary surgical-site-infection result travels with the primary one: quoting only the perforation finding overstates how settled the question is.",
+      learner_visible: false,
+    },
+    {
       id: "rk-appendicitis-2018-resource",
       name: "КП МЗ РК: Острый аппендицит",
       year: 2018,
@@ -183,8 +378,11 @@ export const appendicitisEvidence = {
       certainty: "not GRADE",
       provenance: "T2",
       kz_protocol_status: "КП=",
+      last_checked: "2026-08-19",
+      checked_by: "Сарина Т.Т.",
+      normative_status: "requires_separate_confirmation",
       local_note:
-        "Used only to support the resource-context route, not to override WSES clinical source of truth.",
+        "Used only to support the resource-context route, not to override WSES clinical source of truth. Verified 19.08.2026: the official text and its imprint were checked against the RCRZ PDF. That check does NOT establish that the protocol remains the operative normative document on that date; current normative status still requires separate confirmation from the official register or a decision of the authorised body. Divergences are carried as an explicit Kazakhstan delta layer, never as a replacement for the current international evidence layer.",
     },
   ],
 };
