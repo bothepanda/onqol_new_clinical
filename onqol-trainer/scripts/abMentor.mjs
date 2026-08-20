@@ -34,6 +34,7 @@ import {
 } from "../src/clinical/diseases/appendicitis/router/conceptRegistry.js";
 import { DEFAULT_MODELS } from "../server/openaiGateway.mjs";
 import { DETERMINISTIC_SHARE_LIMIT, harnessVerdict } from "./abMentorVerdict.mjs";
+import { repeatedEngineBlocks } from "./abMentorMetrics.mjs";
 
 const args = new Set(process.argv.slice(2));
 const live = args.has("--live");
@@ -285,6 +286,7 @@ function printStats(a, b, telemetry, probe) {
     ["ходов", a.length, b.turns.length],
     ["запрещённых строк", forbiddenHits(a).length, forbiddenHits(b.turns).length],
     ["дословных повторов вопроса", repeatedQuestions(a).length, repeatedQuestions(b.turns).length],
+    ["дословных повторов движка", repeatedEngineBlocks(a).length, repeatedEngineBlocks(b.turns).length],
     ["дошли до операционной сами", "нет (сессия брошена)", b.turns.some((turn) => turn.procedureStarted || turn.sourceControl) ? "да" : "нет"],
   ];
   console.log(["", "A (запись)", "B (текущий код)"].map((cell) => String(cell).padEnd(28)).join(""));
@@ -323,6 +325,9 @@ function printStats(a, b, telemetry, probe) {
   }
   for (const repeat of repeatedQuestions(b.turns)) {
     console.log(`\n  ✗ вопрос повторён дословно (ходы ${repeat.first} и ${repeat.again}): «${repeat.question}»`);
+  }
+  for (const repeat of repeatedEngineBlocks(b.turns)) {
+    console.log(`\n  ✗ блок движка повторён дословно (ходы ${repeat.first} и ${repeat.again}): «${repeat.block}»`);
   }
   if (!live) {
     console.log(
@@ -371,6 +376,7 @@ function reportMarkdown({ a, b, telemetry, verdict, probe }) {
   lines.push(`| Отклонений | ${reasons.length ? reasons.map(([k, v]) => `\`${k}\`×${v}`).join(", ") : "нет"} |`);
   lines.push(`| Починок | ${summary.repaired} |`);
   lines.push(`| Дословных повторов вопроса | ${repeatedQuestions(b).length} |`);
+  lines.push(`| Дословных повторов движка | ${repeatedEngineBlocks(b).length} |`);
   lines.push(`| Совпало с детерминированной политикой | ${summary.policy_agreement} из ${summary.mentor_turns} |`);
   const flags = [...new Set(telemetry.turns.flatMap((turn) => turn.telemetry_flags))];
   lines.push(`| Флаги телеметрии | ${flags.length ? flags.map((f) => `\`${f}\``).join(", ") : "нет"} |`);
@@ -509,6 +515,10 @@ if (asJson) {
         current: b.turns,
         telemetry: b.telemetry,
         theatre: probe,
+        metrics: {
+          repeated_questions: repeatedQuestions(b.turns),
+          repeated_engine_blocks: repeatedEngineBlocks(b.turns),
+        },
         verdict,
       },
       null,

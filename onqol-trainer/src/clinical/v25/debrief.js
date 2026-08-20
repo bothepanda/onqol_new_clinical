@@ -115,15 +115,22 @@ ${timeline || "- Временные события не зафиксирован
 **Отложено для разбора**
 ${listOrDash(deferredRows)}
 
-Эти пункты не прерывали ведение пациента. Они фиксируют только то, что соответствующее рассуждение не было явно высказано; клиническую правильность они не устанавливают.
+Эти пункты не прерывали ведение пациента. Они фиксируют только то, что соответствующее рассуждение не было явно высказано; клиническую правильность они не устанавливают.`;
 
-**Статус данных**
+  // Build telemetry, not feedback. It was the last thing a surgeon read after
+  // finishing a case: which legacy fields went unused and which numbers were not
+  // created. It belongs in the export and in the faculty view, where someone is
+  // asking exactly that question - not on the learner's screen. The scoring line
+  // in the header stays: that one is addressed to the resident.
+  const dataStatusMarkdown = `**Статус данных**
 - Формирующий режим: \`${scoring.reviewStatus}\`.
 - Legacy \`expected_actions\`, веса и штрафы не использовались.
 - Числовые overall score и domain scores не создавались.`;
 
   return {
     markdown,
+    dataStatusMarkdown,
+    facultyMarkdown: `${markdown}\n\n${dataStatusMarkdown}`,
     evidence: [],
     formativeDomains: scoring.formativeDomains || [],
     pathwayStatus: stableEndpointReached ? "completed" : "incomplete",

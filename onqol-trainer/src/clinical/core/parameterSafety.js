@@ -12,6 +12,56 @@ import {
   ruleAllowsRuntimeEffect,
 } from "../governance/clinicalGovernance.js";
 
+/**
+ * Three blocked orders, three different things to say.
+ *
+ * 1. REVIEWED_UNSAFE - a reviewed rule looked at the stated parameter and
+ *    rejected it. The pilot knows the range and this order is outside it. Danger,
+ *    and it speaks like danger.
+ * 2. HIGH_RISK_AWAITING_REVIEW - the parameter belongs to a class this file
+ *    enumerates as high risk (weight-based fluid volume) and no reviewed rule
+ *    exists yet. The pilot cannot tell 20 ml/kg from 200, so it fails safe and
+ *    still stops. This is the behaviour PARAMETER_SAFETY_RULES exists for.
+ * 3. NO_REVIEWED_CONTENT - a drug or parameter the pilot holds nothing about at
+ *    all. It is a gap in the training content, not a verdict on the learner, and
+ *    it must not be spoken in the register of danger. This is the "Стоп: ... не
+ *    прошли проверку" the live run of 20.08.2026 printed for an order nobody had
+ *    objected to.
+ *
+ * All three keep the order off the patient - that is decided by blocks_application
+ * and does not change. Only the first two are danger.
+ */
+export const PARAMETER_GOVERNANCE_CLASS = Object.freeze({
+  HIGH_RISK_AWAITING_REVIEW: "high_risk_parameter_awaiting_review",
+  NO_REVIEWED_CONTENT: "no_reviewed_content",
+});
+
+export const REVIEWED_UNSAFE_VERDICTS = Object.freeze([
+  "reviewed_unsafe",
+  "reviewed_questionable",
+]);
+
+export function isReviewedUnsafeParameter(signal) {
+  return REVIEWED_UNSAFE_VERDICTS.includes(signal?.safety_verdict);
+}
+
+/**
+ * Blocked because the pilot holds nothing about it - case 3. Not danger, and the
+ * only one of the three whose wording changes.
+ */
+export function isGovernanceGapParameter(signal) {
+  return (
+    Boolean(signal?.blocks_application) &&
+    !isReviewedUnsafeParameter(signal) &&
+    signal?.governance_class === PARAMETER_GOVERNANCE_CLASS.NO_REVIEWED_CONTENT
+  );
+}
+
+/** Cases 1 and 2: the mentor stops, and says so. */
+export function parameterFailsSafeIntoStop(signal) {
+  return Boolean(signal?.blocks_application) && !isGovernanceGapParameter(signal);
+}
+
 export const PARAMETER_SAFETY_RULES = Object.freeze([
   Object.freeze({
     coverage_id: "iv_fluid_weight_based_not_yet_reviewed_v1",
@@ -163,6 +213,7 @@ export function reviewActionParameters(
         governance_policy_id: "GOV-PARAMETER-UNREVIEWED-001",
         blocks_application: true,
         applied_to_patient: false,
+        governance_class: PARAMETER_GOVERNANCE_CLASS.NO_REVIEWED_CONTENT,
         blocking_reason: entry.drug_name
           ? "drug_or_parameter_not_validated"
           : "parameter_not_validated",
@@ -198,6 +249,9 @@ export function reviewActionParameters(
       blocks_application: governed?.blocks_application ?? coverage.blocks_application,
       authoritative_correction: governed?.authoritative_correction || null,
       recognized_drug: entry.drug_name || null,
+      // An enumerated high-risk class. Until a rule exists the pilot cannot tell a
+      // safe figure from a lethal one, so this one fails safe and keeps stopping.
+      governance_class: PARAMETER_GOVERNANCE_CLASS.HIGH_RISK_AWAITING_REVIEW,
       parameter_validation_status: governed?.review_status || coverage.review_status,
       applied_to_patient: !(governed?.blocks_application ?? coverage.blocks_application),
       blocking_reason: (governed?.blocks_application ?? coverage.blocks_application)

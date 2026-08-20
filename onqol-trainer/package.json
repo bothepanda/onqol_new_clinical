@@ -13,7 +13,8 @@
     "preview": "vite preview",
     "pack:safe": "node scripts/packSafe.mjs",
     "release:check": "node scripts/releaseGate.mjs",
-    "ab:mentor": "node scripts/abMentor.mjs",
+    "ab:mentor": "node --env-file-if-exists=.env.local scripts/abMentor.mjs",
+    "ab:mentor:archetypes": "node --env-file-if-exists=.env.local scripts/abMentorArchetypes.mjs",
     "spec:sync": "node scripts/buildMentorSpec.mjs"
   },
   "dependencies": {

@@ -8,6 +8,10 @@ import {
   selectMentorPolicy,
 } from "./mentorPolicy.js";
 import { operationalizationQuestion } from "./operationalization.js";
+import {
+  isGovernanceGapParameter,
+  isReviewedUnsafeParameter,
+} from "./parameterSafety.js";
 import { resolveLearnerAddressForm } from "./learnerAddress.js";
 import { detectLegacyPractices, legacyPracticeBriefEntry } from "./legacyPractices.js";
 import {
@@ -462,8 +466,24 @@ export function buildMentorBrief({
   // before every teaching move: the team is standing there waiting. One move
   // covers every incomplete order in the turn, so a compound move gets one
   // question rather than one question and a silent half.
+  //
+  // An order the parameter review has already blocked is not among them. Its own
+  // move below asks for the missing slot when there is a point in asking, and
+  // for an order the pilot holds no rule for there is none - the slot changes
+  // nothing and the order will not be applied either way. Two moves asking the
+  // same thing is how "Медсестра ждёт назначения: с какой скоростью?" came back
+  // verbatim three turns later in the live run of 20.08.2026.
+  const parameterBlockedActionIds = new Set(
+    (plan.parameterSafetySignals || [])
+      .filter((signal) => signal.blocks_application)
+      .map((signal) => signal.concept_id)
+  );
   const incompleteOrders = (plan.operationalizationStates || []).filter(
-    (state) => state && !state.complete && state.missing?.length
+    (state) =>
+      state &&
+      !state.complete &&
+      state.missing?.length &&
+      !parameterBlockedActionIds.has(state.action_id)
   );
   if (incompleteOrders.length) {
     moves.push({
@@ -553,10 +573,11 @@ export function buildMentorBrief({
     // Said once per order. A reviewed-unsafe verdict is exempt: that one is a
     // clinical stop and repeats for as long as the learner insists on it.
     const stopKey = parameterStopKey(signal);
-    if (
-      !["reviewed_unsafe", "reviewed_questionable"].includes(signal.safety_verdict) &&
-      stopsAlreadyDelivered.has(stopKey)
-    ) {
+    const reviewedUnsafe = isReviewedUnsafeParameter(signal);
+    // Case 3 only: a parameter the pilot holds nothing about. The enumerated
+    // high-risk classes keep stopping. See parameterSafety.js.
+    const noReviewedContent = isGovernanceGapParameter(signal);
+    if (!reviewedUnsafe && stopsAlreadyDelivered.has(stopKey)) {
       continue;
     }
     // Already answered in full: the engine records it and states why it is not
@@ -571,22 +592,36 @@ export function buildMentorBrief({
     moves.push({
       type: MENTOR_MOVE.PARAMETER_SAFETY,
       issue_id: signal.source_rule_id || signal.governance_policy_id,
-      severity: 4,
+      severity: noReviewedContent ? 2 : 4,
       hint_level: 4,
-      safety_critical: true,
-      why_now: "current_parameter_requires_review",
+      // An empty shelf is not danger. A missing rule keeps the order off the
+      // patient just the same, but it must not be spoken in the register of
+      // danger - unless the parameter belongs to a class the pilot enumerates as
+      // high risk, which fails safe and still stops.
+      safety_critical: !noReviewedContent,
+      why_now: noReviewedContent
+        ? "current_parameter_has_no_reviewed_rule"
+        : "current_parameter_requires_review",
       reasoning_gap: null,
       relevant_to_current_turn: true,
-      // When the order is still half-stated, the stop asks for the missing part
+      // When the order is still half-stated, the note asks for the missing part
       // rather than for something the learner was never asked for.
       template: (() => {
         const incomplete = (plan.operationalizationStates || []).find(
           (state) => state.action_id === signal.concept_id && !state.complete
         );
-        const question = incomplete ? operationalizationQuestion([incomplete]) : "";
-        return question
-          ? `Стоп. Это назначение пока нельзя выполнить: оно названо не полностью. ${question}`
-          : "Стоп. Это назначение требует клинической проверки и пока не применено. Что станет условием немедленного пересмотра плана?";
+        const question = incomplete && !noReviewedContent
+          ? operationalizationQuestion([incomplete])
+          : "";
+        if (!noReviewedContent) {
+          if (question) {
+            return `Стоп. Это назначение пока нельзя выполнить: оно названо не полностью. ${question}`;
+          }
+          return reviewedUnsafe
+            ? "Стоп. Этот параметр отклонён отрецензированным правилом безопасности и не применён. Как пересмотришь его?"
+            : "Стоп. Это назначение требует клинической проверки и пока не применено. Что станет условием немедленного пересмотра плана?";
+        }
+        return "Это назначение записано. Отрецензированного правила под него в пилоте нет, поэтому эффект не моделируется. Что делаешь дальше по плану?";
       })(),
       parameter_safety: signal,
       clinical_rule_ids: signal.source_rule_id ? [signal.source_rule_id] : [],

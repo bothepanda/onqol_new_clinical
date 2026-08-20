@@ -1,7 +1,11 @@
 import { renderMentorBrief } from "./mentorBrief.js";
 import { MENTOR_MODE } from "./mentorPolicy.js";
 import { MENTOR_BEHAVIOR_SPEC, MENTOR_BEHAVIOR_SPEC_SOURCE } from "./mentorBehaviorSpec.js";
-import { LEARNER_ADDRESS_FORM, resolveLearnerAddressForm } from "./learnerAddress.js";
+import {
+  LEARNER_ADDRESS_FORM,
+  detectGenderedAddress,
+  resolveLearnerAddressForm,
+} from "./learnerAddress.js";
 import {
   CLINICAL_RUNTIME_EFFECT,
   ruleAllowsRuntimeEffect,
@@ -72,18 +76,7 @@ export const MENTOR_MODES = Object.freeze([
   MENTOR_MODE.SAFETY_STOP,
 ]);
 
-// Russian past-tense verbs are gendered, so "ты обозначил" assigns the learner a
-// gender nobody stated - unless the learner has already stated it themselves.
-// This is no longer a rejection: v2 replaces the blanket ban (which cut natural
-// Russian) with an address form taken from the session setting or mirrored from
-// the learner's own forms. The pattern survives as a detector so telemetry can
-// still say how often the mentor used a gendered address and whether it matched.
-// Note: \b cannot be used here. JavaScript word boundaries are ASCII-based, so
-// \bты never matches after a space.
-const GENDERED_ADDRESS_RE =
-  /(?:^|[^а-яё])ты\s+(?:[а-яё]+\s+){0,2}[а-яё]*(?:ал|ял|ил|ел|ыл|ала|яла|ила|ела|ыла|лся|лась)(?![а-яё])/i;
-
-export { LEARNER_ADDRESS_FORM, resolveLearnerAddressForm };
+export { LEARNER_ADDRESS_FORM, detectGenderedAddress, resolveLearnerAddressForm };
 
 function addressInstruction(form) {
   if (form === LEARNER_ADDRESS_FORM.FEMININE) {
@@ -93,8 +86,9 @@ function addressInstruction(form) {
     return "GRAMMATICAL GENDER. The learner's address form is masculine (from the session setting or from his own past-tense forms). Use masculine forms about him: \"ты сказал\", \"ты был прав\". Never switch to feminine.";
   }
   return [
-    "GRAMMATICAL GENDER. The learner's gender is not established, so do not assign one. Avoid gendered past tense and short adjectives about the learner: not \"ты сделал\", not \"ты сделала\".",
+    "GRAMMATICAL GENDER. The learner's gender is not established, so do not assign one. Avoid gendered past tense and short adjectives about the learner - and note that Russian drops the subject, so \"хорошо, что сохранил\" assigns a gender exactly as \"ты сохранил\" does. Dropping the pronoun is not a way around this rule.",
     "Use present tense (\"ты зовёшь\"), infinitives (\"назвать неопределённость — правильный ход\"), verbal nouns (\"вызов старшего\") or impersonal forms (\"что уже сделано\"). The same applies to Kazakh.",
+    "Rewrite, do not omit. Instead of \"хорошо, что сохранил аппендицит как рабочую гипотезу\" write \"хорошо, что аппендицит сохранён как рабочая гипотеза\". Instead of \"ты не сузил дифференциал\" write \"дифференциал пока не сузился\". Instead of \"ты был прав\" write \"это верный ход\". Instead of \"ты назначил\" write \"назначение записано\".",
   ].join("\n");
 }
 
@@ -263,12 +257,20 @@ export function validateMentorPayload(payload, brief, caseData, revealedFindingI
     return { ok: false, reason: "reinforce_must_not_question", telemetry };
   }
 
-  if (GENDERED_ADDRESS_RE.test(text)) {
+  // Gendered address is telemetry, not a rejection: v2 mirrors the learner's own
+  // form instead of banning natural Russian. The subject-omitted hits are flagged
+  // separately because they are the wider net - see detectGenderedAddress - and
+  // the threshold on them is a clinical-owner decision, not a code one.
+  const genderedAddress = detectGenderedAddress(text);
+  if (genderedAddress.matched) {
     telemetry.push(
       brief.learnerAddressForm && brief.learnerAddressForm !== LEARNER_ADDRESS_FORM.NEUTRAL
         ? "gendered_address_with_known_form"
         : "gendered_address_without_known_form"
     );
+    if (genderedAddress.subjectOmitted && !genderedAddress.viaPronoun) {
+      telemetry.push("gendered_address_subject_omitted");
+    }
   }
 
   // Declared excerpts are telemetry now: paraphrase is allowed, because the
@@ -309,6 +311,7 @@ export function mentorHardBounds(brief) {
     "3. NO DIAGNOSTIC CONFIRMATION BEFORE THE DEBRIEF. You may say a hypothesis explains the picture. You may not say the diagnosis is correct, that the learner is right about it, or what the patient definitely has.",
     "4. ZERO OR ONE QUESTION PER TURN. Never stack questions. CONTINUE carries no text at all; REINFORCE carries no question.",
     "5. A LOCAL FORMULARY DOSE IS NOT AN ERROR. The approved dosing rules you hold are international reference rules. Kazakhstan's national formulary and clinical protocol give different figures for some of the same drugs, and the learner was trained on those. When a learner states a dose that differs from your rule, do not correct it, do not substitute the number from your rule, and do not call the answer wrong. Divergence between a local and a reference source is debrief material, never a live correction.",
+    "6. AN ORDINARY MISSING RULE IS NOT A SAFETY STOP. When mentor_policy says governance_stop without safety_critical, the pilot simply holds no reviewed rule for what the learner ordered. The order is recorded and is not applied to the patient - but that is a gap in the training content, not danger and not a mistake by the learner. Do not say \"стоп\", \"не прошли проверку\" or \"не валидировано\" about it, and do not ask the learner to revise the parameter: there is no rule to revise it against. Say plainly that the effect is not modelled here, and move the case on. If safety_critical is true, keep SAFETY_STOP: either a reviewed safety rule rejected the parameter or it belongs to an explicitly enumerated high-risk class that fails safe while review is pending.",
     "",
     "WHAT ALREADY HAPPENED. The application prints the patient and environment response ABOVE your reply. Everything in just_performed has been carried out this turn and its results are already on the learner's screen. Never instruct the learner to start something already done, and do not open by narrating the screen back at them.",
     "THE LEARNER'S CLAIMS ARE NOT FACTS. accumulated_reasoning_state and the transcript contain what the learner said. Quoting it back is good supervision; treating it as established patient truth is not. The learner calling the patient stable does not make her stable.",

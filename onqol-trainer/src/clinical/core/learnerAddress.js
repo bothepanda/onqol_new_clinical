@@ -55,3 +55,70 @@ export function resolveLearnerAddressForm({ sessionSetting = null, learnerTurns 
   }
   return { form: LEARNER_ADDRESS_FORM.NEUTRAL, source: "default_neutral" };
 }
+
+/**
+ * Gendered address, detected in the mentor's own words.
+ *
+ * The first detector was bound to the pronoun: `ты\s+…л/ла`. Russian drops the
+ * subject constantly, so "хорошо, что сохранил аппендицит как рабочую гипотезу"
+ * assigns the learner a gender and said nothing to telemetry - which is what the
+ * live run of 20.08.2026 showed on turn 2. The pronoun case was the smaller half.
+ *
+ * Two shapes are recognised. With the pronoun the subject is explicit and the
+ * reading is certain. Without it the subject is dropped after a subordinating
+ * connector ("хорошо, что сохранил", "раз выбрал"). A gendered verb that follows
+ * its own noun - "боль началась", "аппендикс располагался" - has a subject and is
+ * not matched.
+ *
+ * Sentence-initial verb forms are deliberately excluded. Russian permits both
+ * learner-addressed "Сохранил гипотезу" and patient descriptions such as
+ * "Появилась тошнота" there, and suffix matching cannot separate them reliably.
+ * The live defect used a connector, so it is caught without turning patient
+ * events into telemetry noise.
+ */
+const GENDERED_PAST = "[а-яё]{2,}(?:[аяиеы]л|ла|лся|лась)";
+// A list, not morphology: short adjectives are not derivable from a suffix the
+// way past tense is. These are the ones a supervisor uses about a learner.
+const GENDERED_SHORT_ADJECTIVE =
+  "(?:прав|права|уверен|уверена|точен|точна|внимателен|внимательна|осторожен|осторожна|готов|готова|должен|должна|обязан|обязана)";
+const GENDERED_TOKEN = `(?:${GENDERED_PAST}|${GENDERED_SHORT_ADJECTIVE})`;
+// Only particles may sit between the boundary and the verb. Anything else - a
+// noun - is the subject, and then the verb is not about the learner.
+const ADDRESS_PARTICLE = "(?:не|уже|же|сразу|тоже|всё|все|только|ещё|еще|верно|правильно)";
+// High-precision lead-ins used by a mentor when responding to the learner. A
+// bare `что сохранил` anywhere in the sentence is not enough: in "пациентка
+// сказала, что поступила" the omitted subject is still the patient.
+const ADDRESS_LEAD_IN =
+  "(?:хорошо|верно|важно|правильно|полезно|логично|видно|вижу|заметно|спасибо)";
+const ADDRESS_CLAUSE_CONNECTOR = "(?:что|раз|если)";
+const GENDERED_ADDRESS_PRONOUN_RE = new RegExp(
+  `(?:^|[^а-яё])ты\\s+(?:[а-яё]+\\s+){0,2}(${GENDERED_TOKEN})(?![а-яё])`,
+  "giu"
+);
+const GENDERED_ADDRESS_SUBJECT_OMITTED_RE = new RegExp(
+  `(?:^${ADDRESS_CLAUSE_CONNECTOR}\\s+|(?:^|[.!?…]\\s+)${ADDRESS_LEAD_IN}\\s*,?\\s+${ADDRESS_CLAUSE_CONNECTOR}\\s+)(?:${ADDRESS_PARTICLE}\\s+){0,2}(${GENDERED_TOKEN})(?![а-яё])`,
+  "giu"
+);
+
+function genderedMatches(pattern, text) {
+  const found = [];
+  for (const match of String(text || "").matchAll(pattern)) {
+    const token = String(match[1] || "").toLowerCase();
+    found.push(token);
+  }
+  return found;
+}
+
+/**
+ * @returns {{matched: boolean, viaPronoun: boolean, subjectOmitted: boolean, tokens: string[]}}
+ */
+export function detectGenderedAddress(text) {
+  const pronoun = genderedMatches(GENDERED_ADDRESS_PRONOUN_RE, text);
+  const omitted = genderedMatches(GENDERED_ADDRESS_SUBJECT_OMITTED_RE, text);
+  return {
+    matched: pronoun.length > 0 || omitted.length > 0,
+    viaPronoun: pronoun.length > 0,
+    subjectOmitted: omitted.length > 0,
+    tokens: [...new Set([...pronoun, ...omitted])],
+  };
+}

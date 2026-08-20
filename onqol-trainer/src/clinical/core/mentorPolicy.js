@@ -2,6 +2,10 @@ import {
   CLINICAL_RUNTIME_EFFECT,
   approvedRulesForEffect,
 } from "../governance/clinicalGovernance.js";
+import {
+  isGovernanceGapParameter,
+  isReviewedUnsafeParameter,
+} from "./parameterSafety.js";
 
 export const MENTOR_POLICY_VERSION = "mentor-policy-v2.0";
 
@@ -75,8 +79,7 @@ function blockedParameterAssessment(signals, plan, session) {
       signal.blocks_application &&
       // A reviewed-unsafe verdict repeats for as long as the learner insists.
       // A governance stop is stated once; see parameterStopKey.
-      (["reviewed_unsafe", "reviewed_questionable"].includes(signal.safety_verdict) ||
-        !alreadyDelivered.has(parameterStopKey(signal)))
+      (isReviewedUnsafeParameter(signal) || !alreadyDelivered.has(parameterStopKey(signal)))
   );
   if (!blocked) return null;
   // The order is fully stated and the pilot still cannot validate it. The engine
@@ -86,16 +89,21 @@ function blockedParameterAssessment(signals, plan, session) {
     (state) => state.action_id === blocked.concept_id
   );
   if (stated?.complete) return null;
-  const reviewedUnsafe = ["reviewed_unsafe", "reviewed_questionable"].includes(
-    blocked.safety_verdict
-  );
+  const reviewedUnsafe = isReviewedUnsafeParameter(blocked);
+  // A parameter the pilot holds NO content for is not danger, and a mentor put
+  // into SAFETY_STOP for it says "Стоп" and "не прошли проверку" about an order
+  // nobody objected to. An enumerated high-risk parameter still stops even
+  // unreviewed: the pilot cannot tell 20 ml/kg from 200, so it fails safe. See
+  // parameterSafety.js for the three classes. Application to the patient is
+  // decided by blocks_application in the engine and is unchanged either way.
+  const noReviewedContent = isGovernanceGapParameter(blocked);
   return {
     adequacy: reviewedUnsafe ? ADEQUACY.UNSAFE : ADEQUACY.PARTIAL,
     reason: reviewedUnsafe
       ? "approved_safety_rule_rejected_parameter"
       : "high_risk_parameter_not_yet_reviewed",
     expected_answer_domains: ["treatment_parameter"],
-    safety_critical: true,
+    safety_critical: !noReviewedContent,
     governance_stop: !reviewedUnsafe,
     consultation_preserved: false,
   };
@@ -363,6 +371,17 @@ function fallbackFor({ mode, assessment, issue, scaffoldingLevel, approvedTeachi
       return "Стоп. Этот параметр не валидирован учебным контентом и не применён. Как пересмотришь параметр?";
     }
     return issue?.fallback_text || "Стоп. Этот элемент плана нужно пересмотреть до выполнения.";
+  }
+  // A gap in the content, in the register it belongs to. Not "стоп", not "не
+  // прошло проверку": the order is recorded, the pilot has no reviewed rule to
+  // model it against, and that is a statement about the content, not about the
+  // learner. Reached only when the parameter is not one of the high-risk classes
+  // that fail safe above.
+  if (assessment.governance_stop) {
+    return (
+      issue?.fallback_text ||
+      "Это назначение записано, но в пилоте нет отрецензированного правила под него, поэтому его эффект не моделируется. Что делаешь дальше по плану?"
+    );
   }
   if (assessment.adequacy === ADEQUACY.EVASIVE) {
     return "Помощь команды уместна. Что необходимо сделать тебе до её прихода?";

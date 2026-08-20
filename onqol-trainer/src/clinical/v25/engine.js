@@ -17,6 +17,7 @@ import { describeEta, resolveActionEta, turnEtaMinutes } from "./resourceTiming.
 import { planClinicalTurn } from "./turnPlanner.js";
 import { buildMentorBrief, prerequisiteMeta } from "../core/mentorBrief.js";
 import { prerequisiteSatisfied } from "../core/prerequisiteClosure.js";
+import { isGovernanceGapParameter } from "../core/parameterSafety.js";
 import { LEARNER_ADDRESS_FORM } from "../core/learnerAddress.js";
 import { runMentorAgent } from "../core/mentorAgent.js";
 import { MENTOR_MODE, MENTOR_POLICY_VERSION } from "../core/mentorPolicy.js";
@@ -161,6 +162,12 @@ function createWorkingMemory() {
     lastLearnerMove: null,
     // Mentor heuristics already used this session; each speaks once.
     firedHeuristicIds: [],
+    // Governance notes the engine has already said, keyed by order and wording.
+    // "Записано, правила нет, к пациенту не применено" is a fact about the pilot's
+    // content; repeating it every turn the learner restates the plan is what put
+    // the same wall of text on turns 4 and 7 of the live run of 20.08.2026. A
+    // CHANGED order is a new key and is noted again.
+    governanceNotesDelivered: [],
     // What the learner has articulated, cumulative. Claims, not facts: nothing
     // in here may move the score. See core/reasoningState.js.
     reasoningState: createEmptyReasoningState(),
@@ -434,11 +441,17 @@ function recordedActionDisputeReply(session) {
   return missing.length ? `${head} Не зафиксировано: ${missing.join(", ")}.` : head;
 }
 
-function closingPrompt(session, plan, blockedOperations) {
+function closingPrompt(session, plan, blockedOperations, governanceGapActionIds = new Set()) {
   // An order the team is waiting on outranks every generic closing line: the
-  // learner has to be able to finish stating it.
+  // learner has to be able to finish stating it. An order the pilot holds no
+  // reviewed rule for is the exception: the missing slot changes nothing, the
+  // order will not be applied either way, and asking for it again three turns
+  // later is the same question twice - which is what turns 4 and 7 of the live
+  // run of 20.08.2026 both ended on.
   const awaiting = operationalizationQuestion(
-    (plan.operationalizationStates || []).filter((state) => !state.complete)
+    (plan.operationalizationStates || []).filter(
+      (state) => !state.complete && !governanceGapActionIds.has(state.action_id)
+    )
   );
   if (awaiting) return awaiting;
   if (blockedOperations.length) return "Как меняешь план с учётом этого ограничения?";
@@ -514,6 +527,9 @@ function applyPlan(caseData, session, plan, options = {}) {
     };
   }
   const replies = [];
+  // Collected across the turn and said once, together. Two orders the pilot has
+  // no rule for are one sentence, not one paragraph each.
+  const governanceGapNotes = [];
   const scoringEvents = [];
   const actionLogEntries = [];
   const performedIds = [];
@@ -642,11 +658,20 @@ function applyPlan(caseData, session, plan, options = {}) {
       // A complete order gets a terminal answer, not the question again. Asking
       // a learner who has already answered to answer once more is what ended
       // replay b9d7a831 after three turns on the same sentence.
-      replies.push(
-        orderState?.complete
-          ? orderRecordedNote(verbatim)
-          : `**Проверка параметра:** «${verbatim}» требует клинической проверки: параметр не валидирован учебным контентом и не применён к пациенту.`
-      );
+      if (isGovernanceGapParameter(parameterSafety)) {
+        governanceGapNotes.push({
+          action_id: operation.action_id,
+          key: governanceNoteKey(operation.action_id, verbatim),
+          verbatim,
+          complete: Boolean(orderState?.complete),
+        });
+      } else {
+        replies.push(
+          orderState?.complete
+            ? blockedParameterNote(verbatim)
+            : `**Проверка параметра:** «${verbatim}» требует клинической проверки: параметр не валидирован учебным контентом и не применён к пациенту.`
+        );
+      }
       memory = updateActionState(memory, operation, "blocked", memory.turnNumber, {
         blocked_by: [
           parameterSafety.source_rule_id ||
@@ -948,9 +973,16 @@ function applyPlan(caseData, session, plan, options = {}) {
       (signal) => signal.concept_id === state.action_id && signal.blocks_application
     );
     if (blockedByParameter) {
-      replies.push(
-        orderRecordedNote(plan.input)
-      );
+      if (isGovernanceGapParameter(blockedByParameter)) {
+        governanceGapNotes.push({
+          action_id: state.action_id,
+          key: governanceNoteKey(state.action_id, plan.input),
+          verbatim: plan.input,
+          complete: true,
+        });
+      } else {
+        replies.push(blockedParameterNote(plan.input));
+      }
       continue;
     }
 
@@ -991,6 +1023,25 @@ function applyPlan(caseData, session, plan, options = {}) {
       confidence: 1,
     });
   }
+
+  // Said once, and said together. Every order the pilot has no reviewed rule for
+  // shares one explanation; an order already noted is not noted again, because
+  // nothing about it changed and the learner has already read why.
+  const deliveredGovernanceKeys = new Set(memory.governanceNotesDelivered || []);
+  const freshGovernanceNotes = [];
+  for (const note of governanceGapNotes) {
+    if (deliveredGovernanceKeys.has(note.key)) continue;
+    deliveredGovernanceKeys.add(note.key);
+    freshGovernanceNotes.push(note);
+  }
+  if (freshGovernanceNotes.length) {
+    replies.push(orderRecordedNote(freshGovernanceNotes));
+    memory = { ...memory, governanceNotesDelivered: [...deliveredGovernanceKeys] };
+  }
+  // Every order blocked this turn for want of a rule, noted now or noted earlier.
+  const governanceGapActionIds = new Set(
+    governanceGapNotes.map((note) => note.action_id).filter(Boolean)
+  );
 
   // "я же написала!" is a repair move. Replay what is on record instead of
   // answering it with "не распознано".
@@ -1122,7 +1173,12 @@ function applyPlan(caseData, session, plan, options = {}) {
     ? plan.responseAct === "explain_recorded_and_missing_actions"
       ? repaired
       : `Повторю вопрос. ${repaired}`
-    : [stateLine, closingPrompt(nextSession, plan, blockedOperations)].filter(Boolean).join("\n\n");
+    : [
+        stateLine,
+        closingPrompt(nextSession, plan, blockedOperations, governanceGapActionIds),
+      ]
+        .filter(Boolean)
+        .join("\n\n");
   const reply = [...new Set(replies), ...nonActionLines, neutralPrompt]
     .filter(Boolean)
     .join("\n\n");
@@ -1228,25 +1284,75 @@ function applyPlan(caseData, session, plan, options = {}) {
 }
 
 /**
- * What the resident hears when they have stated an order in full and the pilot
- * holds no reviewed rule for it.
+ * What the resident hears when the pilot holds no reviewed rule for what they
+ * ordered.
  *
  * THE SENTENCE THIS MUST NOT BE. "Your dose is wrong." It isn't a verdict on the
- * number: the pilot has no approved analgesic rule to measure it against, and
- * inventing one is precisely what the governance layer exists to prevent. So the
- * note says three things and stops - the order was recorded, no reviewed rule
- * covers it, it was not applied to the patient - and it never asks again.
+ * number: the pilot has no approved rule to measure it against, and inventing one
+ * is precisely what the governance layer exists to prevent. So the note says three
+ * things and stops - the order was recorded, no reviewed rule covers it, it was
+ * not applied to the patient - and it never asks again.
  *
- * Said once per order (CDR-19, owner decision 20.08.2026); the caller tracks
- * that. Repeating it every turn is the loop that ended replay b9d7a831.
+ * Said once per order (CDR-19, owner decision 20.08.2026) and once per TURN for
+ * all of them together. The live run of 20.08.2026 turned one line of orders into
+ * four blocks of engine text, two of them near-identical, and then repeated the
+ * whole wall three turns later. The wording for a single fully-stated order is the
+ * one the owner signed and is reproduced here unchanged.
+ *
+ * @param {Array<{verbatim: string, complete: boolean}>|string} notes
  */
-export function orderRecordedNote(verbatim) {
-  return (
-    `**Назначение записано:** «${verbatim}». ` +
-    "Отрецензированного правила по этому препарату в пилоте пока нет, поэтому параметры " +
-    "не проверяются, к пациенту назначение не применено и эффект не моделируется. " +
-    "Это не замечание к твоему выбору. Повторять назначение не нужно."
+export function orderRecordedNote(notes) {
+  const list = (Array.isArray(notes) ? notes : [{ verbatim: notes, complete: true }]).filter(
+    (note) => note && note.verbatim
   );
+  if (!list.length) return "";
+  if (list.length === 1 && list[0].complete) {
+    return (
+      `**Назначение записано:** «${list[0].verbatim}». ` +
+      "Отрецензированного правила по этому препарату в пилоте пока нет, поэтому параметры " +
+      "не проверяются, к пациенту назначение не применено и эффект не моделируется. " +
+      "Это не замечание к твоему выбору. Повторять назначение не нужно."
+    );
+  }
+  if (list.length === 1) {
+    return (
+      `**Назначение записано:** «${list[0].verbatim}». ` +
+      "Отрецензированного правила под этот параметр в пилоте пока нет, поэтому он " +
+      "не проверяется, к пациенту назначение не применено и эффект не моделируется. " +
+      "Это не замечание к твоему выбору."
+    );
+  }
+  const quoted = list.map((note) => `«${note.verbatim}»`).join(", ");
+  const allComplete = list.every((note) => note.complete);
+  return (
+    `**Назначения записаны:** ${quoted}. ` +
+    "Отрецензированных правил под них в пилоте пока нет, поэтому параметры не проверяются, " +
+    "к пациенту назначения не применены и эффект не моделируется. " +
+    "Это не замечание к твоему выбору." +
+    (allComplete ? " Повторять назначения не нужно." : "")
+  );
+}
+
+/**
+ * The other side of the split: a parameter that stops. Either a reviewed rule
+ * rejected it, or it belongs to a class the pilot enumerates as high risk and
+ * cannot yet measure - "20 ml/kg or 200" is not a distinction it can make, so it
+ * fails safe. Danger keeps the register of danger, and it repeats for as long as
+ * the learner insists. See core/parameterSafety.js.
+ */
+export function blockedParameterNote(verbatim) {
+  return (
+    `**Проверка параметра:** «${verbatim}» требует клинической проверки: ` +
+    "параметр не валидирован учебным контентом и не применён к пациенту."
+  );
+}
+
+/**
+ * One order, one wording. A learner who restates the same order gets no second
+ * note; a learner who CHANGES it has stated something new and gets one.
+ */
+export function governanceNoteKey(conceptId, verbatim) {
+  return `${conceptId || "unknown"}:${String(verbatim || "").trim().toLowerCase()}`;
 }
 
 export function createV25Session(options = {}) {
