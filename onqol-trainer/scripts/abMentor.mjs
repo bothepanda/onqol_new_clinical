@@ -22,7 +22,7 @@
  * The world is identical in both columns by construction: the case is rebuilt
  * from the frozen seed and preset, and no path may add a patient fact.
  */
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 
 import { buildV35Case } from "../src/clinical/v35/createCase.js";
 import { advanceV25Session, createV25Session } from "../src/clinical/v25/engine.js";
@@ -32,6 +32,8 @@ import {
   appendicitisRouterConceptMap,
   resolveConcept,
 } from "../src/clinical/diseases/appendicitis/router/conceptRegistry.js";
+import { DEFAULT_MODELS } from "../server/openaiGateway.mjs";
+import { DETERMINISTIC_SHARE_LIMIT, harnessVerdict } from "./abMentorVerdict.mjs";
 
 const args = new Set(process.argv.slice(2));
 const live = args.has("--live");
@@ -47,6 +49,26 @@ const FORBIDDEN = [
   "Не распознано:",
 ];
 
+/**
+ * Which models this run actually uses.
+ *
+ * Resolved here rather than left to `buildOpenAIRequest`, because that function
+ * only falls back to DEFAULT_MODELS when the whole `models` object is omitted.
+ * Passing `{ mentor: undefined }` - which is what `env.X || undefined` produces
+ * for an unset variable - overrode the default with nothing, sent
+ * `model: undefined` to the provider, and turned every turn into a transport
+ * error. The run then reported the resulting templates as its result.
+ */
+function resolveModels() {
+  return {
+    router: process.env.OPENAI_ROUTER_MODEL || DEFAULT_MODELS.router,
+    simulator: process.env.OPENAI_SIMULATOR_MODEL || DEFAULT_MODELS.simulator,
+    mentor: process.env.OPENAI_MENTOR_MODEL || DEFAULT_MODELS.mentor,
+  };
+}
+
+const models = resolveModels();
+
 async function mentorLLM() {
   if (!live) return null;
   const apiKey = process.env.OPENAI_API_KEY;
@@ -56,16 +78,7 @@ async function mentorLLM() {
   }
   const { requestOpenAI } = await import("../server/openaiGateway.mjs");
   return async (prompt) => {
-    const { output } = await requestOpenAI({
-      apiKey,
-      task: "mentor",
-      prompt,
-      models: {
-        router: process.env.OPENAI_ROUTER_MODEL || undefined,
-        simulator: process.env.OPENAI_SIMULATOR_MODEL || undefined,
-        mentor: process.env.OPENAI_MENTOR_MODEL || undefined,
-      },
-    });
+    const { output } = await requestOpenAI({ apiKey, task: "mentor", prompt, models });
     return output;
   };
 }
@@ -115,9 +128,19 @@ async function currentPath(llm) {
       },
     });
     session = result.session;
+    // The engine appends the mentor's line to its own reply before returning, so
+    // the two are split back apart here. A reader comparing the mentor's voice
+    // against the mockup needs to see what the mentor said, not the concatenation.
+    const mentorText = result.mentor?.text || "";
+    const engineOnly =
+      mentorText && result.reply?.endsWith(mentorText)
+        ? result.reply.slice(0, -mentorText.length).trim()
+        : result.reply;
     turns.push({
       learner,
       reply: result.reply,
+      engineReply: engineOnly,
+      mentorText,
       mentor: result.mentor
         ? {
             mode: result.mentor.mode,
@@ -270,6 +293,11 @@ function printStats(a, b, telemetry, probe) {
   }
 
   console.log("\nМентор, путь B:");
+  // Printed first and always: "the run measured something other than we thought"
+  // must never again be invisible.
+  console.log(
+    `  модель в запросе:      ${live ? models.mentor : "не вызывалась (прогон без модели)"}`
+  );
   console.log(`  реплик ментора:        ${telemetry.summary.mentor_turns}`);
   console.log(`  из модели:             ${telemetry.summary.from_model}`);
   console.log(`  из шаблона:            ${telemetry.summary.from_template}`);
@@ -304,14 +332,203 @@ function printStats(a, b, telemetry, probe) {
   }
 }
 
+/**
+ * A run written out for a person to read, not a machine to parse.
+ *
+ * The point is one comparison that has never been made: the mentor's live voice
+ * against the evening of 91ba7206 and against the mockup. So every turn shows
+ * the learner's words, what the engine answered, and what the mentor said - in
+ * full, unedited, with the mode and the source beside it. Nothing here judges
+ * the quality of a reply; that is the reader's job.
+ */
+function reportMarkdown({ a, b, telemetry, verdict, probe }) {
+  const summary = telemetry.summary;
+  const reasons = Object.entries(summary.rejection_reasons);
+  const lines = [];
+
+  lines.push("# Живой прогон ментора · фикстура 91ba7206");
+  lines.push("");
+  lines.push(`**${new Date().toISOString().slice(0, 10)}** · кейс APP-003 · seed \`${fixture.effective_seed}\``);
+  lines.push("");
+  lines.push("Первое сравнение живого голоса ментора с записью 91ba7206 за всю переделку.");
+  lines.push("До 20.08.2026 харнесс сравнивал шаблоны с шаблонами: имя модели не доходило");
+  lines.push("до запроса, и все реплики откатывались на детерминированный рендер.");
+  lines.push("");
+  lines.push("Здесь ничего не оценено и не прокомментировано. Читать глазами и сравнивать");
+  lines.push("с `onqol-mentor-ab-mockup.html` и записями V12–V14.");
+  lines.push("");
+  lines.push("## Чем мерили");
+  lines.push("");
+  lines.push("| | |");
+  lines.push("|---|---|");
+  lines.push(`| Модель ментора | \`${models.mentor}\` |`);
+  const spokeAloud = b.filter((turn) => turn.mentorText).length;
+  lines.push(`| Решений ментора | ${summary.mentor_turns} из ${b.length} ходов |`);
+  lines.push(`| Из них с текстом | ${spokeAloud} — остальные \`CONTINUE\`, режим молчания |`);
+  lines.push(`| Из модели | **${summary.from_model}** |`);
+  lines.push(`| Из шаблона | ${summary.from_template} |`);
+  lines.push(`| Доля шаблонов | ${verdict.share === null ? "—" : `${Math.round(verdict.share * 100)}%`} |`);
+  lines.push(`| Отклонений | ${reasons.length ? reasons.map(([k, v]) => `\`${k}\`×${v}`).join(", ") : "нет"} |`);
+  lines.push(`| Починок | ${summary.repaired} |`);
+  lines.push(`| Дословных повторов вопроса | ${repeatedQuestions(b).length} |`);
+  lines.push(`| Совпало с детерминированной политикой | ${summary.policy_agreement} из ${summary.mentor_turns} |`);
+  const flags = [...new Set(telemetry.turns.flatMap((turn) => turn.telemetry_flags))];
+  lines.push(`| Флаги телеметрии | ${flags.length ? flags.map((f) => `\`${f}\``).join(", ") : "нет"} |`);
+  lines.push(`| Вердикт прогона | ${verdict.ok ? "замер состоялся" : verdict.failures.map((f) => f.code).join(", ")} |`);
+  lines.push("");
+
+  lines.push("---");
+  lines.push("");
+  lines.push("## Ходы");
+  lines.push("");
+  for (const [index, turn] of b.entries()) {
+    const mentor = turn.mentor;
+    lines.push(`### Ход ${index + 1}`);
+    lines.push("");
+    lines.push("**Резидент:**");
+    lines.push("");
+    lines.push(`> ${turn.learner.split("\n").join("\n> ")}`);
+    lines.push("");
+    lines.push("**Движок:**");
+    lines.push("");
+    lines.push(turn.engineReply ? blockquote(turn.engineReply) : "> *(движок ничего не ответил)*");
+    lines.push("");
+    if (mentor && turn.mentorText) {
+      const tags = [
+        `mode: \`${mentor.mode}\``,
+        `source: \`${mentor.source}\``,
+        `починка: ${mentor.repairAttempted ? "да" : "нет"}`,
+        `отказ: ${mentor.rejectionReasons.length ? mentor.rejectionReasons.map((r) => `\`${r}\``).join(", ") : "нет"}`,
+      ];
+      if (mentor.telemetry.length) {
+        tags.push(`телеметрия: ${mentor.telemetry.map((flag) => `\`${flag}\``).join(", ")}`);
+      }
+      lines.push(`**Ментор** — ${tags.join(" · ")}`);
+      lines.push("");
+      lines.push(blockquote(turn.mentorText));
+    } else {
+      lines.push(`**Ментор:** не вмешивался${mentor ? ` (mode: \`${mentor.mode}\`)` : ""}`);
+    }
+    lines.push("");
+    lines.push(`<sub>Для сравнения — что было в записи 91ba7206 на этом ходе:</sub>`);
+    lines.push("");
+    lines.push(a[index]?.reply ? blockquote(a[index].reply) : "> *(нет хода)*");
+    lines.push("");
+    lines.push("---");
+    lines.push("");
+  }
+
+  lines.push("## Строки, ради которых всё переделывалось");
+  lines.push("");
+  lines.push("В записи `91ba7206` старый тренажёр отвечал так. Ниже — что стоит на их месте.");
+  lines.push("");
+  lines.push("Искали две строки; в этой записи встречается только одна, зато четырежды:");
+  lines.push("");
+  const hits = forbiddenHits(a);
+  for (const needle of FORBIDDEN) {
+    const count = hits.filter((hit) => hit.needle === needle).length;
+    lines.push(`- «${needle}» — ${count === 0 ? "**в этой записи не встречается**" : `${count} раз(а)`}`);
+  }
+  lines.push("");
+  if (!hits.length) {
+    lines.push("*Ни одной из искомых строк в записи нет — фикстура могла быть обновлена.*");
+  }
+  for (const hit of hits) {
+    const turn = b[hit.turn - 1];
+    lines.push(`### Ход ${hit.turn} — «${hit.needle}»`);
+    lines.push("");
+    lines.push("**Было:**");
+    lines.push("");
+    lines.push(blockquote(a[hit.turn - 1]?.reply || ""));
+    lines.push("");
+    lines.push("**Стало:**");
+    lines.push("");
+    lines.push(blockquote(turn?.reply || "*(нет хода)*"));
+    lines.push("");
+  }
+  lines.push("---");
+  lines.push("");
+  lines.push(`Путь в операционную: ${probe.turn ? `открыт с хода ${probe.turn}` : `не открылся (${probe.blocked.join(", ") || "причина неизвестна"})`}.`);
+  lines.push("");
+  lines.push("*Сгенерировано `npm run ab:mentor -- --live --report=<файл>`. Правки в этот файл вносить нет смысла: он перезаписывается прогоном.*");
+  return lines.join("\n");
+}
+
+function blockquote(text) {
+  return String(text)
+    .split("\n")
+    .map((line) => (line.trim() ? `> ${line}` : ">"))
+    .join("\n");
+}
+
+function printVerdict(verdict) {
+  console.log(box("ВЕРДИКТ ПРОГОНА"));
+  if (verdict.ok) {
+    // Offline the share is 100% by construction, so saying "the measurement
+    // succeeded" next to it would read as approval of a voice nobody heard.
+    if (!live) {
+      console.log("  ✓ прогон без модели прошёл: движок, петля и телеметрия проверены");
+      console.log("    голос ментора НЕ измерялся — все реплики из шаблона по построению");
+      return;
+    }
+    console.log("  ✓ замер состоялся: модель отвечала");
+    if (verdict.share !== null) {
+      console.log(`    доля реплик из шаблона: ${Math.round(verdict.share * 100)}%`);
+    }
+    return;
+  }
+  for (const failure of verdict.failures) {
+    console.log(`  ✗ ${failure.code}`);
+    console.log(`    ${failure.detail}`);
+  }
+  console.log(
+    "\n  Прогон завершается с ненулевым кодом. Транспортная ошибка и плохой ответ" +
+      "\n  модели — разные вещи, и ни одна из них не является успешной приёмкой."
+  );
+}
+
 const llm = await mentorLLM();
 const a = recordedPath();
 const b = await currentPath(llm);
 const probe = await theatreProbe();
 
+const verdict = harnessVerdict({
+  telemetry: b.telemetry,
+  live,
+  limit: Number(
+    [...args].find((arg) => arg.startsWith("--max-deterministic="))?.split("=")[1]
+  ) || DETERMINISTIC_SHARE_LIMIT,
+});
+
 if (asJson) {
-  console.log(JSON.stringify({ recorded: a, current: b.turns, telemetry: b.telemetry, theatre: probe }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        models: live ? models : null,
+        recorded: a,
+        current: b.turns,
+        telemetry: b.telemetry,
+        theatre: probe,
+        verdict,
+      },
+      null,
+      2
+    )
+  );
 } else {
   printTranscripts(a, b.turns);
   printStats(a, b, b.telemetry, probe);
+  printVerdict(verdict);
 }
+
+const reportPath = [...args].find((arg) => arg.startsWith("--report="))?.split("=")[1];
+if (reportPath) {
+  writeFileSync(
+    reportPath,
+    `${reportMarkdown({ a, b: b.turns, telemetry: b.telemetry, verdict, probe })}\n`,
+    "utf8"
+  );
+  console.log(`\nОтчёт для чтения: ${reportPath}`);
+}
+
+process.exitCode = verdict.exitCode;
