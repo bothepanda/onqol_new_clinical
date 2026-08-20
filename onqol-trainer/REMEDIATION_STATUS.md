@@ -47,8 +47,9 @@ is a pilot-wide APP-001–004 sign-off.
 corrected sentence cannot drift back through documentation alone.
 
 Status after this work: **P0 clinical remediation implemented and technically
-verified; pilot-wide clinical sign-off, language and assessment validation
-remain open. REFERENCE-FULL is approved only for the scoped pilot; Kazakhstan
+verified; pilot-wide clinical sign-off is approved for the exact scoped pilot,
+while language and assessment validation remain open. REFERENCE-FULL is approved
+only for the scoped pilot; Kazakhstan
 real-facility review remains open but does not block reference mode.** The product is a candidate for a small
 formative/usability pilot and is not clinically validated, not efficacy
 validated, not production-ready and not suitable for summative assessment.
@@ -61,12 +62,12 @@ validated, not production-ready and not suitable for summative assessment.
 2. Configure the protected HTTPS origin, strong internal pilot token, hosting
    authentication and durable hosting-level rate/spend controls; record the
    matching hosting manifest approval.
-3. Add the actual signed pilot-wide APP-001–004 artifact from Сарина Т.Т.; the
-   dose-subset review cannot replace it. `REFERENCE-FULL` is already approved
-   for this pilot, while blood products and transfer destination remain future
-   real-mode work. The unsigned form
-   `PILOT_CLINICAL_SIGNOFF_APP001_004_SARINA_TT_2026-08-20_FOR_SIGNATURE.pdf`
-   is marked `DRAFT: SIGNATURE REQUIRED` on every page and does not close the gate.
+3. Bind the signed pilot-wide APP-001–004 approval in production with
+   `ONQOL_CLINICAL_SIGNOFF_ID=ONQOL-CLINICAL-20260820`. The signed original is
+   `PILOT_CLINICAL_SIGNOFF_APP001_004_SARINA_TT_2026-08-20.pdf`; its scope does
+   not include KK, real mode, APP-005, complications, alternative hidden truths
+   or numeric scoring. `REFERENCE-FULL` is already approved for this pilot,
+   while blood products and transfer destination remain future real-mode work.
 4. Approve participant information, consent, retention, controlled JSON transfer
    and deletion policy.
 5. Review all 50 reachable entries / 49 unique blocks in
@@ -104,7 +105,7 @@ validated, not production-ready and not suitable for summative assessment.
 | Local main internal demo | GO with explicit dev setup | coherent stable path and formative-only output; local fallback requires an explicit development-only flag and is never pilot evidence |
 | Local V1 regression testing | GO with internal-only label | isolated app and automated gates pass; no clinical/evaluative use |
 | Protected hosted V1 testing | NO-GO | key rotation, hosting protection and deployed desktop/mobile smoke are unconfirmed |
-| External formative pilot | NO-GO | pilot-wide clinical artifact, RU copy, privacy/consent, production configuration and deployment bindings remain open; future KZ real-mode review is outside this pilot |
+| External formative pilot | NO-GO | clinical approval is recorded, but its production binding, RU copy, privacy/consent, remaining production configuration and other deployment bindings remain open; future KZ real-mode review is outside this pilot |
 | Public or evaluative release | NO-GO | numeric rubric, alternative truths, unstable/complication paths and bilingual review are not signed |
 
 ## Scope that remains intentionally inactive

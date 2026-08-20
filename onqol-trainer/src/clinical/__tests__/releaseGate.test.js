@@ -17,8 +17,9 @@ test("production release is NO-GO while owner gates remain open", () => {
   // The rule registry stopped being a blocker once the twelve rules were signed.
   // Everything else still blocks, and production stays NO-GO.
   assert.equal(result.blocker_codes.includes("clinical_rule_registry_not_approved"), false);
-  assert.ok(result.blocker_codes.includes("clinical_signoff_missing"));
+  assert.ok(result.blocker_codes.includes("clinical_signoff_deployment_id_missing"));
   assert.ok(result.blocker_codes.includes("resource_profile_review_deployment_id_missing"));
+  assert.equal(result.approval_manifest.statuses.clinical_signoff, "approved");
   assert.equal(result.approval_manifest.statuses.resource_profile_review, "approved");
   assert.equal(result.clinical_governance.structurally_valid, true);
   assert.equal(result.blocker_codes.some((code) => code.startsWith("v35_runtime_blocker_")), false);

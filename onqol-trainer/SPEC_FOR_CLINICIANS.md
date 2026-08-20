@@ -452,14 +452,15 @@ APP-003 отозван 19.08.2026 — метаанализ показывает 
 
 ### Девять текущих блокеров развёртывания
 
-Конфигурация/binding (4): нет production provider key · сильного кода доступа ·
+Конфигурация/binding (5): нет production provider key · сильного кода доступа ·
 точного HTTPS origin · production binding
-`ONQOL_RESOURCE_PROFILE_REVIEW_ID=ONQOL-REFERENCE-FULL-20260820`.
+`ONQOL_RESOURCE_PROFILE_REVIEW_ID=ONQOL-REFERENCE-FULL-20260820` · production
+binding `ONQOL_CLINICAL_SIGNOFF_ID=ONQOL-CLINICAL-20260820`.
 
-Pending manifest approvals (5): rotation/revocation ключа · защита хостинга ·
-pilot-wide clinical sign-off · RU language review · privacy/consent/transfer
-policy. Reference resource profile уже approved только для текущего
-reference-only scope; KZ real-mode review остаётся отдельной будущей задачей.
+Pending manifest approvals (4): rotation/revocation ключа · защита хостинга ·
+RU language review · privacy/consent/transfer policy. Clinical sign-off и
+reference resource profile уже approved только для текущего reference-only
+scope; KZ real-mode review остаётся отдельной будущей задачей.
 
 Сборка проверяет это перед каждым развёртыванием и падает. Это работающий
 предохранитель, а не поломка.

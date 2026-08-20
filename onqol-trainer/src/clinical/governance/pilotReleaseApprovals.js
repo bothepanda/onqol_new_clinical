@@ -48,14 +48,16 @@ export const PILOT_RELEASE_APPROVALS = Object.freeze({
   approvals: Object.freeze({
     provider_key_rotation: pending("Current production provider key was rotated and the old key revoked."),
     hosting_protection: pending("Production domain protection and authenticated access were verified on the deployed URL."),
-    clinical_signoff: pending(
-      "No pilot-wide signed artifact was found. Draft signature form: " +
-      "PILOT_CLINICAL_SIGNOFF_APP001_004_SARINA_TT_2026-08-20_FOR_SIGNATURE.pdf. " +
-      "Required approval evidence remains: " +
-      "PILOT_CLINICAL_SIGNOFF_APP001_004_SARINA_TT_2026-08-20.pdf (or an equivalently " +
-      "signed artifact covering the stable APP-001–004 learner path, with reviewer, date " +
-      "and the exact pilot scope)."
-    ),
+    clinical_signoff: approved({
+      approval_id: "ONQOL-CLINICAL-20260820",
+      reviewer: "Сарина Т.Т., independent clinical reviewer",
+      approved_at: "2026-08-20",
+      evidence: "PILOT_CLINICAL_SIGNOFF_APP001_004_SARINA_TT_2026-08-20.pdf",
+      scope:
+        "N=8 residents; RU; REFERENCE-FULL; APP-001–004 stable learner path; " +
+        "formative-only. Real facility mode, KK, APP-005, complications, alternative " +
+        "hidden truths and numeric scoring excluded.",
+    }),
     ru_language_review: pending(
       "All reachable learner-facing RU runtime copy in " +
       "PILOT_RU_RUNTIME_COPY_REVIEW_2026-08-20.md and the matching PDF; " +

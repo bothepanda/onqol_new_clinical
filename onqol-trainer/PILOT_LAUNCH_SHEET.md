@@ -41,7 +41,7 @@ Deployment variable должна в точности совпасть с `approv
 | --- | --- | --- |
 | `provider_key_rotation` | `ONQOL_PROVIDER_KEY_ROTATION_ID` | pending: новый ключ должен работать, старый — быть отозван |
 | `hosting_protection` | `ONQOL_HOSTING_PROTECTION_ID` | pending: защита должна быть проверена на реальном URL |
-| `clinical_signoff` | `ONQOL_CLINICAL_SIGNOFF_ID` | pending: нет pilot-wide подписанного артефакта Сарины Т.Т.; форма для подписи — `PILOT_CLINICAL_SIGNOFF_APP001_004_SARINA_TT_2026-08-20_FOR_SIGNATURE.pdf`; для закрытия требуется подписанный `PILOT_CLINICAL_SIGNOFF_APP001_004_SARINA_TT_2026-08-20.pdf` либо эквивалент с точным scope |
+| `clinical_signoff` | `ONQOL_CLINICAL_SIGNOFF_ID` | **approved** для точного RU/REFERENCE-FULL/APP-001–004/formative-only scope: Сарина Т.Т., 20.08.2026, evidence `PILOT_CLINICAL_SIGNOFF_APP001_004_SARINA_TT_2026-08-20.pdf`; deployment id должен быть `ONQOL-CLINICAL-20260820` |
 | `ru_language_review` | `ONQOL_RU_LANGUAGE_REVIEW_ID` | pending: 50 достижимых записей / 49 уникальных блоков подготовлены в `PILOT_RU_RUNTIME_COPY_REVIEW_2026-08-20.md` и PDF; снимки — `PILOT_RU_RUNTIME_SNAPSHOTS_2026-08-20.json` |
 | `resource_profile_review` | `ONQOL_RESOURCE_PROFILE_REVIEW_ID` | **approved** только для `REFERENCE-FULL`: `REFERENCE_RESOURCE_PROFILE_PILOT_APPROVAL_2026-08-20.md`; deployment id должен быть `ONQOL-REFERENCE-FULL-20260820` |
 | `privacy_owner_approval` | `ONQOL_PRIVACY_OWNER_APPROVAL_ID` | pending: уведомление, согласие, передача и удаление должны быть утверждены |

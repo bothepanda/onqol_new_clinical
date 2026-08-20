@@ -38,7 +38,7 @@ formative-only.
 ## Verification snapshot
 
 - `npm ci`: reproducible install complete.
-- `npm test`: **459/459 passed**.
+- `npm test`: **462/462 passed**.
 - `npm run lint`: passed.
 - `npm run build`: Vite 8.2.2 production build passed, no chunk warning.
 - `npm audit`: **0 vulnerabilities**.
@@ -67,17 +67,12 @@ Configuration and deployment binding:
 3. точный protected HTTPS `ONQOL_MAIN_ALLOWED_ORIGIN`.
 4. `ONQOL_RESOURCE_PROFILE_REVIEW_ID=ONQOL-REFERENCE-FULL-20260820` в
    production environment.
+5. `ONQOL_CLINICAL_SIGNOFF_ID=ONQOL-CLINICAL-20260820` в production environment.
 
 Pending manifest approvals:
 
-5. provider key rotation/revocation;
-6. deployed hosting protection;
-7. pilot-wide APP-001–004 clinical sign-off: подписанный артефакт не найден;
-   подготовлена форма
-   `PILOT_CLINICAL_SIGNOFF_APP001_004_SARINA_TT_2026-08-20_FOR_SIGNATURE.pdf`.
-   Для закрытия gate по-прежнему требуется реально подписанный
-   `PILOT_CLINICAL_SIGNOFF_APP001_004_SARINA_TT_2026-08-20.pdf` или
-   эквивалентный артефакт с reviewer/date/exact scope;
+6. provider key rotation/revocation;
+7. deployed hosting protection;
 8. pilot-wide RU learner-copy review по
    `PILOT_RU_RUNTIME_COPY_REVIEW_2026-08-20.md` и одноимённому PDF; снимки
    выполнения — `PILOT_RU_RUNTIME_SNAPSHOTS_2026-08-20.json`;
@@ -92,7 +87,7 @@ evidence `REFERENCE_RESOURCE_PROFILE_PILOT_APPROVAL_2026-08-20.md`. KZ-R1/R2/R3
 
 | Gate | Status before | Status after | Evidence | Remaining owner action |
 | --- | --- | --- | --- | --- |
-| `clinical_signoff` | pending, но часть документов звучала как completed | **pending**, противоречие удалено | найдены только незаполненный `REVIEW_PACKAGE_APPENDICITIS_v1.1.md` и отдельный dosing subset; создана форма `PILOT_CLINICAL_SIGNOFF_APP001_004_SARINA_TT_2026-08-20_FOR_SIGNATURE.pdf`, на каждой странице стоит `DRAFT: SIGNATURE REQUIRED` | получить подпись Сарины Т.Т. с датой, решением и exact scope; сохранить подписанный `PILOT_CLINICAL_SIGNOFF_APP001_004_SARINA_TT_2026-08-20.pdf` или эквивалент; затем внести approval id |
+| `clinical_signoff` | pending; pilot-wide подписанного артефакта не было | **approved** для точного RU/REFERENCE-FULL/APP-001–004/formative-only scope | рукописно отмечены четыре кейса, общий checklist, решение, дата 20.08.2026 и подпись Сарины Т.Т.; исходный PDF сохранён без переэкспорта как `PILOT_CLINICAL_SIGNOFF_APP001_004_SARINA_TT_2026-08-20.pdf`; approval id `ONQOL-CLINICAL-20260820` | установить matching production deployment id; не расширять approval на KK, real mode, APP-005, осложнения, альтернативные hidden truths или numeric scoring |
 | `ru_language_review` | pending; CDR-11/17 охватывал часть строк и имел пустую подпись | **pending**, пакет достижимого текста подготовлен | 50 записей / 49 уникальных блоков в `PILOT_RU_RUNTIME_COPY_REVIEW_2026-08-20.md` и PDF; воспроизводимые снимки в `PILOT_RU_RUNTIME_SNAPSHOTS_2026-08-20.json`; freshness check в CI/Vercel | просмотреть все `needs owner review`, зафиксировать решение и approval id |
 | `resource_profile_review` | pending вместе с неподтверждёнными KZ-R1/R2/R3 | **approved** только для `REFERENCE-FULL`; real mode forbidden | `REFERENCE_RESOURCE_PROFILE_PILOT_APPROVAL_2026-08-20.md`, `ONQOL-REFERENCE-FULL-20260820`; два release-gate теста | установить matching production deployment id; KZ-R1/R2/R3 не закрывать ради этого пилота |
 | Cohort size | N=8 был указан не во всех актуальных документах; smoke мог читаться как cohort | **N=8 residents** зафиксирован; smoke переименован | participant memo, clinical matrix, launch sheet, spec, privacy, smoke report | набрать ровно 8 участников; не считать `8/8 technical router requests` пользовательскими сессиями |
@@ -102,8 +97,9 @@ evidence `REFERENCE_RESOURCE_PROFILE_PILOT_APPROVAL_2026-08-20.md`. KZ-R1/R2/R3
 
 Текущий `release:check`: `NO-GO`, `manifest_valid=true`,
 `runtime_blockers=[]`, `resource_profile_review=approved`. Остались девять
-реальных blocker codes: три production credentials/origin, пять pending
-approvals и один production binding для уже утверждённого `REFERENCE-FULL`.
+реальных blocker codes: три production credentials/origin, четыре pending
+approvals и два production binding для уже утверждённых clinical sign-off и
+`REFERENCE-FULL`.
 
 После их фактического закрытия: `npm run release:check` должен впервые вернуть
 GO, затем выполняются cohort smoke и ручной desktop/mobile smoke уже на exact

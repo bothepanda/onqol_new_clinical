@@ -235,10 +235,11 @@ The limited pilot is fixed at **N=8 residents**, RU, `REFERENCE-FULL`,
 APP-001–004 and `formative_only`.
 
 Vercel runs `npm run release:check` before the bundle build. The gate remains
-`NO-GO` until credential rotation, hosting protection, pilot-wide clinical
-review, complete Russian runtime-copy review and privacy-owner approval are
-recorded in `src/clinical/governance/pilotReleaseApprovals.js`. `REFERENCE-FULL`
-is already approved only for this exact scope; KZ-R1/R2/R3 remain unreviewed,
+`NO-GO` until credential rotation, hosting protection, matching deployment
+bindings for the approved clinical/resource records, complete Russian
+runtime-copy review and privacy-owner approval are recorded. The pilot-wide
+clinical sign-off and `REFERENCE-FULL` are already approved only for this exact
+scope; KZ-R1/R2/R3 remain unreviewed,
 learner-inactive and non-blocking. Every approved
 record needs an id, reviewer, date, evidence and exact scope; the corresponding
 deployment variable in `.env.example` must match its id. An arbitrary env string
