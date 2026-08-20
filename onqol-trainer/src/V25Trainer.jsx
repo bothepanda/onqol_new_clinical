@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { buildV35Case } from "./clinical/v35/createCase.js";
+import { localDayStamp } from "./clinical/ids.js";
 import { CASE_PRESETS } from "./clinical/v35/phenotypes.js";
 import { enableFullClinicalTestCase } from "./clinical/testing/fullClinicalTest.js";
 import { getBrowserContentForCase } from "./clinical/browserContentRegistry.js";
@@ -587,7 +588,7 @@ export default function V25Trainer({ mentor = true }) {
 
   function downloadReports() {
     const payload = exportClinicalReports();
-    downloadJson(payload, `onqol-clinical-reports-${new Date().toISOString().slice(0, 10)}.json`);
+    downloadJson(payload, `onqol-clinical-reports-${localDayStamp()}.json`);
   }
 
   function downloadJson(payload, filename) {

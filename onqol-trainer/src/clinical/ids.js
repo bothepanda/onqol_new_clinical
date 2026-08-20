@@ -20,6 +20,27 @@ function randomBytes(count) {
 }
 
 /**
+ * The calendar day as the person in front of the screen would write it, in the
+ * browser's own timezone - not in UTC.
+ *
+ * Almaty is UTC+5, so `toISOString().slice(0, 10)` labels everything started
+ * before 05:00 local with the previous day. A resident who trains at 01:00 and
+ * then copies the code plus today's date into the feedback form produces two
+ * different days for one session, and whoever reconciles the pilot has to guess
+ * which one is real. The day is a human label here, never a key and never a
+ * retention deadline - those stay on timestamps - so the local reading is the
+ * correct one.
+ */
+export function localDayStamp(at = new Date()) {
+  const date = at instanceof Date ? at : new Date(at);
+  const valid = Number.isNaN(date.getTime()) ? new Date() : date;
+  const year = String(valid.getFullYear()).padStart(4, "0");
+  const month = String(valid.getMonth() + 1).padStart(2, "0");
+  const day = String(valid.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+/**
  * A short session code the participant can read out or type: ONQOL-20260820-A7K3M.
  *
  * It exists next to `session_id`, not instead of it. The UUID stays the key
@@ -37,11 +58,7 @@ function randomBytes(count) {
  * of two people's data.
  */
 export function createSessionCode(startedAt = new Date()) {
-  const date = startedAt instanceof Date ? startedAt : new Date(startedAt);
-  const stamp = Number.isNaN(date.getTime())
-    ? new Date().toISOString()
-    : date.toISOString();
-  const day = stamp.slice(0, 10).replace(/-/g, "");
+  const day = localDayStamp(startedAt).replaceAll("-", "");
   const suffix = [...randomBytes(SESSION_CODE_LENGTH)]
     .map((byte) => READABLE_ALPHABET[byte % READABLE_ALPHABET.length])
     .join("");

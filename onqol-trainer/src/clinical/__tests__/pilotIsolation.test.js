@@ -23,7 +23,25 @@ import { buildV35Case } from "../v35/createCase.js";
 import { advanceV25Session, createV25Session } from "../v25/engine.js";
 import { createKnowledgeBase } from "../v25/knowledgeBase.js";
 import { buildV25ReplayExport } from "../v25/replayExport.js";
-import { createSessionCode } from "../ids.js";
+import process from "node:process";
+import { createSessionCode, localDayStamp } from "../ids.js";
+
+/**
+ * The pilot runs in Asia/Almaty while CI runs in UTC, and the whole point of
+ * the day stamp is that those two disagree for five hours every night. Pinning
+ * the zone inside the test is what makes the disagreement visible instead of
+ * dependent on where the suite happens to run.
+ */
+function withTimezone(timeZone, run) {
+  const previous = process.env.TZ;
+  process.env.TZ = timeZone;
+  try {
+    return run();
+  } finally {
+    if (previous === undefined) delete process.env.TZ;
+    else process.env.TZ = previous;
+  }
+}
 import { BrowserSimulationRepository } from "../simulationRepository.js";
 
 /** Minimal localStorage stand-in: the repository only needs get/set. */
@@ -85,13 +103,27 @@ test("A · every session gets its own id and its own readable code", () => {
   assert.equal(codes.size, 200);
 });
 
-test("A · the readable code is transcribable and carries no learner identity", () => {
-  const code = createSessionCode(new Date("2026-08-20T21:15:00Z"));
+test("A \u00b7 the readable code is transcribable and carries no learner identity", () => {
+  const code = withTimezone("Asia/Almaty", () =>
+    createSessionCode(new Date("2026-08-20T21:15:00Z")));
   // Date plus five characters. The fixed "ONQOL-" prefix is read as a word, so
   // only the random suffix has to avoid the glyphs that get copied wrong.
-  assert.match(code, /^ONQOL-20260820-[23456789ABCDEFGHJKMNPQRSTVWXYZ]{5}$/);
-  const suffix = code.slice("ONQOL-20260820-".length);
+  assert.match(code, /^ONQOL-20260821-[23456789ABCDEFGHJKMNPQRSTVWXYZ]{5}$/);
+  const suffix = code.slice("ONQOL-20260821-".length);
   assert.doesNotMatch(suffix, /[ILOU01]/);
+});
+
+test("A \u00b7 the code carries the day the resident had, not the UTC day", () => {
+  // 21:15 UTC is already 02:15 the next morning in Almaty. The resident writes
+  // that morning's date into the feedback form, so the code has to agree with
+  // the wall clock they read it off, not with the server's day boundary.
+  const at = new Date("2026-08-20T21:15:00Z");
+  assert.equal(withTimezone("Asia/Almaty", () => localDayStamp(at)), "2026-08-21");
+  assert.equal(withTimezone("UTC", () => localDayStamp(at)), "2026-08-20");
+  assert.match(
+    withTimezone("Asia/Almaty", () => createSessionCode(at)),
+    /^ONQOL-20260821-/,
+  );
 });
 
 // --- B, C, D: one session's turns touch nothing else ------------------------
