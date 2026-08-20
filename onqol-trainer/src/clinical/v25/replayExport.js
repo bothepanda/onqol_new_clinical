@@ -91,6 +91,7 @@ export function buildV25ReplayExport(session, exportedAt = new Date().toISOStrin
     },
     session: {
       session_id: session.session_id,
+      session_code: session.session_code || null,
       institution_id: session.institution_id,
       cohort_id: session.cohort_id,
       learner_id: session.learner_id,

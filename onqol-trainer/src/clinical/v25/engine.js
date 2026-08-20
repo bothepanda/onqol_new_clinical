@@ -1,4 +1,4 @@
-import { createUuid } from "../ids.js";
+import { createSessionCode, createUuid } from "../ids.js";
 import { scrubSensitiveData, scrubSensitiveText } from "../privacy.js";
 import { runClinicalSimulatorAgent } from "../simulatorAgent.js";
 import { createV25Case } from "./caseFactory.js";
@@ -644,7 +644,7 @@ function applyPlan(caseData, session, plan, options = {}) {
       // replay b9d7a831 after three turns on the same sentence.
       replies.push(
         orderState?.complete
-          ? `**Назначение записано:** «${verbatim}». В пилоте нет отрецензированного правила дозирования, поэтому параметры не проверяются и эффект не моделируется. Повторять назначение не нужно.`
+          ? orderRecordedNote(verbatim)
           : `**Проверка параметра:** «${verbatim}» требует клинической проверки: параметр не валидирован учебным контентом и не применён к пациенту.`
       );
       memory = updateActionState(memory, operation, "blocked", memory.turnNumber, {
@@ -949,7 +949,7 @@ function applyPlan(caseData, session, plan, options = {}) {
     );
     if (blockedByParameter) {
       replies.push(
-        `**Назначение записано:** «${plan.input}». В пилоте нет отрецензированного правила дозирования, поэтому параметры не проверяются и эффект не моделируется. Повторять назначение не нужно.`
+        orderRecordedNote(plan.input)
       );
       continue;
     }
@@ -1227,6 +1227,28 @@ function applyPlan(caseData, session, plan, options = {}) {
   };
 }
 
+/**
+ * What the resident hears when they have stated an order in full and the pilot
+ * holds no reviewed rule for it.
+ *
+ * THE SENTENCE THIS MUST NOT BE. "Your dose is wrong." It isn't a verdict on the
+ * number: the pilot has no approved analgesic rule to measure it against, and
+ * inventing one is precisely what the governance layer exists to prevent. So the
+ * note says three things and stops - the order was recorded, no reviewed rule
+ * covers it, it was not applied to the patient - and it never asks again.
+ *
+ * Said once per order (CDR-19, owner decision 20.08.2026); the caller tracks
+ * that. Repeating it every turn is the loop that ended replay b9d7a831.
+ */
+export function orderRecordedNote(verbatim) {
+  return (
+    `**Назначение записано:** «${verbatim}». ` +
+    "Отрецензированного правила по этому препарату в пилоте пока нет, поэтому параметры " +
+    "не проверяются, к пациенту назначение не применено и эффект не моделируется. " +
+    "Это не замечание к твоему выбору. Повторять назначение не нужно."
+  );
+}
+
 export function createV25Session(options = {}) {
   const caseData = options.caseData || createV25Case();
   const scenario =
@@ -1236,8 +1258,13 @@ export function createV25Session(options = {}) {
       seed: options.seed || createScenarioSeed(),
       resourceProfileId: caseData.v35_composition?.effective_resource_profile_id || null,
     });
+  const startedAt = options.startedAt || new Date().toISOString();
   const session = {
     session_id: options.sessionId || createUuid(),
+    // The handle a participant reads off the screen and types into the feedback
+    // form. `session_id` stays the key everything joins on; this is the copy a
+    // human can transcribe without error. See clinical/ids.js.
+    session_code: options.sessionCode || createSessionCode(startedAt),
     // From the case, not hardcoded. A V3 session used to freeze "2.5" into every
     // logged event while running a 3.0 case, which quietly contaminates any
     // analysis that groups by product version.
@@ -1290,7 +1317,7 @@ export function createV25Session(options = {}) {
     finished: false,
     terminal_status: "in_progress",
     completion_status: "in_progress",
-    started_at: options.startedAt || new Date().toISOString(),
+    started_at: startedAt,
     completed_at: null,
   };
   session.eventLog.push(

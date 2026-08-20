@@ -434,3 +434,9 @@
 .v25-classic-mode-card:disabled:hover {
   transform: none;
 }
+
+/* Session code. The participant reads it off the screen and types it into the
+   feedback form, so it is set larger than the seed line below it and given
+   letter-spacing: five characters that must be transcribed without error. */
+.v25-session-code code { display: block; padding: 0; background: transparent; color: var(--v25-ink); font-size: 15px; font-weight: 600; letter-spacing: 0.06em; word-break: break-all; }
+.v25-session-code small { display: block; margin-top: 6px; color: var(--v25-muted); font-size: 12px; line-height: 1.4; }

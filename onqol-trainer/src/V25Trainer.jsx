@@ -72,6 +72,8 @@ const UI = {
     noActions: "Зафиксированных действий пока нет",
     known: "Что уже известно о смене",
     hidden: "Ограничения пока не раскрыты",
+    sessionCode: "Код сессии",
+    sessionCodeHelp: "Впишите его в форму обратной связи",
     log: "Событийный лог",
     events: "событий",
     download: "Скачать JSON",
@@ -117,6 +119,8 @@ const UI = {
     noActions: "Әзірге әрекет тіркелмеген",
     known: "Кезекшілік туралы белгілі деректер",
     hidden: "Шектеулер әлі ашылған жоқ",
+    sessionCode: "Сессия коды",
+    sessionCodeHelp: "Оны кері байланыс формасына жазыңыз",
     log: "Оқиғалар журналы",
     events: "оқиға",
     download: "JSON жүктеу",
@@ -435,6 +439,14 @@ function SessionSidebar({ session, caseData, locale, onDownload, reportCount, on
   });
   return (
     <aside className="v25-sidebar">
+      {/* The participant copies this into the feedback form, so it is the first
+          thing in the sidebar and never behind a scroll. */}
+      <section className="v25-side-section v25-session-code">
+        <div className="v25-side-heading"><span>{t.sessionCode}</span></div>
+        <code>{session.session_code}</code>
+        <small>{t.sessionCodeHelp}</small>
+      </section>
+
       <section className="v25-side-section v25-session-state">
         <div className="v25-side-heading"><span>{t.state}</span><b className="pulse-dot" /></div>
         <div className="v25-state-grid">

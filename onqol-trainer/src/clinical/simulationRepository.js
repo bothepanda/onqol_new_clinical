@@ -31,6 +31,7 @@ export const LOCAL_SESSION_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 
 const IMMUTABLE_SESSION_FIELDS = Object.freeze([
   "session_id",
+  "session_code",
   "anonymous_user_id",
   "case_id",
   "case_version",
@@ -44,6 +45,35 @@ const IMMUTABLE_SESSION_FIELDS = Object.freeze([
   "resource_context",
   "started_at",
 ]);
+
+/**
+ * Events whose session is unknown. Nothing writes here in normal operation; the
+ * bucket exists so a malformed record cannot silently join another session's log.
+ */
+const UNATTRIBUTED_EVENTS_KEY = "unattributed";
+
+/**
+ * Analytics events, grouped by session.
+ *
+ * They used to live in one flat array per browser. Every record carried its own
+ * `session_id`, so the data was separable - but two residents sharing a machine,
+ * or one resident with two tabs open, wrote into one growing list, and any
+ * export that forgot to filter carried both. Grouping makes the separation
+ * structural instead of a filter the caller has to remember.
+ *
+ * The array shape is still read, so a browser holding events from before this
+ * change keeps them.
+ */
+function readEventsBySession(storage) {
+  const stored = readJson(storage, STORAGE_KEYS.eventAnalytics, {});
+  if (!Array.isArray(stored)) return stored && typeof stored === "object" ? stored : {};
+  const grouped = {};
+  for (const event of stored) {
+    const key = event?.session_id || UNATTRIBUTED_EVENTS_KEY;
+    grouped[key] = [...(grouped[key] || []), event];
+  }
+  return grouped;
+}
 
 function readJson(storage, key, fallback) {
   try {
@@ -169,8 +199,9 @@ export class BrowserSimulationRepository extends SimulationRepository {
       latency_ms: eventRecord.latency_ms ?? null,
       error_code: eventRecord.error_code || null,
     };
-    const analytics = readJson(this.storage, STORAGE_KEYS.eventAnalytics, []);
-    analytics.push(normalized);
+    const analytics = readEventsBySession(this.storage);
+    const sessionId = normalized.session_id || UNATTRIBUTED_EVENTS_KEY;
+    analytics[sessionId] = [...(analytics[sessionId] || []), normalized];
     this.storage.setItem(STORAGE_KEYS.eventAnalytics, JSON.stringify(analytics));
 
     if (
@@ -224,11 +255,22 @@ export class BrowserSimulationRepository extends SimulationRepository {
     return Object.values(readJson(this.storage, STORAGE_KEYS.sessions, {}));
   }
 
-  listEvents({ includeRawText = false } = {}) {
-    const analytics = readJson(this.storage, STORAGE_KEYS.eventAnalytics, []);
-    if (!includeRawText) return analytics;
+  /**
+   * Events for one session, or for all of them.
+   *
+   * `sessionId` is the form that matters for a pilot: an export handed to a
+   * reviewer must carry one participant's run and nothing else. The unfiltered
+   * form remains for local research export, where the caller has already
+   * decided it wants everything on this machine.
+   */
+  listEvents({ includeRawText = false, sessionId = null } = {}) {
+    const analytics = readEventsBySession(this.storage);
+    const events = sessionId
+      ? [...(analytics[sessionId] || [])]
+      : Object.values(analytics).flat();
+    if (!includeRawText) return events;
     const rawTextByEvent = readJson(this.storage, STORAGE_KEYS.eventRawText, {});
-    return analytics.map((event) => ({
+    return events.map((event) => ({
       ...event,
       raw_user_text: rawTextByEvent[event.event_id] ?? null,
     }));
@@ -267,20 +309,16 @@ export class BrowserSimulationRepository extends SimulationRepository {
   deleteSession(sessionId) {
     const sessions = readJson(this.storage, STORAGE_KEYS.sessions, {});
     const snapshots = readJson(this.storage, STORAGE_KEYS.sessionSnapshots, {});
-    const analytics = readJson(this.storage, STORAGE_KEYS.eventAnalytics, []);
+    const analytics = readEventsBySession(this.storage);
     const rawTextByEvent = readJson(this.storage, STORAGE_KEYS.eventRawText, {});
-    const removedEventIds = analytics
-      .filter((entry) => entry.session_id === sessionId)
-      .map((entry) => entry.event_id);
+    const removedEventIds = (analytics[sessionId] || []).map((entry) => entry.event_id);
     delete sessions[sessionId];
     delete snapshots[sessionId];
     for (const eventId of removedEventIds) delete rawTextByEvent[eventId];
     this.storage.setItem(STORAGE_KEYS.sessions, JSON.stringify(sessions));
     this.storage.setItem(STORAGE_KEYS.sessionSnapshots, JSON.stringify(snapshots));
-    this.storage.setItem(
-      STORAGE_KEYS.eventAnalytics,
-      JSON.stringify(analytics.filter((entry) => entry.session_id !== sessionId))
-    );
+    delete analytics[sessionId];
+    this.storage.setItem(STORAGE_KEYS.eventAnalytics, JSON.stringify(analytics));
     this.storage.setItem(STORAGE_KEYS.eventRawText, JSON.stringify(rawTextByEvent));
     return true;
   }

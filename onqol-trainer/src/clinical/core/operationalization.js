@@ -23,7 +23,7 @@
 // order at all*.
 //
 // Because slot prompts are learner-facing clinical text, the registry is
-// provisional until reviewed: see OPERATIONALIZATION_REVIEW_STATUS.
+// learner-facing: see OPERATIONALIZATION_REVIEW_SOURCE for what was reviewed.
 
 /** Reusable slot vocabulary. A slot is a question fragment plus a recogniser. */
 export const ORDER_SLOT = Object.freeze({
@@ -45,11 +45,23 @@ export const ORDER_SLOT = Object.freeze({
 });
 
 /**
- * Wording is provisional. Every prompt below is learner-facing clinical text and
- * has not been through clinical or Kazakh language review (CDR-11).
+ * Wording reviewed in Russian on 20.08.2026 (CDR-11, CDR-17): see
+ * OPERATIONALIZATION_REVIEW_SOURCE. That review covers how these prompts read to
+ * a resident and which slots may stop an order - nothing more. The Kazakh locale
+ * is out of scope and stays disabled in the pilot.
  */
-export const OPERATIONALIZATION_REVIEW_STATUS = "reviewed_provisional_unvalidated";
-export const OPERATIONALIZATION_VERSION = "operationalization-v0.1";
+export const OPERATIONALIZATION_REVIEW_STATUS = "reviewed_ru_language_2026_08_20";
+export const OPERATIONALIZATION_VERSION = "operationalization-v1.0";
+/** The review this status refers to, so the string is never self-certifying. */
+export const OPERATIONALIZATION_REVIEW_SOURCE = Object.freeze({
+  document: "RU_LANGUAGE_REVIEW_CDR11_CDR17.md",
+  scope: "learner-facing wording and which slots block execution (CDR-11, CDR-17)",
+  reviewed_by: "Каукенова Б.Н., MD",
+  reviewed_at: "2026-08-20",
+  // Deliberately narrow: a language and product review, not a clinical approval.
+  // Nothing in this file gained the right to teach, score or judge a value.
+  grants: "learner_facing_wording_only",
+});
 
 const SLOT_DEFINITIONS = Object.freeze({
   [ORDER_SLOT.AGENT]: {
@@ -134,7 +146,7 @@ const SLOT_DEFINITIONS = Object.freeze({
     from_parameter: () => null,
   },
   [ORDER_SLOT.ENDPOINT]: {
-    fragment_ru: "что станет поводом сменить план",
+    fragment_ru: "при каких изменениях звать вас",
     patterns: [
       /(если\s+[а-яё]+|при\s+(?:нарастани[\wа-яё]*|ухудшени[\wа-яё]*|появлени[\wа-яё]*|сохранени[\wа-яё]*|отсутстви[\wа-яё]*)|тогда\s+[а-яё]+|то\s+(?:вызываю|беру|оперирую|перевожу))/iu,
       /(критери[\wа-яё]*\s+(?:выхода|пересмотра)|триггер|триггер[\wа-яё]*|порог[\wа-яё]*)/iu,
@@ -184,14 +196,25 @@ export const OPERATIONALIZATION_CONTRACTS = Object.freeze([
   {
     action_id: "analgesia",
     label_ru: "обезболивание",
-    asker_ru: "Медсестра ждёт назначение",
-    required: [ORDER_SLOT.AGENT, ORDER_SLOT.ROUTE],
-    recorded: [ORDER_SLOT.DOSE, ORDER_SLOT.TIMING],
+    asker_ru: "Медсестра ждёт назначения",
+    // The dose is required as of 20.08.2026, by owner decision and against the
+    // language review's own recommendation, which had accepted "agent + route"
+    // for pilot 1.
+    //
+    // ASKING IS NOT TEACHING. This layer transcribes; it does not check. Once
+    // the resident names a number the order is closed whatever the number is:
+    // nothing here compares it to a rule, corrects it, or scores it, and no
+    // approved analgesic rule exists in the pilot for it to be compared against
+    // (owner decision 3). If parameterSafety has no reviewed rule for the drug
+    // it records the parameter, withholds it from the patient and says so once
+    // - which is a statement about the pilot's coverage, not about the number.
+    required: [ORDER_SLOT.AGENT, ORDER_SLOT.DOSE, ORDER_SLOT.ROUTE],
+    recorded: [ORDER_SLOT.TIMING],
   },
   {
     action_id: "iv_fluids",
     label_ru: "инфузия",
-    asker_ru: "Медсестра ждёт назначение",
+    asker_ru: "Медсестра ждёт назначения",
     required: [ORDER_SLOT.SOLUTION, ORDER_SLOT.VOLUME, ORDER_SLOT.RATE],
     recorded: [ORDER_SLOT.TIMING],
   },
@@ -199,8 +222,13 @@ export const OPERATIONALIZATION_CONTRACTS = Object.freeze([
     action_id: "active_observation",
     label_ru: "активное наблюдение",
     asker_ru: "Палатная сестра уточняет",
-    required: [ORDER_SLOT.MONITORED, ORDER_SLOT.INTERVAL, ORDER_SLOT.ENDPOINT],
-    recorded: [],
+    // Two slots, not three (CDR-17, 20.08.2026). "What am I watching" plus "when
+    // do you call me" IS the content of observation; a resident who names both
+    // has thought it through, and the frequency is then a detail worth recording
+    // rather than demanding. Three demands in one breath read as an
+    // interrogation, and observation is exactly where session TS-01 stalled.
+    required: [ORDER_SLOT.MONITORED, ORDER_SLOT.ENDPOINT],
+    recorded: [ORDER_SLOT.INTERVAL],
   },
   {
     action_id: "serial_reexamination",
@@ -219,7 +247,7 @@ export const OPERATIONALIZATION_CONTRACTS = Object.freeze([
   {
     action_id: "preop_single_antibiotic_prophylaxis",
     label_ru: "антибиотикопрофилактика",
-    asker_ru: "Медсестра ждёт назначение",
+    asker_ru: "Медсестра ждёт назначения",
     // Transcription only. "Одна доза до разреза" is already taught by the
     // approved rules and gated as a prerequisite before the incision; demanding
     // the agent or the dose here would teach a molecule the pilot has not
@@ -230,14 +258,14 @@ export const OPERATIONALIZATION_CONTRACTS = Object.freeze([
   {
     action_id: "antibiotic_observation_course",
     label_ru: "курс антибиотика",
-    asker_ru: "Медсестра ждёт назначение",
+    asker_ru: "Медсестра ждёт назначения",
     required: [],
     recorded: [ORDER_SLOT.AGENT, ORDER_SLOT.DOSE, ORDER_SLOT.ROUTE, ORDER_SLOT.INTERVAL],
   },
   {
     action_id: "surgical_consult",
     label_ru: "консультация хирурга",
-    asker_ru: "Дежурный хирург берёт трубку",
+    asker_ru: "Ответственный хирург берёт трубку",
     required: [],
     recorded: [ORDER_SLOT.TIMING],
   },
@@ -261,7 +289,7 @@ export const OPERATIONALIZATION_CONTRACTS = Object.freeze([
   {
     action_id: "transfer_before_source_control",
     label_ru: "перевод",
-    asker_ru: "Диспетчер перевода уточняет",
+    asker_ru: "Принимающий стационар уточняет",
     required: [ORDER_SLOT.DESTINATION, ORDER_SLOT.ESCORT],
     recorded: [ORDER_SLOT.TIMING],
   },

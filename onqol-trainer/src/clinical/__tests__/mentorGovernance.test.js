@@ -458,8 +458,8 @@ test("nine-turn behavioral regression preserves patient-first progression", asyn
   assert.equal(results[3].mentor.mode, MENTOR_MODE.SAFETY_STOP);
   assert.equal(results[3].session.completedActions.includes("iv_fluids"), false);
   assert.equal(results[4].mentorPolicy.reasoning_sufficient_to_advance, true);
-  // "обезболиваю" names no agent and no route, so the order is on the table and
-  // not in the patient until the team is told what and how. See
+  // "обезболиваю" names no agent, dose or route, so the order is on the table
+  // and not in the patient until the team is told what and how much. See
   // core/operationalization.js.
   assert.equal(results[4].session.completedActions.includes("analgesia"), false);
   assert.equal(
@@ -468,9 +468,9 @@ test("nine-turn behavioral regression preserves patient-first progression", asyn
   );
   assert.deepEqual(
     results[4].session.workingMemory.actionStates.analgesia.awaiting_slots,
-    ["agent", "route"]
+    ["agent", "dose", "route"]
   );
-  assert.match(results[4].reply, /чем именно и каким путём/i);
+  assert.match(results[4].reply, /чем именно, в какой дозе и каким путём/i);
   assert.equal(results[5].mentorPolicy.adequacy, ADEQUACY.STUCK);
   assert.equal(results[5].mentor.mode, MENTOR_MODE.TEACH);
   assert.ok(results[5].mentorPolicy.scaffolding_level >= 2);

@@ -586,7 +586,7 @@ export function buildMentorBrief({
         const question = incomplete ? operationalizationQuestion([incomplete]) : "";
         return question
           ? `Стоп. Это назначение пока нельзя выполнить: оно названо не полностью. ${question}`
-          : "Стоп. Указанный расчёт инфузии требует клинической проверки и пока не применён. Что станет условием немедленного пересмотра плана?";
+          : "Стоп. Это назначение требует клинической проверки и пока не применено. Что станет условием немедленного пересмотра плана?";
       })(),
       parameter_safety: signal,
       clinical_rule_ids: signal.source_rule_id ? [signal.source_rule_id] : [],
@@ -894,9 +894,25 @@ export function buildMentorBrief({
     // Named by the selected issue. Kept separate so the debrief and the
     // telemetry can still say which rule the deterministic policy pointed at.
     issueScopedTeachingRules: mentorPolicy.approved_teaching_rules || [],
-    // Empty until a reviewer signs the first dose. Until then the mentor has no
-    // number to give and says "сверь с формуляром" - the transitional state.
-    approvedDosingRules: approvedDosingRules(),
+    // Signed dosing rules, projected to what the mentor is allowed to know.
+    //
+    // The full registry row also carries governance metadata - score_weight,
+    // review signatures - and the Kazakhstan formulary divergence. None of that
+    // belongs in the mentor's context. Scoring fields are the answer key, which
+    // this brief withholds by contract; the KNF regimen is debrief material, and
+    // a mentor holding both regimens at once is a mentor one step from telling a
+    // resident which of the two is wrong (see MENTOR_JURISDICTION_RULE).
+    approvedDosingRules: approvedDosingRules().map((rule) => ({
+      rule_id: rule.rule_id,
+      agent: rule.agent,
+      indication: rule.indication,
+      dose: rule.dose,
+      route: rule.route,
+      timing: rule.timing,
+      adjustments: rule.adjustments || [],
+      source_ids: rule.source_ids,
+      review_status: rule.review_status,
+    })),
     legacyPracticesNamed,
     deferredIssues: debriefOnlyIssues,
     justPerformed,

@@ -74,8 +74,13 @@ test("«обезболю пациента» is an intention, and the team asks w
   assert.equal(result.session.completedActions.includes("analgesia"), false);
   const state = result.session.workingMemory.actionStates.analgesia;
   assert.equal(state.status, "proposed");
-  assert.deepEqual(state.awaiting_slots, ["agent", "route"]);
-  assert.match(result.reply, /Медсестра ждёт назначение: чем именно и каким путём\?/);
+  // Dose joined agent and route on 20.08.2026 (owner decision). Asking for it
+  // is transcription: nothing checks the number that comes back.
+  assert.deepEqual(state.awaiting_slots, ["agent", "dose", "route"]);
+  assert.match(
+    result.reply,
+    /Медсестра ждёт назначения: чем именно, в какой дозе и каким путём\?/
+  );
 
   const log = result.session.actionLog.findLast((entry) => entry.action_id === "analgesia");
   assert.equal(log.applied_to_patient, false);
@@ -117,7 +122,7 @@ test("a compound half-order is asked about in one question, not one half silentl
   const question = operationalizationQuestion([fluids, observation]);
 
   assert.match(question, /какой раствор, какой объём и с какой скоростью/);
-  assert.match(question, /что контролируешь, как часто и что станет поводом сменить план/);
+  assert.match(question, /что контролируешь и при каких изменениях звать вас/);
 });
 
 test("«посмотрю на динамике» does not run an observation with no endpoint", async () => {
@@ -132,9 +137,12 @@ test("«посмотрю на динамике» does not run an observation wit
   });
 
   assert.equal(result.session.completedActions.includes("active_observation"), false);
+  // Frequency was demoted to `recorded` on 20.08.2026 (CDR-17): "what am I
+  // watching" plus "when do you call me" is the content of an observation, and
+  // three demands in one breath is what stalled session TS-01.
   assert.deepEqual(
     result.session.workingMemory.actionStates.active_observation.awaiting_slots,
-    ["monitored", "interval", "endpoint"]
+    ["monitored", "endpoint"]
   );
   assert.match(result.reply, /что контролируешь/);
 });

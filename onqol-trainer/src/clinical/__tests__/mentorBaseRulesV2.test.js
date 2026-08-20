@@ -464,10 +464,52 @@ test("the same governance stop is not repeated verbatim on a later turn", async 
 
 // --- 3.1 dosing rules ------------------------------------------------------
 
-test("the dosing registry starts empty and gives the mentor no numbers", () => {
-  assert.deepEqual(DOSING_RULE_REGISTRY, []);
-  assert.deepEqual(approvedDosingRules(), []);
-  assert.deepEqual(briefFor(replayCase()).approvedDosingRules, []);
+test("every rule in the dosing registry is signed, and only teaches", () => {
+  // The registry was empty until 20.08.2026. It now holds the appendectomy
+  // prophylaxis package; the invariant that replaced "it is empty" is that
+  // nothing can be in it without two signatures and a verbatim source line.
+  assert.ok(DOSING_RULE_REGISTRY.length > 0);
+  for (const rule of DOSING_RULE_REGISTRY) {
+    assert.equal(validateDosingRule(rule).ok, true, `${rule.rule_id} fails validation`);
+    assert.equal(rule.review_status, CLINICAL_RULE_STATUS.APPROVED);
+    assert.ok(rule.reviewed_by.length >= 2, `${rule.rule_id} needs two signatures`);
+    assert.ok(rule.source_line_verbatim, `${rule.rule_id} needs a verbatim source line`);
+    assert.deepEqual(rule.allowed_runtime_effects, ["mentor_teaching"]);
+    assert.equal(rule.score_weight, 0);
+  }
+  // Every signed rule reaches the mentor; the registry is its only source.
+  assert.deepEqual(
+    approvedDosingRules().map((rule) => rule.rule_id),
+    DOSING_RULE_REGISTRY.map((rule) => rule.rule_id)
+  );
+});
+
+test("the mentor is given the dose and never the grade or the local divergence", () => {
+  const brief = briefFor(replayCase());
+  assert.equal(brief.approvedDosingRules.length, DOSING_RULE_REGISTRY.length);
+
+  const serialized = JSON.stringify(brief.approvedDosingRules);
+  // The answer key stays out of the mentor's context, as everywhere else.
+  assert.doesNotMatch(serialized, /score_weight|reviewed_by|next_review_due/);
+  // So does the Kazakhstan regimen: holding both figures at once is one step
+  // from telling a resident which of the two is wrong. Debrief material.
+  assert.doesNotMatch(serialized, /knf_rule|kp_rk_status|jurisdiction_decision/);
+  assert.doesNotMatch(serialized, /source_line_verbatim/);
+
+  // What it does get: enough to paraphrase the rule and cite it.
+  const cefazolin = brief.approvedDosingRules.find(
+    (rule) => rule.rule_id === "dosing.cefazolin.prophylaxis"
+  );
+  assert.equal(cefazolin.dose, "2 г");
+  assert.equal(cefazolin.route, "в/в");
+  // Decision 1: the weight band is not granted as speech, though the source
+  // line preserving it is still on the registry row.
+  assert.deepEqual(cefazolin.adjustments, []);
+  assert.match(
+    DOSING_RULE_REGISTRY.find((rule) => rule.rule_id === "dosing.cefazolin.prophylaxis")
+      .source_line_verbatim,
+    /120 kg/
+  );
 });
 
 test("a dosing rule teaches only after approval, and only teaches", () => {

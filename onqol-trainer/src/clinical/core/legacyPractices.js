@@ -20,6 +20,17 @@
  *
  * The practice ids match the draft entries in DOSING_RULES_DRAFT_v0.1.md so the
  * reviewed teaching text drops into the slots below without a rename.
+ *
+ * WHAT LEFT THIS REGISTRY, AND WHY IT DID NOT NEED A REPLACEMENT
+ *
+ * `legacy.metamizole-solo` was removed on 20.08.2026 by owner decision: a drug
+ * that is in the Kazakhstan formulary is not a historical practice, and calling
+ * it one was a clinical claim this registry has no signed text for. Removing the
+ * entry does not make metamizole invisible - `core/operationalization.js` still
+ * recognises «метамизол»/«анальгин» as a named agent, and with no approved
+ * dosing rule the order is transcribed and classified `not_yet_reviewed` by
+ * parameterSafety.js. Recognised, not executed, not judged: which is the
+ * behaviour the decision asked for.
  */
 
 export const LEGACY_PRACTICE_REVIEW_STATUS = "NEEDS_CLINICAL_REVIEW";
@@ -63,18 +74,19 @@ export const LEGACY_PRACTICE_REGISTRY = Object.freeze([
     ],
   }),
   legacyPractice({
-    practice_id: "legacy.metamizole-solo",
-    label_ru: "метамизол (анальгин) как основной анальгетик",
-    patterns: [/(?:^|[^а-яё])(метамизол\p{L}*|анальгин\p{L}*|баралгин\p{L}*)(?![а-яё])/iu],
-  }),
-  legacyPractice({
     practice_id: "legacy.golod-holod-pokoy",
     label_ru: "«голод, холод и покой»",
-    patterns: [
-      /голод\p{L}*[,\s]+холод\p{L}*[,\s]+(и\s+)?поко\p{L}*/iu,
-      /холод\w*\s+на\s+живот/iu,
-      /пузыр\p{L}*\s+со\s+льдом\s+на\s+живот/iu,
-    ],
+    // The slogan is recognised only as a WHOLE management strategy, which is
+    // the only thing about it that is historical (owner decision, 20.08.2026).
+    //
+    // The earlier patterns also fired on «холод на живот» and «пузырь со льдом»
+    // standing alone. Those are single measures, not a tactic, and a resident
+    // who names one inside an otherwise complete plan was being handed a
+    // historical-practice flag for it. Temporary NPO and disease-specific bowel
+    // rest are likewise ordinary orders and must not trigger this entry at all;
+    // nutrition in pancreatitis comes from the disease card, not from matching
+    // a slogan.
+    patterns: [/голод\p{L}*[,\s]+холод\p{L}*[,\s]+(и\s+)?поко\p{L}*/iu],
   }),
 ]);
 

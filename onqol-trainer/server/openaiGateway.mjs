@@ -144,6 +144,27 @@ const MAX_BODY_BYTES = 750_000;
 const REQUESTS_PER_MINUTE = 40;
 const REQUESTS_PER_DAY = 1_000;
 
+/**
+ * How many sessions may sit behind one address and one access code at once.
+ *
+ * The per-session quota above is the real quota: it is what stops one runaway
+ * tab. The per-client quota is an abuse guard on the access code, and until
+ * 20.08.2026 it used the SAME numbers - which quietly made it the binding limit
+ * for the pilot instead. A resident cohort works from one building and shares
+ * one pilot code, so the whole room resolves to a single client bucket: eight
+ * residents at roughly six calls a minute each (router, simulator and mentor
+ * per turn) exceed 40/min between them, and one of them hitting the ceiling
+ * locks out the other seven mid-case.
+ *
+ * So the client bucket is sized for a cohort rather than a person. It still
+ * catches a leaked code being hammered, which is what it is for.
+ *
+ * Deliberately generous: on serverless hosting these counters live in one
+ * function instance's memory, so they are a courtesy guard, not a spend
+ * control. Durable rate and spend limits belong at the provider account.
+ */
+const PILOT_COHORT_SIZE = 12;
+
 function json(res, statusCode, payload) {
   res.statusCode = statusCode;
   res.setHeader("Content-Type", "application/json; charset=utf-8");
@@ -291,8 +312,12 @@ export function createOpenAIGateway(options = {}) {
   const clientBuckets = new Map();
   const requestsPerMinute = options.requestsPerMinute || REQUESTS_PER_MINUTE;
   const requestsPerDay = options.requestsPerDay || REQUESTS_PER_DAY;
+  const cohortSize = options.pilotCohortSize || PILOT_COHORT_SIZE;
+  const clientRequestsPerMinute =
+    options.clientRequestsPerMinute || requestsPerMinute * cohortSize;
+  const clientRequestsPerDay = options.clientRequestsPerDay || requestsPerDay * cohortSize;
 
-  function consumeBucket(store, key, now) {
+  function consumeBucket(store, key, now, perMinute, perDay) {
     const bucket = store.get(key) || {
       minuteStartedAt: now,
       minuteCount: 0,
@@ -310,7 +335,7 @@ export function createOpenAIGateway(options = {}) {
     bucket.minuteCount += 1;
     bucket.dayCount += 1;
     store.set(key, bucket);
-    return bucket.minuteCount <= requestsPerMinute && bucket.dayCount <= requestsPerDay;
+    return bucket.minuteCount <= perMinute && bucket.dayCount <= perDay;
   }
 
   function withinRateLimit(req, sessionId) {
@@ -324,8 +349,16 @@ export function createOpenAIGateway(options = {}) {
       : "no-token";
     const clientKey = `${address}:${tokenFingerprint}`;
     const sessionKey = `${tokenFingerprint}:${sessionId}`;
-    return consumeBucket(clientBuckets, clientKey, now)
-      && consumeBucket(requestBuckets, sessionKey, now);
+    // Session first: a single runaway tab is stopped by its own quota without
+    // spending the cohort's allowance on the way.
+    return consumeBucket(requestBuckets, sessionKey, now, requestsPerMinute, requestsPerDay)
+      && consumeBucket(
+        clientBuckets,
+        clientKey,
+        now,
+        clientRequestsPerMinute,
+        clientRequestsPerDay
+      );
   }
 
   return async function openAIGateway(req, res, next) {

@@ -156,6 +156,47 @@ export const SOURCE_REGISTRY = Object.freeze([
     migrated_from: "src/clinical/diseases/appendicitis/appendicitis.core.yaml",
     legacy_v1: false,
   }),
+  Object.freeze({
+    // Added 20.08.2026 for the first dosing rules. The surgical-prophylaxis
+    // guideline the reference doses are copied from, word for word.
+    source_id: "ASHP_SAP_2013",
+    organization: "ASHP / IDSA / SIS / SHEA",
+    title: "Clinical Practice Guidelines for Antimicrobial Prophylaxis in Surgery",
+    year_version: "2013",
+    publication_year: 2013,
+    identifier:
+      "https://www.idsociety.org/practice-guideline/antimicrobial-prophylaxis-in-surgery/",
+    jurisdiction: "reference",
+    last_checked: "2026-08-20",
+    checked_by: "Каукенова Б.Н., MD",
+    check_method: "сверка с PDF первоисточника",
+    status: "text_verified",
+    // The 2013 text is what the rules quote. A successor edition was still in
+    // development on the date above, and recording that here stops "the current
+    // guideline" being read into a rule that quotes the 2013 one.
+    normative_status: "superseding_edition_in_development_as_of_2026_08_20",
+    legacy_v1: false,
+  }),
+  Object.freeze({
+    // The Kazakhstan formulary. Present so that a rule may RECORD how the local
+    // formulary differs, never so that the difference can be taught as an error.
+    source_id: "KNF_RK",
+    organization: "Казахстанский национальный формуляр (КНФ РК)",
+    title: "Монографии КНФ РК: цефазолин (405), метронидазол (445)",
+    year_version: "монографии, сверены 20.08.2026",
+    identifier: "https://knf.kz/ru/content/monograph?id=405; https://knf.kz/ru/content/monograph?id=445",
+    jurisdiction: "KZ",
+    last_checked: "2026-08-20",
+    checked_by: "Каукенова Б.Н., MD",
+    check_method: "сверка с монографией knf.kz",
+    // Same split as KZ_AA_2018: the monograph text opened and was read; whether
+    // that monograph is the current binding edition is a separate question.
+    status: "text_verified",
+    normative_status: "requires_separate_confirmation",
+    normative_status_note:
+      "Текст монографий КНФ проверен 20.08.2026. Доступность страницы не подтверждает, что редакция является действующей на эту дату.",
+    legacy_v1: false,
+  }),
 ]);
 
 const REVIEWERS = Object.freeze(["Сарина Т.Т.", "Каукенова Б.Н., MD"]);
@@ -402,7 +443,132 @@ export const DOSING_RULE_STATUS = Object.freeze({
   ...CLINICAL_RULE_STATUS,
 });
 
-export const DOSING_RULE_REGISTRY = Object.freeze([]);
+/**
+ * Signed 20.08.2026: independent clinical review Сарина Т.Т., local
+ * applicability Каукенова Б.Н. Two signatures, because a dose is high-risk by
+ * construction and `validateDosingRule` enforces the bar rather than trusting a
+ * risk field somebody could forget to set.
+ *
+ * WHAT THE OWNER DECIDED TO LEAVE OUT, AND WHY IT IS NOT AN OVERSIGHT
+ *
+ * `adjustments` is empty on every row, and that is the decision, not a gap.
+ * Anything written into dose/route/timing/adjustments becomes a number the
+ * mentor is permitted to say out loud (see core/mentorAgent.js allowedNumbers),
+ * so each field is a grant of speech, not documentation.
+ *
+ *   - Weight band "3 g if >=120 kg" is omitted: the pilot patient carries no
+ *     weight, so the branch could never be evaluated, and including it would
+ *     licence the mentor to say "3 g" and "120 kg" to a patient who has neither.
+ *     The full source line survives in `source_line_verbatim`, which does NOT
+ *     feed the permitted numbers - the audit trail keeps what runtime may not.
+ *   - Intraoperative redosing is omitted because no trustworthy value exists:
+ *     three separate readings of the source disagreed, and the last returned
+ *     figures that track the half-life column rather than the redosing one.
+ *     Absence here is the correct state, not a pending task.
+ *
+ * KNF divergence is RECORDED, never taught. `jurisdiction_decision` says the
+ * reference rule drives runtime, and `knf_rule` preserves the Kazakhstan
+ * regimen beside it. A resident who orders the KNF dose has followed their own
+ * formulary and is not wrong; see MENTOR_JURISDICTION_RULE below, which is what
+ * stops the mentor treating the divergence as an error to correct.
+ */
+const DOSING_REVIEWERS = Object.freeze(["Сарина Т.Т.", "Каукенова Б.Н., MD"]);
+const DOSING_REVIEWED_AT = "2026-08-20";
+
+function approvedDosingRule(fields) {
+  return Object.freeze({
+    rule_type: "dosing_rule",
+    module: "acute_appendicitis",
+    jurisdiction: "reference",
+    adjustments: [],
+    review_status: CLINICAL_RULE_STATUS.APPROVED,
+    reviewed_by: DOSING_REVIEWERS,
+    reviewed_at: DOSING_REVIEWED_AT,
+    next_review_due: "2028-08-20",
+    // Teaching and nothing else. Scoring is off for the pilot and a dose must
+    // never become a patient effect, a safety verdict or a correction.
+    allowed_runtime_effects: TEACHING_ONLY,
+    score_weight: 0,
+    license_note:
+      "Цитирование короткой дозовой строки из опубликованного клинического руководства; полный текст не воспроизводится.",
+    legacy_v1: false,
+    ...fields,
+  });
+}
+
+export const DOSING_RULE_REGISTRY = Object.freeze([
+  approvedDosingRule({
+    rule_id: "dosing.cefazolin.prophylaxis",
+    agent: "цефазолин",
+    indication: "периоперационная антибиотикопрофилактика, аппендэктомия",
+    dose: "2 г",
+    route: "в/в",
+    timing: "в пределах 60 минут до разреза",
+    source_ids: ["ASHP_SAP_2013"],
+    source_line_verbatim:
+      '"2 g, 3 g for pts weighing >=120 kg"; "The antimicrobial agent should be started within 60 minutes before surgical incision"',
+    kp_rk_status: "КНФ±",
+    knf_rule:
+      "КНФ РК: 1 г за 30-60 минут до операции; при операции 2 часа и более дополнительно 0,5-1 г; далее 0,5-1 г каждые 6-8 часов до 24 часов после операции.",
+    jurisdiction_decision: "use_reference_rule",
+  }),
+  approvedDosingRule({
+    rule_id: "dosing.metronidazole.prophylaxis",
+    agent: "метронидазол",
+    indication: "комбинированная периоперационная профилактика, аппендэктомия",
+    dose: "500 мг",
+    route: "в/в",
+    timing: "однократно, в пределах 60 минут до разреза",
+    source_ids: ["ASHP_SAP_2013"],
+    source_line_verbatim: '"500 mg" (Table 1)',
+    kp_rk_status: "КНФ±",
+    knf_rule:
+      "КНФ РК подтверждает профилактику анаэробной инфекции при операциях на органах брюшной полости и содержит 500 мг каждые 8 часов для ряда в/в режимов; отдельная взрослая однократная предоперационная схема как самостоятельное правило не сформулирована.",
+    jurisdiction_decision: "use_reference_rule",
+  }),
+  approvedDosingRule({
+    rule_id: "dosing.appendectomy.prophylaxis",
+    agent: "цефазолин + метронидазол",
+    indication: "неосложнённый аппендицит, перед аппендэктомией",
+    dose: "цефазолин 2 г + метронидазол 500 мг, однократно",
+    route: "в/в",
+    timing: "в пределах 60 минут до разреза",
+    source_ids: ["ASHP_SAP_2013"],
+    // Table 2 was read three times and disagreed with itself; the owner opened
+    // the PDF on 20.08.2026 and confirmed this line by eye. The confirmation is
+    // recorded on the source entry as `check_method`.
+    source_line_verbatim:
+      '"Cefoxitin, cefotetan, cefazolin + metronidazole" (Table 2, appendectomy for uncomplicated appendicitis)',
+    kp_rk_status: "КНФ±",
+    knf_rule:
+      "КНФ РК не формулирует комбинированную однократную предоперационную схему для аппендэктомии как самостоятельное правило.",
+    jurisdiction_decision: "use_reference_rule",
+  }),
+]);
+
+/**
+ * What the mentor may not do with a jurisdiction divergence.
+ *
+ * The cefazolin rule grants the mentor the number "2 g" while KNF RK and the
+ * Kazakhstan protocol say 1 g. Eight residents trained on that protocol will
+ * order 1 g, and they will be right by their own formulary. Under the current
+ * architecture the mentor sees the approved rules and speaks in its own words,
+ * so without this constraint the likeliest first-week outcome is a trainer
+ * telling a cohort that their national formulary is a mistake.
+ *
+ * Carried into the mentor's system prompt. It restricts, and grants nothing.
+ */
+export const MENTOR_JURISDICTION_RULE = Object.freeze({
+  rule_id: "mentor.jurisdiction.local_formulary_is_not_an_error",
+  applies_to: ["dosing.cefazolin.prophylaxis", "dosing.metronidazole.prophylaxis", "dosing.appendectomy.prophylaxis"],
+  instruction_ru:
+    "Доза, названная резидентом по местному формуляру (КНФ РК, КП МЗ РК), не является ошибкой. " +
+    "Не исправляй её, не подменяй числом из справочного правила и не называй ответ неверным. " +
+    "Расхождение между локальным и справочным источником — материал разбора, а не живой реплики.",
+  review_status: CLINICAL_RULE_STATUS.APPROVED,
+  reviewed_by: DOSING_REVIEWERS,
+  reviewed_at: DOSING_REVIEWED_AT,
+});
 
 const DOSING_RULE_REQUIRED_FIELDS = Object.freeze([
   "rule_id",

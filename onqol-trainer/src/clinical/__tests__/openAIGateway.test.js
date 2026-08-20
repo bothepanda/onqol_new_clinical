@@ -142,6 +142,66 @@ test("gateway applies client and per-session quotas after authentication", async
   assert.equal(providerCalls, 1);
 });
 
+test("one resident hitting their quota does not lock out the rest of the cohort", async () => {
+  // The pilot runs eight residents from one building on one access code, so
+  // every request resolves to the same client bucket. Before 20.08.2026 that
+  // bucket used the per-session numbers, which made the room share one
+  // resident's allowance.
+  let providerCalls = 0;
+  const gateway = createOpenAIGateway({
+    apiKey: "provider-secret",
+    accessToken: "pilot-code",
+    allowedOrigin: "https://pilot.onqol.kz",
+    requireAccessControl: true,
+    requestsPerMinute: 2,
+    pilotCohortSize: 4,
+    fetchImpl: async () => {
+      providerCalls += 1;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          output: [{ type: "message", content: [{ type: "output_text", text: "{}" }] }],
+        }),
+      };
+    },
+  });
+
+  // The helper's spread lets `overrides` replace `headers` wholesale, so the
+  // full set is restated here rather than relying on a merge.
+  const call = async (sessionId) => {
+    const recorder = responseRecorder();
+    await gateway(
+      request({
+        headers: {
+          origin: "https://pilot.onqol.kz",
+          host: "pilot.onqol.kz",
+          authorization: "Bearer pilot-code",
+          "x-onqol-session-id": sessionId,
+        },
+      }),
+      recorder.response
+    );
+    return recorder.response.statusCode;
+  };
+
+  // One resident burns their own two and is cut off, as intended.
+  assert.equal(await call("session-resident-a01"), 200);
+  assert.equal(await call("session-resident-a01"), 200);
+  assert.equal(await call("session-resident-a01"), 429);
+
+  // The others are untouched: same address, same code, different sessions.
+  for (const sessionId of ["session-resident-b01", "session-resident-c01", "session-resident-d01"]) {
+    assert.equal(await call(sessionId), 200, `${sessionId} was locked out`);
+    assert.equal(await call(sessionId), 200, `${sessionId} was locked out`);
+  }
+  assert.equal(providerCalls, 8);
+
+  // The cohort ceiling still exists: 2 x 4 requests are spent, so the next
+  // session on this address is refused however fresh its own quota is.
+  assert.equal(await call("session-resident-e01"), 429);
+});
+
 test("browser client sends the pilot code, never the provider credential", async () => {
   let captured;
   const client = createOpenAIBackendClient({
