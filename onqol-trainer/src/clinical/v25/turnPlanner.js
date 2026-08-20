@@ -146,6 +146,17 @@ function commitmentFor(action, input) {
   return "ordered";
 }
 
+const CLARIFY_PROMPT = "Уточни, какие данные хочешь получить или какое действие выполняешь.";
+const OPERATIVE_APPROACH_PROMPT = "Какой операционный доступ выбираешь и когда начинаешь?";
+
+function lastAssistantText(session) {
+  const messages = session.messages || [];
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    if (messages[index].role === "assistant") return String(messages[index].content || "");
+  }
+  return "";
+}
+
 function plannerPromptFor({
   actions,
   operations,
@@ -153,6 +164,7 @@ function plannerPromptFor({
   answeredNonAction,
   operationalizationStates = [],
   completedResumedOrders = false,
+  managementDecisions = [],
 }) {
   // An incomplete order outranks every other prompt: the team cannot carry out
   // what has not been specified, and asking anything else implies it can.
@@ -166,9 +178,39 @@ function plannerPromptFor({
   // The turn answered an outstanding order rather than naming a new action;
   // "уточни, какое действие выполняешь" would read as if it went unheard.
   if (completedResumedOrders) return "Назначение зафиксировано. Что дальше?";
-  if (!actions.length) return "Уточни, какие данные хочешь получить или какое действие выполняешь.";
+  if (!actions.length) {
+    // The learner said something the router understood and the engine recorded -
+    // "в операционную", "катим в оперблок" - which maps to no executable action
+    // because the decision is already committed and what is actually missing is
+    // the approach. Asking "уточни, какое действие выполняешь" there hides state
+    // the engine is holding: it knows the appendectomy is decided and the
+    // approach is not. Ask for the missing piece by name instead.
+    const operative = session.workingMemory?.operativeState || {};
+    // The decision may be one the session already holds or one this very turn
+    // committed: "оперируем" carries no action, so without the second half the
+    // turn that decides the operation is answered with "уточни, какое действие
+    // выполняешь" - the turn the engine itself recorded as the decision.
+    const decided =
+      operative.appendectomy_decided ||
+      managementDecisions.some(
+        (decision) => decision.decision_id === "appendectomy" && decision.commitment === "ordered"
+      );
+    const approachSelected =
+      operative.operative_approach_selected ||
+      managementDecisions.some((decision) => decision.decision_id === "operative_approach");
+    if (decided && !approachSelected && !operative.procedure_started) {
+      return OPERATIVE_APPROACH_PROMPT;
+    }
+    // Repeating one sentence verbatim carries no new information, and a learner
+    // who reads it twice reasonably concludes the trainer is stuck. The replay
+    // that prompted this had it three times in a row, after which the resident
+    // ended the case. Name what the engine can accept instead.
+    return lastAssistantText(session).includes(CLARIFY_PROMPT)
+      ? "Пока не понимаю, что выполнить. Назови конкретно: осмотр, исследование, назначение или решение по тактике."
+      : CLARIFY_PROMPT;
+  }
   if (operations.some((operation) => operation.needsOperationalization)) {
-    return "Какой операционный доступ выбираешь и когда начинаешь?";
+    return OPERATIVE_APPROACH_PROMPT;
   }
   if (operations.some((operation) => operation.commitment === "proposed" && operation.intent_type === "management")) {
     return "Это вариант или принятое решение? Как именно его реализуешь?";
@@ -530,6 +572,7 @@ export async function planClinicalTurn({ input, caseData, session, options = {} 
             answeredNonAction: (parsed.unresolvedByKind || []).some(
               (entry) => entry.kind !== "reasoning_only"
             ),
+            managementDecisions: parsed.managementDecisions || [],
           }),
     prerequisiteWarnings: prerequisites,
     riskFlags: actions

@@ -1,3 +1,4 @@
+import { mentorHeuristics } from "../core/mentorHeuristics.js";
 import { formatEvidenceCitation, retrieveEvidence } from "./knowledgeBase.js";
 
 function listOrDash(items) {
@@ -8,15 +9,25 @@ function actionMap(actions) {
   return new Map(actions.map((action) => [action.id, action]));
 }
 
-const DEFERRED_ISSUE_LABELS = Object.freeze({
-  checkpoint_problem_representation: "Представление проблемы явно не сформулировано.",
-  checkpoint_hypotheses: "Гипотезы и опасная альтернатива явно не ранжированы.",
-  checkpoint_what_changes_the_plan: "Условие изменения плана осталось неявным.",
-  investigation_without_purpose: "Цель исследования не была вербализована.",
-  no_contingency_plan: "План на случай изменения ситуации не был сформулирован.",
-  observation_without_endpoint: "Критерии завершения наблюдения остались неполными.",
-  consultation_replacing_reasoning: "Собственная оценка перед консультацией осталась неявной.",
-});
+/**
+ * The debrief line for a deferred issue comes from the rule that raised it -
+ * core heuristics plus whatever the case carries in `mentor_rules` - never from
+ * a table kept here.
+ *
+ * There used to be such a table, with seven of the nineteen rules in it. The
+ * other twelve resolved to `undefined` and were then removed by a `.filter`,
+ * so a resident who closed on a diagnosis without excluding the dangerous
+ * alternative was told only that a contingency plan was missing. The gap was in
+ * the export and nowhere on the screen. A second table can always fall behind
+ * the rules; a field on the rule cannot.
+ */
+function debriefLabels(caseData) {
+  return new Map(
+    [...mentorHeuristics, ...(caseData.mentor_rules || [])]
+      .filter((rule) => rule.id && rule.debrief_line_ru)
+      .map((rule) => [rule.id, rule.debrief_line_ru])
+  );
+}
 
 function deferredMentorRows(caseData, session) {
   const investigations = session.workingMemory?.reasoningState?.investigations?.items || [];
@@ -33,13 +44,22 @@ function deferredMentorRows(caseData, session) {
     (item) => item.purpose_stated || item.justification
   );
 
+  const labels = debriefLabels(caseData);
+
   return (session.workingMemory?.deferredMentorIssues || [])
     .flatMap((issue) => {
       if (issue.issue_id !== "investigation_without_purpose") {
-        return [DEFERRED_ISSUE_LABELS[issue.issue_id]];
+        // An issue with no line of its own is still reported. Losing it quietly
+        // is the failure this function was rewritten for; the resident sees that
+        // something was deferred, and the id stays in the export for whoever
+        // owns the rule.
+        return [
+          labels.get(issue.issue_id) ||
+            "Ещё один пункт разбора зафиксирован в выгрузке сессии без формулировки.",
+        ];
       }
       if (!unpurposedInvestigations.length) return [];
-      if (!hasArticulatedPurpose) return [DEFERRED_ISSUE_LABELS[issue.issue_id]];
+      if (!hasArticulatedPurpose) return [labels.get(issue.issue_id)];
       return unpurposedInvestigations.map((item) => {
         const canonicalActionId = actionById.has(item.action_id)
           ? item.action_id

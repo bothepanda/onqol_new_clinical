@@ -27,6 +27,14 @@ export const MENTOR_MODE = Object.freeze({
   SAFETY_STOP: "SAFETY_STOP",
 });
 
+/**
+ * The severity from which a gap is worth interrupting a learner who is otherwise
+ * moving forward. Mirrors SEVERITY.IMPORTANT_OMISSION in mentorHeuristics.js;
+ * it is a number here because the policy receives issues as brief data, not as
+ * heuristic objects.
+ */
+const TEACHABLE_SEVERITY = 3;
+
 export const SCAFFOLDING_LEVEL = Object.freeze({
   NONE: 0,
   PROMPT: 1,
@@ -350,15 +358,26 @@ function modeFor(assessment, issue) {
     return MENTOR_MODE.CLARIFY;
   }
   if (assessment.adequacy === ADEQUACY.SUFFICIENT) {
-    return [
-      "reasoning_reinforcement",
-      "escalation_appropriate",
-      "contingency_acknowledged",
-    ].includes(issue?.type)
-      ? MENTOR_MODE.REINFORCE
+    if (
+      [
+        "reasoning_reinforcement",
+        "escalation_appropriate",
+        "contingency_acknowledged",
+      ].includes(issue?.type)
+    ) {
+      return MENTOR_MODE.REINFORCE;
+    }
+    // The same severity ladder the two branches below already use: an important
+    // omission is pushed back on even when the turn itself was adequate, a
+    // minor gap is not. Silence on a severity-3 gap is not neutral - the
+    // learner reads an unanswered claim as an accepted one.
+    return Number(issue?.severity || 0) >= TEACHABLE_SEVERITY
+      ? MENTOR_MODE.CHALLENGE
       : MENTOR_MODE.CONTINUE;
   }
-  return Number(issue?.severity || 0) >= 3 ? MENTOR_MODE.CHALLENGE : MENTOR_MODE.CLARIFY;
+  return Number(issue?.severity || 0) >= TEACHABLE_SEVERITY
+    ? MENTOR_MODE.CHALLENGE
+    : MENTOR_MODE.CLARIFY;
 }
 
 function fallbackFor({ mode, assessment, issue, scaffoldingLevel, approvedTeachingRules }) {
@@ -433,9 +452,22 @@ export function selectMentorPolicy({
     ADEQUACY.EVASIVE,
     ADEQUACY.VAGUE,
   ].includes(assessment.adequacy);
+  // "Enough to move on" is not "nothing to teach". A resident who names a
+  // diagnosis has expressed enough for the case to advance, and the turn is
+  // scored SUFFICIENT for exactly that reason - but premature closure, an
+  // unranked differential and an unexcluded dangerous alternative are all
+  // conditions whose whole content is that naming it was not enough. Selecting
+  // only reinforcement here is what let "о аппендицит определенно" pass with a
+  // silent nod on turn 2 of a pregnancy-possible case.
+  const teachableIssue = candidateIssues.find(
+    (issue) =>
+      issue.relevant_to_current_turn !== false &&
+      !reinforcingTypes.has(issue.type) &&
+      Number(issue.severity || 0) >= TEACHABLE_SEVERITY
+  );
   const issue = safetyIssue ||
     (assessment.adequacy === ADEQUACY.SUFFICIENT
-      ? positiveIssue
+      ? positiveIssue || teachableIssue
       : syntheticFirst
         ? synthetic || currentIssue
         : currentIssue || synthetic) ||

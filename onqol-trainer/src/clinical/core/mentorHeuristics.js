@@ -39,7 +39,12 @@
 //   1. `mentor_line` is shown to the learner verbatim when no model is
 //      configured. Write it the way you would say it out loud to a resident
 //      standing next to you.
-//   2. `mentor_line` may name actions and reasoning. It may NOT assert a patient
+//   2. `debrief_line_ru` is the same gap stated after the case, in the past, for
+//      the formative debrief. It is REQUIRED on every rule and a test enforces
+//      that: the debrief used to look its labels up in a separate table, and the
+//      twelve rules missing from that table were dropped from the resident's
+//      debrief silently, evidence and all.
+//   3. `mentor_line` may name actions and reasoning. It may NOT assert a patient
 //      finding, a vital sign, a pain score or the diagnosis - even one the app
 //      has already printed, because this file cannot know what was revealed.
 //      "Обезболивание ещё не назначено" is fine. "Пациентка жалуется на сильную
@@ -96,6 +101,8 @@ export const HINT = { OPEN: 1, DIRECTIONAL: 2, FOCUSED: 3, EXPLICIT: 4 };
  * @property {boolean} [rearm_on_deterioration] may speak a second time if the
  *                     patient's status changes; see selectHeuristics
  * @property {string} mentor_line             shown verbatim without a model
+ * @property {string} debrief_line_ru          the same gap stated after the fact,
+ *                     for the formative debrief; required on every rule
  * @property {string} rationale_for_reviewer
  * @property {string} provenance
  * @property {boolean} eligible_for_scoring
@@ -130,6 +137,8 @@ export const mentorHeuristics = [
     rearm_on_deterioration: true,
     mentor_line:
       "Картина меняется, а план — нет. Что сейчас опаснее всего в ближайший час?",
+    debrief_line_ru:
+      "Состояние пациента менялось, а изменение плана не было сформулировано.",
     rationale_for_reviewer:
       "Ухудшение без изменения плана — единственная категория, где наставник обязан прервать сократический режим (спека, раздел 3: patient safety overrides Socratic teaching). Проверить: достаточно ли флага delay_risk как признака ухудшения, или нужен явный порог по витальным.",
     provenance: AUTHORED,
@@ -152,6 +161,8 @@ export const mentorHeuristics = [
     },
     mentor_line:
       "Название болезни уже есть. Мне сейчас важнее другое: пациент стабилен или нет, и по каким признакам?",
+    debrief_line_ru:
+      "Оценка стабильности пациента не была сформулирована до рабочего диагноза.",
     rationale_for_reviewer:
       "Резидент называет заболевание и не оценивает физиологию. Срабатывает на том, что резидент сказал про стабильность, а не на том, произнёс ли он слово «сепсис».",
     provenance: AUTHORED,
@@ -170,6 +181,8 @@ export const mentorHeuristics = [
       min_turn: 4,
     },
     mentor_line: "Хорошо, диагноз есть. И что ты теперь с этим пациентом делаешь?",
+    debrief_line_ru:
+      "Диагноз был назван, а переход к тактике не был сформулирован.",
     rationale_for_reviewer:
       "Рассуждение заканчивается диагнозом. Каждый диагноз должен переходить в решение. Порог min_turn даёт резиденту ход на то, чтобы дойти до тактики самому.",
     provenance: AUTHORED,
@@ -190,6 +203,8 @@ export const mentorHeuristics = [
       reasoning_none: ["dangerous_alternative_stated"],
     },
     mentor_line: "Диагноз назван быстро. Что здесь нельзя пропустить, даже если это менее вероятно?",
+    debrief_line_ru:
+      "Рабочий диагноз был назван без явного рассуждения об опасной альтернативе.",
     rationale_for_reviewer:
       "«Боль справа + лейкоцитоз = аппендицит» — самое типичное преждевременное закрытие. Теперь срабатывает на отсутствии рассуждения об опасной альтернативе, а не на невыполненном действии: резидент, назвавший альтернативу словами, больше не наказывается.",
     provenance: AUTHORED,
@@ -206,6 +221,8 @@ export const mentorHeuristics = [
       reasoning_none: ["differential_ranked"],
     },
     mentor_line: "Список есть. Что из этого первое по вероятности, а что — самое опасное?",
+    debrief_line_ru:
+      "Дифференциальный ряд не был ранжирован по вероятности и по опасности.",
     rationale_for_reviewer:
       "Проблема не в маленьком дифференциале, а в отсутствии приоритетов. Ранжирование — то, что отличает мышление от перечисления.",
     provenance: AUTHORED,
@@ -226,6 +243,8 @@ export const mentorHeuristics = [
       reasoning_none: ["hypothesis_evidence_against_stated"],
     },
     mentor_line: "Аргументы за я услышал. А что в этой картине НЕ укладывается в твою версию?",
+    debrief_line_ru:
+      "Доводы против ведущей гипотезы не были названы.",
     rationale_for_reviewer:
       "«What does not fit your diagnosis?» — прямой вопрос из спеки, раздел 5. Резидент, у которого все доводы указывают в одну сторону, обычно не взвешивал, а подтверждал уже принятое решение. Отличается от premature_closure: там альтернатива не названа вовсе, здесь она может быть названа, но ни одного довода против ведущей гипотезы не прозвучало.",
     provenance: AUTHORED,
@@ -249,6 +268,8 @@ export const mentorHeuristics = [
     },
     mentor_line:
       "Какой клинический вопрос ты хочешь закрыть этим исследованием и изменит ли результат тактику?",
+    debrief_line_ru:
+      "Цель исследования не была вербализована.",
     rationale_for_reviewer:
       "Исследование имеет смысл, если оно отвечает на конкретный вопрос или меняет тактику. Срабатывает на названном резидентом обосновании, а не на количестве назначенных тестов — считать тесты и звать это shotgun-диагностикой прямо запрещено планом V3.1.",
     provenance: AUTHORED,
@@ -265,6 +286,8 @@ export const mentorHeuristics = [
       not_completed_intent: ["request_examination"],
     },
     mentor_line: "До визуализации стоит назвать, что даст осмотр живота. Что именно ищем при пальпации?",
+    debrief_line_ru:
+      "Визуализация была запрошена до того, как был назван ожидаемый результат осмотра.",
     rationale_for_reviewer:
       "Автор: «мы всегда движемся от менее инвазивного теста к более. Иногда руки скажут тебе больше». Сформулировано через типы намерений, а не через id конкретных исследований, поэтому переносится на любую нозологию.",
     provenance: AUTHORED,
@@ -283,6 +306,8 @@ export const mentorHeuristics = [
     },
     mentor_line:
       "Что этому пациенту нужно уже сейчас, независимо от того, что покажет исследование?",
+    debrief_line_ru:
+      "Тактика откладывалась до получения всех результатов без сформулированного плана.",
     rationale_for_reviewer:
       "Резидент воспринимает диагностику и лечение как последовательные этапы. В неотложной хирургии они идут параллельно. Порог по часам, а не по действию ожидания, — чтобы правило не зависело от того, есть ли в кейсе действие «ждать УЗИ».",
     provenance: AUTHORED,
@@ -304,6 +329,8 @@ export const mentorHeuristics = [
       reasoning_none: ["observation_plan_complete"],
     },
     mentor_line: "Наблюдаем что, до какого момента, и что должно произойти, чтобы решение поменялось?",
+    debrief_line_ru:
+      "Критерии завершения наблюдения остались неполными.",
     rationale_for_reviewer:
       "«Оставим под наблюдением» без цели, интервала пересмотра и критерия эскалации — псевдотактика. Формулировка безличная намеренно: «чтобы ты поменяла» приписало бы резиденту пол.",
     provenance: AUTHORED,
@@ -320,6 +347,8 @@ export const mentorHeuristics = [
       reasoning_none: ["contingency_stated"],
     },
     mentor_line: "План есть. Что заставит тебя его поменять?",
+    debrief_line_ru:
+      "План на случай изменения ситуации не был сформулирован.",
     rationale_for_reviewer:
       "Один из самых частых вопросов наставника по спеке. У любого плана должны быть критерии отказа и эскалации.",
     provenance: AUTHORED,
@@ -337,6 +366,8 @@ export const mentorHeuristics = [
     },
     mentor_line:
       "Позови. Но сначала скажи мне: что ты сам думаешь, что уже сделано и какой вопрос ты задаёшь консультанту?",
+    debrief_line_ru:
+      "Собственная оценка перед консультацией осталась неявной.",
     rationale_for_reviewer:
       "Консультация используется вместо собственного клинического решения. Дополняет, а не заменяет ход escalation_premature: тот про момент вызова, этот про содержание доклада.",
     provenance: AUTHORED,
@@ -358,6 +389,8 @@ export const mentorHeuristics = [
     },
     mentor_line:
       "Мы уже долго в приёмном. Каков конкретный план диспозиции, включая цель и срок пересмотра при продолжении наблюдения?",
+    debrief_line_ru:
+      "Решение о маршрутизации из приёмного отделения не было сформулировано ко времени контрольной точки.",
     rationale_for_reviewer:
       "NEEDS_SOURCE_VERIFICATION. Автор: стандарт приёмных отделений РК не устанавливает универсального правила «через 4 часа пациент обязан уйти»; для жёлтой зоны допускается наблюдение до 24 часов. Модель NHS England использует 0–4 часа как core ED care с целевым исходом admit/transfer/discharge у ≥95%. Сверить обе строки; порог 240 минут взят из второй. Наблюдение принимается как маршрут только с целью, интервалом и критерием выхода.",
     provenance: AUTHORED_WITH_SOURCE,
@@ -414,6 +447,8 @@ export const mentorHeuristics = [
     },
     mentor_line:
       "Останови на секунду. Сформулируй одной фразой, кто перед тобой и в чём проблема — без диагноза, только суть.",
+    debrief_line_ru:
+      "Представление проблемы явно не сформулировано.",
     rationale_for_reviewer:
       "Problem representation — первый из трёх навыков клинического мышления (Cuddy 2025, Deschênes 2025): сжать данные в смысловое резюме до того, как называть болезнь. Отличается от heuristic-а premature_closure тем, что не ждёт ошибки: резидент может не совершить ни одной, и всё равно ни разу не сформулировать пациента. Порог в три хода даёт время собрать хоть что-то, чтобы вопрос не пришёл на пустом месте.",
     provenance: AUTHORED,
@@ -434,6 +469,8 @@ export const mentorHeuristics = [
     },
     mentor_line:
       "Назови гипотезы, которые сейчас лидируют. И скажи, какая из них опаснее всего, даже если она не самая вероятная.",
+    debrief_line_ru:
+      "Гипотезы и опасная альтернатива явно не ранжированы.",
     rationale_for_reviewer:
       "Hypothesis generation с ранжированием — второй навык. Пересекается с unranked_differential и premature_closure, но те требуют, чтобы резидент уже что-то назвал: они молчат, если он не назвал ничего. Этот спрашивает. Ответ раскладывается в differential.items с rank и dangerous, то есть чекпоинт не только учит, но и наполняет измерение.",
     provenance: AUTHORED,
@@ -453,6 +490,8 @@ export const mentorHeuristics = [
     },
     mentor_line:
       "Последний вопрос по ходу: какой результат заставит тебя поменять решение — и что ты делаешь, если он придёт именно таким?",
+    debrief_line_ru:
+      "Условие изменения плана осталось неявным.",
     rationale_for_reviewer:
       "Diagnostic justification — третий навык: не «зачем этот анализ», а «что изменится от ответа». Отличается от no_contingency_plan: тот срабатывает на полном отсутствии плана Б, этот — когда план Б назван общими словами («если станет хуже»), но ни разу не привязан к конкретному исследованию. Требует уже названной ведущей гипотезы: без неё вопрос преждевременный.",
     provenance: AUTHORED,
