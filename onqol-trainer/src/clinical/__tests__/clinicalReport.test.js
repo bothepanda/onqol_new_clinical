@@ -115,6 +115,20 @@ test("the educator's export groups the queue by who has to look at it", () => {
   assert.deepEqual(listClinicalReports(storage), []);
 });
 
+test("clinical reports expire after seven days and are purged on the next app read", () => {
+  const storage = memoryStorage();
+  const { caseData, session } = pilotSession();
+  let now = Date.parse("2026-08-20T10:00:00.000Z");
+  saveClinicalReport(
+    createClinicalReport({ caseData, session, categoryId: "other", comment: "замечание" }).report,
+    storage,
+    { now: () => now, retentionMs: 1_000 }
+  );
+  assert.equal(listClinicalReports(storage, { now: () => now, retentionMs: 1_000 }).length, 1);
+  now += 1_001;
+  assert.deepEqual(listClinicalReports(storage, { now: () => now, retentionMs: 1_000 }), []);
+});
+
 test("every category names an owner, so no report lands in a queue nobody reads", () => {
   assert.equal(CLINICAL_REPORT_CATEGORY_IDS.length, CLINICAL_REPORT_CATEGORIES.length);
   for (const category of CLINICAL_REPORT_CATEGORIES) {

@@ -331,6 +331,22 @@ test("observation-list answer becomes monitoring and escalation reasoning", asyn
   assert.doesNotMatch(result.reply, /данные не заданы/i);
 });
 
+test("explicit numeric escalation thresholds become standalone reasoning", async () => {
+  const session = createV25Session({ caseData, mode: "reference", seed: "threshold-list" });
+  const input =
+    "Эскалация немедленно при сАД ниже 90, ЧСС выше 120, сатурации ниже 94%, олигурии или кровотечении";
+  const result = await advanceV25Session({
+    caseData,
+    session,
+    input,
+    options: optionsFor(replayRouter),
+  });
+  const reasoning = result.session.workingMemory.reasoningState;
+  assert.equal(reasoning.observation.escalation_criteria_stated, true);
+  assert.equal(reasoning.contingency.specificity, "specific");
+  assert.deepEqual(reasoning.contingency.trigger_verbatim, [input]);
+});
+
 test("clinical reasoning alone does not touch patient, clock or simulator", async () => {
   const session = createV25Session({ caseData, mode: "reference", seed: "reasoning-only" });
   let simulatorCalls = 0;

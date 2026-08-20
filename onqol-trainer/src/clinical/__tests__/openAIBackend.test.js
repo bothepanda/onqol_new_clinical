@@ -132,6 +132,13 @@ test("server request keeps the API key in the Authorization header", async () =>
         json: async () => ({
           id: "resp_test",
           model: "gpt-5.6-luna",
+          usage: {
+            input_tokens: 120,
+            output_tokens: 30,
+            total_tokens: 150,
+            input_tokens_details: { cached_tokens: 20 },
+            output_tokens_details: { reasoning_tokens: 10 },
+          },
           output: [{ type: "message", content: [{ type: "output_text", text: "{}" }] }],
         }),
       };
@@ -141,6 +148,8 @@ test("server request keeps the API key in the Authorization header", async () =>
   assert.equal(captured.options.headers.Authorization, "Bearer server-secret");
   assert.doesNotMatch(captured.options.body, /server-secret/);
   assert.equal(result.output, "{}");
+  assert.equal(result.telemetry.usage.total_tokens, 150);
+  assert.equal(result.telemetry.usage.cached_tokens, 20);
 });
 
 test("browser client sends task, prompt and a quota-scoped session header", async () => {
@@ -150,13 +159,20 @@ test("browser client sends task, prompt and a quota-scoped session header", asyn
     sessionId: "session-backend-0001",
     fetchImpl: async (url, options) => {
       captured = { url, options };
-      return { ok: true, json: async () => ({ output: "structured-result" }) };
+      return {
+        ok: true,
+        json: async () => ({
+          output: "structured-result",
+          telemetry: { task: "router", latency_ms: 75, usage: { total_tokens: 44 } },
+        }),
+      };
     },
   });
   assert.equal(await client(prompt), "structured-result");
   assert.equal(captured.url, "/api/v25/openai");
   assert.equal(captured.options.headers["X-ONQOL-Session-Id"], "session-backend-0001");
   assert.deepEqual(JSON.parse(captured.options.body), { task: "router", prompt });
+  assert.equal(client.telemetry[0].usage.total_tokens, 44);
 });
 
 test("backend status fails closed when the endpoint is unavailable", async () => {
@@ -164,5 +180,22 @@ test("backend status fails closed when the endpoint is unavailable", async () =>
     throw new Error("offline");
   });
   assert.equal(status.configured, false);
+  assert.equal(status.accessGranted, false);
   assert.equal(status.routerModel, "gpt-5.6-luna");
+});
+
+test("backend status sends the pilot code for preflight verification", async () => {
+  let captured;
+  const status = await getOpenAIBackendStatus({
+    accessToken: "pilot-access-code",
+    fetchImpl: async (url, options) => {
+      captured = { url, options };
+      return {
+        ok: true,
+        json: async () => ({ configured: true, accessRequired: true, accessGranted: true }),
+      };
+    },
+  });
+  assert.equal(status.accessGranted, true);
+  assert.equal(captured.options.headers.Authorization, "Bearer pilot-access-code");
 });

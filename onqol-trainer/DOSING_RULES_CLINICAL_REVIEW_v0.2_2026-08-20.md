@@ -3,8 +3,23 @@
 **Версия:** 0.2  
 **Дата:** 20.08.2026  
 **Основа:** `DOSING_RULES_DRAFT_v0.1.md`  
-**Статус:** `CLINICALLY_REVIEWED_DRAFT`  
-**Назначение:** контент для дальнейшего внесения в ON QOL после технической нормализации и, для high-risk rules, независимого второго клинического ревью.
+**Статус:** `CLINICALLY_REVIEWED_DRAFT`; исключение — три строки пилотной
+антибиотикопрофилактики, перечисленные ниже, внесены в runtime после второй
+записанной подписи 20.08.2026.
+**Назначение:** полный пакет остаётся draft. Только явно перечисленный
+трёхстрочный subset разрешён как teaching-only; остальные high-risk rules ждут
+независимого второго клинического ревью.
+
+### Подписанный runtime subset
+
+`dosing.cefazolin.prophylaxis`, `dosing.metronidazole.prophylaxis` и
+`dosing.appendectomy.prophylaxis` записаны в `DOSING_RULE_REGISTRY` с двумя
+reviewer: Сарина Т.Т. (independent clinical review) и Каукенова Б.Н., MD (local
+applicability), дата 20.08.2026. У них `allowed_runtime_effects` ограничен
+`mentor_teaching`, `score_weight: 0`; weight branch и redosing не включены.
+Расхождение КНФ сохраняется, а локальная доза резидента не может называться
+ошибкой. Это не распространяет approval на остальные строки этого документа и
+не заменяет pilot-wide clinical manifest sign-off.
 
 ## 1. Решение по КНФ РК
 
@@ -401,9 +416,9 @@ https://knf.kz/ru/content/index
 
 | rule_id | КНФ | Клинический статус | Runtime |
 |---|---|---|---|
-| dosing.cefazolin.prophylaxis | КНФ± | reference rule подтвержден, KZ divergence | HOLD for KZ jurisdiction decision |
-| dosing.appendectomy.prophylaxis | КНФ± | исправлено: cefazolin + metronidazole / cefoxitin / cefotetan | REVIEWED, secondary review required |
-| dosing.metronidazole.prophylaxis | КНФ± | доза reference приемлема, КНФ не идентичен | REVIEWED, secondary review required |
+| dosing.cefazolin.prophylaxis | КНФ± | signed two-reviewer teaching subset; KZ divergence | APPROVED teaching-only, weight/redosing excluded |
+| dosing.appendectomy.prophylaxis | КНФ± | signed two-reviewer combination rule | APPROVED teaching-only |
+| dosing.metronidazole.prophylaxis | КНФ± | signed two-reviewer reference dose; КНФ не идентичен | APPROVED teaching-only |
 | dosing.amoxclav.iai | КНФ± | pathway-specific | HOLD local formulation verification |
 | dosing.gentamicin.iai | КНФ± | pathway-specific + renal/TDM safety | HOLD |
 | dosing.ceftriaxone-metro.iai | КНФ± | pathway-specific | REVIEWED, secondary review required |
@@ -472,4 +487,8 @@ https://knf.kz/ru/content/index
 
 ---
 
-**Clinical governance note:** этот файл фиксирует результат первого клинического ревью и сверки с КНФ. Для medication doses, anticoagulation, antibiotics и других high-risk rules статус `approved_for_training` должен присваиваться только после второго независимого клинического ревью в соответствии с ON QOL Clinical Evidence and Content Governance Specification.
+**Clinical governance note:** этот файл фиксирует результат первого
+клинического ревью и сверки с КНФ. Только три строки в разделе «Подписанный
+runtime subset» имеют записанную вторую подпись; для остальных medication doses,
+anticoagulation, antibiotics и high-risk rules статус `approved_for_training`
+присваивается только после второго независимого клинического ревью.

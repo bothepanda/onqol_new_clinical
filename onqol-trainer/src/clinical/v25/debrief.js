@@ -89,18 +89,18 @@ function buildFormativeDebrief({ caseData, session, scoring }) {
     .join("\n");
   const timeline = (session.temporalState?.timeline || [])
     .slice(-6)
-    .map((entry) => `- T+${entry.minute} мин: ${entry.detail}`)
+    .map((entry) => `- Через ${entry.minute} мин: ${entry.detail}`)
     .join("\n");
   const deferredRows = deferredMentorRows(caseData, session);
 
-  const markdown = `# Формирующий разбор V${caseData.product_version || "3.5"}
+  const markdown = `# Формирующий разбор
 
 **Статус:** итоговый числовой балл отключён. Рубрика не валидирована для оценивания резидента.
 
 **Путь:** ${
     stableEndpointReached
-      ? "стабильный путь доведён до discharge/follow-up endpoint."
-      : `сессия завершена до безопасного endpoint (текущее состояние: \`${session.pathState || "unknown"}\`).`
+      ? "стабильный путь завершён: выписка и дальнейшее наблюдение зафиксированы."
+      : "сессия завершена до выписки и плана дальнейшего наблюдения."
   }
 
 Таблица ниже фиксирует только наличие явно сформулированных элементов рассуждения. Она не подтверждает их клиническую правильность и не является оценкой эффективности.
@@ -158,7 +158,7 @@ export function buildEvidenceGroundedDebrief({ caseData, session, scoring, knowl
 
   const timeline = session.temporalState.timeline
     .slice(-6)
-    .map((event) => `- T+${event.minute} мин: ${event.detail}`)
+    .map((event) => `- Через ${event.minute} мин: ${event.detail}`)
     .join("\n");
 
   const revealedConstraintRows = (session.workingMemory?.revealedConstraints || []).map((resource) => {

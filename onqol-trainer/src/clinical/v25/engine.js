@@ -390,9 +390,8 @@ function neutralStateLine(previousTemporalState, temporalState) {
     previousTemporalState.status !== temporalState.status ||
     previousTemporalState.sourceControl !== temporalState.sourceControl;
   if (!clinicallyMeaningful) return "";
-  return `**Динамика:** прошло ${temporalState.lastDeltaMinutes} мин. ЧСС ${temporalState.heartRate}/мин, T ${temporalState.temperatureC.toFixed(
-    1
-  )} °C, боль ${temporalState.painScore}/10.`;
+  const temperature = temporalState.temperatureC.toFixed(1).replace(".", ",");
+  return `**Динамика:** прошло ${temporalState.lastDeltaMinutes} мин. ЧСС ${temporalState.heartRate}/мин, температура ${temperature} °C, боль ${temporalState.painScore}/10.`;
 }
 
 /**
@@ -474,7 +473,7 @@ function closingPrompt(session, plan, blockedOperations, governanceGapActionIds 
     return "Послеоперационная переоценка зафиксирована. Каков план выписки, наблюдения и критерии возврата?";
   }
   if (session.pathState === "discharge") {
-    return "Стабильный путь доведён до безопасного endpoint. Можно завершить кейс для формирующего разбора.";
+    return "Стабильный путь завершён. Можно завершить кейс и перейти к формирующему разбору.";
   }
   if (session.temporalState.status === "controlled") return "Контроль источника выполнен. Что нужно сделать дальше?";
   if (session.temporalState.status === "controlled_with_antibiotic_gap") {
@@ -753,7 +752,7 @@ function applyPlan(caseData, session, plan, options = {}) {
         );
     if (blockedByPath) {
       blockedOperations.push(operation);
-      replies.push(`**Граница пути:** ${blockedByPath.text}`);
+      replies.push(`**Действие пока недоступно:** ${blockedByPath.text}`);
       memory = updateActionState(memory, operation, "blocked", memory.turnNumber, {
         blocked_by: [blockedByPath.reasonId],
       });
@@ -1365,6 +1364,18 @@ export function createV25Session(options = {}) {
       resourceProfileId: caseData.v35_composition?.effective_resource_profile_id || null,
     });
   const startedAt = options.startedAt || new Date().toISOString();
+  const participantConsent = options.participantConsent?.accepted === true
+    ? {
+        accepted: true,
+        policy_version: String(options.participantConsent.policy_version || ""),
+        accepted_at: options.participantConsent.accepted_at || startedAt,
+        provider_processing_disclosed:
+          options.participantConsent.provider_processing_disclosed === true,
+        provider_default_abuse_log_retention_days:
+          Number(options.participantConsent.provider_default_abuse_log_retention_days) || null,
+        local_retention_days: Number(options.participantConsent.local_retention_days) || null,
+      }
+    : null;
   const session = {
     session_id: options.sessionId || createUuid(),
     // The handle a participant reads off the screen and types into the feedback
@@ -1405,6 +1416,7 @@ export function createV25Session(options = {}) {
     institution_id: options.institutionId || "synthetic-pilot",
     cohort_id: options.cohortId || null,
     learner_id: options.learnerId || `anon:${createUuid()}`,
+    participant_consent: participantConsent,
     scenario,
     phase: "presentation",
     pathState: "ems_handoff",
@@ -1447,6 +1459,7 @@ export function createV25Session(options = {}) {
       effective_seed: session.v35_composition?.effective_seed || scenario.seed,
       selection_attempts: session.v35_composition?.selection_attempts || [],
       clinical_test: session.clinical_test,
+      participant_consent: participantConsent,
     })
   );
   return session;
@@ -1829,6 +1842,11 @@ export async function advanceV25Session({
         router_model: routerExecution === "model" ? options.routerModel || null : null,
         simulator_model: simulatorExecution === "model" ? simulator?.model || options.model || null : null,
         mentor_model: mentorExecution === "model" ? options.mentorModel || null : null,
+        request_telemetry: {
+          router: options.actionExtractorLLM?.telemetry || [],
+          simulator: options.simulatorLLM?.telemetry || [],
+          mentor: options.mentorLLM?.telemetry || [],
+        },
         mentor_mode: mentor?.mode || null,
         mentor_issue_id: mentor?.issueId || null,
         mentor_adequacy: mentorBrief?.mentorPolicy?.adequacy || null,

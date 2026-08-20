@@ -51,6 +51,11 @@ function normalize(text) {
     .trim();
 }
 
+function isEndCaseCommand(input, commands = []) {
+  const text = normalize(input);
+  return commands.some((command) => text === normalize(command));
+}
+
 function actionBuckets(caseData) {
   return [
     ...caseData.expected_actions.map((action) => ({ ...action, action_kind: "expected" })),
@@ -84,7 +89,7 @@ function phraseHit(text, phrase) {
 
 export function extractV25Actions(input, caseData) {
   const text = normalize(input);
-  if (caseData.end_conditions.user_commands.some((command) => phraseHit(text, command))) {
+  if (isEndCaseCommand(text, caseData.end_conditions.user_commands)) {
     return [{ id: "end_case", confidence: 1, source: "command", action_kind: "system" }];
   }
 
@@ -203,7 +208,7 @@ function plannerPromptFor({
 }
 
 async function resolveActions(input, caseData, session, options) {
-  if (caseData.end_conditions.user_commands.some((command) => phraseHit(normalize(input), command))) {
+  if (isEndCaseCommand(input, caseData.end_conditions.user_commands)) {
     return {
       actions: [{ id: "end_case", confidence: 1, source: "command", action_kind: "system" }],
       parsed: { actions: [{ id: "end_case", confidence: 1, source: "command" }], source: "command" },
@@ -277,6 +282,31 @@ export async function planClinicalTurn({ input, caseData, session, options = {} 
   }
 
   let { actions, parsed } = await resolveActions(input, caseData, session, options);
+  // After source control, a request to monitor the operated patient is a
+  // postoperative reassessment, not a fresh preoperative observation order.
+  // The language model may choose the broader concept; the deterministic path
+  // owns the phase and narrows it before anything reaches the patient.
+  if (
+    session.temporalState?.sourceControl &&
+    ["operation", "postop_destination", "ward_care"].includes(session.pathState)
+  ) {
+    actions = actions.map((action) =>
+      action.id === "active_observation"
+        ? {
+            ...action,
+            id: "postoperative_reassessment",
+            intent_type: "request_examination",
+            routed_concept_id: action.routed_concept_id || "active_observation",
+            source: `${action.source || "router"}:postop_phase_narrowing`,
+          }
+        : action
+    );
+    parsed.actions = (parsed.actions || []).map((action) =>
+      action.id === "active_observation"
+        ? { ...action, id: "postoperative_reassessment", intent_type: "request_examination" }
+        : action
+    );
+  }
   const operativeLanguage = classifyOperativeLanguage(input);
   if (["tentative_intent", "committed_decision", "committed_approach"].includes(operativeLanguage)) {
     actions = actions.filter(
@@ -490,7 +520,7 @@ export async function planClinicalTurn({ input, caseData, session, options = {} 
       "Use only Case Blueprint facts, revealed scenario constraints and deterministic temporal changes. Never teach or score during simulation.",
     plannerPrompt:
       mode === "debrief"
-        ? "Сформировать evidence-grounded debrief."
+        ? "Сформировать разбор по данным завершённой сессии."
         : plannerPromptFor({
             actions,
             operations,

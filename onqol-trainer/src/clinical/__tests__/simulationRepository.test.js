@@ -37,6 +37,15 @@ test("anonymous user id is random-looking and reused across sessions", () => {
   assert.match(first, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
 });
 
+test("anonymous user id rotates after the local retention window", () => {
+  const storage = new MemoryStorage();
+  let now = Date.parse("2026-08-20T00:00:00.000Z");
+  const first = getOrCreateAnonymousUserId(storage, { now: () => now, retentionMs: 1_000 });
+  now += 1_001;
+  const second = getOrCreateAnonymousUserId(storage, { now: () => now, retentionMs: 1_000 });
+  assert.notEqual(first, second);
+});
+
 test("opt-in redaction covers labeled names, addresses, birth dates, ids and cards", () => {
   const scrubbed = scrubSensitiveText(
     "ФИО: Иванов Иван Иванович; адрес: Алматы, Абая 1; дата рождения: 01.02.1990; " +
@@ -164,6 +173,57 @@ test("session deletion removes record, snapshot, analytics and opted-in raw text
   assert.equal(repository.listSessions().some((entry) => entry.session_id === session.session_id), false);
   assert.equal(repository.exportSession(session.session_id), null);
   assert.equal(repository.listEvents({ includeRawText: true }).length, 0);
+});
+
+test("opening the repository purges every local artifact of an expired session", () => {
+  const storage = new MemoryStorage();
+  let now = Date.parse("2026-08-20T00:00:00.000Z");
+  const repository = new BrowserSimulationRepository(storage, {
+    persistRawText: true,
+    retentionMs: 1_000,
+    now: () => now,
+  });
+  const session = createInitialSession(acuteAppendicitisCase, {
+    anonymousUserId: getOrCreateAnonymousUserId(storage, { now: () => now, retentionMs: 1_000 }),
+  });
+  repository.createSession(buildSessionRecord(session));
+  repository.saveSession(session);
+  repository.appendEvent(
+    createSimulationEvent("user_message", session.session_id, { raw_user_text: "секрет" })
+  );
+  now += 1_001;
+  const reopened = new BrowserSimulationRepository(storage, {
+    persistRawText: true,
+    retentionMs: 1_000,
+    now: () => now,
+  });
+  assert.equal(reopened.listSessions().length, 0);
+  assert.equal(reopened.listEvents({ includeRawText: true }).length, 0);
+  assert.equal(reopened.exportSession(session.session_id), null);
+});
+
+test("orphan and unattributed analytics expire without a session record", () => {
+  const storage = new MemoryStorage();
+  let now = Date.parse("2026-08-20T00:00:00.000Z");
+  const repository = new BrowserSimulationRepository(storage, {
+    persistRawText: true,
+    retentionMs: 1_000,
+    now: () => now,
+  });
+  repository.appendEvent(
+    createSimulationEvent("user_message", "orphan-session", { raw_user_text: "секрет" })
+  );
+  repository.appendEvent(
+    createSimulationEvent("system_error", null, { raw_user_text: "другой секрет" })
+  );
+  assert.equal(repository.listEvents({ includeRawText: true }).length, 2);
+  now += 1_001;
+  const reopened = new BrowserSimulationRepository(storage, {
+    persistRawText: true,
+    retentionMs: 1_000,
+    now: () => now,
+  });
+  assert.equal(reopened.listEvents({ includeRawText: true }).length, 0);
 });
 
 test("completed and abandoned sessions preserve their original version snapshot", () => {

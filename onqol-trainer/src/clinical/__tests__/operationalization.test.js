@@ -79,7 +79,7 @@ test("«обезболю пациента» is an intention, and the team asks w
   assert.deepEqual(state.awaiting_slots, ["agent", "dose", "route"]);
   assert.match(
     result.reply,
-    /Медсестра ждёт назначения: чем именно, в какой дозе и каким путём\?/
+    /Медсестра ожидает назначения\. Чем именно, в какой дозе и каким путём\?/
   );
 
   const log = result.session.actionLog.findLast((entry) => entry.action_id === "analgesia");
@@ -121,8 +121,17 @@ test("a compound half-order is asked about in one question, not one half silentl
   });
   const question = operationalizationQuestion([fluids, observation]);
 
-  assert.match(question, /какой раствор, какой объём и с какой скоростью/);
-  assert.match(question, /что контролируешь и при каких изменениях звать вас/);
+  assert.match(question, /какой раствор, какой объём и с какой скоростью/i);
+  assert.match(question, /что контролируешь и при каких изменениях звать вас/i);
+});
+
+test("explicit postoperative escalation thresholds close the observation endpoint slot", () => {
+  const state = readOrderSlots({
+    actionId: "active_observation",
+    text: "контролирую ЧСС и давление; звать меня при гипотонии, тахикардии или кровотечении",
+  });
+  assert.equal(state.complete, true);
+  assert.ok(state.filled.endpoint);
 });
 
 test("«посмотрю на динамике» does not run an observation with no endpoint", async () => {
@@ -144,7 +153,7 @@ test("«посмотрю на динамике» does not run an observation wit
     result.session.workingMemory.actionStates.active_observation.awaiting_slots,
     ["monitored", "endpoint"]
   );
-  assert.match(result.reply, /что контролируешь/);
+  assert.match(result.reply, /что контролируешь/i);
 });
 
 test("a fully stated order is never asked for a second time", async () => {
@@ -154,7 +163,7 @@ test("a fully stated order is never asked for a second time", async () => {
     input: "покапаю пока",
     options: optionsFor([{ type: "management", concept_id: "iv_fluids", confidence: 0.9 }]),
   });
-  assert.match(first.reply, /какой раствор/);
+  assert.match(first.reply, /какой раствор/i);
 
   const second = await advanceV25Session({
     caseData,
@@ -165,7 +174,7 @@ test("a fully stated order is never asked for a second time", async () => {
 
   // The pilot still cannot validate 5 ml/kg, and says so — but it says it once,
   // as a statement, and does not ask again for what was just written.
-  assert.doesNotMatch(second.reply, /какой раствор/);
+  assert.doesNotMatch(second.reply, /какой раствор/i);
   assert.doesNotMatch(second.reply, /Уточни назначение/);
   const record = second.session.workingMemory.orderRecords.iv_fluids;
   assert.equal(record.complete, true);

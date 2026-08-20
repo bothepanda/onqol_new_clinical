@@ -150,6 +150,8 @@ const SLOT_DEFINITIONS = Object.freeze({
     patterns: [
       /(если\s+[а-яё]+|при\s+(?:нарастани[\wа-яё]*|ухудшени[\wа-яё]*|появлени[\wа-яё]*|сохранени[\wа-яё]*|отсутстви[\wа-яё]*)|тогда\s+[а-яё]+|то\s+(?:вызываю|беру|оперирую|перевожу))/iu,
       /(критери[\wа-яё]*\s+(?:выхода|пересмотра)|триггер|триггер[\wа-яё]*|порог[\wа-яё]*)/iu,
+      /(эскалац|позвать|звать|вызвать|немедленно\s+сообщ)/iu,
+      /(при\s+(?:гипотони|тахикард|лихорад|олигур|кровотеч|нарушени[\wа-яё]*\s+сознани)|с[аa]д\s*(?:ниже|<)|чсс\s*(?:выше|>)|сатураци[яи]\s*(?:ниже|<)|бол[ьи]\s*\d+\s*\/\s*10)/iu,
     ],
     from_parameter: () => null,
   },
@@ -196,7 +198,7 @@ export const OPERATIONALIZATION_CONTRACTS = Object.freeze([
   {
     action_id: "analgesia",
     label_ru: "обезболивание",
-    asker_ru: "Медсестра ждёт назначения",
+    asker_ru: "Медсестра ожидает назначения.",
     // The dose is required as of 20.08.2026, by owner decision and against the
     // language review's own recommendation, which had accepted "agent + route"
     // for pilot 1.
@@ -214,7 +216,7 @@ export const OPERATIONALIZATION_CONTRACTS = Object.freeze([
   {
     action_id: "iv_fluids",
     label_ru: "инфузия",
-    asker_ru: "Медсестра ждёт назначения",
+    asker_ru: "Медсестра ожидает назначения.",
     required: [ORDER_SLOT.SOLUTION, ORDER_SLOT.VOLUME, ORDER_SLOT.RATE],
     recorded: [ORDER_SLOT.TIMING],
   },
@@ -247,7 +249,7 @@ export const OPERATIONALIZATION_CONTRACTS = Object.freeze([
   {
     action_id: "preop_single_antibiotic_prophylaxis",
     label_ru: "антибиотикопрофилактика",
-    asker_ru: "Медсестра ждёт назначения",
+    asker_ru: "Медсестра ожидает назначения.",
     // Transcription only. "Одна доза до разреза" is already taught by the
     // approved rules and gated as a prerequisite before the incision; demanding
     // the agent or the dose here would teach a molecule the pilot has not
@@ -258,7 +260,7 @@ export const OPERATIONALIZATION_CONTRACTS = Object.freeze([
   {
     action_id: "antibiotic_observation_course",
     label_ru: "курс антибиотика",
-    asker_ru: "Медсестра ждёт назначения",
+    asker_ru: "Медсестра ожидает назначения.",
     required: [],
     recorded: [ORDER_SLOT.AGENT, ORDER_SLOT.DOSE, ORDER_SLOT.ROUTE, ORDER_SLOT.INTERVAL],
   },
@@ -397,6 +399,10 @@ function joinFragments(fragments) {
   return `${fragments.slice(0, -1).join(", ")} и ${fragments[fragments.length - 1]}`;
 }
 
+function capitalize(text) {
+  return text ? text[0].toUpperCase() + text.slice(1) : text;
+}
+
 /**
  * One question for the whole turn, even when two orders are incomplete.
  *
@@ -413,7 +419,10 @@ export function operationalizationQuestion(states = []) {
     const fragments = state.missing
       .map((slot) => SLOT_DEFINITIONS[slot]?.fragment_ru)
       .filter(Boolean);
-    return `${contract.asker_ru}: ${joinFragments(fragments)}?`;
+    const asker = /[.!?]$/u.test(contract.asker_ru)
+      ? contract.asker_ru
+      : `${contract.asker_ru}.`;
+    return `${asker} ${capitalize(joinFragments(fragments))}?`;
   });
 
   return parts.join(" ");

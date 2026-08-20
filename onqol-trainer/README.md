@@ -202,17 +202,25 @@ The main V3.5 bundle calls the same-origin `/api/v25/openai` gateway; the
 provider credential remains server-side. Vercel handlers are included for the
 POST endpoint and `/api/v25/openai/status`.
 
-Production fails closed unless all three variables are configured:
+Production fails closed unless all three runtime variables are valid:
 
 - `OPENAI_API_KEY` — project-scoped provider credential;
 - `ONQOL_MAIN_ACCESS_TOKEN` — separate internal pilot code;
 - `ONQOL_MAIN_ALLOWED_ORIGIN` — exact protected deployment origin.
 
+The start screen performs an authenticated status preflight. A blank or wrong
+pilot code, an unavailable backend, or missing participant consent keeps the
+case-start button disabled. The limited local matcher is development-only and
+requires `VITE_ONQOL_ALLOW_LOCAL_FALLBACK=confirmed`; production ignores that
+flag.
+
 The gateway checks the exact browser origin, validates the pilot code with a
 timing-safe comparison, requires a valid session id, limits request size, allows
 only router/simulator/mentor tasks, sets `store: false`, and applies per-client
 and per-session in-process minute/day quotas. Its status endpoint reports the
-active provider, gateway version and strict schema versions without credentials.
+active provider, gateway version, authenticated access state and strict schema
+versions without returning credentials. Each provider call records sanitized
+latency and token-usage telemetry in the replay export.
 The in-process quota is only a last line of defence: hosting-level authentication,
 durable rate limiting and project spend limits still have to be enabled for the
 pilot. Use `.env.example` as the variable inventory; never commit real values.
@@ -223,11 +231,26 @@ that the clinical learner experience is localized.
 
 ## Production release gate
 
+The limited pilot is fixed at **N=8 residents**, RU, `REFERENCE-FULL`,
+APP-001–004 and `formative_only`.
+
 Vercel runs `npm run release:check` before the bundle build. The gate remains
-`NO-GO` until credential rotation, hosting protection, clinical review, Russian
-language review, resource-profile approval and privacy-owner approval are
-recorded through the variables listed in `.env.example`. Enabling Kazakh adds a
-separate completeness gate and currently fails by design.
+`NO-GO` until credential rotation, hosting protection, pilot-wide clinical
+review, complete Russian runtime-copy review and privacy-owner approval are
+recorded in `src/clinical/governance/pilotReleaseApprovals.js`. `REFERENCE-FULL`
+is already approved only for this exact scope; KZ-R1/R2/R3 remain unreviewed,
+learner-inactive and non-blocking. Every approved
+record needs an id, reviewer, date, evidence and exact scope; the corresponding
+deployment variable in `.env.example` must match its id. An arbitrary env string
+cannot manufacture approval. Enabling Kazakh adds a separate completeness gate
+and currently fails by design; enabling the full-test/real-facility path is
+forbidden by the pilot gate.
+
+The scoped pilot stores structured browser artifacts and clinical reports for
+seven days and rotates the browser pseudonym on the same interval. A downloaded
+JSON includes a redacted transcript and same-session clinical reports and is
+outside automatic deletion. Participant copy discloses provider processing and
+the provider's default abuse-log retention boundary before consent.
 
 ## Verify
 
@@ -236,10 +259,15 @@ npm test
 npm run lint
 npm run build
 npm run release:check
+npm audit
 ```
 
 `release:check` is expected to exit non-zero while the external owner gates are
 open. Local build and test remain available; production deployment does not.
+After a real deployment reaches GO, run `npm run smoke:cohort` with
+`ONQOL_SMOKE_URL` and `ONQOL_MAIN_ACCESS_TOKEN`, then complete
+`PILOT_SMOKE_TEST.md` on desktop and mobile. The smoke result is reported as
+`8/8 technical router requests`; it is not eight completed resident sessions.
 
 For a local single-reviewer build with the separate faculty corpus surface:
 

@@ -15,7 +15,8 @@ import {
 export const ROUTER_INTENT_TYPES = [...SCHEMA_INTENT_TYPES];
 export { ROUTER_SCHEMA_VERSION };
 
-const END_CASE_RE = /конец кейса|завершить|finish|end case/i;
+const END_CASE_RE =
+  /^\s*(?:конец\s+кейса|завершить\s+(?:кейс|сессию)|finish|end\s+case)[.!?]?\s*$/iu;
 
 export class SemanticRouterUnavailableError extends Error {
   constructor(message) {
@@ -56,6 +57,130 @@ function inferIntentType(action) {
   if (action.phase === "diagnostic reasoning") return "diagnosis";
   if (action.phase === "management") return "management";
   return "unknown";
+}
+
+function normalizeForGrounding(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/ё/g, "е")
+    .replace(/[^\p{L}\p{N}\s-]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+const DIAGNOSTIC_FRAMING_RE =
+  /(дифференц|исключ|подозр|гипотез|думаю|считаю|вероят|похоже|рабочи[йм]\s+диагноз|может\s+быть)/iu;
+const ACTION_FRAMING_RE =
+  /(назнач|выполн|сдела|провед|осмотр|анализ|тест|узи|кт|мрт|введ|перевед|вызов|консультац)/iu;
+
+// The router may classify a named hypothesis, but it may not invent one. These
+// patterns are the learner-language aliases from the appendicitis vocabulary,
+// reduced to stems so ordinary inflection and minor spelling variation survive.
+const HYPOTHESIS_GROUNDING_PATTERNS = Object.freeze({
+  diagnosis_acute_appendicitis: /ап+енд?[а-я]{0,3}ц[а-я]{0,2}ит|appendicitis/iu,
+  acute_appendicitis: /ап+енд?[а-я]{0,3}ц[а-я]{0,2}ит|appendicitis/iu,
+  uncomplicated_appendicitis: /неосложненн\S*\s+ап+енд?[а-я]{0,3}ц[а-я]{0,2}ит|uncomplicated\s+appendicitis/iu,
+  complicated_appendicitis:
+    /осложненн\S*\s+ап+ендицит|перфоративн\S*\s+ап+ендицит|гангренозн\S*\s+ап+ендицит|appendicitis\s+with\s+peritonitis|complicated\s+appendicitis/iu,
+  differential_ectopic: /внематоч|эктопическ|жатырдан\s+тыс|эктопиялық\s+жүктілік|ectopic\s+pregnancy|tubal\s+pregnancy/iu,
+  ectopic_pregnancy: /внематоч|эктопическ|жатырдан\s+тыс|эктопиялық\s+жүктілік|ectopic\s+pregnancy|tubal\s+pregnancy/iu,
+  ovarian_torsion: /перекрут\S*\s+(яичник|придат)|торси\S*\s+яичник|аналық\s+без\S*\s+бұрал|ovarian\s+torsion|adnexal\s+torsion/iu,
+  pelvic_inflammatory_disease:
+    /взомт|\bпид\b|\bpid\b|сальпингит|воспалительн\S*\s+заболеван\S*\s+орган\S*\s+малого\s+таза|pelvic\s+inflammatory/iu,
+  renal_colic:
+    /почечн\S*\s+колик|камень\S*\s+мочеточник|мочекамен|уретеролити|бүйрек\s+шаншу|несепағар\S*\s+тас|renal\s+colic|ureter\S*\s+(colic|stone)|urolithiasis/iu,
+  gastroenteritis: /гастроэнтерит|кишечн\S*\s+инфекц|ішек\s+инфекция|gastroenteritis|enteric\s+infection/iu,
+  acute_prostatitis: /простатит|prostatitis/iu,
+  prostatic_abscess: /абсцесс\S*\s+прост|prostatic\s+abscess/iu,
+});
+
+/**
+ * A routed diagnosis is allowed to create a diagnosis action only when the
+ * learner's own contiguous fragment actually names that hypothesis.
+ *
+ * This is intentionally stricter than the language model. In the live pilot
+ * check, a pregnancy-status check was once turned into an ectopic differential,
+ * and an abdominal examination was followed by "the differential was recorded"
+ * although the learner had stated none. Dropping an uncertain diagnosis signal
+ * is safer than adding reasoning the learner never expressed.
+ */
+function diagnosisGrounded(action, requestedFragment, learnerText) {
+  if (action?.intent_type !== "diagnosis") return true;
+  if (learnerText === undefined) return true;
+  // Older fixtures and a defensive non-strict provider response may omit the
+  // fragment. The full learner turn is still an admissible grounding surface;
+  // it can prove the diagnosis was named, never manufacture one.
+  const fragment = normalizeForGrounding(requestedFragment || learnerText);
+  if (!fragment) return false;
+  if (action.id === "diagnosis_acute_appendicitis") {
+    return /ап+енд?[а-я]{0,3}ц[а-я]{0,2}ит/iu.test(fragment);
+  }
+  if (action.id === "differential_ectopic") {
+    if (/(внематоч|эктопическ|аднексит)/iu.test(fragment)) return true;
+    return /беремен/iu.test(fragment) && DIAGNOSTIC_FRAMING_RE.test(fragment);
+  }
+  return (action.accepted_phrasings || [])
+    .map(normalizeForGrounding)
+    .filter((phrase) => phrase.length >= 4)
+    .some((phrase) => fragment.includes(phrase));
+}
+
+function hypothesisGrounded(conceptId, allowed, conceptMap, learnerText) {
+  if (learnerText === undefined) return true;
+  const candidates = [conceptId, ...(conceptMap[conceptId] || [])];
+  const text = normalizeForGrounding(learnerText);
+
+  for (const candidate of candidates) {
+    const pattern = HYPOTHESIS_GROUNDING_PATTERNS[candidate];
+    if (pattern?.test(text)) return true;
+    const action = allowed.get(candidate);
+    if (action?.intent_type === "diagnosis" && diagnosisGrounded(action, learnerText, learnerText)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function keepGroundedReasoning(reasoning, allowed, conceptMap, learnerText) {
+  if (!reasoning) return null;
+  const isGrounded = (conceptId) =>
+    hypothesisGrounded(conceptId, allowed, conceptMap, learnerText);
+  const items = reasoning.differential.items.filter((item) => isGrounded(item.concept_id));
+  const workingConcept = reasoning.working_diagnosis.concept_id;
+  const workingGrounded = workingConcept ? isGrounded(workingConcept) : false;
+
+  return {
+    ...reasoning,
+    working_diagnosis: {
+      ...reasoning.working_diagnosis,
+      stated: reasoning.working_diagnosis.stated && workingGrounded,
+      concept_id: workingGrounded ? workingConcept : null,
+      uncertainty_stated: workingGrounded
+        ? reasoning.working_diagnosis.uncertainty_stated
+        : false,
+    },
+    differential: {
+      ...reasoning.differential,
+      stated: items.length > 0,
+      ranked: items.length > 0 && reasoning.differential.ranked,
+      has_dangerous_alternative:
+        items.length > 0 && reasoning.differential.has_dangerous_alternative,
+      concept_ids: items.map((item) => item.concept_id),
+      items,
+    },
+  };
+}
+
+function unknownFragmentKind(fragment, learnerText) {
+  const whole = String(learnerText || "");
+  if (
+    fragment &&
+    DIAGNOSTIC_FRAMING_RE.test(whole) &&
+    !ACTION_FRAMING_RE.test(String(fragment))
+  ) {
+    return "reasoning_only";
+  }
+  return "unrecognized_fragment";
 }
 
 export function buildSemanticRouterPrompt({ input, caseData, session, locale = "ru", conceptMap = {} }) {
@@ -297,6 +422,7 @@ export function validateRouterOutput(routerPayload, caseData, options = {}) {
   const recognizedButUndefined = [];
   const unresolvedByKind = [];
   const managementDecisions = [];
+  const rejectedUngroundedIntents = [];
   const seenActions = new Set();
 
   for (const rawIntent of parsed.intents || []) {
@@ -328,11 +454,12 @@ export function validateRouterOutput(routerPayload, caseData, options = {}) {
 
     intents.push({ type, concept_id: conceptId, confidence, requested_fragment: requestedFragment });
     if (type === "unknown" && requestedFragment) {
+      const fragmentKind = unknownFragmentKind(requestedFragment, options.learnerText);
       unresolvedByKind.push({
         concept_id: null,
-        kind: "unrecognized_fragment",
+        kind: fragmentKind,
         requested_fragment: requestedFragment,
-        reason_code: "router_unrecognized",
+        reason_code: fragmentKind === "reasoning_only" ? "router_reasoning_only" : "router_unrecognized",
       });
     }
     // What KIND of thing is this? An empty mapping used to mean six different
@@ -412,6 +539,16 @@ export function validateRouterOutput(routerPayload, caseData, options = {}) {
       }
 
       for (const mappedId of validMappedIds) {
+        const mappedAction = allowed.get(mappedId);
+        if (type === "diagnosis" && !diagnosisGrounded(mappedAction, requestedFragment, options.learnerText)) {
+          rejectedUngroundedIntents.push({
+            concept_id: conceptId,
+            mapped_action_id: mappedId,
+            requested_fragment: requestedFragment,
+            reason_code: "diagnosis_not_grounded_in_learner_text",
+          });
+          continue;
+        }
         if (!seenActions.has(mappedId)) {
           actions.push({
             id: mappedId,
@@ -441,6 +578,12 @@ export function validateRouterOutput(routerPayload, caseData, options = {}) {
       // the mentor is allowed to quote back.
       learnerText: options.learnerText,
     });
+    reasoning = keepGroundedReasoning(
+      reasoning,
+      allowed,
+      conceptMap,
+      options.learnerText
+    );
   } catch {
     reasoning = null;
   }
@@ -455,6 +598,7 @@ export function validateRouterOutput(routerPayload, caseData, options = {}) {
     // is not signed. Each gets its own answer downstream.
     unresolvedByKind,
     managementDecisions,
+    rejectedUngroundedIntents,
     reasoning,
     actionParameters: normalizeActionParameters(parsed.action_parameters, {
       allowedConceptIds: new Set([...allowed.keys(), ...Object.keys(conceptMap)]),

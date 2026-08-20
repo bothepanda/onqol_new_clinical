@@ -54,7 +54,7 @@ export const FORMATIVE_DOMAINS = Object.freeze([
   }),
   Object.freeze({
     id: "contingency_escalation",
-    title_ru: "Contingency и эскалация",
+    title_ru: "Условия изменения плана и эскалация",
     signals: Object.freeze([
       Object.freeze({ id: "contingency_stated", label_ru: "условие изменения плана сформулировано" }),
       Object.freeze({

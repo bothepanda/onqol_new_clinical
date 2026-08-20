@@ -112,11 +112,27 @@ function privacySafeSessionSnapshot(session, savedAt, retentionMs) {
   };
 }
 
-export function getOrCreateAnonymousUserId(storage = globalThis.localStorage) {
+export function getOrCreateAnonymousUserId(storage = globalThis.localStorage, options = {}) {
+  const now = options.now?.() ?? Date.now();
+  const retentionMs = options.retentionMs || LOCAL_SESSION_RETENTION_MS;
   const existing = storage.getItem(STORAGE_KEYS.anonymousUserId);
-  if (existing) return existing;
+  if (existing) {
+    try {
+      const record = JSON.parse(existing);
+      if (record?.id && Date.parse(record.expires_at || 0) > now) return record.id;
+    } catch {
+      // Legacy string ids are rotated once into an expiring record.
+    }
+  }
   const anonymousUserId = createUuid();
-  storage.setItem(STORAGE_KEYS.anonymousUserId, anonymousUserId);
+  storage.setItem(
+    STORAGE_KEYS.anonymousUserId,
+    JSON.stringify({
+      id: anonymousUserId,
+      created_at: new Date(now).toISOString(),
+      expires_at: new Date(now + retentionMs).toISOString(),
+    })
+  );
   return anonymousUserId;
 }
 
@@ -165,6 +181,54 @@ export class BrowserSimulationRepository extends SimulationRepository {
     this.persistRawText = options.persistRawText === true;
     this.retentionMs = options.retentionMs || LOCAL_SESSION_RETENTION_MS;
     this.now = options.now || Date.now;
+    this.purgeExpired();
+  }
+
+  purgeExpired() {
+    const now = this.now();
+    const sessions = readJson(this.storage, STORAGE_KEYS.sessions, {});
+    const snapshots = readJson(this.storage, STORAGE_KEYS.sessionSnapshots, {});
+    const analytics = readEventsBySession(this.storage);
+    const rawTextByEvent = readJson(this.storage, STORAGE_KEYS.eventRawText, {});
+    const expiredIds = new Set();
+    for (const [sessionId, record] of Object.entries(sessions)) {
+      if (Date.parse(record.local_expires_at || 0) <= now) expiredIds.add(sessionId);
+    }
+    for (const [sessionId, snapshot] of Object.entries(snapshots)) {
+      if (Date.parse(snapshot.expires_at || 0) <= now) expiredIds.add(sessionId);
+    }
+    let expiredEventCount = 0;
+    for (const [sessionId, events] of Object.entries(analytics)) {
+      const active = events.filter((event) => {
+        const explicitExpiry = Date.parse(event.local_expires_at || 0);
+        const timestamp = Date.parse(event.timestamp || 0);
+        const expiry = Number.isFinite(explicitExpiry) && explicitExpiry > 0
+          ? explicitExpiry
+          : timestamp + this.retentionMs;
+        const keep = Number.isFinite(expiry) && expiry > now;
+        if (!keep) {
+          expiredEventCount += 1;
+          delete rawTextByEvent[event.event_id];
+        }
+        return keep;
+      });
+      if (active.length) analytics[sessionId] = active;
+      else delete analytics[sessionId];
+    }
+    if (!expiredIds.size && expiredEventCount === 0) return 0;
+    for (const sessionId of expiredIds) {
+      for (const event of analytics[sessionId] || []) {
+        delete rawTextByEvent[event.event_id];
+      }
+      delete sessions[sessionId];
+      delete snapshots[sessionId];
+      delete analytics[sessionId];
+    }
+    this.storage.setItem(STORAGE_KEYS.sessions, JSON.stringify(sessions));
+    this.storage.setItem(STORAGE_KEYS.sessionSnapshots, JSON.stringify(snapshots));
+    this.storage.setItem(STORAGE_KEYS.eventAnalytics, JSON.stringify(analytics));
+    this.storage.setItem(STORAGE_KEYS.eventRawText, JSON.stringify(rawTextByEvent));
+    return expiredIds.size + expiredEventCount;
   }
 
   createSession(sessionRecord) {
@@ -172,7 +236,10 @@ export class BrowserSimulationRepository extends SimulationRepository {
     if (sessions[sessionRecord.session_id]) {
       throw new Error(`Session ${sessionRecord.session_id} already exists.`);
     }
-    sessions[sessionRecord.session_id] = { ...sessionRecord };
+    sessions[sessionRecord.session_id] = {
+      ...sessionRecord,
+      local_expires_at: new Date(this.now() + this.retentionMs).toISOString(),
+    };
     this.storage.setItem(STORAGE_KEYS.sessions, JSON.stringify(sessions));
     return sessions[sessionRecord.session_id];
   }
@@ -198,6 +265,7 @@ export class BrowserSimulationRepository extends SimulationRepository {
       model_info: eventRecord.model_info || null,
       latency_ms: eventRecord.latency_ms ?? null,
       error_code: eventRecord.error_code || null,
+      local_expires_at: new Date(this.now() + this.retentionMs).toISOString(),
     };
     const analytics = readEventsBySession(this.storage);
     const sessionId = normalized.session_id || UNATTRIBUTED_EVENTS_KEY;

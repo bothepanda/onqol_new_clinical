@@ -28,191 +28,34 @@ import {
 } from "./clinical/governance/clinicalReport.js";
 import { createScenarioSeed, resolveScenarioResource } from "./clinical/v25/scenarioEngine.js";
 import { buildV25ReplayExport } from "./clinical/v25/replayExport.js";
+import {
+  PILOT_RU_REPORT_UI,
+  PILOT_RU_UI,
+  pilotRuActionStatus,
+  pilotRuPhaseLabel,
+} from "./pilot/ruRuntimeCopy.js";
 import "./V25Trainer.css";
 
 const ReactMarkdown = lazy(() => import("react-markdown"));
 
 const MAIN_ACCESS_TOKEN_KEY = "onqol_main_access_token";
+const PILOT_DATA_NOTICE_VERSION = "pilot-data-notice-2026-08-20";
 const FULL_CLINICAL_TEST =
   import.meta.env.VITE_ONQOL_FULL_CLINICAL_TEST === "confirmed";
+const LOCAL_FALLBACK_ALLOWED =
+  import.meta.env.DEV &&
+  import.meta.env.VITE_ONQOL_ALLOW_LOCAL_FALLBACK === "confirmed";
 
-/**
- * The Kazakhstan-profile shift is closed for the first pilot.
- *
- * The profiles are documented working assumptions awaiting owner confirmation
- * (KZ_RESOURCE_PROFILES_REVIEW.md), and blood products and transfer
- * destination are blank in every row. The pilot runs in reference conditions,
- * so the mode stays visible and unusable rather than disappearing.
- *
- * The full clinical test build may still open it: that build is already
- * labelled as unusable for teaching and exists to exercise every branch.
- */
-const REAL_SHIFT_DISABLED = !FULL_CLINICAL_TEST;
+const INTERNAL_TEST_UI = Object.freeze({
+  fullTestChip: "FULL CLINICAL TEST",
+  fullTestTitle: "Локальный полный клинический тест",
+  fullTestBody:
+    "Открыты APP-005, невалидированная числовая оценка и действия, которые обычная версия блокирует до clinical review. Результаты нельзя использовать для оценки резидента.",
+  preset: "Клинический пресет",
+  randomPreset: "Случайный из всех, включая APP-005",
+});
 
-const UI = {
-  ru: {
-    subtitle: "Клинический симулятор",
-    alpha: "V3 · vertical slice",
-    landingTitle: "Как вы сегодня работаете?",
-    landingBody: "Экстренная абдоминальная хирургия. Выберите формат смены.",
-    reference: "Эталонные условия",
-    referenceBody: "Полный ресурс. Тактика ровно та, что в руководстве.",
-    real: "Реальная смена",
-    realBody: "Обстоятельства ночи выпадают вместе со случаем.",
-    realDisabledBody:
-      "Закрыто на время пилота: профили казахстанских больниц ещё не подтверждены. Пилот идёт в эталонных условиях.",
-    case: "Экстренная абдоминальная хирургия",
-    referenceShort: "Эталон",
-    realShort: "Реальная смена",
-    synthetic: "Синтетический профиль; не представляет конкретную больницу",
-    state: "Состояние сессии",
-    clinicalTime: "Клиническое время",
-    phase: "Фаза",
-    memory: "Рабочая память",
-    noActions: "Зафиксированных действий пока нет",
-    known: "Что уже известно о смене",
-    hidden: "Ограничения пока не раскрыты",
-    sessionCode: "Код сессии",
-    sessionCodeHelp: "Впишите его в форму обратной связи",
-    log: "Событийный лог",
-    events: "событий",
-    download: "Скачать JSON",
-    finish: "Прервать сессию",
-    finishConfirm: "Прервать сессию? Она будет отмечена как незавершённая, без оценки.",
-    finishConfirmAction: "Да, прервать",
-    cancel: "Продолжить кейс",
-    restart: "Новая смена",
-    placeholder: "Что ты спрашиваешь или делаешь?",
-    send: "Отправить",
-    loading: "Выполняю запрос…",
-    localNotice:
-      "OpenAI backend не настроен: временно работает ограниченный локальный matcher.",
-    accessCode: "Код доступа к серверному интерпретатору",
-    accessCodePlaceholder: "Введите внутренний код",
-    accessCodeHelp: "Код хранится только до закрытия этой вкладки.",
-    fullTestChip: "FULL CLINICAL TEST",
-    fullTestTitle: "Локальный полный клинический тест",
-    fullTestBody:
-      "Открыты APP-005, невалидированная числовая оценка и действия, которые обычная версия блокирует до clinical review. Результаты нельзя использовать для оценки резидента.",
-    preset: "Клинический пресет",
-    randomPreset: "Случайный из всех, включая APP-005",
-  },
-  kk: {
-    subtitle: "Клиникалық симулятор",
-    alpha: "V3 · сынақ нұсқасы",
-    landingTitle: "Бүгін қалай жұмыс істейсіз?",
-    landingBody: "Шұғыл абдоминалдық хирургия. Кезекшілік форматын таңдаңыз.",
-    reference: "Эталондық жағдай",
-    referenceBody: "Толық ресурс. Тактика нұсқаулыққа дәл сәйкес келеді.",
-    real: "Нақты кезекшілік",
-    realBody: "Түнгі кезекшіліктің жағдайлары кейспен бірге анықталады.",
-    realDisabledBody:
-      "Пилот кезеңінде жабық: қазақстандық аурухана профильдері әлі расталмаған. Пилот эталондық жағдайда өтеді.",
-    case: "Шұғыл абдоминалдық хирургия",
-    referenceShort: "Эталон",
-    realShort: "Нақты кезекшілік",
-    synthetic: "Синтетикалық профиль; нақты аурухананы көрсетпейді",
-    state: "Сессия жағдайы",
-    clinicalTime: "Клиникалық уақыт",
-    phase: "Кезең",
-    memory: "Жұмыс жады",
-    noActions: "Әзірге әрекет тіркелмеген",
-    known: "Кезекшілік туралы белгілі деректер",
-    hidden: "Шектеулер әлі ашылған жоқ",
-    sessionCode: "Сессия коды",
-    sessionCodeHelp: "Оны кері байланыс формасына жазыңыз",
-    log: "Оқиғалар журналы",
-    events: "оқиға",
-    download: "JSON жүктеу",
-    finish: "Сессияны тоқтату",
-    finishConfirm: "Сессияны тоқтату керек пе? Ол бағалаусыз, аяқталмаған деп белгіленеді.",
-    finishConfirmAction: "Иә, тоқтату",
-    cancel: "Кейсті жалғастыру",
-    restart: "Жаңа кезекшілік",
-    placeholder: "Не сұрайсың немесе не істейсің?",
-    send: "Жіберу",
-    loading: "Сұрауды орындаймын…",
-    localNotice:
-      "OpenAI backend бапталмаған: уақытша шектеулі жергілікті matcher жұмыс істейді.",
-    accessCode: "Серверлік интерпретаторға кіру коды",
-    accessCodePlaceholder: "Ішкі кодты енгізіңіз",
-    accessCodeHelp: "Код осы қойынды жабылғанға дейін ғана сақталады.",
-    fullTestChip: "FULL CLINICAL TEST",
-    fullTestTitle: "Жергілікті толық клиникалық тест",
-    fullTestBody:
-      "APP-005, тексерілмеген сандық бағалау және clinical review-ға дейін жабық әрекеттер ашық. Нәтижелер резидентті бағалауға жарамсыз.",
-    preset: "Клиникалық пресет",
-    randomPreset: "Барлығынан кездейсоқ, APP-005 қоса",
-  },
-};
-
-/**
- * Clinical error reporting copy.
- *
- * Russian only, deliberately. Kazakh learner mode is disabled, and filling this
- * dictionary with Russian text under a `kk` key would be a Kazakh interface
- * that is not in Kazakh. When KK learner copy is authored and reviewed, this
- * gains a `kk` entry like everything else.
- */
-const REPORT_UI = {
-  ru: {
-    open: "Сообщить об ошибке",
-    title: "Сообщить о клинической ошибке",
-    lead:
-      "Это замечание попадёт в очередь клинического ревью вместе с версией кейса и последними ходами. Оно ничего не меняет в тренажёре само по себе.",
-    category: "Что не так",
-    role: "Кто сообщает",
-    comment: "Что именно неверно",
-    commentPlaceholder: "Своими словами: что тренажёр сказал или сделал и почему это неправильно",
-    disputed: "Что сказал тренажёр (по желанию)",
-    disputedPlaceholder: "Скопируйте спорную фразу",
-    submit: "Отправить в очередь",
-    cancel: "Отмена",
-    saved: "Замечание записано. Спасибо.",
-    queue: "Очередь замечаний",
-    exportQueue: "Выгрузить замечания",
-    roles: {
-      resident_year_1: "Резидент, 1 курс",
-      resident_year_2: "Резидент, 2 курс",
-      resident_year_3: "Резидент, 3 курс",
-      resident_year_4: "Резидент, 4 курс",
-      faculty: "Преподаватель",
-      unspecified: "Не указано",
-    },
-  },
-};
-
-const reportCopy = (locale) => REPORT_UI[locale] || REPORT_UI.ru;
-
-function phaseLabel(phase, locale) {
-  const labels = {
-    ru: {
-      ems_handoff: "Передача пациента",
-      data_gathering: "Сбор данных",
-      presentation: "Первичная оценка",
-      diagnostic_workup: "Диагностика",
-      decision: "Решение",
-      post_source_control: "После контроля источника",
-      operation: "Операция завершена",
-      postop_destination: "Послеоперационный маршрут",
-      ward_care: "Послеоперационное наблюдение",
-      discharge: "Выписка и наблюдение",
-    },
-    kk: {
-      ems_handoff: "Пациентті тапсыру",
-      data_gathering: "Деректер жинау",
-      presentation: "Бастапқы бағалау",
-      diagnostic_workup: "Диагностика",
-      decision: "Шешім",
-      post_source_control: "Инфекция ошағын бақылаудан кейін",
-      operation: "Операция аяқталды",
-      postop_destination: "Операциядан кейінгі бағыт",
-      ward_care: "Операциядан кейінгі бақылау",
-      discharge: "Шығару және бақылау",
-    },
-  };
-  return labels[locale][phase] || phase;
-}
+const UI = Object.freeze({ ...PILOT_RU_UI, ...INTERNAL_TEST_UI });
 
 function actionLabel(actionId, caseData) {
   const action = [
@@ -235,27 +78,18 @@ function formatClock(minutes) {
  * session rendered two different brand lockups - a wordmark on one, a circular
  * badge plus sans-serif on the other - which read as two different products.
  */
-function AppHeader({ locale, setLocale, actions = null }) {
+function AppHeader({ actions = null }) {
   return (
     <header className="v25-classic-header">
       <button className="v25-classic-brand" onClick={() => window.location.reload()}>
         ON QOL
       </button>
       <span className="v25-classic-divider" />
-      <span className="v25-classic-subtitle">{UI[locale].subtitle}</span>
+      <span className="v25-classic-subtitle">{UI.subtitle}</span>
       <div className="v25-classic-controls">
         {actions}
-        <div className="v25-classic-language" aria-label="Language">
-          <button className={locale === "ru" ? "active" : ""} onClick={() => setLocale("ru")}>
-            РУС
-          </button>
-          <button
-            className={locale === "kk" ? "active" : ""}
-            disabled
-            title="Казахская клиническая редакция ожидает языковую проверку"
-          >
-            ҚАЗ · REVIEW
-          </button>
+        <div className="v25-classic-language" aria-label="Язык сессии">
+          <span className="active">РУС</span>
         </div>
       </div>
     </header>
@@ -263,8 +97,6 @@ function AppHeader({ locale, setLocale, actions = null }) {
 }
 
 function StartScreen({
-  locale,
-  setLocale,
   onStart,
   accessRequired,
   accessToken,
@@ -272,11 +104,15 @@ function StartScreen({
   fullClinicalTest,
   selectedPresetId,
   onPresetChange,
+  backendStatus,
+  canStart,
+  consentAccepted,
+  onConsentChange,
 }) {
-  const t = UI[locale];
+  const t = UI;
   return (
     <div className="v25-shell v25-classic-start-shell">
-      <AppHeader locale={locale} setLocale={setLocale} />
+      <AppHeader />
       <main className="v25-classic-start">
         <h1>{t.landingTitle}</h1>
         <p className="v25-classic-lead">{t.landingBody}</p>
@@ -316,30 +152,50 @@ function StartScreen({
           </label>
         )}
 
-        <section className="v25-classic-mode-grid" aria-label="Simulation mode">
+        <section className="v25-pilot-data-notice" aria-labelledby="v25-pilot-data-title">
+          <strong id="v25-pilot-data-title">{t.pilotDataTitle}</strong>
+          <p>{t.pilotDataBody}</p>
+          <p>
+            {t.pilotDataRetention}{" "}
+            <a
+              href="https://developers.openai.com/api/docs/guides/your-data"
+              target="_blank"
+              rel="noreferrer"
+            >
+              {t.providerPolicyLink}
+            </a>
+            .
+          </p>
+          <p>{t.pilotDataRestriction}</p>
+          <label className="v25-pilot-consent">
+            <input
+              type="checkbox"
+              checked={consentAccepted}
+              onChange={(event) => onConsentChange(event.target.checked)}
+            />
+            <span>{t.pilotConsent}</span>
+          </label>
+        </section>
+
+        <p className="v25-backend-status" role="status">
+          {backendStatus.checking
+            ? t.backendChecking
+            : backendStatus.configured && backendStatus.accessGranted
+              ? t.backendReady
+              : backendStatus.accessRequired
+                ? t.backendCodeRequired
+                : t.backendUnavailable}
+        </p>
+
+        <section className="v25-classic-mode-grid" aria-label={t.modeRegionLabel}>
           <button
             className="v25-classic-mode-card"
-            onClick={() => onStart("reference")}
+            onClick={onStart}
+            disabled={!canStart}
+            aria-disabled={!canStart}
           >
             <strong>{t.reference}</strong>
             <span>{t.referenceBody}</span>
-          </button>
-          {/* Реальная смена closed for the first pilot.
-              The KZ-R1/R2/R3 resource profiles are working assumptions, not
-              confirmed facility descriptions, and two cells - blood products
-              and transfer destination - are not authored at all. The pilot
-              runs in reference conditions, so the mode is disabled rather
-              than hidden: a resident should see that the trainer has a second
-              mode and that it is deliberately shut, not silently missing. */}
-          <button
-            className="v25-classic-mode-card"
-            onClick={() => onStart("real")}
-            disabled={REAL_SHIFT_DISABLED}
-            aria-disabled={REAL_SHIFT_DISABLED}
-            title={REAL_SHIFT_DISABLED ? t.realDisabledBody : undefined}
-          >
-            <strong>{t.real}</strong>
-            <span>{REAL_SHIFT_DISABLED ? t.realDisabledBody : t.realBody}</span>
           </button>
         </section>
 
@@ -356,8 +212,8 @@ function StartScreen({
  * turns) is attached by the report module so the reporter does not have to
  * remember any of it.
  */
-function ClinicalReportDialog({ locale, onSubmit, onCancel }) {
-  const t = reportCopy(locale);
+function ClinicalReportDialog({ onSubmit, onCancel }) {
+  const t = PILOT_RU_REPORT_UI;
   const [categoryId, setCategoryId] = useState(CLINICAL_REPORT_CATEGORIES[0].id);
   const [role, setRole] = useState("unspecified");
   const [comment, setComment] = useState("");
@@ -426,8 +282,8 @@ function ClinicalReportDialog({ locale, onSubmit, onCancel }) {
   );
 }
 
-function SessionSidebar({ session, caseData, locale, onDownload, reportCount, onExportReports }) {
-  const t = UI[locale];
+function SessionSidebar({ session, caseData, onDownload, reportCount, onExportReports }) {
+  const t = UI;
   const states = Object.values(session.workingMemory.actionStates).slice(-6);
   const revealed = session.workingMemory.revealedConstraints.map((resource) => {
     const resolution = resolveScenarioResource(
@@ -451,24 +307,24 @@ function SessionSidebar({ session, caseData, locale, onDownload, reportCount, on
         <div className="v25-side-heading"><span>{t.state}</span><b className="pulse-dot" /></div>
         <div className="v25-state-grid">
           <div><small>{t.clinicalTime}</small><strong>{formatClock(session.temporalState.clockMinutes)}</strong></div>
-          <div><small>{t.phase}</small><strong>{phaseLabel(session.pathState || session.phase, locale)}</strong></div>
+          <div><small>{t.phase}</small><strong>{pilotRuPhaseLabel(session.pathState || session.phase)}</strong></div>
         </div>
         <div className="v25-vitals">
-          <span>HR <b>{session.temporalState.heartRate}</b></span>
+          <span>ЧСС <b>{session.temporalState.heartRate}</b></span>
           {/* Decimal comma, same as the handoff and the labs. */}
           <span>T <b>{session.temporalState.temperatureC.toFixed(1).replace(".", ",")}</b></span>
-          <span>PAIN <b>{session.temporalState.painScore}/10</b></span>
+          <span>Боль <b>{session.temporalState.painScore}/10</b></span>
         </div>
       </section>
 
       <section className="v25-side-section">
-        <div className="v25-side-heading"><span>{t.memory}</span><small>{states.length}</small></div>
+        <div className="v25-side-heading"><span>{t.actions}</span><small>{states.length}</small></div>
         {states.length ? (
           <div className="v25-memory-list">
             {states.map((state) => (
               <div key={state.action_id} className="v25-memory-item">
                 <span>{actionLabel(state.action_id, caseData)}</span>
-                <small className={`state-${state.status}`}>{state.status}</small>
+                <small className={`state-${state.status}`}>{pilotRuActionStatus(state.status)}</small>
               </div>
             ))}
           </div>
@@ -483,14 +339,13 @@ function SessionSidebar({ session, caseData, locale, onDownload, reportCount, on
       </section>
 
       <section className="v25-side-section v25-log-section">
-        <div className="v25-side-heading"><span>{t.log}</span><small>{session.eventLog.length} {t.events}</small></div>
+        <div className="v25-side-heading"><span>{t.sessionData}</span><small>{session.eventLog.length} {t.records}</small></div>
         <button className="v25-download" onClick={onDownload}>{t.download} <span>↓</span></button>
         {reportCount > 0 && (
           <button className="v25-download" onClick={onExportReports}>
-            {reportCopy(locale).exportQueue} <small>{reportCount}</small>
+            {PILOT_RU_REPORT_UI.exportQueue} <small>{reportCount}</small>
           </button>
         )}
-        <code>seed: {session.scenario.seed}</code>
       </section>
     </aside>
   );
@@ -520,7 +375,7 @@ function persistSession(session) {
  */
 export default function V25Trainer({ mentor = true }) {
   const [screen, setScreen] = useState("start");
-  const [locale, setLocale] = useState("ru");
+  const locale = "ru";
   const [caseData, setCaseData] = useState(() => createV25Case());
   const [session, setSession] = useState(null);
   const [input, setInput] = useState("");
@@ -531,10 +386,12 @@ export default function V25Trainer({ mentor = true }) {
   const [reportNotice, setReportNotice] = useState("");
   const [reportCount, setReportCount] = useState(() => listClinicalReports().length);
   const [selectedPresetId, setSelectedPresetId] = useState("");
+  const [consentAccepted, setConsentAccepted] = useState(false);
   const [openAIStatus, setOpenAIStatus] = useState({
     checking: true,
     configured: false,
     accessRequired: false,
+    accessGranted: false,
     routerModel: "gpt-5.6-luna",
     simulatorModel: "gpt-5.6-terra",
   });
@@ -548,9 +405,13 @@ export default function V25Trainer({ mentor = true }) {
   // component rather than in the generator, which must stay a pure function of
   // its seed.
   const lastPresetIdRef = useRef(null);
-  const t = UI[locale];
+  const t = UI;
   const modelBackendReady =
-    openAIStatus.configured && (!openAIStatus.accessRequired || Boolean(accessToken));
+    openAIStatus.configured && openAIStatus.accessGranted === true;
+  const canStart =
+    consentAccepted &&
+    !openAIStatus.checking &&
+    (modelBackendReady || LOCAL_FALLBACK_ALLOWED);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -558,19 +419,24 @@ export default function V25Trainer({ mentor = true }) {
 
   useEffect(() => {
     let active = true;
-    getOpenAIBackendStatus().then((status) => {
+    const timer = setTimeout(() => getOpenAIBackendStatus({ accessToken }).then((status) => {
       if (active) setOpenAIStatus({ ...status, checking: false });
-    });
-    return () => { active = false; };
-  }, []);
+    }), accessToken ? 180 : 0);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [accessToken]);
 
   function updateAccessToken(value) {
+    setOpenAIStatus((status) => ({ ...status, checking: true, accessGranted: false }));
     setAccessToken(value);
     if (value) sessionStorage.setItem(MAIN_ACCESS_TOKEN_KEY, value);
     else sessionStorage.removeItem(MAIN_ACCESS_TOKEN_KEY);
   }
 
-  function start(mode) {
+  function start() {
+    if (!canStart) return;
     const params = new URLSearchParams(window.location.search);
     const seedOverride = params.get("seed")?.trim();
     const presetOverride = params.get("preset")?.trim();
@@ -584,7 +450,7 @@ export default function V25Trainer({ mentor = true }) {
     // One seed for the whole session: the same string reproduces the patient,
     // the facility and the shift. ONQOL_NORTH_STAR.md: "Каждый пациент
     // воспроизводим по seed."
-    const sessionSeed = seedOverride || createScenarioSeed(mode === "real" ? "real" : "reference");
+    const sessionSeed = seedOverride || createScenarioSeed("reference");
     // V3.5 builds the patient from the case presets; V2.5 keeps its single fixed
     // patient so the mentor-off comparison stays a stable baseline.
     const built = mentor
@@ -605,11 +471,19 @@ export default function V25Trainer({ mentor = true }) {
       : baseCase;
     const nextSession = createV25Session({
       caseData: nextCase,
-      mode,
+      mode: "reference",
       seed: sessionSeed,
       locale,
       learnerId: `anon:${learnerId}`,
       institutionId: "synthetic-pilot",
+      participantConsent: {
+        accepted: true,
+        policy_version: PILOT_DATA_NOTICE_VERSION,
+        accepted_at: new Date().toISOString(),
+        provider_processing_disclosed: true,
+        provider_default_abuse_log_retention_days: 30,
+        local_retention_days: 7,
+      },
     });
     persistSession(nextSession);
     setCaseData(nextCase);
@@ -669,8 +543,8 @@ export default function V25Trainer({ mentor = true }) {
       persistSession(result.session);
       setSession(result.session);
       setInput("");
-    } catch (caught) {
-      setError(caught.message || "Simulation error");
+    } catch {
+      setError(t.requestError);
     } finally {
       setLoading(false);
     }
@@ -686,7 +560,7 @@ export default function V25Trainer({ mentor = true }) {
 
   function interruptSession() {
     setConfirmInterrupt(false);
-    send(locale === "kk" ? "кейс соңы" : "конец кейса");
+    send("конец кейса");
   }
 
   // A report never touches the session: it is written next to it, so a failure
@@ -704,7 +578,7 @@ export default function V25Trainer({ mentor = true }) {
     try {
       saveClinicalReport(report);
       setReportCount(listClinicalReports().length);
-      setReportNotice(reportCopy(locale).saved);
+      setReportNotice(PILOT_RU_REPORT_UI.saved);
     } catch {
       // Local storage is best-effort, exactly like session persistence.
     }
@@ -728,7 +602,12 @@ export default function V25Trainer({ mentor = true }) {
 
   function downloadLog() {
     if (!session) return;
-    downloadJson(buildV25ReplayExport(session), `onqol-replay-${session.session_id}.json`);
+    downloadJson(
+      buildV25ReplayExport(session, new Date().toISOString(), {
+        clinicalReports: listClinicalReports(),
+      }),
+      `onqol-replay-${session.session_id}.json`
+    );
   }
 
   function onKeyDown(event) {
@@ -741,8 +620,6 @@ export default function V25Trainer({ mentor = true }) {
   if (screen === "start") {
     return (
       <StartScreen
-        locale={locale}
-        setLocale={setLocale}
         onStart={start}
         accessRequired={openAIStatus.accessRequired}
         accessToken={accessToken}
@@ -750,6 +627,10 @@ export default function V25Trainer({ mentor = true }) {
         fullClinicalTest={FULL_CLINICAL_TEST}
         selectedPresetId={selectedPresetId}
         onPresetChange={setSelectedPresetId}
+        backendStatus={openAIStatus}
+        canStart={canStart}
+        consentAccepted={consentAccepted}
+        onConsentChange={setConsentAccepted}
       />
     );
   }
@@ -757,8 +638,6 @@ export default function V25Trainer({ mentor = true }) {
   return (
     <div className="v25-shell v25-session-shell">
       <AppHeader
-        locale={locale}
-        setLocale={setLocale}
         actions={
           <span className="v25-version-chip">
             {FULL_CLINICAL_TEST ? t.fullTestChip : mentor ? t.alpha : "V2.5 · без наставника"}
@@ -772,7 +651,7 @@ export default function V25Trainer({ mentor = true }) {
         </div>
         <div className="v25-case-meta">
           <span className={`v25-mode-pill mode-${session.scenario.mode}`}>
-            {session.scenario.mode === "reference" ? t.referenceShort : t.realShort}
+            {t.referenceShort}
           </span>
           <small>{t.synthetic}</small>
         </div>
@@ -801,7 +680,12 @@ export default function V25Trainer({ mentor = true }) {
             <div ref={bottomRef} />
           </div>
 
-          {error && <div className="v25-error">{error}</div>}
+          {error && (
+            <div className="v25-error" role="alert">
+              <span>{error}</span>
+              <button onClick={() => send()} disabled={loading}>{t.retry}</button>
+            </div>
+          )}
           <div className="v25-composer-area">
             {confirmInterrupt && (
               <div className="v25-interrupt-confirm" role="dialog" aria-modal="true" aria-labelledby="v25-interrupt-title">
@@ -814,7 +698,6 @@ export default function V25Trainer({ mentor = true }) {
             )}
             {reportOpen && (
               <ClinicalReportDialog
-                locale={locale}
                 onSubmit={submitClinicalReport}
                 onCancel={() => setReportOpen(false)}
               />
@@ -829,7 +712,7 @@ export default function V25Trainer({ mentor = true }) {
                 onClick={() => { setReportNotice(""); setReportOpen(true); }}
                 disabled={reportOpen}
               >
-                {reportCopy(locale).open}
+                {PILOT_RU_REPORT_UI.open}
               </button>
             </div>
             <div className="v25-composer">
@@ -850,7 +733,6 @@ export default function V25Trainer({ mentor = true }) {
         <SessionSidebar
           session={session}
           caseData={caseData}
-          locale={locale}
           onDownload={downloadLog}
           reportCount={reportCount}
           onExportReports={downloadReports}

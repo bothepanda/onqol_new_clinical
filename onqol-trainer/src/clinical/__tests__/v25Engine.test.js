@@ -354,7 +354,7 @@ test("V3.5 stable runtime path reaches discharge before a completed debrief", as
   result = await advanceV25Session({
     caseData,
     session,
-    input: "Аппендэктомия выполнена",
+    input: "Аппендэктомия выполнена, контроль источника завершён",
     options: {
       actionExtractorLLM: actionExtractorFor([
         { type: "management", concept_id: "appendectomy_here", confidence: 0.99 },
@@ -384,13 +384,17 @@ test("V3.5 stable runtime path reaches discharge before a completed debrief", as
   result = await advanceV25Session({
     caseData,
     session,
-    input: "Провожу послеоперационный осмотр: витальные, боль, живот, диурез, питание и рана",
+    input: "Контролирую после операции витальные, боль, живот, диурез, питание и рану",
     options: {
       actionExtractorLLM: actionExtractorFor([
-        { type: "request_examination", concept_id: "postoperative_reassessment", confidence: 0.99 },
+        // Live language routing chose the broader observation concept here. The
+        // deterministic phase must narrow it to postoperative reassessment.
+        { type: "management", concept_id: "active_observation", confidence: 0.99 },
       ]),
     },
   });
+  assert.equal(result.session.completedActions.includes("postoperative_reassessment"), true);
+  assert.equal(result.session.completedActions.includes("active_observation"), false);
   assert.equal(result.session.pathState, "ward_care");
 
   session = result.session;
@@ -405,7 +409,7 @@ test("V3.5 stable runtime path reaches discharge before a completed debrief", as
     },
   });
   assert.equal(result.session.pathState, "discharge");
-  assert.match(result.reply, /безопасного endpoint/);
+  assert.match(result.reply, /Стабильный путь завершён/);
 
   session = result.session;
   result = await advanceV25Session({ caseData, session, input: "конец кейса" });
@@ -413,7 +417,7 @@ test("V3.5 stable runtime path reaches discharge before a completed debrief", as
   assert.equal(result.session.pathState, "complete");
   assert.equal(result.session.eventLog.at(-1).event_type, "session_formative_completed");
   assert.equal(result.session.report.pathwayStatus, "completed");
-  assert.match(result.reply, /доведён до discharge\/follow-up endpoint/);
+  assert.match(result.reply, /выписка и дальнейшее наблюдение зафиксированы/);
 });
 
 test("session_started and replay export carry complete deterministic V3.5 inputs", async () => {
@@ -423,6 +427,14 @@ test("session_started and replay export carry complete deterministic V3.5 inputs
     mode: "reference",
     seed: "replay-seed",
     startedAt: "2026-08-10T00:00:00.000Z",
+    participantConsent: {
+      accepted: true,
+      policy_version: "pilot-data-notice-test-v1",
+      accepted_at: "2026-08-10T00:00:00.000Z",
+      provider_processing_disclosed: true,
+      provider_default_abuse_log_retention_days: 30,
+      local_retention_days: 7,
+    },
   });
   const started = session.eventLog[0];
 
@@ -434,6 +446,7 @@ test("session_started and replay export carry complete deterministic V3.5 inputs
   assert.equal(started.requested_seed, "replay-seed");
   assert.equal(started.effective_seed, caseData.v35_composition.effective_seed);
   assert.deepEqual(started.selection_attempts, caseData.v35_composition.selection_attempts);
+  assert.equal(started.participant_consent.policy_version, "pilot-data-notice-test-v1");
   assert.equal(session.scoring_rubric_version, caseData.scoring_rubric_version);
 
   session = {
@@ -455,7 +468,12 @@ test("session_started and replay export carry complete deterministic V3.5 inputs
       },
     ],
   };
-  const payload = buildV25ReplayExport(session, "2026-08-10T01:00:00.000Z");
+  const payload = buildV25ReplayExport(session, "2026-08-10T01:00:00.000Z", {
+    clinicalReports: [
+      { report_id: "rep-current", context: { session_id: session.session_id } },
+      { report_id: "rep-other", context: { session_id: "another-session" } },
+    ],
+  });
   assert.equal(payload.export_schema_version, "3.5.0");
   assert.equal(payload.replay.engine_version, session.engine_version);
   assert.equal(payload.replay.case_preset_id, "APP-002");
@@ -463,6 +481,10 @@ test("session_started and replay export carry complete deterministic V3.5 inputs
   assert.deepEqual(payload.session.scenario, session.scenario);
   assert.deepEqual(payload.session.v35_composition, caseData.v35_composition);
   assert.equal(payload.data_policy.raw_learner_text_included, false);
+  assert.equal(payload.data_policy.verbatim_transcript_included_after_identifier_scrubbing, true);
+  assert.equal(payload.data_policy.provider_processing_disclosed_to_participant, true);
+  assert.equal(payload.session.participant_consent.local_retention_days, 7);
+  assert.deepEqual(payload.clinical_reports.map((report) => report.report_id), ["rep-current"]);
   assert.match(payload.transcript.at(-1).content, /\[IIN_REDACTED\]/);
   assert.doesNotMatch(JSON.stringify(payload), /123456789012/);
   assert.equal(payload.events.at(-1).clinical_fact, "appendicitis");

@@ -4,6 +4,13 @@ Status: `WORKFLOW_ASSUMPTIONS_PENDING_OWNER_REVIEW`
 Runtime version: `2026-08-10-review.1`  
 Scoring eligibility: `false`
 
+**Текущий ограниченный пилот:** этот pending review не является блокером для
+RU/reference/APP-001–004/formative-only/N=8. Для него отдельно утверждён только
+`REFERENCE-FULL`; evidence —
+`REFERENCE_RESOURCE_PROFILE_PILOT_APPROVAL_2026-08-20.md`. Таблица ниже нужна
+исключительно для будущего real-mode продукта и не может влиять на текущий
+пилот.
+
 These rows make runtime internally consistent; they do not claim that every
 Kazakhstan hospital of the named level has these capabilities. Confirm or
 replace every cell before a site pilot. A site-specific profile must receive a
@@ -35,4 +42,5 @@ Required owner answers:
 
 Reference mode is a logged `REFERENCE-FULL` override and is not a Kazakhstan
 facility claim. Real mode uses the case preset's one effective KZ profile; it no
-longer selects an unrelated facility template from the seed.
+longer selects an unrelated facility template from the seed. Release gate
+запрещает включение real mode под reference-only approval.

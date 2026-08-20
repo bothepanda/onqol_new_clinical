@@ -32,6 +32,10 @@ export default defineConfig(({ mode }) => {
           codeSplitting: {
             groups: [
               {
+                name: "clinical-governance",
+                test: /src[\\/]clinical[\\/](?:governance|evidence)[\\/]/,
+              },
+              {
                 name: "clinical-runtime",
                 test: /src[\\/]clinical[\\/]/,
               },

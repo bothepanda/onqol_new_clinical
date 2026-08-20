@@ -264,14 +264,21 @@ export function interpretPendingMentorAnswer(input, pendingQuestion, context = {
 /** Recognise an explicit list of future monitoring/escalation criteria. */
 export function interpretStandaloneReasoning(input) {
   const verbatim = String(input || "").trim();
-  if ((verbatim.match(/(?:^|[^\p{L}])ли(?=$|[^\p{L}])/giu) || []).length < 2) return null;
+  const questionList = (verbatim.match(/(?:^|[^\p{L}])ли(?=$|[^\p{L}])/giu) || []).length >= 2;
+  const explicitEscalation =
+    /(эскалац|позвать|звать|вызвать|немедленно\s+сообщ)/iu.test(verbatim) &&
+    /(гипотони|тахикард|лихорад|температур|сатурац|олигур|диурез|кровотеч|сознани|нарастани[ея]\s+бол|с[аa]д\s*(?:ниже|<)|чсс\s*(?:выше|>)|\d+\s*\/\s*10)/iu.test(verbatim);
+  const thresholdList =
+    /(при\s+(?:гипотони|тахикард|лихорад|олигур|кровотеч|нарушени)|с[аa]д\s*(?:ниже|<)|чсс\s*(?:выше|>)|сатураци[яи]\s*(?:ниже|<))/iu.test(verbatim) &&
+    (verbatim.match(/[,;]/g) || []).length >= 1;
+  if (!questionList && !explicitEscalation && !thresholdList) return null;
   const delta = emptyContextualReasoning();
   delta.observation.active = true;
   delta.observation.goal_stated = true;
   delta.observation.escalation_criteria_stated = true;
   delta.contingency = {
     stated: true,
-    specificity: "partial",
+    specificity: explicitEscalation || thresholdList ? "specific" : "partial",
     trigger_concept_ids: [],
     trigger_verbatim: [verbatim],
   };

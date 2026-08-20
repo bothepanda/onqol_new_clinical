@@ -431,12 +431,10 @@ export const CLINICAL_RULE_REGISTRY = Object.freeze([
  * decision, name no number, send the learner to the local formulary. That is
  * the safe transitional state, not a permanent policy.
  *
- * The registry below is deliberately EMPTY. Its content is authored by the
- * clinical owner with verbatim source lines - the first draft is
- * DOSING_RULES_DRAFT_v0.1.md, every row still NEEDS_CLINICAL_REVIEW and several
- * marked needs-verification. Rows enter this file when a reviewer has signed
- * them and the verbatim line has been confirmed against the source PDF, not
- * before, and nothing here is ever written from memory.
+ * The registry below contains only the first three signed teaching-only rows.
+ * Draft or needs-verification rows remain in DOSING_RULES_DRAFT_v0.1.md and do
+ * not enter runtime. A row enters this file only after two reviewers sign and
+ * the source line is confirmed; nothing here is written from memory.
  */
 export const DOSING_RULE_STATUS = Object.freeze({
   NEEDS_CLINICAL_REVIEW: "NEEDS_CLINICAL_REVIEW",
@@ -733,4 +731,3 @@ export function clinicalGovernanceReadiness(
     learner_release_ready: sourceValidation.ok && ruleErrors.length === 0 && pendingRules.length === 0,
   };
 }
-

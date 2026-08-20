@@ -44,6 +44,7 @@ export function buildMentorTelemetry(session) {
     telemetry_flags: entry.mentor_telemetry_flags || [],
     regex_policy_shadow: entry.regex_policy_shadow || null,
     learner_address_form: entry.learner_address_form || null,
+    request_telemetry: entry.request_telemetry || { router: [], simulator: [], mentor: [] },
   }));
   const spoke = turns.filter((turn) => turn.mentor_source !== "not_invoked");
   const rejections = {};
@@ -59,6 +60,18 @@ export function buildMentorTelemetry(session) {
       repaired: spoke.filter((turn) => turn.repair_attempted).length,
       rejection_reasons: rejections,
       policy_agreement: spoke.filter((turn) => turn.regex_policy_shadow?.agreed_with_mentor).length,
+      provider_requests: turns.reduce(
+        (sum, turn) =>
+          sum + Object.values(turn.request_telemetry || {}).flat().length,
+        0
+      ),
+      provider_total_tokens: turns.reduce(
+        (sum, turn) =>
+          sum + Object.values(turn.request_telemetry || {})
+            .flat()
+            .reduce((turnSum, item) => turnSum + (item?.usage?.total_tokens || 0), 0),
+        0
+      ),
     },
   };
 }
@@ -68,7 +81,11 @@ export function buildMentorTelemetry(session) {
  * learner text. The deterministic replay inputs are the frozen case composition,
  * the full scenario and the ordered engine events/actions.
  */
-export function buildV25ReplayExport(session, exportedAt = new Date().toISOString()) {
+export function buildV25ReplayExport(
+  session,
+  exportedAt = new Date().toISOString(),
+  options = {}
+) {
   if (!session?.session_id) throw new Error("A persisted session is required for replay export.");
 
   const composition = session.v35_composition || null;
@@ -78,6 +95,10 @@ export function buildV25ReplayExport(session, exportedAt = new Date().toISOStrin
     data_policy: {
       raw_learner_text_included: false,
       transcript_redacted: true,
+      verbatim_transcript_included_after_identifier_scrubbing: true,
+      automatic_redaction_is_not_anonymisation: true,
+      provider_processing_disclosed_to_participant:
+        session.participant_consent?.provider_processing_disclosed === true,
     },
     replay: {
       engine_version: session.engine_version || null,
@@ -106,6 +127,7 @@ export function buildV25ReplayExport(session, exportedAt = new Date().toISOStrin
       completed_at: session.completed_at,
       terminal_status: session.terminal_status || session.completion_status || "in_progress",
       completion_status: session.completion_status || session.terminal_status || "in_progress",
+      participant_consent: session.participant_consent || null,
       scenario: session.scenario,
       v35_composition: composition,
     },
@@ -130,5 +152,8 @@ export function buildV25ReplayExport(session, exportedAt = new Date().toISOStrin
     action_log: session.actionLog || [],
     scoring: session.scoring || null,
     report: session.report || null,
+    clinical_reports: (options.clinicalReports || []).filter(
+      (report) => report?.context?.session_id === session.session_id
+    ),
   };
 }

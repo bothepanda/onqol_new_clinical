@@ -230,10 +230,41 @@ test("status declares gateway and strict schema versions without credentials", a
   const recorder = responseRecorder();
   await gateway(request({ method: "GET", url: "/api/v25/openai/status" }), recorder.response);
   assert.equal(recorder.response.statusCode, 200);
+  assert.equal(recorder.body().accessGranted, true);
   assert.ok(recorder.body().gatewayVersion);
   assert.equal(recorder.body().schemas.router.ready, true);
   assert.equal(recorder.body().schemas.mentor.version, "mentor-full-context-v4");
   assert.doesNotMatch(JSON.stringify(recorder.body()), /provider-secret|pilot-code/);
+});
+
+test("status preflight grants only the correct pilot code", async () => {
+  const gateway = createOpenAIGateway({
+    apiKey: "provider-secret",
+    accessToken: "pilot-code",
+    allowedOrigin: "https://pilot.onqol.kz",
+    requireAccessControl: true,
+  });
+  const wrong = responseRecorder();
+  await gateway(
+    request({
+      method: "GET",
+      url: "/api/v25/openai/status",
+      headers: { authorization: "Bearer wrong-code" },
+    }),
+    wrong.response
+  );
+  assert.equal(wrong.body().accessGranted, false);
+
+  const correct = responseRecorder();
+  await gateway(
+    request({
+      method: "GET",
+      url: "/api/v25/openai/status",
+      headers: { authorization: "Bearer pilot-code" },
+    }),
+    correct.response
+  );
+  assert.equal(correct.body().accessGranted, true);
 });
 
 test("model POST fails before provider use when session id is missing", async () => {

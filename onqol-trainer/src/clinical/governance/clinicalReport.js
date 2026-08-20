@@ -36,6 +36,7 @@ import {
 } from "./clinicalGovernance.js";
 
 export const CLINICAL_REPORT_SCHEMA_VERSION = "clinical-report-v1.0";
+export const CLINICAL_REPORT_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 
 /**
  * The categories a reporter chooses from.
@@ -46,7 +47,7 @@ export const CLINICAL_REPORT_SCHEMA_VERSION = "clinical-report-v1.0";
 export const CLINICAL_REPORT_CATEGORIES = Object.freeze([
   Object.freeze({
     id: "wrong_patient_fact",
-    label_ru: "Неверный факт пациента",
+    label_ru: "Неверные данные о пациенте",
     hint_ru: "Анализ, находка осмотра, снимок или динамика, которых так не бывает",
     routes_to: "clinical_reviewer",
   }),
@@ -64,7 +65,7 @@ export const CLINICAL_REPORT_CATEGORIES = Object.freeze([
   }),
   Object.freeze({
     id: "pathway_inconsistency",
-    label_ru: "Непоследовательность пути",
+    label_ru: "Нарушена последовательность кейса",
     hint_ru: "Действие выполнено, но случилось не то, или случай не двигается дальше",
     routes_to: "engine_owner",
   }),
@@ -76,7 +77,7 @@ export const CLINICAL_REPORT_CATEGORIES = Object.freeze([
   }),
   Object.freeze({
     id: "local_protocol_conflict",
-    label_ru: "Расходится с КП МЗ РК или локальным SOP",
+    label_ru: "Расходится с КП МЗ РК или локальным протоколом",
     hint_ru: "У нас так не делают или протокол требует другого",
     routes_to: "kz_local_reviewer",
   }),
@@ -95,7 +96,7 @@ export const CLINICAL_REPORT_CATEGORIES = Object.freeze([
   Object.freeze({
     id: "language_or_wording",
     label_ru: "Формулировка или перевод",
-    hint_ru: "По-русски или по-казахски звучит неверно, двусмысленно или не по-хирургически",
+    hint_ru: "Русский текст звучит неверно, двусмысленно или неестественно для клинического общения",
     routes_to: "language_reviewer",
   }),
   Object.freeze({
@@ -226,7 +227,7 @@ export function createClinicalReport({
 /** Storage key for the pilot's local report queue. */
 export const CLINICAL_REPORT_STORAGE_KEY = "onqol_clinical_reports_v1";
 
-function readReports(storage) {
+function rawReports(storage) {
   try {
     const raw = storage?.getItem(CLINICAL_REPORT_STORAGE_KEY);
     const parsed = raw ? JSON.parse(raw) : [];
@@ -236,16 +237,44 @@ function readReports(storage) {
   }
 }
 
-/** Append one report to the local queue. Returns the stored record. */
-export function saveClinicalReport(report, storage = globalThis.localStorage) {
-  const reports = readReports(storage);
-  reports.push(report);
-  storage?.setItem(CLINICAL_REPORT_STORAGE_KEY, JSON.stringify(reports));
-  return report;
+function reportExpiry(report, retentionMs) {
+  if (report?.local_retention?.expires_at) {
+    return Date.parse(report.local_retention.expires_at);
+  }
+  const reportedAt = Date.parse(report?.reported_at || 0);
+  return Number.isFinite(reportedAt) ? reportedAt + retentionMs : 0;
 }
 
-export function listClinicalReports(storage = globalThis.localStorage) {
-  return readReports(storage);
+function readReports(storage, options = {}) {
+  const now = options.now?.() ?? Date.now();
+  const retentionMs = options.retentionMs || CLINICAL_REPORT_RETENTION_MS;
+  const reports = rawReports(storage);
+  const active = reports.filter((report) => reportExpiry(report, retentionMs) > now);
+  if (active.length !== reports.length) {
+    storage?.setItem(CLINICAL_REPORT_STORAGE_KEY, JSON.stringify(active));
+  }
+  return active;
+}
+
+/** Append one report to the local queue. Returns the stored record. */
+export function saveClinicalReport(report, storage = globalThis.localStorage, options = {}) {
+  const now = options.now?.() ?? Date.now();
+  const retentionMs = options.retentionMs || CLINICAL_REPORT_RETENTION_MS;
+  const reports = readReports(storage, { now: () => now, retentionMs });
+  const stored = {
+    ...report,
+    local_retention: {
+      policy: "delete_on_or_after_expiry_when_app_opens",
+      expires_at: new Date(now + retentionMs).toISOString(),
+    },
+  };
+  reports.push(stored);
+  storage?.setItem(CLINICAL_REPORT_STORAGE_KEY, JSON.stringify(reports));
+  return stored;
+}
+
+export function listClinicalReports(storage = globalThis.localStorage, options = {}) {
+  return readReports(storage, options);
 }
 
 export function clearClinicalReports(storage = globalThis.localStorage) {
@@ -258,8 +287,8 @@ export function clearClinicalReports(storage = globalThis.localStorage) {
  * Grouped by what has to be looked at, because the queue is triaged by owner
  * and a flat list of twenty reports is not a work item.
  */
-export function exportClinicalReports(storage = globalThis.localStorage) {
-  const reports = readReports(storage);
+export function exportClinicalReports(storage = globalThis.localStorage, options = {}) {
+  const reports = readReports(storage, options);
   const byRoute = {};
   for (const report of reports) {
     const route = report.routes_to || "triage";

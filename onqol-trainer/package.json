@@ -2,6 +2,9 @@
   "name": "onqol-trainer",
   "private": true,
   "version": "3.5.0-internal",
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,6 +16,10 @@
     "preview": "vite preview",
     "pack:safe": "node scripts/packSafe.mjs",
     "release:check": "node scripts/releaseGate.mjs",
+    "review:ru-copy": "node scripts/buildPilotRuRuntimeCopyReview.mjs",
+    "review:ru-copy:check": "node scripts/buildPilotRuRuntimeCopyReview.mjs --check",
+    "verify:pilot": "npm test && npm run lint && npm run review:ru-copy:check && npm run release:check",
+    "smoke:cohort": "node scripts/pilotCohortSmoke.mjs",
     "ab:mentor": "node --env-file-if-exists=.env.local scripts/abMentor.mjs",
     "ab:mentor:archetypes": "node --env-file-if-exists=.env.local scripts/abMentorArchetypes.mjs",
     "spec:sync": "node scripts/buildMentorSpec.mjs"

@@ -272,6 +272,7 @@ export async function requestOpenAI({ apiKey, task, prompt, models, fetchImpl = 
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 45_000);
+  const startedAt = Date.now();
   try {
     const response = await fetchImpl("https://api.openai.com/v1/responses", {
       method: "POST",
@@ -291,7 +292,25 @@ export async function requestOpenAI({ apiKey, task, prompt, models, fetchImpl = 
     }
     const output = extractOpenAIResponseText(payload);
     if (!output) throw new Error("OpenAI response did not contain text output.");
-    return { output, responseId: payload.id || null, model: payload.model || models[task] };
+    const usage = payload.usage && typeof payload.usage === "object"
+      ? {
+          input_tokens: Number(payload.usage.input_tokens) || 0,
+          output_tokens: Number(payload.usage.output_tokens) || 0,
+          total_tokens: Number(payload.usage.total_tokens) || 0,
+          cached_tokens: Number(payload.usage.input_tokens_details?.cached_tokens) || 0,
+          reasoning_tokens: Number(payload.usage.output_tokens_details?.reasoning_tokens) || 0,
+        }
+      : null;
+    return {
+      output,
+      responseId: payload.id || null,
+      model: payload.model || models[task],
+      telemetry: {
+        task,
+        latency_ms: Date.now() - startedAt,
+        usage,
+      },
+    };
   } finally {
     clearTimeout(timeout);
   }
@@ -379,6 +398,10 @@ export function createOpenAIGateway(options = {}) {
       return json(res, 200, {
         configured: Boolean(apiKey),
         accessRequired: Boolean(accessToken),
+        // The start screen uses this to prevent a participant from creating a
+        // local-fallback session with a missing or mistyped pilot code. It says
+        // only whether the supplied bearer matches; no credential is returned.
+        accessGranted: !accessToken || tokenMatches(bearerToken(req), accessToken),
         originRestricted: Boolean(allowedOrigin),
         provider: "openai",
         gatewayVersion: OPENAI_GATEWAY_VERSION,

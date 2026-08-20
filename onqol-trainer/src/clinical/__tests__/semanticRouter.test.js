@@ -11,6 +11,7 @@ import {
   createInitialSession,
 } from "../caseEngine.js";
 import { appendicitisRouterConceptMap } from "../diseases/appendicitis/router/conceptMap.js";
+import { resolveConcept } from "../diseases/appendicitis/router/conceptRegistry.js";
 import { buildAllowedConcepts, routeUserInput, validateRouterOutput } from "../semanticRouter.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -82,7 +83,7 @@ function fakeRouterLLM(prompt) {
   return JSON.stringify({
     intents: mapped.map((item) => {
       const [type, concept_id] = item.split(":");
-      return { type, concept_id, confidence: 0.95 };
+      return { type, concept_id, confidence: 0.95, requested_fragment: input };
     }),
   });
 }
@@ -402,7 +403,7 @@ test("two hypotheses in one sentence are both kept, with the learner's own words
   // кишечником" came back as `differential.stated = true` and an empty list,
   // because the shipped schema had no room for the hypotheses themselves.
   const learnerText =
-    "аппендицит вероятнее, но из-за дизурии держу в уме простатит";
+    "аппендицит вероятнее, но из-за задержки менструации держу в уме внематочную беременность";
   const result = validateRouterOutput(
     {
       intents: [
@@ -427,7 +428,7 @@ test("two hypotheses in one sentence are both kept, with the learner's own words
               concept_id: "differential_ectopic",
               rank: 2,
               dangerous: false,
-              evidence_for: ["из-за дизурии"],
+              evidence_for: ["из-за задержки менструации"],
               evidence_against: [],
             },
           ],
@@ -443,6 +444,80 @@ test("two hypotheses in one sentence are both kept, with the learner's own words
   assert.equal(result.reasoning.differential.ranked, true);
   assert.deepEqual(items[0].evidence_for, ["аппендицит вероятнее"]);
   assert.equal(items[1].rank, 2);
+});
+
+test("a pregnancy-status check cannot invent an ectopic differential", () => {
+  const learnerText = "оценю стабильность, осмотрю живот и проверю беременность";
+  const result = validateRouterOutput(
+    {
+      intents: [
+        {
+          type: "diagnosis",
+          concept_id: "ectopic_pregnancy",
+          confidence: 0.92,
+          requested_fragment: "проверю беременность",
+        },
+      ],
+      unresolved_fragments: [],
+      action_parameters: [],
+      reasoning: {
+        working_diagnosis: {
+          stated: true,
+          concept_id: "ectopic_pregnancy",
+          uncertainty_stated: true,
+        },
+        differential: {
+          stated: true,
+          ranked: false,
+          has_dangerous_alternative: true,
+          items: [
+            {
+              concept_id: "ectopic_pregnancy",
+              rank: null,
+              dangerous: true,
+              evidence_for: [],
+              evidence_against: [],
+            },
+          ],
+        },
+      },
+    },
+    caseData,
+    {
+      learnerText,
+      conceptMap: appendicitisRouterConceptMap,
+      conceptRegistry: resolveConcept,
+    }
+  );
+  assert.deepEqual(result.actions, []);
+  assert.equal(result.rejectedUngroundedIntents[0].reason_code, "diagnosis_not_grounded_in_learner_text");
+  assert.equal(result.reasoning.working_diagnosis.stated, false);
+  assert.equal(result.reasoning.working_diagnosis.concept_id, null);
+  assert.equal(result.reasoning.differential.stated, false);
+  assert.deepEqual(result.reasoning.differential.items, []);
+});
+
+test("an unknown fragment inside an explicit differential is reasoning, not an unrecognised order", () => {
+  const learnerText =
+    "Рабочий диагноз — острый аппендицит; дифференциально исключаю урологическую патологию";
+  const result = validateRouterOutput(
+    {
+      intents: [
+        {
+          type: "unknown",
+          concept_id: null,
+          confidence: 0.4,
+          requested_fragment: "урологическую патологию",
+        },
+      ],
+      unresolved_fragments: [],
+      action_parameters: [],
+      reasoning: null,
+    },
+    caseData,
+    { learnerText }
+  );
+  assert.equal(result.unresolvedByKind[0].kind, "reasoning_only");
 });
 
 test("treatment parameters are transcribed and never scored", () => {

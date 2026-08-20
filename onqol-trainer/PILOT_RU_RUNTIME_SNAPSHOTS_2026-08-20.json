@@ -1,0 +1,812 @@
+{
+  "schema_version": "pilot-ru-runtime-snapshots-v2.0",
+  "generated_for_date": "2026-08-20",
+  "scope": {
+    "locale": "ru",
+    "case_preset_ids": [
+      "APP-001",
+      "APP-002",
+      "APP-003",
+      "APP-004"
+    ],
+    "cohort": "N=8 residents",
+    "resource_profile": "REFERENCE-FULL",
+    "real_facility_mode": false,
+    "scoring_mode": "formative_only",
+    "production_review_id": "ONQOL-REFERENCE-FULL-20260820"
+  },
+  "reachability": {
+    "method": "learner-mode seeds plus createV25Session(reference) and advanceV25Session integration fixtures; invalid service envelopes exercise the active validated fallback path",
+    "case_seeds": {
+      "APP-001": "pilot-ru-review-3",
+      "APP-002": "pilot-ru-review-0",
+      "APP-003": "pilot-ru-review-1",
+      "APP-004": "pilot-ru-review-2"
+    }
+  },
+  "counts": {
+    "previous_static_unique_strings": 1364,
+    "previous_needs_owner_review": 1006,
+    "runtime_review_entries": 50,
+    "unique_rendered_text_blocks": 49
+  },
+  "entries": [
+    {
+      "id": "ui-start",
+      "screen": "Стартовый экран",
+      "runtime_state": "start",
+      "case_id": null,
+      "phase": null,
+      "text": "ON QOL\nКлинический тренажёр\nРУС\nВыберите режим прохождения кейса.\nЭкстренная абдоминальная хирургия.",
+      "source_files": [
+        "src/pilot/ruRuntimeCopy.js",
+        "src/V25Trainer.jsx"
+      ],
+      "status": "needs owner review",
+      "note": null
+    },
+    {
+      "id": "ui-consent",
+      "screen": "Согласие и конфиденциальность",
+      "runtime_state": "start / consent not accepted",
+      "case_id": null,
+      "phase": null,
+      "text": "Как обрабатываются данные пилота\nВаши реплики и ответы тренажёра передаются внешнему сервису для ведения кейса. В скачиваемые данные сессии входит очищенная копия диалога; автоматическое удаление явных идентификаторов не гарантирует полную анонимность.\nЛокальные записи и сообщения об ошибках удаляются через 7 дней при следующем открытии приложения. Поставщик внешнего сервиса по умолчанию может хранить содержимое запросов в журналах контроля злоупотреблений до 30 дней; иной режим хранения должен быть отдельно подтверждён для проекта.\nПолитика обработки данных\nВ сессии используется случайный код. Не вводите сведения о реальных пациентах.\nЯ прочитал(а) описание обработки данных и согласен(на) участвовать в этом пилотном тестировании.",
+      "source_files": [
+        "src/pilot/ruRuntimeCopy.js",
+        "src/V25Trainer.jsx"
+      ],
+      "status": "needs owner review",
+      "note": null
+    },
+    {
+      "id": "ui-access-code",
+      "screen": "Доступ к пилоту",
+      "runtime_state": "start / access required",
+      "case_id": null,
+      "phase": null,
+      "text": "Код доступа к тренажёру\nВведите код пилота\nКод хранится только до закрытия этой вкладки.",
+      "source_files": [
+        "src/pilot/ruRuntimeCopy.js",
+        "src/V25Trainer.jsx"
+      ],
+      "status": "needs owner review",
+      "note": null
+    },
+    {
+      "id": "ui-mode",
+      "screen": "Выбор режима",
+      "runtime_state": "start / consent accepted / service ready",
+      "case_id": null,
+      "phase": null,
+      "text": "Режим прохождения кейса\nУчебный режим\nУчебный сценарий: необходимые для кейса ресурсы доступны. Это не профиль реального стационара.",
+      "source_files": [
+        "src/pilot/ruRuntimeCopy.js",
+        "src/V25Trainer.jsx"
+      ],
+      "status": "needs owner review",
+      "note": "В активном маршруте пилота отображается только REFERENCE-FULL; режим реального стационара отсутствует."
+    },
+    {
+      "id": "ui-network-checking",
+      "screen": "Проверка соединения",
+      "runtime_state": "start / service checking",
+      "case_id": null,
+      "phase": null,
+      "text": "Проверяем соединение с сервисом…",
+      "source_files": [
+        "src/pilot/ruRuntimeCopy.js",
+        "src/V25Trainer.jsx"
+      ],
+      "status": "needs owner review",
+      "note": null
+    },
+    {
+      "id": "ui-network-ready",
+      "screen": "Соединение установлено",
+      "runtime_state": "start / service ready",
+      "case_id": null,
+      "phase": null,
+      "text": "Код принят. Тренажёр готов.",
+      "source_files": [
+        "src/pilot/ruRuntimeCopy.js",
+        "src/V25Trainer.jsx"
+      ],
+      "status": "needs owner review",
+      "note": null
+    },
+    {
+      "id": "ui-network-code",
+      "screen": "Требуется код",
+      "runtime_state": "start / access denied",
+      "case_id": null,
+      "phase": null,
+      "text": "Введите действующий код пилота.",
+      "source_files": [
+        "src/pilot/ruRuntimeCopy.js",
+        "src/V25Trainer.jsx"
+      ],
+      "status": "needs owner review",
+      "note": null
+    },
+    {
+      "id": "ui-network-unavailable",
+      "screen": "Сервис недоступен",
+      "runtime_state": "start / service unavailable",
+      "case_id": null,
+      "phase": null,
+      "text": "Нет соединения с сервисом. Начать пилотную сессию нельзя.",
+      "source_files": [
+        "src/pilot/ruRuntimeCopy.js",
+        "src/V25Trainer.jsx"
+      ],
+      "status": "needs owner review",
+      "note": null
+    },
+    {
+      "id": "ui-loading",
+      "screen": "Ожидание ответа",
+      "runtime_state": "session / request pending",
+      "case_id": null,
+      "phase": null,
+      "text": "Запрос выполняется…",
+      "source_files": [
+        "src/pilot/ruRuntimeCopy.js",
+        "src/V25Trainer.jsx"
+      ],
+      "status": "needs owner review",
+      "note": null
+    },
+    {
+      "id": "ui-error-retry",
+      "screen": "Ошибка и повтор",
+      "runtime_state": "session / request failed",
+      "case_id": null,
+      "phase": null,
+      "text": "Не удалось получить ответ. Проверьте соединение и попробуйте ещё раз.\nПовторить",
+      "source_files": [
+        "src/pilot/ruRuntimeCopy.js",
+        "src/V25Trainer.jsx"
+      ],
+      "status": "needs owner review",
+      "note": null
+    },
+    {
+      "id": "ui-session-chrome",
+      "screen": "Экран кейса",
+      "runtime_state": "session / in progress",
+      "case_id": null,
+      "phase": null,
+      "text": "Учебный пилот\nЭкстренная абдоминальная хирургия\nУчебный режим\nУчебный профиль; не описывает возможности реального стационара\nСостояние сессии\nКлиническое время\nЭтап\nДействия\nЗафиксированных действий пока нет\nУсловия кейса\nДополнительные условия пока не выявлены\nКод сессии\nУкажите его в форме обратной связи\nДанные сессии\nСкачать данные сессии\nЧто ты спрашиваешь или делаешь?\nОтправить\nПрервать сессию\nНовый кейс",
+      "source_files": [
+        "src/pilot/ruRuntimeCopy.js",
+        "src/V25Trainer.jsx"
+      ],
+      "status": "needs owner review",
+      "note": null
+    },
+    {
+      "id": "ui-interrupt",
+      "screen": "Преждевременное прерывание",
+      "runtime_state": "session / interrupt confirmation",
+      "case_id": null,
+      "phase": null,
+      "text": "Прервать сессию? Она будет отмечена как незавершённая, без оценки.\nПродолжить кейс\nДа, прервать",
+      "source_files": [
+        "src/pilot/ruRuntimeCopy.js",
+        "src/V25Trainer.jsx"
+      ],
+      "status": "needs owner review",
+      "note": null
+    },
+    {
+      "id": "ui-report-dialog",
+      "screen": "Сообщение о клинической ошибке",
+      "runtime_state": "session / report dialog",
+      "case_id": null,
+      "phase": null,
+      "text": "Сообщить о клинической ошибке\nЗамечание сохранится только в этом браузере и войдёт в скачиваемые данные сессии вместе с версией кейса и последними ходами. Само по себе оно ничего не меняет в тренажёре.\nЧто не так\nКто сообщает\nЧто именно неверно\nСвоими словами: что тренажёр сказал или сделал и почему это неправильно\nЧто сказал тренажёр (по желанию)\nСкопируйте спорную фразу\nСохранить локально\nОтмена",
+      "source_files": [
+        "src/pilot/ruRuntimeCopy.js",
+        "src/clinical/governance/clinicalReport.js"
+      ],
+      "status": "needs owner review",
+      "note": null
+    },
+    {
+      "id": "ui-report-categories",
+      "screen": "Категории клинической ошибки",
+      "runtime_state": "session / report category selection",
+      "case_id": null,
+      "phase": null,
+      "text": "Неверные данные о пациенте: Анализ, находка осмотра, снимок или динамика, которых так не бывает.\nНеверная доза, порог или срок: Число, которое тренажёр назвал или принял, выглядит неправильным.\nНаставник поправил неправильно: Придрался не к тому, поправил верное решение или дал неверный совет.\nНарушена последовательность кейса: Действие выполнено, но случилось не то, или случай не двигается дальше.\nПравило устарело: Текущее руководство говорит иначе, чем тренажёр.\nРасходится с КП МЗ РК или локальным протоколом: У нас так не делают или протокол требует другого.\nНет допустимой альтернативы: Резидент назвал клинически приемлемый вариант, а тренажёр его не принял.\nНе смоделировано, но нужно: Действие распознано, результат не задан, а без него решение принять нельзя.\nФормулировка или перевод: Русский текст звучит неверно, двусмысленно или неестественно для клинического общения.\nДругое: Опишите словами.",
+      "source_files": [
+        "src/pilot/ruRuntimeCopy.js",
+        "src/clinical/governance/clinicalReport.js"
+      ],
+      "status": "needs owner review",
+      "note": null
+    },
+    {
+      "id": "ui-report-saved",
+      "screen": "Сообщение сохранено",
+      "runtime_state": "session / report saved",
+      "case_id": null,
+      "phase": null,
+      "text": "Замечание сохранено локально и будет включено в данные этой сессии.\nСкачать замечания",
+      "source_files": [
+        "src/pilot/ruRuntimeCopy.js",
+        "src/clinical/governance/clinicalReport.js"
+      ],
+      "status": "needs owner review",
+      "note": null
+    },
+    {
+      "id": "app-001-start",
+      "screen": "Начало APP-001",
+      "runtime_state": "ems_handoff",
+      "case_id": "APP-001",
+      "phase": "Передача пациента",
+      "text": "Боль в нижних отделах живота справа\nЖенщина, 35 лет. Доставлена в приёмное отделение. Жалобы: боль в нижних отделах живота справа. Боль беспокоит в течение 6 часов. Интенсивность боли — 4 из 10. Температура 37,0 °C, ЧСС 83/мин, сАД 132 мм рт. ст., ЧД 17/мин. С чего начнёшь?",
+      "source_files": [
+        "src/clinical/v35/createCase.js",
+        "src/clinical/v35/phenotypes.js",
+        "src/clinical/v35/sessionSelector.js",
+        "src/clinical/v25/engine.js"
+      ],
+      "status": "needs owner review",
+      "note": "Воспроизводимый код сценария: pilot-ru-review-3; способ выбора: seeded."
+    },
+    {
+      "id": "app-001-history",
+      "screen": "APP-001: анамнез",
+      "runtime_state": "data_gathering",
+      "case_id": "APP-001",
+      "phase": "Сбор данных",
+      "text": "Анамнез: Боль в нижних отделах живота справа, чёткого перемещения боли не отмечает, аппетита нет. Диареи нет. Нарушений мочеиспускания нет. Последняя менструация была 24 дня назад, задержки не было. Лекарственную аллергию отрицает.",
+      "source_files": [
+        "src/clinical/v25/engine.js",
+        "src/clinical/v35/createCase.js",
+        "src/clinical/v35/phenotypes.js",
+        "src/clinical/v35/examSlots.js"
+      ],
+      "status": "needs owner review",
+      "note": null
+    },
+    {
+      "id": "app-001-examination",
+      "screen": "APP-001: осмотр",
+      "runtime_state": "data_gathering",
+      "case_id": "APP-001",
+      "phase": "Сбор данных",
+      "text": "Осмотр живота: Живот обычной формы, симметричный, не вздут, участвует в акте дыхания. При пальпации живот мягкий, умеренно болезненный в нижних отделах живота справа. Защитного напряжения мышц нет. Симптом Щёткина-Блюмберга сомнительный. Перистальтика кишечника выслушивается.",
+      "source_files": [
+        "src/clinical/v25/engine.js",
+        "src/clinical/v35/createCase.js",
+        "src/clinical/v35/phenotypes.js",
+        "src/clinical/v35/examSlots.js"
+      ],
+      "status": "needs owner review",
+      "note": null
+    },
+    {
+      "id": "app-002-start",
+      "screen": "Начало APP-002",
+      "runtime_state": "ems_handoff",
+      "case_id": "APP-002",
+      "phase": "Передача пациента",
+      "text": "Боль в правой подвздошной области\nЖенщина, 47 лет. Доставлена в приёмное отделение. Жалобы: боль в правой подвздошной области. Боль беспокоит в течение 12 часов. Интенсивность боли — 6 из 10. Температура 37,9 °C, ЧСС 87/мин, сАД 115 мм рт. ст., ЧД 19/мин. С чего начнёшь?",
+      "source_files": [
+        "src/clinical/v35/createCase.js",
+        "src/clinical/v35/phenotypes.js",
+        "src/clinical/v35/sessionSelector.js",
+        "src/clinical/v25/engine.js"
+      ],
+      "status": "needs owner review",
+      "note": "Воспроизводимый код сценария: pilot-ru-review-0; способ выбора: seeded."
+    },
+    {
+      "id": "app-002-history",
+      "screen": "APP-002: анамнез",
+      "runtime_state": "data_gathering",
+      "case_id": "APP-002",
+      "phase": "Сбор данных",
+      "text": "Анамнез: Боль началась около пупка и переместилась в правую подвздошную область, боль усиливается при движении и кашле, аппетита нет, рвота была 2 раза. Диареи нет. Нарушений мочеиспускания нет. Последняя менструация была 24 дня назад, задержки не было. Лекарственную аллергию отрицает.",
+      "source_files": [
+        "src/clinical/v25/engine.js",
+        "src/clinical/v35/createCase.js",
+        "src/clinical/v35/phenotypes.js",
+        "src/clinical/v35/examSlots.js"
+      ],
+      "status": "needs owner review",
+      "note": null
+    },
+    {
+      "id": "app-002-examination",
+      "screen": "APP-002: осмотр",
+      "runtime_state": "data_gathering",
+      "case_id": "APP-002",
+      "phase": "Сбор данных",
+      "text": "Осмотр живота: Живот обычной формы, симметричный, не вздут, участвует в акте дыхания. При пальпации живот мягкий, локально болезненный в правой подвздошной области, максимальная болезненность определяется в точке Мак-Бурнея. Определяется локальное защитное напряжение мышц. Симптом Щёткина-Блюмберга положительный в правой подвздошной области. Симптом Ровзинга отрицательный. Перкуссионной болезненности нет. Перистальтика кишечника выслушивается.",
+      "source_files": [
+        "src/clinical/v25/engine.js",
+        "src/clinical/v35/createCase.js",
+        "src/clinical/v35/phenotypes.js",
+        "src/clinical/v35/examSlots.js"
+      ],
+      "status": "needs owner review",
+      "note": null
+    },
+    {
+      "id": "app-003-start",
+      "screen": "Начало APP-003",
+      "runtime_state": "ems_handoff",
+      "case_id": "APP-003",
+      "phase": "Передача пациента",
+      "text": "Боль глубоко внизу живота\nЖенщина, 41 год. Доставлена в приёмное отделение. Жалобы: боль глубоко внизу живота. Боль беспокоит в течение 24 часов. Интенсивность боли — 5 из 10. Температура 37,3 °C, ЧСС 81/мин, сАД 131 мм рт. ст., ЧД 17/мин. С чего начнёшь?",
+      "source_files": [
+        "src/clinical/v35/createCase.js",
+        "src/clinical/v35/phenotypes.js",
+        "src/clinical/v35/sessionSelector.js",
+        "src/clinical/v25/engine.js"
+      ],
+      "status": "needs owner review",
+      "note": "Воспроизводимый код сценария: pilot-ru-review-1; способ выбора: seeded."
+    },
+    {
+      "id": "app-003-history",
+      "screen": "APP-003: анамнез",
+      "runtime_state": "data_gathering",
+      "case_id": "APP-003",
+      "phase": "Сбор данных",
+      "text": "Анамнез: Боль глубоко внизу живота, частые болезненные позывы к дефекации, дискомфорт при мочеиспускании. Диареи нет. Последняя менструация была 24 дня назад, задержки не было. Лекарственную аллергию отрицает.",
+      "source_files": [
+        "src/clinical/v25/engine.js",
+        "src/clinical/v35/createCase.js",
+        "src/clinical/v35/phenotypes.js",
+        "src/clinical/v35/examSlots.js"
+      ],
+      "status": "needs owner review",
+      "note": null
+    },
+    {
+      "id": "app-003-examination",
+      "screen": "APP-003: осмотр",
+      "runtime_state": "data_gathering",
+      "case_id": "APP-003",
+      "phase": "Сбор данных",
+      "text": "Осмотр живота: Живот обычной формы, симметричный, не вздут, участвует в акте дыхания. При пальпации живот мягкий, максимальная болезненность определяется ниже точки Мак-Бурнея. Защитного напряжения мышц нет. Запирательный симптом отрицательный. Перистальтика кишечника выслушивается.",
+      "source_files": [
+        "src/clinical/v25/engine.js",
+        "src/clinical/v35/createCase.js",
+        "src/clinical/v35/phenotypes.js",
+        "src/clinical/v35/examSlots.js"
+      ],
+      "status": "needs owner review",
+      "note": null
+    },
+    {
+      "id": "app-004-start",
+      "screen": "Начало APP-004",
+      "runtime_state": "ems_handoff",
+      "case_id": "APP-004",
+      "phase": "Передача пациента",
+      "text": "Боль в пояснице справа\nЖенщина, 52 года. Доставлена в приёмное отделение. Жалобы: боль в пояснице справа. Боль беспокоит в течение 16 часов. Интенсивность боли — 5 из 10. Температура 37,4 °C, ЧСС 85/мин, сАД 122 мм рт. ст., ЧД 18/мин. С чего начнёшь?",
+      "source_files": [
+        "src/clinical/v35/createCase.js",
+        "src/clinical/v35/phenotypes.js",
+        "src/clinical/v35/sessionSelector.js",
+        "src/clinical/v25/engine.js"
+      ],
+      "status": "needs owner review",
+      "note": "Воспроизводимый код сценария: pilot-ru-review-2; способ выбора: seeded."
+    },
+    {
+      "id": "app-004-history",
+      "screen": "APP-004: анамнез",
+      "runtime_state": "data_gathering",
+      "case_id": "APP-004",
+      "phase": "Сбор данных",
+      "text": "Анамнез: Боль в пояснице справа, усиливается при ходьбе. Диареи нет. Нарушений мочеиспускания нет. Лекарственную аллергию отрицает.",
+      "source_files": [
+        "src/clinical/v25/engine.js",
+        "src/clinical/v35/createCase.js",
+        "src/clinical/v35/phenotypes.js",
+        "src/clinical/v35/examSlots.js"
+      ],
+      "status": "needs owner review",
+      "note": null
+    },
+    {
+      "id": "app-004-examination",
+      "screen": "APP-004: осмотр",
+      "runtime_state": "data_gathering",
+      "case_id": "APP-004",
+      "phase": "Сбор данных",
+      "text": "Осмотр живота: Живот обычной формы, симметричный, не вздут, участвует в акте дыхания. Максимальная болезненность определяется в пояснице справа. Защитного напряжения мышц нет. Симптом Щёткина-Блюмберга отрицательный. Псоас-симптом положительный. Перистальтика кишечника выслушивается.",
+      "source_files": [
+        "src/clinical/v25/engine.js",
+        "src/clinical/v35/createCase.js",
+        "src/clinical/v35/phenotypes.js",
+        "src/clinical/v35/examSlots.js"
+      ],
+      "status": "needs owner review",
+      "note": null
+    },
+    {
+      "id": "phase-primary-assessment",
+      "screen": "Первичная оценка",
+      "runtime_state": "primary_assessment",
+      "case_id": "APP-002",
+      "phase": "Первичная оценка",
+      "text": "Уточни, какие данные хочешь получить или какое действие выполняешь.",
+      "source_files": [
+        "src/clinical/v25/engine.js",
+        "src/clinical/core/mentorBrief.js",
+        "src/clinical/core/mentorAgent.js"
+      ],
+      "status": "needs owner review",
+      "note": "Сообщение наставника получено по активному маршруту после проверки ответа сервиса."
+    },
+    {
+      "id": "phase-data-gathering",
+      "screen": "Сбор данных",
+      "runtime_state": "data_gathering",
+      "case_id": "APP-002",
+      "phase": "Сбор данных",
+      "text": "Анамнез: Боль началась около пупка и переместилась в правую подвздошную область, боль усиливается при движении и кашле, аппетита нет, рвота была 2 раза. Диареи нет. Нарушений мочеиспускания нет. Последняя менструация была 24 дня назад, задержки не было. Лекарственную аллергию отрицает.",
+      "source_files": [
+        "src/clinical/v25/engine.js",
+        "src/clinical/v35/createCase.js",
+        "src/clinical/v35/phenotypes.js",
+        "src/clinical/v35/examSlots.js"
+      ],
+      "status": "needs owner review",
+      "note": null
+    },
+    {
+      "id": "phase-differential",
+      "screen": "Дифференциальный ряд",
+      "runtime_state": "differential_1",
+      "case_id": "APP-002",
+      "phase": "Дифференциальный ряд",
+      "text": "Опасная альтернатива остаётся в поле зрения — это полезная часть текущего рассуждения.",
+      "source_files": [
+        "src/clinical/v25/engine.js",
+        "src/clinical/core/mentorBrief.js",
+        "src/clinical/core/mentorAgent.js"
+      ],
+      "status": "needs owner review",
+      "note": null
+    },
+    {
+      "id": "phase-tests",
+      "screen": "Исследования и результаты",
+      "runtime_state": "tests_and_treatment",
+      "case_id": "APP-002",
+      "phase": "Исследования и лечение",
+      "text": "ОАК: Гемоглобин 133 г/л, лейкоциты 15,1 × 10^9/л, нейтрофилы 80% (абс. 12,1 × 10^9/л), тромбоциты 269 × 10^9/л.\n\nДинамика: прошло 35 мин. ЧСС 87/мин, температура 37,9 °C, боль 6/10.\n\nКак интерпретируешь полученные данные и что делаешь дальше?",
+      "source_files": [
+        "src/clinical/v25/engine.js",
+        "src/clinical/v35/createCase.js",
+        "src/clinical/v35/phenotypes.js",
+        "src/clinical/v35/examSlots.js"
+      ],
+      "status": "needs owner review",
+      "note": null
+    },
+    {
+      "id": "phase-reassessment",
+      "screen": "Переоценка",
+      "runtime_state": "reassessment",
+      "case_id": "APP-002",
+      "phase": "Переоценка",
+      "text": "Динамика: прошло 45 мин. ЧСС 87/мин, температура 37,9 °C, боль 6/10.",
+      "source_files": [
+        "src/clinical/v25/engine.js",
+        "src/clinical/v35/createCase.js",
+        "src/clinical/v35/phenotypes.js",
+        "src/clinical/v35/examSlots.js"
+      ],
+      "status": "needs owner review",
+      "note": null
+    },
+    {
+      "id": "phase-decision",
+      "screen": "Клиническое решение",
+      "runtime_state": "decision",
+      "case_id": "APP-002",
+      "phase": "Решение",
+      "text": "Рабочий диагноз зафиксирован. Какой следующий клинический шаг?",
+      "source_files": [
+        "src/clinical/v25/engine.js",
+        "src/clinical/core/mentorBrief.js",
+        "src/clinical/core/mentorAgent.js"
+      ],
+      "status": "needs owner review",
+      "note": null
+    },
+    {
+      "id": "premature-discharge",
+      "screen": "Преждевременная выписка",
+      "runtime_state": "primary_assessment",
+      "case_id": "APP-002",
+      "phase": "Первичная оценка",
+      "text": "Действие пока недоступно: Выписка пока не может быть завершена: нужно зафиксировать контроль источника, место послеоперационного наблюдения и послеоперационную переоценку.\n\nКак меняешь план с учётом этого ограничения?",
+      "source_files": [
+        "src/clinical/v25/engine.js",
+        "src/clinical/v25/turnPlanner.js"
+      ],
+      "status": "needs owner review",
+      "note": null
+    },
+    {
+      "id": "order-clarification",
+      "screen": "Уточнение назначения",
+      "runtime_state": "primary_assessment",
+      "case_id": "APP-002",
+      "phase": "Первичная оценка",
+      "text": "Медсестра ожидает назначения. Чем именно, в какой дозе и каким путём?",
+      "source_files": [
+        "src/clinical/core/operationalization.js",
+        "src/clinical/v25/engine.js"
+      ],
+      "status": "needs owner review",
+      "note": null
+    },
+    {
+      "id": "phase-preop",
+      "screen": "Подготовка к операции",
+      "runtime_state": "preop",
+      "case_id": "APP-002",
+      "phase": "Подготовка к операции",
+      "text": "Что контролируешь после этого решения?",
+      "source_files": [
+        "src/clinical/v25/engine.js",
+        "src/clinical/v25/turnPlanner.js"
+      ],
+      "status": "needs owner review",
+      "note": null
+    },
+    {
+      "id": "operation-approach",
+      "screen": "Выбор операционного доступа",
+      "runtime_state": "primary_assessment",
+      "case_id": "APP-002",
+      "phase": "Первичная оценка",
+      "text": "Операционный доступ: лапароскопический доступ выбран; ресурс доступен.\n\nДоступ выбран. Какой следующий операционный шаг?",
+      "source_files": [
+        "src/clinical/v25/engine.js",
+        "src/clinical/v25/turnPlanner.js"
+      ],
+      "status": "needs owner review",
+      "note": null
+    },
+    {
+      "id": "operation-start",
+      "screen": "Начало операции",
+      "runtime_state": "primary_assessment",
+      "case_id": "APP-002",
+      "phase": "Первичная оценка",
+      "text": "Вмешательство начато. Когда контроль источника будет завершён, зафиксируй это отдельно.",
+      "source_files": [
+        "src/clinical/v25/engine.js",
+        "src/clinical/v25/turnPlanner.js"
+      ],
+      "status": "needs owner review",
+      "note": null
+    },
+    {
+      "id": "phase-operation",
+      "screen": "Контроль источника",
+      "runtime_state": "operation",
+      "case_id": "APP-002",
+      "phase": "Операция завершена",
+      "text": "Интраоперационная находка: Воспалительно изменённый аппендикс без признаков перфорации и абсцесса.\n\nДинамика: прошло 75 мин. ЧСС 87/мин, температура 37,9 °C, боль 3/10.\n\nКонтроль источника завершён. Где и с каким мониторингом пациент продолжит наблюдение?",
+      "source_files": [
+        "src/clinical/v25/engine.js",
+        "src/clinical/v35/createCase.js",
+        "src/clinical/v35/phenotypes.js",
+        "src/clinical/v35/examSlots.js"
+      ],
+      "status": "needs owner review",
+      "note": null
+    },
+    {
+      "id": "phase-postop-destination",
+      "screen": "Послеоперационный маршрут",
+      "runtime_state": "postop_destination",
+      "case_id": "APP-002",
+      "phase": "Послеоперационный маршрут",
+      "text": "Место наблюдения выбрано. Как проведёшь структурированную послеоперационную переоценку?",
+      "source_files": [
+        "src/clinical/v25/engine.js",
+        "src/clinical/v25/turnPlanner.js"
+      ],
+      "status": "needs owner review",
+      "note": null
+    },
+    {
+      "id": "phase-ward-care",
+      "screen": "Послеоперационное наблюдение",
+      "runtime_state": "ward_care",
+      "case_id": "APP-002",
+      "phase": "Послеоперационное наблюдение",
+      "text": "Послеоперационная переоценка зафиксирована. Каков план выписки, наблюдения и критерии возврата?",
+      "source_files": [
+        "src/clinical/v25/engine.js",
+        "src/clinical/v25/turnPlanner.js"
+      ],
+      "status": "needs owner review",
+      "note": null
+    },
+    {
+      "id": "phase-discharge",
+      "screen": "Выписка и дальнейшее наблюдение",
+      "runtime_state": "discharge",
+      "case_id": "APP-002",
+      "phase": "Выписка и дальнейшее наблюдение",
+      "text": "Стабильный путь завершён. Можно завершить кейс и перейти к формирующему разбору.",
+      "source_files": [
+        "src/clinical/v25/engine.js",
+        "src/clinical/v25/turnPlanner.js"
+      ],
+      "status": "needs owner review",
+      "note": null
+    },
+    {
+      "id": "debrief-01",
+      "screen": "Формирующий разбор",
+      "runtime_state": "complete",
+      "case_id": "APP-002",
+      "phase": "Кейс завершён",
+      "text": "Формирующий разбор",
+      "source_files": [
+        "src/clinical/v25/debrief.js",
+        "src/clinical/v25/engine.js"
+      ],
+      "status": "needs owner review",
+      "note": "Числовая оценка отключена; блок получен из завершённой сессии."
+    },
+    {
+      "id": "debrief-02",
+      "screen": "Формирующий разбор",
+      "runtime_state": "complete",
+      "case_id": "APP-002",
+      "phase": "Кейс завершён",
+      "text": "Статус: итоговый числовой балл отключён. Рубрика не валидирована для оценивания резидента.",
+      "source_files": [
+        "src/clinical/v25/debrief.js",
+        "src/clinical/v25/engine.js"
+      ],
+      "status": "needs owner review",
+      "note": null
+    },
+    {
+      "id": "debrief-03",
+      "screen": "Формирующий разбор",
+      "runtime_state": "complete",
+      "case_id": "APP-002",
+      "phase": "Кейс завершён",
+      "text": "Путь: стабильный путь завершён: выписка и дальнейшее наблюдение зафиксированы.",
+      "source_files": [
+        "src/clinical/v25/debrief.js",
+        "src/clinical/v25/engine.js"
+      ],
+      "status": "needs owner review",
+      "note": null
+    },
+    {
+      "id": "debrief-04",
+      "screen": "Формирующий разбор",
+      "runtime_state": "complete",
+      "case_id": "APP-002",
+      "phase": "Кейс завершён",
+      "text": "Таблица ниже фиксирует только наличие явно сформулированных элементов рассуждения. Она не подтверждает их клиническую правильность и не является оценкой эффективности.",
+      "source_files": [
+        "src/clinical/v25/debrief.js",
+        "src/clinical/v25/engine.js"
+      ],
+      "status": "needs owner review",
+      "note": null
+    },
+    {
+      "id": "debrief-05",
+      "screen": "Формирующий разбор",
+      "runtime_state": "complete",
+      "case_id": "APP-002",
+      "phase": "Кейс завершён",
+      "text": "| Область | Что было явно сформулировано |\n| --- | --- |\n| Стабильность и безопасность | оценка стабильности сформулирована |\n| Представление проблемы | высказывание не зафиксировано |\n| Дифференциальный диагноз | дифференциальный ряд сформулирован; опасная альтернатива названа |\n| Цель исследований | высказывание не зафиксировано |\n| Обоснование тактики | высказывание не зафиксировано |\n| Переоценка | высказывание не зафиксировано |\n| Условия изменения плана и эскалация | высказывание не зафиксировано |\n| Маршрутизация | высказывание не зафиксировано |",
+      "source_files": [
+        "src/clinical/v25/debrief.js",
+        "src/clinical/v25/engine.js"
+      ],
+      "status": "needs owner review",
+      "note": null
+    },
+    {
+      "id": "debrief-06",
+      "screen": "Формирующий разбор",
+      "runtime_state": "complete",
+      "case_id": "APP-002",
+      "phase": "Кейс завершён",
+      "text": "Клиническая временная линия\n• Через 93 мин: 1ч 33м: клиническое время +5 мин.\n• Через 108 мин: 1ч 48м: клиническое время +15 мин.\n• Через 183 мин: 3ч 3м: источник контролирован, профилактика дана.\n• Через 187 мин: 3ч 7м: источник контролирован, профилактика дана.\n• Через 187 мин: 3ч 7м: источник контролирован, профилактика дана.\n• Через 187 мин: 3ч 7м: источник контролирован, профилактика дана.",
+      "source_files": [
+        "src/clinical/v25/debrief.js",
+        "src/clinical/v25/engine.js"
+      ],
+      "status": "needs owner review",
+      "note": null
+    },
+    {
+      "id": "debrief-07",
+      "screen": "Формирующий разбор",
+      "runtime_state": "complete",
+      "case_id": "APP-002",
+      "phase": "Кейс завершён",
+      "text": "Отложено для разбора\n• Представление проблемы явно не сформулировано.\n• Условие изменения плана осталось неявным.",
+      "source_files": [
+        "src/clinical/v25/debrief.js",
+        "src/clinical/v25/engine.js"
+      ],
+      "status": "needs owner review",
+      "note": null
+    },
+    {
+      "id": "debrief-08",
+      "screen": "Формирующий разбор",
+      "runtime_state": "complete",
+      "case_id": "APP-002",
+      "phase": "Кейс завершён",
+      "text": "Эти пункты не прерывали ведение пациента. Они фиксируют только то, что соответствующее рассуждение не было явно высказано; клиническую правильность они не устанавливают.",
+      "source_files": [
+        "src/clinical/v25/debrief.js",
+        "src/clinical/v25/engine.js"
+      ],
+      "status": "needs owner review",
+      "note": null
+    }
+  ],
+  "exclusions": [
+    {
+      "scope": "Словари распознавания и конфигурация сопоставления",
+      "status": "not applicable",
+      "note": "Внутренние данные распознавания; в интерфейсе не отображаются."
+    },
+    {
+      "scope": "Внутренние инструкции сервисов и спецификация наставника",
+      "status": "not applicable",
+      "note": "Управляют работой системы и не являются текстом интерфейса."
+    },
+    {
+      "scope": "Казахская сессия",
+      "status": "not applicable",
+      "note": "Язык пилота — русский; переключатель отсутствует."
+    },
+    {
+      "scope": "Реальный стационар и казахстанские профили ресурсов",
+      "status": "not applicable",
+      "note": "Маршрут пилота принудительно использует REFERENCE-FULL."
+    },
+    {
+      "scope": "APP-005, осложнения и альтернативные заболевания",
+      "status": "not applicable",
+      "note": "Эти ветви не активны для участника в заданном объёме пилота."
+    },
+    {
+      "scope": "Числовая оценка и полный тестовый режим",
+      "status": "not applicable",
+      "note": "Пилот формирующий; внутренний тестовый маршрут не используется."
+    },
+    {
+      "scope": "Резервный локальный ответ без сервиса",
+      "status": "not applicable",
+      "note": "Начало пилотной сессии закрыто до успешной проверки сервиса."
+    },
+    {
+      "scope": "Заметки ревьюеров, сведения об источниках, телеметрия и CI",
+      "status": "not applicable",
+      "note": "Участнику не отображаются."
+    }
+  ]
+}

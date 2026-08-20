@@ -1,45 +1,54 @@
 # ON QOL pilot privacy and retention
 
-Status: implementation baseline; owner consent text and hosting policy remain
-external release gates.
+Status: technical implementation complete for the scoped local-storage pilot;
+owner approval, deployed-host verification and the controlled file-transfer
+workflow remain release gates.
 
-## Data minimisation
+Scoped cohort: **N=8 residents**, RU/reference/APP-001–004/formative-only.
 
-- Raw learner free text is **off by default** for persistence.
-- The active transcript exists only in memory for the current browser tab.
-- Persisted local snapshots contain structured engine state and events, but no
-  transcript, turn plans, raw event text, learner quotes or verbatim reasoning.
-- Provider requests use `store: false`; the provider key remains server-side.
-- There is no public or central history endpoint in this repository.
+## Processing and minimisation
 
-The optional `persistRawText` repository flag exists only for controlled
-development tests. It must not be enabled for a pilot without a documented need,
-participant consent, access control, a clinical-detail redaction layer and a
-shorter approved retention period.
+- Learner and trainer messages are processed by the same-origin model gateway.
+  The provider key remains server-side and requests set `store: false`.
+- Provider processing is disclosed before start. Under the provider's default
+  abuse-monitoring policy, eligible request/response content can be retained for
+  up to 30 days; a shorter/no-retention claim requires confirmed ZDR or MAM for
+  this project.
+- Current-tab transcript exists in memory. Persisted browser snapshots remove
+  messages, turn plans, raw event text and verbatim/reasoning fields.
+- There is no central history endpoint or server-side session repository in this
+  codebase.
 
-## Retention and deletion
+## Local retention and deletion
 
-- Local structured session snapshots expire after seven days.
-- Expired snapshots are deleted on the next save/read operation.
-- `deleteSession(sessionId)` removes the local session record, structured
-  snapshot, analytics events and any explicitly opted-in raw-event copy.
-- User-triggered JSON replay export is outside automatic browser retention; the
-  user controls the downloaded file.
+- Structured sessions, snapshots, analytics, clinical reports and the random
+  browser pseudonym expire after seven days.
+- Expired session artifacts and report records are purged when the repository or
+  report queue is next opened. The pseudonym is rotated when next requested.
+- `deleteSession(sessionId)` removes the local session record, snapshot,
+  analytics and any explicitly opted-in development raw-event copy.
+- The optional `persistRawText` path is development-only and must remain off for
+  the pilot.
 
-## Identity and access
+## Export boundary
 
-- Learners receive a random anonymous browser id; it is not an authorization
-  credential.
-- Model access uses a separate internal pilot code, exact-origin policy and
-  hosting protection.
-- Any future server repository must enforce authenticated ownership for read,
-  write and delete. Browser ids or query parameters are insufficient.
+- A replay JSON includes structured state, provider telemetry, a redacted
+  transcript and same-session clinical reports.
+- `raw_learner_text_included: false` means unredacted raw text is excluded; it
+  does not mean the redacted transcript is anonymous.
+- Browser retention cannot delete a downloaded file. The supervised pilot must
+  define a restricted destination, authorised recipients and deletion date, and
+  must prohibit personal email, messengers and public upload links.
 
-## Remaining release gates
+## Access and release gates
 
-1. Owner-approved participant information and consent text.
-2. Confirmed provider-key rotation.
-3. Hosting authentication and durable rate/spend controls.
-4. A server retention/deletion policy if central pilot storage is introduced.
-5. A structured-event resume implementation; raw transcript persistence will
-   not be reintroduced to obtain resume.
+- A random browser id is a pseudonym, not an access credential.
+- Production requires an exact HTTPS origin, a separate strong pilot code,
+  protected hosting, rate/spend controls and a rotated provider key.
+- `src/clinical/governance/pilotReleaseApprovals.js` is the canonical approval
+  manifest. Privacy may change to `approved` only with reviewer, date, evidence
+  and scope; the deployment variable must match that approval id.
+- Any future central store or cross-device resume requires a new data-flow,
+  access-control, retention and deletion review before implementation.
+
+Provider data controls: https://developers.openai.com/api/docs/guides/your-data
