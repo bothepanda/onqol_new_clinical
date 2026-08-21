@@ -65,7 +65,7 @@ test("compound pelvic diagnostic order gives one addressed status per fragment",
   assert.equal(turn.simulator_invocation_suppressed_reason, "deterministic_environment_answer");
 });
 
-test("uncertainty plus CT advances silently and debrief names only the unpurposed test", async () => {
+test("CT advances and the mentor surfaces the still-open dangerous alternative", async () => {
   const caseData = buildReplayCase();
   let session = createV25Session({ caseData, mode: "reference", seed: fixture.effective_seed });
   let result = await advanceV25Session({
@@ -82,7 +82,9 @@ test("uncertainty plus CT advances silently and debrief names only the unpurpose
     options: options(),
   });
   assert.match(result.reply, /КТ брюшной полости/i);
-  assert.equal(result.mentor.mode, "CONTINUE");
+  assert.equal(result.mentor.mode, "CHALLENGE");
+  assert.equal(result.mentor.issueId, "appendicitis_ectopic_not_excluded");
+  assert.match(result.mentor.text, /обязательно нужно исключить/i);
   assert.equal(result.mentor.moveTypes.includes("uncertainty_declared"), false);
   assert.doesNotMatch(result.reply, /сохранять диагностическое мышление|можно двигаться дальше/i);
 

@@ -20,7 +20,11 @@ if (!apiKey) {
 }
 
 const model = process.env.OPENAI_MENTOR_MODEL || DEFAULT_MODELS.mentor;
-const REPORT_PATH = "AB_MENTOR_ARCHETYPES_20260820.md";
+// Hardcoded until 21.08.2026, which silently overwrote the previous day's
+// baseline on the next run - the one file the comparison depends on.
+const REPORT_PATH =
+  process.argv.slice(2).find((arg) => arg.startsWith("--report="))?.split("=")[1] ||
+  "AB_MENTOR_ARCHETYPES.md";
 const CASE_PRESET = "APP-001";
 const SEED = "mentor-archetypes-20260820";
 

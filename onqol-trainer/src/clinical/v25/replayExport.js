@@ -57,6 +57,10 @@ export function buildMentorTelemetry(session) {
       mentor_turns: spoke.length,
       from_model: spoke.filter((turn) => turn.mentor_source === "llm").length,
       from_template: spoke.filter((turn) => turn.mentor_source === "deterministic").length,
+      // Distinct from a template since 21.08.2026: the mentor had nothing
+      // usable to say and said nothing, and the engine's own prompt carried
+      // the turn. See the silent fallback in core/mentorAgent.js.
+      from_silence: spoke.filter((turn) => turn.mentor_source === "silent").length,
       repaired: spoke.filter((turn) => turn.repair_attempted).length,
       rejection_reasons: rejections,
       policy_agreement: spoke.filter((turn) => turn.regex_policy_shadow?.agreed_with_mentor).length,

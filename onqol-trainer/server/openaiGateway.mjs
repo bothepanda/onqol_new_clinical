@@ -8,7 +8,7 @@ export const OPENAI_GATEWAY_VERSION = "2026-08-13.1";
 const SIMULATOR_SCHEMA_VERSION = "simulator-envelope-v3";
 // v4: the model chooses mode, issue and scaffolding; the schema gained
 // scaffolding_level because the length limit depends on it.
-const MENTOR_SCHEMA_VERSION = "mentor-full-context-v4";
+const MENTOR_SCHEMA_VERSION = "mentor-full-context-v5";
 
 const DEFAULT_MODELS = Object.freeze({
   router: "gpt-5.6-luna",
@@ -87,7 +87,14 @@ const TASKS = Object.freeze({
     // an explanation. Output length is still capped where it matters - in
     // mentorAgent's post-check, by mode - so this budget buys reasoning, not
     // lecturing.
-    maxOutputTokens: 1600,
+    // Raised from 1600 on 21.08.2026. In the Responses API reasoning tokens are
+    // charged to this budget, and the specification grew by a third when the
+    // voice reference and the new archetypes landed. Two turns of the live run
+    // came back with no message content at all - the model was still reasoning
+    // when the cap hit - which surfaced as "mentor_agent_error" and cost the
+    // learner the intervention. The output itself is capped by mode in
+    // mentorAgent's post-check, so this budget only buys reasoning headroom.
+    maxOutputTokens: 4000,
     // One call per turn, and it is the call that decides what the learner is
     // taught. Low effort was affordable when the decision was already made.
     reasoningEffort: "high",
@@ -111,6 +118,10 @@ const TASKS = Object.freeze({
           },
           issue_id: { type: ["string", "null"] },
           mentor_text: { type: "string" },
+          // Required by REINFORCE, and structural rather than stylistic: praise
+          // the learner cannot trace to their own words is what the wording ban
+          // failed to stop. See anchorQuoteMatches in core/mentorAgent.js.
+          anchor_quote: { type: ["string", "null"] },
           question_domain: { type: ["string", "null"] },
           scaffolding_level: { type: ["integer", "null"] },
           factual_claims: {
@@ -130,6 +141,7 @@ const TASKS = Object.freeze({
           "mode",
           "issue_id",
           "mentor_text",
+          "anchor_quote",
           "factual_claims",
           "question_domain",
           "scaffolding_level",
@@ -291,7 +303,21 @@ export async function requestOpenAI({ apiKey, task, prompt, models, fetchImpl = 
       throw error;
     }
     const output = extractOpenAIResponseText(payload);
-    if (!output) throw new Error("OpenAI response did not contain text output.");
+    if (!output) {
+      // Say WHICH failure this was. Until 21.08.2026 an empty response and a
+      // refusal and a truncated one all arrived as the same opaque string, and
+      // a live run lost two turns to it before the cause could even be guessed.
+      const incomplete = payload?.incomplete_details?.reason || null;
+      const status = payload?.status || null;
+      const error = new Error(
+        `OpenAI response carried no text output (status: ${status || "unknown"}${
+          incomplete ? `, incomplete: ${incomplete}` : ""
+        }).`
+      );
+      error.statusCode = 502;
+      error.providerIncompleteReason = incomplete;
+      throw error;
+    }
     const usage = payload.usage && typeof payload.usage === "object"
       ? {
           input_tokens: Number(payload.usage.input_tokens) || 0,

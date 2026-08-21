@@ -189,8 +189,8 @@ test("numbers are checked against the sources, paraphrase is not", () => {
     ).ok,
     true
   );
-  // A number from an unrevealed result is refused, and the bad source id is
-  // recorded as telemetry rather than becoming the rejection reason.
+  // A source outside the turn allowlist is refused before its clinical content
+  // can become speech.
   const unrevealedNumber = validateMentorPayload(
     {
       mode: "CLARIFY",
@@ -203,8 +203,7 @@ test("numbers are checked against the sources, paraphrase is not", () => {
     caseData,
     ["abdominal_exam"]
   );
-  assert.equal(unrevealedNumber.reason, "uncited_numeric_fact");
-  assert.ok(unrevealedNumber.telemetry.includes("fact_source_not_allowed"));
+  assert.equal(unrevealedNumber.reason, "fact_source_not_allowed");
 
   // A number the learner wrote themselves is theirs to be asked about.
   const withLearnerWords = { ...brief, learnerTurns: ["физ-р-р 2 л через 16G"] };
@@ -444,14 +443,17 @@ test("the mentor may not confirm the diagnosis before debrief", () => {
   }
 });
 
-test("the mentor may not announce the expected clinical decision", () => {
+test("announcing the expected clinical decision is recorded, not refused", () => {
+  // Demoted 21.08.2026. TEACH legitimately states the standard once the learner
+  // is stuck - that is archetype C and the best moments of the V1 prototype -
+  // and the numbers rule still binds every figure in the sentence.
   const validation = validateMentorText(
     "Здесь нужно выполнить аппендэктомию прямо сейчас. Согласен?",
     caseData,
     []
   );
-  assert.equal(validation.ok, false);
-  assert.equal(validation.reason, "prescribed_expected_decision");
+  assert.equal(validation.ok, true);
+  assert.ok(validation.telemetry.includes("prescribed_expected_decision"));
 });
 
 test("an unrevealed finding reconstructed by the model is caught", () => {
@@ -473,7 +475,7 @@ test("a finding already revealed may be referred to", () => {
   assert.equal(detection.leaked, false);
 });
 
-test("a rejected model reply falls back to deterministic text, never to silence", async () => {
+test("a rejected model reply falls silent rather than reciting the template", async () => {
   const brief = buildMentorBrief({
     caseData,
     session: session({ completedActions: minimumAssessmentIds(caseData) }),
@@ -495,9 +497,14 @@ test("a rejected model reply falls back to deterministic text, never to silence"
     }
   );
 
-  assert.equal(result.source, "deterministic");
+  // Reversed 21.08.2026. The authored template IS the wooden voice, so replacing
+  // a rejected reply with it hands the learner exactly the register this whole
+  // rewrite exists to remove. A senior with nothing usable to say says nothing;
+  // the engine's own closing prompt still carries the turn. Safety stops are the
+  // one exception - see mentorBaseRulesV2.test.js.
   assert.equal(result.rejectionReason, "premature_diagnosis_confirmation");
-  assert.ok(result.text.length > 0);
+  assert.equal(result.mode, "CONTINUE");
+  assert.equal(result.text, "");
 });
 
 test("a model error falls back instead of failing the turn", async () => {
@@ -517,10 +524,15 @@ test("a model error falls back instead of failing the turn", async () => {
     }
   );
 
-  assert.equal(result.source, "deterministic");
-  assert.equal(result.rejectionReason, "mentor_agent_error");
+  // "silent", not "deterministic": the A/B harness fails a run on template
+  // share, and counting a mentor that said nothing as one reciting a template
+  // hid a real transport failure behind what looked like a quality failure.
+  assert.equal(result.source, "silent");
   assert.equal(result.mode, "CONTINUE");
   assert.equal(result.text, "");
+  // The provider's own words survive. Two turns of the live run of 21.08.2026
+  // were lost to an opaque "mentor_agent_error" whose cause had to be guessed.
+  assert.match(result.rejectionReason, /^mentor_agent_error: network down$/);
 });
 
 test("a valid model reply is used and reports its move types", async () => {
@@ -794,15 +806,20 @@ test("neutral phrasings are accepted", () => {
   }
 });
 
-test("abstract meta-praise without a current process anchor is rejected", () => {
+test("abstract meta-praise is recorded; the REINFORCE anchor is what stops it", () => {
+  // The regex only ever caught the wording it was written for: it learned
+  // "сохраняет широту диагностического поиска" from replay 91ba7206 and the
+  // live run answered "это хороший диагностический процесс". Wording bans lose
+  // that race by construction, so this is telemetry now and the structural stop
+  // is anchorQuoteMatches - see mentorAutonomyRemediation.test.js.
   for (const text of [
     "Это помогает сохранять диагностическое мышление.",
     "Можно двигаться дальше.",
     "Такой ход сохраняет широту диагностического поиска.",
   ]) {
     const validation = validateMentorText(text, caseData, []);
-    assert.equal(validation.ok, false, text);
-    assert.equal(validation.reason, "unanchored_meta_praise");
+    assert.equal(validation.ok, true, text);
+    assert.ok(validation.telemetry.includes("unanchored_meta_praise"), text);
   }
 });
 
@@ -836,7 +853,7 @@ test("every authored mentor template is gender-neutral", () => {
   }
 });
 
-test("a gendered model reply falls back to the neutral authored text", async () => {
+test("a gender the learner never declared is refused, then repaired", async () => {
   const brief = buildMentorBrief({
     caseData,
     session: session({ completedActions: minimumAssessmentIds(caseData) }),
@@ -844,24 +861,36 @@ test("a gendered model reply falls back to the neutral authored text", async () 
     deterministicUpdate: update({ scoringEvents: [{ action_id: "call_senior_surgeon" }] }),
   });
 
+  let calls = 0;
   const result = await runMentorAgent(
     { brief, learnerText: "зову старшего", caseData },
     {
-      llm: async () =>
-        JSON.stringify({
+      llm: async (prompt) => {
+        calls += 1;
+        return JSON.stringify({
           mode: brief.mentorPolicy.mode,
           issue_id: brief.mentorPolicy.issue_id,
-          mentor_text: "Молодец, ты правильно поступил.",
+          // Masculine, to a learner who has declared nothing. The repair round
+          // gets the neutral rewrite the instruction asks for.
+          mentor_text: prompt.user.includes("repair_request")
+            ? "Старшего ты зовёшь вовремя."
+            : "Молодец, ты правильно поступил.",
+          anchor_quote: prompt.user.includes("repair_request") ? "зову старшего" : null,
           factual_claims: [],
           question_domain: brief.mentorPolicy.question_domain,
-        }),
+        });
+      },
     }
   );
 
-  // The reply now stands: gendered address is telemetry, not a rejection.
+  // Telemetry until 21.08.2026, and it caught the same defect on turn 5 of
+  // three consecutive live runs without stopping it once. The pilot cohort is
+  // eight residents of mixed gender and the start screen lets them decline to
+  // say, so a mentor that guesses is wrong for about half of them.
+  assert.equal(calls, 2, "one repair, not a retreat to the template");
   assert.equal(result.source, "llm");
-  assert.equal(result.rejectionReason, null);
-  assert.ok(result.telemetry.includes("gendered_address_without_known_form"));
+  assert.equal(result.text, "Старшего ты зовёшь вовремя.");
+  assert.deepEqual(result.rejectionReasons, ["gendered_address_without_form"]);
 });
 
 // --- what already happened this turn --------------------------------------
@@ -1157,9 +1186,9 @@ test("heuristics gate on real engine phases", () => {
   }
 });
 
-test("a real session does not revive an old ordinary gap on a later topic", async () => {
-  // Rubric state still records the omissions, but the live mentor relevance
-  // gate must not turn them into a checklist several turns later.
+test("a real session keeps a standing risk live without reviving old ordinary gaps", async () => {
+  // Rubric state still records ordinary omissions for debrief, while the live
+  // mentor carries only explicitly declared standing risks across turns.
   const v3Case = createV3Case();
   let session = createV25Session({ caseData: v3Case, mode: "reference", seed: "heuristics" });
 
@@ -1180,5 +1209,7 @@ test("a real session does not revive an old ordinary gap on a later topic", asyn
     session = result.session;
   }
 
-  assert.deepEqual(session.workingMemory.firedHeuristicIds, []);
+  assert.deepEqual(session.workingMemory.firedHeuristicIds, [
+    "appendicitis_analgesia_withheld@open",
+  ]);
 });

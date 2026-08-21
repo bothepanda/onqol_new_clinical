@@ -88,6 +88,13 @@ export const HINT = { OPEN: 1, DIRECTIONAL: 2, FOCUSED: 3, EXPLICIT: 4 };
  * @property {string} type                    becomes the mentor move type
  * @property {number} severity                SEVERITY.*; orders what gets said
  * @property {number} hint_level              HINT.*
+ * @property {"standing_risk"} [lifecycle]   remains live while its condition
+ *                     remains open instead of ageing into debrief-only material
+ * @property {string[]} [escalate_before]     action ids that make an open
+ *                     standing risk immediately relevant again
+ * @property {number} [escalation_hint_level] hint level at the irreversible gate
+ * @property {number} [escalation_severity]   severity at the irreversible gate
+ * @property {string} [escalation_mentor_line] direct wording at the gate
  * @property {string} spec_section            section of SURGICAL_MENTOR_LOGIC.md
  * @property {Object} when                    conjunctive; all present keys must hold
  * @property {string[]} [when.attempted]      learner went for any of these THIS turn
@@ -609,20 +616,59 @@ export function selectHeuristics({
     if (!referencesOnlyKnownActions(heuristic, known)) return false;
     if (!matches(heuristic.when, context)) return false;
     return isTimelyForLiveTurn(heuristic, context, currentTurn);
-  });
+  }).map((heuristic) => projectStandingRisk(heuristic, context));
 
-  // Severity first, then file order. "Смотря что критичнее."
-  eligible.sort((a, b) => b.severity - a.severity);
+  // Current safety first, then an open risk at the point of no return, then
+  // ordinary severity. A gate reminder must not disappear behind five parser
+  // or content-gap notes on the very turn it exists to protect.
+  eligible.sort((a, b) =>
+    livePriority(b) - livePriority(a) || b.severity - a.severity
+  );
   return eligible.slice(0, limit).map((heuristic) => ({
     ...heuristic,
     relevant_to_current_turn: currentTurn ? true : null,
     why_now: whyNow(heuristic, context, currentTurn),
+    fired_key: firedKey(heuristic, context),
   }));
+}
+
+function standingRiskAtGate(heuristic, context) {
+  if (heuristic.lifecycle !== "standing_risk") return false;
+  const attempted = context.attempted || new Set();
+  return (heuristic.escalate_before || []).some((id) => attempted.has(id));
+}
+
+function projectStandingRisk(heuristic, context) {
+  if (heuristic.lifecycle !== "standing_risk") return heuristic;
+  const atGate = standingRiskAtGate(heuristic, context);
+  return {
+    ...heuristic,
+    standing_risk_stage: atGate ? "irreversible_gate" : "open",
+    hint_level: atGate
+      ? heuristic.escalation_hint_level || HINT.EXPLICIT
+      : heuristic.hint_level,
+    severity: atGate
+      ? heuristic.escalation_severity || Math.max(heuristic.severity, SEVERITY.IMPORTANT_OMISSION)
+      : heuristic.severity,
+    mentor_line: atGate
+      ? heuristic.escalation_mentor_line || heuristic.mentor_line
+      : heuristic.mentor_line,
+  };
+}
+
+function livePriority(heuristic) {
+  if (heuristic.severity === SEVERITY.SAFETY_CRITICAL) return 300;
+  if (heuristic.standing_risk_stage === "irreversible_gate") return 200;
+  return heuristic.severity;
 }
 
 function whyNow(heuristic, context, currentTurn) {
   if (heuristic.severity === SEVERITY.SAFETY_CRITICAL) return "current_safety_signal";
   if (!currentTurn) return "legacy_selection_without_turn_context";
+  if (heuristic.standing_risk_stage === "irreversible_gate") {
+    return "standing_risk_at_irreversible_gate";
+  }
+  if (heuristic.lifecycle === "standing_risk") return "standing_risk_remains_open";
   if (currentTurn.previousIssueId === heuristic.id) return "answer_to_previous_mentor_question";
   if ((heuristic.when.attempted || []).some((id) => context.attempted.has(id))) {
     return "current_action_attempt";
@@ -645,6 +691,7 @@ function whyNow(heuristic, context, currentTurn) {
 function isTimelyForLiveTurn(heuristic, context, currentTurn) {
   if (!currentTurn) return true;
   if (heuristic.severity === SEVERITY.SAFETY_CRITICAL) return true;
+  if (heuristic.lifecycle === "standing_risk") return true;
   if (currentTurn.previousIssueId === heuristic.id) return true;
   if ((heuristic.when.attempted || []).some((id) => context.attempted.has(id))) return true;
   if (
@@ -688,6 +735,10 @@ function isTimelyForLiveTurn(heuristic, context, currentTurn) {
  * answer to "should it re-arm": yes, when the patient gets worse.
  */
 export function firedKey(heuristic, context) {
+  if (heuristic.lifecycle === "standing_risk") {
+    const stage = standingRiskAtGate(heuristic, context) ? "irreversible_gate" : "open";
+    return `${heuristic.id}@${stage}`;
+  }
   return heuristic.rearm_on_deterioration ? `${heuristic.id}@${context.status}` : heuristic.id;
 }
 
@@ -752,6 +803,7 @@ function referencesOnlyKnownActions(heuristic, known) {
     ...(heuristic.when.attempted || []),
     ...(heuristic.when.completed || []),
     ...(heuristic.when.not_completed || []),
+    ...(heuristic.escalate_before || []),
   ];
   return referenced.every((id) => known.has(id));
 }

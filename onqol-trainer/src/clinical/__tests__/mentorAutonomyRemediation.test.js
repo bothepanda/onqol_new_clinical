@@ -154,23 +154,64 @@ test("mentor output accepts CONTINUE with empty text", () => {
   assert.equal(result.ok, true);
 });
 
-test("mentor may reinforce without a question", () => {
+test("mentor may reinforce without a question, but must quote the learner", () => {
+  const brief = minimalBrief({
+    candidateIssues: [{ issue_id: "dangerous_alternative_retained" }],
+  });
+  const learnerText = "думаю аппендицит, но внематочную пока не снимаю";
   const result = validateMentorPayload(
     {
       mode: "REINFORCE",
       issue_id: "dangerous_alternative_retained",
-      mentor_text: "Опасную альтернативу держишь в поле зрения.",
+      mentor_text: "Внематочную ты не снимаешь — правильно, её снимает только тест.",
+      anchor_quote: "внематочную пока не снимаю",
       factual_claims: [],
       question_domain: null,
     },
-    minimalBrief({ candidateIssues: [{ issue_id: "dangerous_alternative_retained" }] }),
+    brief,
     caseData,
-    []
+    [],
+    { learnerText }
   );
   assert.equal(result.ok, true);
+
+  // 21.08.2026: praise the learner cannot trace to their own words is what the
+  // wording ban never managed to stop. The anchor is structural instead.
+  const unanchored = validateMentorPayload(
+    {
+      mode: "REINFORCE",
+      issue_id: "dangerous_alternative_retained",
+      mentor_text: "Опасную альтернативу держишь в поле зрения.",
+      anchor_quote: null,
+      factual_claims: [],
+      question_domain: null,
+    },
+    brief,
+    caseData,
+    [],
+    { learnerText }
+  );
+  assert.equal(unanchored.ok, false);
+  assert.equal(unanchored.reason, "reinforce_without_anchor");
+
+  const invented = validateMentorPayload(
+    {
+      mode: "REINFORCE",
+      issue_id: "dangerous_alternative_retained",
+      mentor_text: "Ты сказал про перитонит — верно.",
+      anchor_quote: "признаки перитонита",
+      factual_claims: [],
+      question_domain: null,
+    },
+    brief,
+    caseData,
+    [],
+    { learnerText }
+  );
+  assert.equal(invented.reason, "reinforce_without_anchor");
 });
 
-test("mentor accepts zero questions and rejects stacked questions", () => {
+test("mentor accepts zero questions and records stacked ones without refusing", () => {
   const issue = { issue_id: "current_decision", safety_critical: false };
   const brief = minimalBrief({ candidateIssues: [issue] });
   assert.equal(
@@ -188,21 +229,23 @@ test("mentor accepts zero questions and rejects stacked questions", () => {
     ).ok,
     true
   );
-  assert.equal(
-    validateMentorPayload(
-      {
-        mode: "CLARIFY",
-        issue_id: issue.issue_id,
-        mentor_text: "Что изменит решение? Когда начнёшь действовать?",
-        factual_claims: [],
-        question_domain: null,
-      },
-      brief,
-      caseData,
-      []
-    ).reason,
-    "multiple_questions"
+  const stacked = validateMentorPayload(
+    {
+      mode: "CLARIFY",
+      issue_id: issue.issue_id,
+      mentor_text: "Что изменит решение? Когда начнёшь действовать?",
+      factual_claims: [],
+      question_domain: null,
+    },
+    brief,
+    caseData,
+    []
   );
+  // Was a refusal until 21.08.2026. A refusal costs the learner the sentence and
+  // buys back a more cautious one; stacking is style, so it is recorded and the
+  // reply stands. TEACH may stack outright - see spec section 20.
+  assert.equal(stacked.ok, true);
+  assert.ok(stacked.telemetry.includes("multiple_questions"));
 });
 
 test("mentor prompt receives issues and context but no reference rendering", () => {
@@ -621,7 +664,7 @@ test("seeded scenario determinism is unchanged by mentor policy", () => {
   assert.deepEqual(first, second);
 });
 
-test("model rejection logs a deterministic same-issue fallback reason", async () => {
+test("the mentor cannot create an issue outside the deterministic brief", async () => {
   const issue = {
     issue_id: "no_contingency_plan",
     type: "outstanding_priority",
@@ -648,10 +691,8 @@ test("model rejection logs a deterministic same-issue fallback reason", async ()
         }),
     }
   );
-  // CONTRACT CHANGED, base rules v2 §1.3: the model chooses the issue, so naming
-  // one the heuristics did not enumerate is the point of giving it the case, not
-  // a violation. It is recorded for the shadow comparison and the reply stands.
-  assert.equal(result.source, "llm");
-  assert.equal(result.rejectionReason, null);
-  assert.ok(result.telemetry.includes("issue_not_in_brief"));
+  assert.equal(result.source, "silent");
+  assert.equal(result.mode, "CONTINUE");
+  assert.deepEqual(result.rejectionReasons, ["issue_not_in_brief", "issue_not_in_brief"]);
+  assert.deepEqual(result.firedHeuristicKeys, []);
 });

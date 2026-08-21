@@ -16,6 +16,7 @@ import { createInitialTemporalState, projectTemporalState } from "./temporalPati
 import { describeEta, resolveActionEta, turnEtaMinutes } from "./resourceTiming.js";
 import { planClinicalTurn } from "./turnPlanner.js";
 import { buildMentorBrief, prerequisiteMeta } from "../core/mentorBrief.js";
+import { selectHeuristics } from "../core/mentorHeuristics.js";
 import { prerequisiteSatisfied } from "../core/prerequisiteClosure.js";
 import { isGovernanceGapParameter } from "../core/parameterSafety.js";
 import { LEARNER_ADDRESS_FORM } from "../core/learnerAddress.js";
@@ -453,7 +454,28 @@ function closingPrompt(session, plan, blockedOperations, governanceGapActionIds 
     )
   );
   if (awaiting) return awaiting;
-  if (blockedOperations.length) return "Как меняешь план с учётом этого ограничения?";
+  // Only a REAL block asks the learner to change the plan.
+  //
+  // blockedOperations mixes three different things: a resource that is not
+  // available, a prerequisite that is missing, a safety rule that refused a
+  // parameter - and, quite separately, an order the pilot holds no reviewed
+  // rule for, or a result this case variant does not model. The last two are
+  // gaps in the training content. Hard bound 6 forbids the MENTOR from calling
+  // them a constraint, and until 21.08.2026 the engine's own closing line did
+  // it anyway, one paragraph above the mentor.
+  //
+  // Live run of that day, turn 4: the resident chose laparoscopy, the access
+  // was granted, her drug orders had no reviewed rule, and the engine asked
+  // "как меняешь план с учётом этого ограничения". She duly downgraded to an
+  // open appendectomy - and the mentor then spent turns 5 to 7 interrogating
+  // her about a decision the engine had talked her into.
+  const realBlocks = blockedOperations.filter(
+    (operation) =>
+      !governanceGapActionIds.has(operation.action_id) &&
+      !operation.content_gap &&
+      !(operation.parameter_safety && isGovernanceGapParameter(operation.parameter_safety))
+  );
+  if (realBlocks.length) return "Как меняешь план с учётом этого ограничения?";
   if (session.workingMemory?.operativeState?.procedure_started && !session.temporalState.sourceControl) {
     return "Вмешательство начато. Когда контроль источника будет завершён, зафиксируй это отдельно.";
   }
@@ -535,6 +557,11 @@ function applyPlan(caseData, session, plan, options = {}) {
   const findingsRevealed = [];
   const revealedResources = [];
   const blockedOperations = [];
+  // A conversational gate is neither a safety block nor an executed action.
+  // It holds the first attempt at an authored irreversible step long enough for
+  // the mentor to return one decision to the learner. The next explicit attempt
+  // may proceed because the gate intervention has then been recorded as fired.
+  const mentorGateOperations = [];
 
   const approachDecision = (plan.managementDecisions || []).find(
     (decision) => decision.decision_id === "operative_approach"
@@ -559,11 +586,17 @@ function applyPlan(caseData, session, plan, options = {}) {
           operative_approach_selected: true,
         },
       };
-      replies.push(
-        `**Операционный доступ:** ${
-          approachDecision.approach === "laparoscopic" ? "лапароскопический" : "открытый"
-        } доступ выбран; ресурс доступен.`
-      );
+      // Only when it CHANGES. Restating the same access prints the same block
+      // again - turns 5 and 7 of the live runs of 21.08.2026 both ended on the
+      // identical line, which is the last thing the A/B harness still counted
+      // as a verbatim engine repeat. The same rule already applies to orders.
+      if (session.workingMemory?.operativeApproach?.approach !== approachDecision.approach) {
+        replies.push(
+          `**Операционный доступ:** ${
+            approachDecision.approach === "laparoscopic" ? "лапароскопический" : "открытый"
+          } доступ выбран; ресурс доступен.`
+        );
+      }
       actionLogEntries.push({
         turn: turnNumber,
         action_id: "operative_approach",
@@ -833,6 +866,52 @@ function applyPlan(caseData, session, plan, options = {}) {
         applied_to_patient: false,
         resource_blocks: blockedBy.map((block) => block.reasonId),
         resource_ready_at: blockedBy.map((block) => block.readyAt ?? null),
+        confidence: operation.confidence,
+      });
+      continue;
+    }
+
+    // Standing risks must be raised before an irreversible action mutates the
+    // session. Doing this in the mentor pass below is too late: at that point
+    // procedure_started is already true. All real execution blocks above keep
+    // their priority; this soft conversational gate is considered only when the
+    // action would otherwise execute.
+    const mentorGateKey = `mentor_gate:${operation.action_id}`;
+    const mentorGateIssue = options.enforceMentorGates &&
+      !(memory.firedHeuristicIds || []).includes(mentorGateKey)
+      ? selectHeuristics({
+          caseData,
+          session: {
+            ...nextSession,
+            workingMemory: memory,
+          },
+          attempted: new Set([operation.action_id]),
+          alreadyFired: memory.firedHeuristicIds || [],
+          currentTurn: {
+            previousIssueId: memory.pendingMentorQuestion?.issue_id || null,
+            pathState: nextSession.pathState,
+            topic: "management",
+          },
+          limit: 100,
+        }).find((heuristic) => heuristic.standing_risk_stage === "irreversible_gate")
+      : null;
+    if (mentorGateIssue) {
+      mentorGateOperations.push({
+        ...operation,
+        mentor_gate_issue_id: mentorGateIssue.id,
+      });
+      memory = updateActionState(memory, operation, "proposed", memory.turnNumber, {
+        held_by: [`mentor_gate:${mentorGateIssue.id}`],
+      });
+      actionLogEntries.push({
+        turn: memory.turnNumber,
+        action_id: operation.action_id,
+        intent_type: operation.intent_type,
+        lifecycle_before: beforeStatus,
+        lifecycle_after: "proposed",
+        action_decision: "mentor_gate_held",
+        applied_to_patient: false,
+        mentor_gate_issue_id: mentorGateIssue.id,
         confidence: operation.confidence,
       });
       continue;
@@ -1278,6 +1357,7 @@ function applyPlan(caseData, session, plan, options = {}) {
     findingsRevealed,
     scoringEvents,
     blockedOperations,
+    mentorGateOperations,
     performedIds,
   };
 }
@@ -1629,6 +1709,7 @@ export async function advanceV25Session({
     ...options,
     enforceBlockingPrerequisites,
     enforcePathwayBlocks: !fullClinicalTest,
+    enforceMentorGates: !fullClinicalTest && Boolean(options.mentor),
   });
   let simulator = null;
   let reply = deterministicUpdate.reply;
@@ -1709,6 +1790,9 @@ export async function advanceV25Session({
       plan,
       deterministicUpdate,
       simulatorProducedResults: Boolean(simulator?.informationUsed?.length),
+      // Whatever the patient/environment channel settled on for this turn. The
+      // mentor speaks underneath it and may not say it a second time.
+      engineReplyText: reply,
     });
     mentor = await runMentorAgent(
       {
@@ -1758,14 +1842,56 @@ export async function advanceV25Session({
     workingMemory: {
       ...deterministicUpdate.session.workingMemory,
       firedHeuristicIds: [
-        ...(deterministicUpdate.session.workingMemory?.firedHeuristicIds || []),
-        ...(mentor?.firedHeuristicKeys || mentorBrief?.firedHeuristicKeys || []),
+        ...new Set([
+          ...(deterministicUpdate.session.workingMemory?.firedHeuristicIds || []),
+          ...(mentor?.firedHeuristicKeys || mentorBrief?.firedHeuristicKeys || []),
+          ...(mentor && mentor.mode !== MENTOR_MODE.CONTINUE
+            ? (deterministicUpdate.mentorGateOperations || []).map(
+                (operation) => `mentor_gate:${operation.action_id}`
+              )
+            : []),
+        ]),
       ],
       pendingMentorQuestion: mentor?.pendingQuestion || (
         mentor?.mode === MENTOR_MODE.CONTINUE && !plan.mentorAnswer
           ? deterministicUpdate.session.workingMemory?.pendingMentorQuestion || null
           : null
       ),
+      // How many turns running the mentor has been probing - CLARIFY or
+      // CHALLENGE, with a question in it. A learner who answers moves the
+      // mentor to REINFORCE, TEACH or silence, so a streak IS the signal that
+      // the question is not landing. Wording comparison alone missed it: the
+      // run of 21.08.2026 asked the same thing four ways and only two of the
+      // four were lexically close enough to catch.
+      // Counted on the MODE alone since 21.08.2026. Tying it to a question mark
+      // let an imperative re-ask through - "Сейчас назови следующий контрольный
+      // этап" is the same demand as asking for it, and CLARIFY and CHALLENGE
+      // both demand an answer by definition. REINFORCE, TEACH, silence and a
+      // safety stop all reset it, because each of them releases the pressure.
+      probingStreak:
+        mentor && [MENTOR_MODE.CLARIFY, MENTOR_MODE.CHALLENGE].includes(mentor.mode)
+          ? (deterministicUpdate.session.workingMemory?.probingStreak || 0) + 1
+          : 0,
+      // The last three probes the mentor actually made, verbatim. A CLARIFY or
+      // CHALLENGE imperative ("Назови следующий шаг") demands the same answer
+      // as a sentence ending in "?", so it must also participate in repeat
+      // detection and the next-turn answer contract.
+      recentMentorQuestions: [
+        ...(mentor && mentor.mode !== MENTOR_MODE.CONTINUE
+          ? (() => {
+              const sentences = String(mentor.text || "")
+                .split(/(?<=[.!?…])\s+|\n+/u)
+                .map((sentence) => sentence.trim())
+                .filter(Boolean);
+              const explicitQuestions = sentences.filter((sentence) => sentence.includes("?"));
+              if (explicitQuestions.length) return explicitQuestions;
+              return [MENTOR_MODE.CLARIFY, MENTOR_MODE.CHALLENGE].includes(mentor.mode)
+                ? [String(mentor.text || "").trim()].filter(Boolean)
+                : [];
+            })()
+          : []),
+        ...(deterministicUpdate.session.workingMemory?.recentMentorQuestions || []),
+      ].slice(0, 3),
       lastMentorIntervention: mentor && mentor.mode !== MENTOR_MODE.CONTINUE
         ? {
             mode: mentor.mode,

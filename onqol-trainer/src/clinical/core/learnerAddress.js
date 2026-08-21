@@ -79,8 +79,11 @@ export function resolveLearnerAddressForm({ sessionSetting = null, learnerTurns 
 const GENDERED_PAST = "[а-яё]{2,}(?:[аяиеы]л|ла|лся|лась)";
 // A list, not morphology: short adjectives are not derivable from a suffix the
 // way past tense is. These are the ones a supervisor uses about a learner.
+// 21.08.2026: сам/сама joined the list. The live run said "теперь сам определяй"
+// to a resident whose form was not yet known - a determiner, not an adjective,
+// but it assigns a gender exactly the same way and nothing was watching for it.
 const GENDERED_SHORT_ADJECTIVE =
-  "(?:прав|права|уверен|уверена|точен|точна|внимателен|внимательна|осторожен|осторожна|готов|готова|должен|должна|обязан|обязана)";
+  "(?:прав|права|уверен|уверена|точен|точна|внимателен|внимательна|осторожен|осторожна|готов|готова|должен|должна|обязан|обязана|сам|сама|один|одна)";
 const GENDERED_TOKEN = `(?:${GENDERED_PAST}|${GENDERED_SHORT_ADJECTIVE})`;
 // Only particles may sit between the boundary and the verb. Anything else - a
 // noun - is the subject, and then the verb is not about the learner.
@@ -115,10 +118,25 @@ function genderedMatches(pattern, text) {
 export function detectGenderedAddress(text) {
   const pronoun = genderedMatches(GENDERED_ADDRESS_PRONOUN_RE, text);
   const omitted = genderedMatches(GENDERED_ADDRESS_SUBJECT_OMITTED_RE, text);
+  const tokens = [...new Set([...pronoun, ...omitted])];
   return {
     matched: pronoun.length > 0 || omitted.length > 0,
     viaPronoun: pronoun.length > 0,
     subjectOmitted: omitted.length > 0,
-    tokens: [...new Set([...pronoun, ...omitted])],
+    tokens,
+    // WHICH gender was assigned, not just that one was. Telemetry could get by
+    // without it; a refusal cannot - "ты выбрал" said to a learner who declared
+    // the feminine form is a different defect from "ты выбрал" said to a
+    // learner who declared nothing, and only one of them is a mismatch.
+    forms: [...new Set(tokens.map(genderOfToken).filter(Boolean))],
   };
+}
+
+const FEMININE_TOKEN_RE = /(?:ла|лась|сама|одна|права|уверена|точна|внимательна|осторожна|готова|должна|обязана)$/u;
+
+export function genderOfToken(token) {
+  const word = String(token || "").toLowerCase();
+  if (!word) return null;
+  if (FEMININE_TOKEN_RE.test(word)) return LEARNER_ADDRESS_FORM.FEMININE;
+  return LEARNER_ADDRESS_FORM.MASCULINE;
 }

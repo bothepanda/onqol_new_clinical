@@ -106,10 +106,15 @@ test("the neutral instruction offers rewrites, not only a ban", () => {
     }),
     learnerText: "дальше?",
   });
-  assert.match(prompt.system, /Rewrite, do not omit/);
-  assert.match(prompt.system, /аппендицит сохранён как рабочая гипотеза/);
   // The rule has to name the pronoun-less form, which is the one the model used.
   assert.match(prompt.system, /Dropping the pronoun is not a way around this rule/);
+  // 21.08.2026: the neutral branch used to teach the passive as the way out
+  // ("назначение записано"), and the live run duly answered in it. It now
+  // forbids the passive by name and offers second-person present tense instead.
+  assert.match(prompt.system, /THE PASSIVE VOICE IS FORBIDDEN/);
+  assert.match(prompt.system, /IMPERATIVE freely/);
+  assert.match(prompt.system, /аппендицит из дифференциала ты не выкидываешь/);
+  assert.doesNotMatch(prompt.system, /write "назначение записано"/);
 });
 
 test("the form the resident used about herself reaches the next turn's prompt", async () => {

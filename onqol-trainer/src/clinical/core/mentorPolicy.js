@@ -7,7 +7,7 @@ import {
   isReviewedUnsafeParameter,
 } from "./parameterSafety.js";
 
-export const MENTOR_POLICY_VERSION = "mentor-policy-v2.0";
+export const MENTOR_POLICY_VERSION = "mentor-policy-v3.0";
 
 export const ADEQUACY = Object.freeze({
   SUFFICIENT: "SUFFICIENT",
@@ -333,7 +333,8 @@ function sameConcept(previousQuestion, issue) {
 function scaffoldingFor(adequacy, previousQuestion, issue) {
   const previousLevel = Number(previousQuestion?.scaffolding_level || 0);
   const same = sameConcept(previousQuestion, issue);
-  if (adequacy === ADEQUACY.SUFFICIENT || adequacy === ADEQUACY.UNSAFE) return 0;
+  if (adequacy === ADEQUACY.SUFFICIENT) return Number(issue?.hint_level || 0);
+  if (adequacy === ADEQUACY.UNSAFE) return 0;
   if (adequacy === ADEQUACY.EVASIVE) return SCAFFOLDING_LEVEL.PROMPT;
   if (adequacy === ADEQUACY.STUCK) {
     return Math.min(
@@ -371,7 +372,7 @@ function modeFor(assessment, issue) {
     // omission is pushed back on even when the turn itself was adequate, a
     // minor gap is not. Silence on a severity-3 gap is not neutral - the
     // learner reads an unanswered claim as an accepted one.
-    return Number(issue?.severity || 0) >= TEACHABLE_SEVERITY
+    return issue?.lifecycle === "standing_risk" || Number(issue?.severity || 0) >= TEACHABLE_SEVERITY
       ? MENTOR_MODE.CHALLENGE
       : MENTOR_MODE.CONTINUE;
   }
@@ -463,7 +464,7 @@ export function selectMentorPolicy({
     (issue) =>
       issue.relevant_to_current_turn !== false &&
       !reinforcingTypes.has(issue.type) &&
-      Number(issue.severity || 0) >= TEACHABLE_SEVERITY
+      (issue.lifecycle === "standing_risk" || Number(issue.severity || 0) >= TEACHABLE_SEVERITY)
   );
   const issue = safetyIssue ||
     (assessment.adequacy === ADEQUACY.SUFFICIENT
@@ -501,13 +502,17 @@ export function selectMentorPolicy({
     adequacy: assessment.adequacy,
     priority: safetyIssue || assessment.safety_critical
       ? "safety"
-      : assessment.adequacy === ADEQUACY.EVASIVE
-        ? "ownership"
-        : assessment.adequacy === ADEQUACY.STUCK
-          ? "current_learning_block"
-          : assessment.adequacy === ADEQUACY.SUFFICIENT
-            ? "advance"
-            : "current_decision",
+      : issue?.standing_risk_stage === "irreversible_gate"
+        ? "standing_risk_gate"
+        : issue?.lifecycle === "standing_risk"
+          ? "standing_risk"
+          : assessment.adequacy === ADEQUACY.EVASIVE
+            ? "ownership"
+            : assessment.adequacy === ADEQUACY.STUCK
+              ? "current_learning_block"
+              : assessment.adequacy === ADEQUACY.SUFFICIENT
+                ? "advance"
+                : "current_decision",
     issue_id: mode === MENTOR_MODE.CONTINUE ? null : issue?.issue_id || null,
     why_now: issue?.why_now || assessment.reason,
     scaffolding_level: scaffoldingLevel,

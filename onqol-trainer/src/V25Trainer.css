@@ -461,3 +461,36 @@
    letter-spacing: five characters that must be transcribed without error. */
 .v25-session-code code { display: block; padding: 0; background: transparent; color: var(--v25-ink); font-size: 15px; font-weight: 600; letter-spacing: 0.06em; word-break: break-all; }
 .v25-session-code small { display: block; margin-top: 6px; color: var(--v25-muted); font-size: 12px; line-height: 1.4; }
+
+/* Start screen: the mentor's form of address. Asked once, used only for
+   Russian past-tense agreement. See core/learnerAddress.js. */
+.v25-address-form {
+  border: 1px solid var(--v25-rule, rgba(0, 0, 0, 0.18));
+  border-radius: 6px;
+  padding: 0.9rem 1rem 1rem;
+  margin: 0 0 1.25rem;
+}
+
+.v25-address-form legend {
+  padding: 0 0.4rem;
+  font-weight: 600;
+}
+
+.v25-address-form p {
+  margin: 0 0 0.7rem;
+  font-size: 0.86rem;
+  opacity: 0.75;
+}
+
+.v25-address-form-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.4rem;
+}
+
+.v25-address-form-options label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+}

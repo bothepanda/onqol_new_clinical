@@ -12,6 +12,13 @@ export const PILOT_RU_UI = Object.freeze({
   landingTitle: "Выберите режим прохождения кейса.",
   landingBody: "Экстренная абдоминальная хирургия.",
   modeRegionLabel: "Режим прохождения кейса",
+  addressFormTitle: "Как к тебе обращаться",
+  addressFormHelp:
+    "Наставник говорит на «ты». В русском прошедшее время имеет род — выбор нужен только для этого и больше нигде не используется. Можно не выбирать.",
+  addressFormRegionLabel: "Форма обращения",
+  addressFormNeutral: "Не указывать",
+  addressFormFeminine: "Женский род",
+  addressFormMasculine: "Мужской род",
   reference: "Учебный режим",
   referenceBody:
     "Учебный сценарий: необходимые для кейса ресурсы доступны. Это не профиль реального стационара.",

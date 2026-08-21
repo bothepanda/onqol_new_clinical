@@ -9,6 +9,7 @@ import {
   getOrCreateAnonymousUserId,
 } from "./clinical/simulationRepository.js";
 import { createV25Case } from "./clinical/v25/caseFactory.js";
+import { LEARNER_ADDRESS_FORM } from "./clinical/core/learnerAddress.js";
 import {
   advanceV25Session,
   createV25Session,
@@ -109,6 +110,8 @@ function StartScreen({
   canStart,
   consentAccepted,
   onConsentChange,
+  addressForm,
+  onAddressFormChange,
 }) {
   const t = UI;
   return (
@@ -187,6 +190,29 @@ function StartScreen({
                 ? t.backendCodeRequired
                 : t.backendUnavailable}
         </p>
+
+        <fieldset className="v25-address-form" aria-label={t.addressFormRegionLabel}>
+          <legend>{t.addressFormTitle}</legend>
+          <p>{t.addressFormHelp}</p>
+          <div className="v25-address-form-options">
+            {[
+              [LEARNER_ADDRESS_FORM.NEUTRAL, t.addressFormNeutral],
+              [LEARNER_ADDRESS_FORM.FEMININE, t.addressFormFeminine],
+              [LEARNER_ADDRESS_FORM.MASCULINE, t.addressFormMasculine],
+            ].map(([value, label]) => (
+              <label key={value}>
+                <input
+                  type="radio"
+                  name="v25-address-form"
+                  value={value}
+                  checked={addressForm === value}
+                  onChange={() => onAddressFormChange(value)}
+                />
+                <span>{label}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
 
         <section className="v25-classic-mode-grid" aria-label={t.modeRegionLabel}>
           <button
@@ -388,6 +414,10 @@ export default function V25Trainer({ mentor = true }) {
   const [reportCount, setReportCount] = useState(() => listClinicalReports().length);
   const [selectedPresetId, setSelectedPresetId] = useState("");
   const [consentAccepted, setConsentAccepted] = useState(false);
+  // Asked once, on the start screen, and nowhere else. Without it the mentor
+  // resolves to NEUTRAL for most of a session and is pushed into the impersonal
+  // register that made replay 91ba7206 read like a form. See core/learnerAddress.js.
+  const [addressForm, setAddressForm] = useState(LEARNER_ADDRESS_FORM.NEUTRAL);
   const [openAIStatus, setOpenAIStatus] = useState({
     checking: true,
     configured: false,
@@ -477,6 +507,7 @@ export default function V25Trainer({ mentor = true }) {
       locale,
       learnerId: `anon:${learnerId}`,
       institutionId: "synthetic-pilot",
+      learnerAddressForm: addressForm,
       participantConsent: {
         accepted: true,
         policy_version: PILOT_DATA_NOTICE_VERSION,
@@ -632,6 +663,8 @@ export default function V25Trainer({ mentor = true }) {
         canStart={canStart}
         consentAccepted={consentAccepted}
         onConsentChange={setConsentAccepted}
+        addressForm={addressForm}
+        onAddressFormChange={setAddressForm}
       />
     );
   }

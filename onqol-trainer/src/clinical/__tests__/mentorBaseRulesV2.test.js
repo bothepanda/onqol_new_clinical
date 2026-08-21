@@ -90,7 +90,9 @@ test("the system prompt reproduces the behaviour specification verbatim", () => 
     "THE WORLD IS DETERMINISTIC",
     "NUMBERS COME FROM THE KNOWLEDGE BASE",
     "NO DIAGNOSTIC CONFIRMATION BEFORE THE DEBRIEF",
-    "ZERO OR ONE QUESTION PER TURN",
+    "QUESTIONS.",
+    "DO NOT SAY WHAT THE ENGINE ALREADY SAID",
+    "REINFORCE REQUIRES AN ANCHOR",
   ]) {
     assert.ok(prompt.system.includes(bound), `hard bound missing: ${bound}`);
   }
@@ -156,7 +158,7 @@ test("the length limit follows the teaching move", () => {
     candidateIssues: [{ issue_id: "stuck", safety_critical: false }],
     mentorPolicy: null,
   };
-  const long = `${"Разбираем по шагам. ".repeat(45)}Что делаешь первым?`;
+  const long = `${"Разбираем по шагам. ".repeat(70)}Что делаешь первым?`;
   assert.ok(long.length > MAX_MENTOR_CHARS && long.length < MAX_MENTOR_CHARS_TEACHING);
 
   assert.equal(
@@ -165,8 +167,8 @@ test("the length limit follows the teaching move", () => {
       brief,
       caseData,
       []
-    ).reason,
-    "too_long"
+    ).telemetry.includes("over_length_budget"),
+    true
   );
   assert.equal(
     validateMentorPayload(
@@ -233,7 +235,7 @@ test("a rejected reply buys one repair before the template", async () => {
   assert.match(prompts[1].repair_request.instruction_ru, /90/);
 });
 
-test("a second failure falls back to the authored template", async () => {
+test("a second failure falls silent rather than reciting the template", async () => {
   const caseData = replayCase();
   const brief = {
     ...briefFor(caseData),
@@ -265,8 +267,11 @@ test("a second failure falls back to the authored template", async () => {
     }
   );
   assert.equal(calls, 2, "exactly one repair, never a third attempt");
-  assert.equal(result.source, "deterministic");
-  assert.equal(result.text, "Авторский шаблон.");
+  // The authored template is no longer what speaks when the model's reply cannot
+  // be used: it is the wooden register this rewrite exists to remove, and the
+  // engine's own closing prompt already carries the turn. Silence instead.
+  assert.equal(result.mode, "CONTINUE");
+  assert.equal(result.text, "");
   assert.deepEqual(result.rejectionReasons, ["uncited_numeric_fact", "uncited_numeric_fact"]);
 });
 
@@ -288,10 +293,11 @@ test("an unrecognised fragment reaches the mentor and is never executed", async 
           action_parameters: [],
         }),
       mentorLLM: async (prompt) => {
-        spoken.push(JSON.parse(prompt.user));
+        const turn = JSON.parse(prompt.user);
+        spoken.push(turn);
         return JSON.stringify({
           mode: "CLARIFY",
-          issue_id: null,
+          issue_id: turn.brief.candidate_issues[0].issue_id,
           mentor_text: "Кросс-матч в этом кейсе не смоделирован. Что ещё готовишь к операции?",
           factual_claims: [],
           question_domain: "management",
@@ -408,10 +414,15 @@ test("the WHO checkpoints no longer block, consent before induction does", async
   assert.doesNotMatch(bare.reply, /Sign In|Time Out/i);
   assert.equal(bare.session.workingMemory.operativeState.procedure_started, false);
 
-  // Consent and the anaesthetist were named on turn 4. No checkpoint is needed.
+  // Consent and the anaesthetist were named on turn 4. Close the two standing
+  // risks explicitly: this test owns only the WHO/consent prerequisite.
+  const consentReady = {
+    ...session,
+    completedActions: [...new Set([...session.completedActions, "pregnancy_test", "analgesia"])],
+  };
   const started = await advanceV25Session({
     caseData,
-    session,
+    session: consentReady,
     input: "начинаю операцию",
     options: replayOptions({ actionExtractorLLM: start }),
   });
@@ -484,9 +495,23 @@ test("every rule in the dosing registry is signed, and only teaches", () => {
   );
 });
 
-test("the mentor is given the dose and never the grade or the local divergence", () => {
-  const brief = briefFor(replayCase());
-  assert.equal(brief.approvedDosingRules.length, DOSING_RULE_REGISTRY.length);
+test("the mentor is given only the dose scoped to the current issue", () => {
+  const rule = DOSING_RULE_REGISTRY.find(
+    (candidate) => candidate.rule_id === "dosing.cefazolin.prophylaxis"
+  );
+  assert.ok(rule);
+  const brief = briefFor(replayCase(), {
+    plan: {
+      parsed: {},
+      parameterSafetySignals: [{
+        concept_id: "antibiotic_prophylaxis",
+        blocks_application: true,
+        source_rule_id: rule.rule_id,
+      }],
+      operationalizationStates: [],
+    },
+  });
+  assert.deepEqual(brief.approvedDosingRules.map((candidate) => candidate.rule_id), [rule.rule_id]);
 
   const serialized = JSON.stringify(brief.approvedDosingRules);
   // The answer key stays out of the mentor's context, as everywhere else.
@@ -619,19 +644,28 @@ test("a legacy practice is recognised, carries no clinical claim, and reaches th
 
 test("the execution profile records source, repairs and the policy shadow", async () => {
   const caseData = replayCase();
+  const initial = createV25Session({ caseData, mode: "reference", seed: "telemetry" });
   const result = await advanceV25Session({
     caseData,
-    session: createV25Session({ caseData, mode: "reference", seed: "telemetry" }),
+    // Turn two makes the post-examination analgesia standing risk current, so
+    // the model has a deterministic candidate to choose rather than inventing
+    // an issue merely to exercise telemetry.
+    session: {
+      ...initial,
+      workingMemory: { ...initial.workingMemory, turnNumber: 1 },
+    },
     input: "физикальный осмотр и анамнез",
     options: replayOptions({
-      mentorLLM: async () =>
-        JSON.stringify({
+      mentorLLM: async (prompt) => {
+        const turn = JSON.parse(prompt.user);
+        return JSON.stringify({
           mode: "CLARIFY",
-          issue_id: "my_own_issue",
+          issue_id: turn.brief.candidate_issues[0].issue_id,
           mentor_text: "Что из осмотра меняет твой план?",
           factual_claims: [],
           question_domain: "management",
-        }),
+        });
+      },
     }),
   });
   const profile = result.session.eventLog.findLast(
@@ -642,7 +676,7 @@ test("the execution profile records source, repairs and the policy shadow", asyn
   assert.deepEqual(profile.mentor_rejection_reasons, []);
   assert.ok(profile.regex_policy_shadow);
   assert.equal(profile.regex_policy_shadow.agreed_with_mentor, false);
-  assert.ok(profile.mentor_telemetry_flags.includes("issue_not_in_brief"));
+  assert.equal(profile.mentor_telemetry_flags.includes("issue_not_in_brief"), false);
   assert.equal(profile.learner_address_form, "neutral");
 });
 

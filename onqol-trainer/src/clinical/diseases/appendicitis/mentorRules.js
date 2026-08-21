@@ -28,6 +28,12 @@ export const appendicitisMentorRules = [
     type: "outstanding_priority",
     severity: SEVERITY.REASONING_ERROR,
     hint_level: HINT.OPEN,
+    lifecycle: "standing_risk",
+    escalate_before: ["appendectomy_procedure_start"],
+    escalation_severity: SEVERITY.REASONING_ERROR,
+    escalation_hint_level: HINT.EXPLICIT,
+    escalation_mentor_line:
+      "До начала операции обезболивание всё ещё не назначено. Назови препарат и путь введения.",
     spec_section: "9. Management must follow diagnosis",
     disease: "appendicitis",
     when: {
@@ -39,6 +45,7 @@ export const appendicitisMentorRules = [
     // может стоит помочь?" - which asserts a patient state the mentor channel is
     // not allowed to know. Same intent, stated as an omission instead.
     mentor_line: "Живот осмотрен, а обезболивание так и не назначено. Может, стоит помочь?",
+    expected_answer_domains: ["current_decision"],
     debrief_line_ru:
       "Обезболивание не было назначено, а его отсрочка не была обоснована.",
     rationale_for_reviewer:
@@ -74,6 +81,12 @@ export const appendicitisMentorRules = [
     type: "outstanding_priority",
     severity: SEVERITY.IMPORTANT_OMISSION,
     hint_level: HINT.FOCUSED,
+    lifecycle: "standing_risk",
+    escalate_before: ["appendectomy_procedure_start"],
+    escalation_severity: SEVERITY.IMPORTANT_OMISSION,
+    escalation_hint_level: HINT.EXPLICIT,
+    escalation_mentor_line:
+      "До начала операции закрой опасную альтернативу: внематочная беременность исключена или нет?",
     spec_section: "5. Working diagnosis and dangerous alternatives",
     disease: "appendicitis",
     when: {
@@ -82,6 +95,7 @@ export const appendicitisMentorRules = [
     },
     mentor_line:
       "Прежде чем идти дальше с этим диагнозом — что в этом случае обязательно нужно исключить, и чем именно?",
+    expected_answer_domains: ["current_decision"],
     debrief_line_ru:
       "Внематочная беременность не была исключена явно.",
     rationale_for_reviewer:

@@ -193,13 +193,8 @@ test("mentor cannot state content from a non-approved clinical rule", () => {
     caseData,
     []
   );
-  // CONTRACT CHANGED, base rules v2. Citing an unapproved rule is no longer the
-  // rejection reason - it is telemetry - because the enforcement moved somewhere
-  // stronger: an unapproved rule never enters the brief in the first place (see
-  // the assertion below), and any NUMBER it might have carried is refused by the
-  // numeric post-check. Specification §17 is unchanged.
-  assert.equal(result.ok, true);
-  assert.ok(result.telemetry.includes("fact_source_not_allowed"));
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, "fact_source_not_allowed");
 
   const numeric = validateMentorPayload(
     {
@@ -216,17 +211,17 @@ test("mentor cannot state content from a non-approved clinical rule", () => {
     []
   );
   assert.equal(numeric.ok, false);
-  assert.equal(numeric.reason, "uncited_numeric_fact");
+  assert.equal(numeric.reason, "fact_source_not_allowed");
 });
 
-test("an unapproved rule never reaches the mentor brief", () => {
+test("unrelated rules never reach a mentor turn", () => {
   const brief = buildMentorBrief({
     caseData,
     session: createV25Session({ caseData, mode: "reference", seed: "governance" }),
     plan: { parsed: {} },
     deterministicUpdate: {},
   });
-  assert.ok(brief.approvedTeachingRules.length > 0);
+  assert.deepEqual(brief.approvedTeachingRules, []);
   for (const rule of brief.approvedTeachingRules) {
     assert.equal(
       ruleAllowsRuntimeEffect(rule, CLINICAL_RUNTIME_EFFECT.MENTOR_TEACHING),
@@ -481,4 +476,3 @@ test("nine-turn behavioral regression preserves patient-first progression", asyn
   assert.equal(results[8].mentorPolicy.reasoning_sufficient_to_advance, true);
   assert.equal(results[8].session.completedActions.includes("call_intensive_care"), true);
 });
-

@@ -107,16 +107,16 @@ test("the mentor never receives both regimens at once", () => {
 
 // --- what the learner's own number does --------------------------------------
 
-test("the learner's own dose is permitted back to them, and the reference dose is not forced", () => {
+test("the learner's own dose is permitted back, and an unrelated reference dose stays out", () => {
   const { brief } = caseAndBrief();
   const permitted = allowedNumbers(brief);
 
   // Rule 2 lets the mentor repeat what the learner wrote. That is what makes
   // "принято, цефазолин 1 г" expressible without inventing anything.
   assert.ok(permitted.has("1"), "the learner's own figure is quotable back to them");
-  // The reference figure is available because a signed rule states it - but
-  // availability is not obligation, which is what hard bound 5 governs.
-  assert.ok(permitted.has("2"));
+  // A signed reference rule is still not global authority for every turn. It
+  // enters the prompt only when the deterministic candidate scopes that rule.
+  assert.equal(permitted.has("2"), false);
 });
 
 test("a reply that corrects the learner to the reference dose is rejected on its numbers", () => {

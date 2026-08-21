@@ -196,7 +196,7 @@ async function theatreProbe() {
       options,
     });
     session = result.session;
-    const probe = await advanceV25Session({
+    let probe = await advanceV25Session({
       caseData,
       session,
       input: "начинаю операцию",
@@ -217,8 +217,39 @@ async function theatreProbe() {
           }),
       },
     });
+    let mentorGates = 0;
+    while (
+      mentorGates < 2 &&
+      !probe.session.workingMemory?.operativeState?.procedure_started &&
+      probe.session.actionLog.findLast(
+        (entry) => entry.action_id === "appendectomy_procedure_start"
+      )?.action_decision === "mentor_gate_held"
+    ) {
+      mentorGates += 1;
+      probe = await advanceV25Session({
+        caseData,
+        session: probe.session,
+        input: "начинаю операцию",
+        options: {
+          ...options,
+          actionExtractorLLM: () =>
+            JSON.stringify({
+              intents: [
+                {
+                  type: "management",
+                  concept_id: "procedure_start",
+                  confidence: 0.99,
+                  requested_fragment: "начинаю операцию",
+                },
+              ],
+              unresolved_fragments: [],
+              action_parameters: [],
+            }),
+        },
+      });
+    }
     if (probe.session.workingMemory?.operativeState?.procedure_started) {
-      return { turn: index + 2, blocked: null };
+      return { turn: index + 2 + mentorGates, blocked: null, mentor_gates: mentorGates };
     }
     if (index === recorded.length - 1) {
       return {
@@ -303,6 +334,7 @@ function printStats(a, b, telemetry, probe) {
   console.log(`  реплик ментора:        ${telemetry.summary.mentor_turns}`);
   console.log(`  из модели:             ${telemetry.summary.from_model}`);
   console.log(`  из шаблона:            ${telemetry.summary.from_template}`);
+  console.log(`  промолчал:             ${telemetry.summary.from_silence || 0}`);
   console.log(`  с починкой:            ${telemetry.summary.repaired}`);
   console.log(`  совпало с регекс-policy: ${telemetry.summary.policy_agreement}`);
   const reasons = Object.entries(telemetry.summary.rejection_reasons);
@@ -351,11 +383,15 @@ function reportMarkdown({ a, b, telemetry, verdict, probe }) {
   const reasons = Object.entries(summary.rejection_reasons);
   const lines = [];
 
-  lines.push("# Живой прогон ментора · фикстура 91ba7206");
+  lines.push(`# ${live ? "Живой" : "Офлайн"} прогон ментора · фикстура 91ba7206`);
   lines.push("");
   lines.push(`**${new Date().toISOString().slice(0, 10)}** · кейс APP-003 · seed \`${fixture.effective_seed}\``);
   lines.push("");
-  lines.push("Первое сравнение живого голоса ментора с записью 91ba7206 за всю переделку.");
+  lines.push(
+    live
+      ? "Сравнение живого голоса ментора с записью 91ba7206."
+      : "Проверка детерминированной логики на записи 91ba7206; живой голос здесь не измеряется."
+  );
   lines.push("До 20.08.2026 харнесс сравнивал шаблоны с шаблонами: имя модели не доходило");
   lines.push("до запроса, и все реплики откатывались на детерминированный рендер.");
   lines.push("");
@@ -366,12 +402,13 @@ function reportMarkdown({ a, b, telemetry, verdict, probe }) {
   lines.push("");
   lines.push("| | |");
   lines.push("|---|---|");
-  lines.push(`| Модель ментора | \`${models.mentor}\` |`);
+  lines.push(`| Модель ментора | ${live ? `\`${models.mentor}\`` : "не вызывалась"} |`);
   const spokeAloud = b.filter((turn) => turn.mentorText).length;
   lines.push(`| Решений ментора | ${summary.mentor_turns} из ${b.length} ходов |`);
   lines.push(`| Из них с текстом | ${spokeAloud} — остальные \`CONTINUE\`, режим молчания |`);
   lines.push(`| Из модели | **${summary.from_model}** |`);
   lines.push(`| Из шаблона | ${summary.from_template} |`);
+  lines.push(`| Промолчал (реплика не прошла) | ${summary.from_silence || 0} |`);
   lines.push(`| Доля шаблонов | ${verdict.share === null ? "—" : `${Math.round(verdict.share * 100)}%`} |`);
   lines.push(`| Отклонений | ${reasons.length ? reasons.map(([k, v]) => `\`${k}\`×${v}`).join(", ") : "нет"} |`);
   lines.push(`| Починок | ${summary.repaired} |`);
@@ -380,7 +417,15 @@ function reportMarkdown({ a, b, telemetry, verdict, probe }) {
   lines.push(`| Совпало с детерминированной политикой | ${summary.policy_agreement} из ${summary.mentor_turns} |`);
   const flags = [...new Set(telemetry.turns.flatMap((turn) => turn.telemetry_flags))];
   lines.push(`| Флаги телеметрии | ${flags.length ? flags.map((f) => `\`${f}\``).join(", ") : "нет"} |`);
-  lines.push(`| Вердикт прогона | ${verdict.ok ? "замер состоялся" : verdict.failures.map((f) => f.code).join(", ")} |`);
+  lines.push(
+    `| Вердикт прогона | ${
+      verdict.ok
+        ? live
+          ? "замер состоялся"
+          : "офлайн-проверка прошла; голос не измерялся"
+        : verdict.failures.map((f) => f.code).join(", ")
+    } |`
+  );
   lines.push("");
 
   lines.push("---");
@@ -456,7 +501,9 @@ function reportMarkdown({ a, b, telemetry, verdict, probe }) {
   lines.push("");
   lines.push(`Путь в операционную: ${probe.turn ? `открыт с хода ${probe.turn}` : `не открылся (${probe.blocked.join(", ") || "причина неизвестна"})`}.`);
   lines.push("");
-  lines.push("*Сгенерировано `npm run ab:mentor -- --live --report=<файл>`. Правки в этот файл вносить нет смысла: он перезаписывается прогоном.*");
+  lines.push(
+    `*Сгенерировано \`${live ? "npm run ab:mentor -- --live" : "npm run ab:mentor"} --report=<файл>\`. Правки в этот файл вносить нет смысла: он перезаписывается прогоном.*`
+  );
   return lines.join("\n");
 }
 

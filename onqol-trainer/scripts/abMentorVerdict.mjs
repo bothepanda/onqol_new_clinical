@@ -53,12 +53,20 @@ export function harnessVerdict({ telemetry, live, limit = DETERMINISTIC_SHARE_LI
   // 1. No measurement. Checked in every mode, including offline: with no model
   //    configured there is nothing to fail in transit, so seeing this offline
   //    means something else is wrong.
-  const transport = TRANSPORT_FAILURE_REASONS.filter((reason) => reasons[reason]);
+  // Telemetry keeps the provider detail after the category
+  // (`mentor_agent_error: fetch failed`). Match the category prefix as well as
+  // the bare key; otherwise a real transport failure looks like a successful
+  // live measurement.
+  const transport = Object.entries(reasons).filter(([observed, count]) =>
+    count > 0 && TRANSPORT_FAILURE_REASONS.some(
+      (reason) => observed === reason || observed.startsWith(`${reason}:`)
+    )
+  );
   if (transport.length) {
     failures.push({
       code: "transport_failure",
       detail:
-        `Модель не отвечала: ${transport.map((reason) => `${reason}×${reasons[reason]}`).join(", ")}. ` +
+        `Модель не отвечала: ${transport.map(([reason, count]) => `${reason}×${count}`).join(", ")}. ` +
         "Это несостоявшийся замер, а не результат прогона.",
     });
   }

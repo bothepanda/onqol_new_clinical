@@ -398,6 +398,10 @@ export function buildMentorBrief({
   deterministicUpdate = {},
   minimumAssessment = null,
   simulatorProducedResults = false,
+  // Verbatim text the engine is printing above the mentor's reply on this turn.
+  // The mentor is given it so it can be refused for restating it - see
+  // paraphrasesEngine in core/mentorAgent.js.
+  engineReplyText = "",
 }) {
   const moves = [];
   const performed = new Set(
@@ -406,9 +410,12 @@ export function buildMentorBrief({
   const blocked = new Set(
     (deterministicUpdate.blockedOperations || []).map((operation) => operation.action_id)
   );
+  const heldAtMentorGate = new Set(
+    (deterministicUpdate.mentorGateOperations || []).map((operation) => operation.action_id)
+  );
   // The learner "went for it" whether the engine let the action through or
   // stopped it. Both deserve a mentor reply.
-  const attempted = new Set([...performed, ...blocked]);
+  const attempted = new Set([...performed, ...blocked, ...heldAtMentorGate]);
 
   const currentReasoning = plan.parsed?.reasoning;
   if (
@@ -723,7 +730,7 @@ export function buildMentorBrief({
     });
     const status = session.temporalState?.status || "stable";
     for (const heuristic of selected) {
-      const heuristicFiredKey = firedKey(heuristic, { status });
+      const heuristicFiredKey = heuristic.fired_key || firedKey(heuristic, { status });
       firedHeuristicKeys.push(heuristicFiredKey);
       moves.push({
         type: MENTOR_MOVE[heuristic.type.toUpperCase()] || heuristic.type,
@@ -731,8 +738,13 @@ export function buildMentorBrief({
         issue_id: heuristic.id,
         severity: heuristic.severity,
         hint_level: heuristic.hint_level,
+        lifecycle: heuristic.lifecycle || null,
+        standing_risk_stage: heuristic.standing_risk_stage || null,
         spec_section: heuristic.spec_section,
-        template: heuristic.mentor_line,
+        template:
+          plan.mentorAnswer?.answered_contract && heuristic.lifecycle === "standing_risk"
+            ? `Ответ зафиксирован. ${heuristic.mentor_line}`
+            : heuristic.mentor_line,
         provenance: heuristic.provenance,
         why_now: heuristic.why_now,
         reasoning_gap: heuristic.id,
@@ -759,6 +771,19 @@ export function buildMentorBrief({
     if (Boolean(left.safety_critical) !== Boolean(right.safety_critical)) {
       return left.safety_critical ? -1 : 1;
     }
+    if (left.standing_risk_stage !== right.standing_risk_stage) {
+      if (left.standing_risk_stage === "irreversible_gate") return -1;
+      if (right.standing_risk_stage === "irreversible_gate") return 1;
+    }
+    // A result of the learner's current action (including a well-timed call
+    // for help) is answered before an older open risk. Otherwise a persistent
+    // risk can crowd the actual conversation out of the five-item menu. The
+    // irreversible gate above remains the deliberate exception.
+    const leftCurrentEvent = left.heuristic_id ? 0 : 1;
+    const rightCurrentEvent = right.heuristic_id ? 0 : 1;
+    if (leftCurrentEvent !== rightCurrentEvent) return rightCurrentEvent - leftCurrentEvent;
+    const severityDifference = Number(right.severity || 0) - Number(left.severity || 0);
+    if (severityDifference) return severityDifference;
     return 0;
   });
   let candidateIssues = moves.slice(0, 5).map((move) => ({
@@ -766,6 +791,8 @@ export function buildMentorBrief({
     type: move.type,
     severity: move.severity || null,
     hint_level: move.hint_level || null,
+    lifecycle: move.lifecycle || null,
+    standing_risk_stage: move.standing_risk_stage || null,
     why_now: move.why_now || "current_turn_event",
     reasoning_gap: move.reasoning_gap || null,
     safety_critical: Boolean(move.safety_critical),
@@ -820,6 +847,8 @@ export function buildMentorBrief({
         type: issue.type || "current_decision",
         severity: issue.severity || null,
         hint_level: mentorPolicy.scaffolding_level,
+        lifecycle: issue.lifecycle || null,
+        standing_risk_stage: issue.standing_risk_stage || null,
         why_now: mentorPolicy.why_now,
         reasoning_gap: null,
         safety_critical: mentorPolicy.safety_critical,
@@ -901,11 +930,20 @@ export function buildMentorBrief({
   const learnerTurns = (session.messages || [])
     .filter((message) => message.role === "user")
     .map((message) => String(message.content || ""));
-  // Every approved teaching rule, not only the ones the selected issue happened
-  // to name. The mentor now chooses the issue itself, so scoping its evidence to
-  // a policy decision it no longer takes would leave it teaching blind.
-  const allApprovedTeachingRules = CLINICAL_RULE_REGISTRY.filter((rule) =>
-    ruleAllowsRuntimeEffect(rule, CLINICAL_RUNTIME_EFFECT.MENTOR_TEACHING)
+  // The model may choose among current candidate issues, but it does not need
+  // the entire clinical registry to do that. Only rules explicitly attached to
+  // one of those candidates enter the turn; this bounds clinical content while
+  // leaving the wording free.
+  const candidateRuleIds = new Set(
+    candidateIssues.flatMap((issue) => issue.clinical_rule_ids || [])
+  );
+  const candidateApprovedTeachingRules = CLINICAL_RULE_REGISTRY.filter(
+    (rule) =>
+      candidateRuleIds.has(rule.rule_id) &&
+      ruleAllowsRuntimeEffect(rule, CLINICAL_RUNTIME_EFFECT.MENTOR_TEACHING)
+  );
+  const candidateApprovedDosingRules = approvedDosingRules().filter((rule) =>
+    candidateRuleIds.has(rule.rule_id)
   );
   const legacyPracticesNamed = detectLegacyPractices(plan.input || "").map(
     legacyPracticeBriefEntry
@@ -930,7 +968,7 @@ export function buildMentorBrief({
       consultation_preserved: mentorPolicy.consultation_preserved,
       reasoning_sufficient_to_advance: mentorPolicy.reasoning_sufficient_to_advance,
     },
-    approvedTeachingRules: allApprovedTeachingRules,
+    approvedTeachingRules: candidateApprovedTeachingRules,
     // Named by the selected issue. Kept separate so the debrief and the
     // telemetry can still say which rule the deterministic policy pointed at.
     issueScopedTeachingRules: mentorPolicy.approved_teaching_rules || [],
@@ -942,7 +980,7 @@ export function buildMentorBrief({
     // this brief withholds by contract; the KNF regimen is debrief material, and
     // a mentor holding both regimens at once is a mentor one step from telling a
     // resident which of the two is wrong (see MENTOR_JURISDICTION_RULE).
-    approvedDosingRules: approvedDosingRules().map((rule) => ({
+    approvedDosingRules: candidateApprovedDosingRules.map((rule) => ({
       rule_id: rule.rule_id,
       agent: rule.agent,
       indication: rule.indication,
@@ -956,6 +994,7 @@ export function buildMentorBrief({
     legacyPracticesNamed,
     deferredIssues: debriefOnlyIssues,
     justPerformed,
+    engineReplyText: String(engineReplyText || ""),
     learnerReasoning: learnerReasoning(session.workingMemory?.reasoningState),
     reasoningDeltaThisTurn: plan.parsed?.reasoning || null,
     accumulatedReasoningState: session.workingMemory?.reasoningState || null,
@@ -985,6 +1024,21 @@ export function buildMentorBrief({
     previousMentorIntervention: session.workingMemory?.lastMentorIntervention || null,
     previousMentorQuestionContract:
       plan.pendingMentorQuestionBeforeTurn || session.workingMemory?.pendingMentorQuestion || null,
+    // How many turns the mentor's outstanding question has gone unanswered.
+    // The contract survives in working memory until the learner answers it, so
+    // this counts persistence, not curiosity. Live run 21.08.2026: the same
+    // question - why the operative access changed - was put four turns running,
+    // never answered, and the case never moved. Three good questions in a row
+    // are worse than one good question and then teaching the answer.
+    recentMentorQuestions: session.workingMemory?.recentMentorQuestions || [],
+    probingStreak: session.workingMemory?.probingStreak || 0,
+    unansweredQuestionTurns: (() => {
+      const asked = (
+        plan.pendingMentorQuestionBeforeTurn || session.workingMemory?.pendingMentorQuestion || null
+      )?.asked_turn;
+      const now = session.workingMemory?.turnNumber || 0;
+      return asked ? Math.max(0, now - asked) : 0;
+    })(),
     safetyFlags: plan.parameterSafetySignals || [],
     simulatorProducedResults: Boolean(simulatorProducedResults),
     silent,

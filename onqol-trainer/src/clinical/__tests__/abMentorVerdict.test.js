@@ -64,6 +64,21 @@ test("one transport failure is enough, even offline", () => {
   assert.equal(verdict.failures[0].code, "transport_failure");
 });
 
+test("transport detail appended to the category still fails the run", () => {
+  const verdict = harnessVerdict({
+    telemetry: telemetry({
+      fromModel: 0,
+      fromTemplate: 0,
+      reasons: { "mentor_agent_error: fetch failed": 7 },
+    }),
+    live: true,
+  });
+
+  assert.equal(verdict.ok, false);
+  assert.ok(verdict.failures.some((failure) => failure.code === "transport_failure"));
+  assert.match(verdict.failures[0].detail, /fetch failed/);
+});
+
 // --- the two outcomes it must keep apart -------------------------------------
 
 test("a measured run that stopped exercising the voice also fails", () => {
