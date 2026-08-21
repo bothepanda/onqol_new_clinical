@@ -233,9 +233,9 @@ test("numbers are checked against the sources, paraphrase is not", () => {
   );
 });
 
-// CONTRACT CHANGED, base rules v2 §1: the mentor prompt IS the behaviour
-// specification plus the case card. What it still may not contain is the key.
-test("the mentor prompt carries the specification and the case card, not the answer key", () => {
+// v4.1: the internal brief may support deterministic post-checks, but the live
+// model envelope contains only revealed facts and bounded current context.
+test("the mentor prompt carries the specification without the case card or answer key", () => {
   const brief = buildMentorBrief({
     caseData,
     session: session(),
@@ -244,13 +244,17 @@ test("the mentor prompt carries the specification and the case card, not the ans
   });
   const prompt = buildMentorPrompt({ brief, learnerText: "что дальше?" });
   const serialized = `${prompt.system}\n${prompt.user}`;
+  const envelope = prompt.user;
 
   assert.ok(prompt.system.includes("# ON QOL Mentor Behavior Specification"));
   assert.ok(prompt.system.includes("HARD BOUNDS"));
   for (const [findingId, finding] of Object.entries(caseData.hidden_findings)) {
-    assert.ok(serialized.includes(finding.text), `case card is missing ${findingId}`);
-    assert.ok(serialized.includes("do_not_mention"));
+    assert.ok(!serialized.includes(finding.text), `prompt leaked hidden finding ${findingId}`);
   }
+  assert.ok(!envelope.includes("do_not_mention"));
+  assert.ok(!envelope.includes("case_card"));
+  assert.ok(!envelope.includes("allowed_numbers"));
+  assert.ok(!envelope.includes("facts_contract"));
   assert.ok(!serialized.includes(caseData.patient_state.diagnosis_truth));
   assert.ok(!serialized.includes("score_weight"));
   assert.ok(!serialized.includes("feedback_if_missed"));
@@ -475,7 +479,7 @@ test("a finding already revealed may be referred to", () => {
   assert.equal(detection.leaked, false);
 });
 
-test("a rejected model reply falls silent rather than reciting the template", async () => {
+test("a rejected clinical reply is repaired once, then uses the deterministic fallback", async () => {
   const brief = buildMentorBrief({
     caseData,
     session: session({ completedActions: minimumAssessmentIds(caseData) }),
@@ -497,14 +501,13 @@ test("a rejected model reply falls silent rather than reciting the template", as
     }
   );
 
-  // Reversed 21.08.2026. The authored template IS the wooden voice, so replacing
-  // a rejected reply with it hands the learner exactly the register this whole
-  // rewrite exists to remove. A senior with nothing usable to say says nothing;
-  // the engine's own closing prompt still carries the turn. Safety stops are the
-  // one exception - see mentorBaseRulesV2.test.js.
   assert.equal(result.rejectionReason, "premature_diagnosis_confirmation");
-  assert.equal(result.mode, "CONTINUE");
-  assert.equal(result.text, "");
+  assert.equal(result.source, "deterministic");
+  assert.notEqual(result.text, "");
+  assert.deepEqual(result.rejectionReasons, [
+    "premature_diagnosis_confirmation",
+    "premature_diagnosis_confirmation",
+  ]);
 });
 
 test("a model error falls back instead of failing the turn", async () => {
@@ -524,10 +527,7 @@ test("a model error falls back instead of failing the turn", async () => {
     }
   );
 
-  // "silent", not "deterministic": the A/B harness fails a run on template
-  // share, and counting a mentor that said nothing as one reciting a template
-  // hid a real transport failure behind what looked like a quality failure.
-  assert.equal(result.source, "silent");
+  assert.equal(result.source, "deterministic");
   assert.equal(result.mode, "CONTINUE");
   assert.equal(result.text, "");
   // The provider's own words survive. Two turns of the live run of 21.08.2026
@@ -853,7 +853,7 @@ test("every authored mentor template is gender-neutral", () => {
   }
 });
 
-test("a gender the learner never declared is refused, then repaired", async () => {
+test("a gender the learner never declared uses fallback without a repair call", async () => {
   const brief = buildMentorBrief({
     caseData,
     session: session({ completedActions: minimumAssessmentIds(caseData) }),
@@ -865,17 +865,13 @@ test("a gender the learner never declared is refused, then repaired", async () =
   const result = await runMentorAgent(
     { brief, learnerText: "зову старшего", caseData },
     {
-      llm: async (prompt) => {
+      llm: async () => {
         calls += 1;
         return JSON.stringify({
           mode: brief.mentorPolicy.mode,
           issue_id: brief.mentorPolicy.issue_id,
-          // Masculine, to a learner who has declared nothing. The repair round
-          // gets the neutral rewrite the instruction asks for.
-          mentor_text: prompt.user.includes("repair_request")
-            ? "Старшего ты зовёшь вовремя."
-            : "Молодец, ты правильно поступил.",
-          anchor_quote: prompt.user.includes("repair_request") ? "зову старшего" : null,
+          mentor_text: "Молодец, ты правильно поступил.",
+          anchor_quote: null,
           factual_claims: [],
           question_domain: brief.mentorPolicy.question_domain,
         });
@@ -883,13 +879,9 @@ test("a gender the learner never declared is refused, then repaired", async () =
     }
   );
 
-  // Telemetry until 21.08.2026, and it caught the same defect on turn 5 of
-  // three consecutive live runs without stopping it once. The pilot cohort is
-  // eight residents of mixed gender and the start screen lets them decline to
-  // say, so a mentor that guesses is wrong for about half of them.
-  assert.equal(calls, 2, "one repair, not a retreat to the template");
-  assert.equal(result.source, "llm");
-  assert.equal(result.text, "Старшего ты зовёшь вовремя.");
+  assert.equal(calls, 1);
+  assert.equal(result.source, "deterministic");
+  assert.notEqual(result.text, "");
   assert.deepEqual(result.rejectionReasons, ["gendered_address_without_form"]);
 });
 

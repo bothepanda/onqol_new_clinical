@@ -32,15 +32,16 @@ import {
  * not know what the case models, so "УЗИ малого таза здесь не смоделировано"
  * came out as "эти данные не заданы в карте пациента".
  *
- * The brief now carries the case card (see buildMentorCaseCard), the whole
- * transcript, every approved rule and the accumulated reasoning state. What it
- * still withholds is the ANSWER KEY: diagnosis_truth, which actions are
- * expected or critical, their weights and their authored feedback. Knowing what
- * exists in the world is what supervision needs; knowing the grade is what
- * turns a supervisor into an answer sheet.
+ * The internal brief still carries the case card (see buildMentorCaseCard), the
+ * whole transcript, approved rules and accumulated reasoning state for
+ * deterministic policy and post-generation checks. Since prompt contract v4.1,
+ * mentorAgent serializes only revealed facts, six recent messages, bounded
+ * candidate issues, approved rules and a deterministic policy shadow. The full
+ * card and transcript never reach the live model.
  *
- * Unrevealed findings travel marked `unrevealed: true, do_not_mention: true`,
- * and `leaksUnrevealedFinding` in mentorAgent.js is the judge of that marking.
+ * Unrevealed findings remain marked `unrevealed: true, do_not_mention: true`
+ * inside the brief, and `leaksUnrevealedFinding` in mentorAgent.js still checks
+ * generated output against caseData as defence in depth.
  *
  * It does carry `learnerReasoning`: sentences the learner wrote themselves,
  * quoted exactly and checked against their message before they got here (see

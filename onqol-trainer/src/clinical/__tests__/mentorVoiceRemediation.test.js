@@ -119,7 +119,10 @@ test("the prompt hands the mentor the engine's exact words and forbids repeating
     learnerText: "оак",
   });
   assert.match(prompt.system, /DO NOT SAY WHAT THE ENGINE ALREADY SAID/);
-  assert.equal(JSON.parse(prompt.user).brief.engine_reply_this_turn, "**ОАК:** лейкоциты 9,5.");
+  assert.equal(
+    JSON.parse(prompt.user).deterministic_policy_shadow.engine_reply_this_turn,
+    "**ОАК:** лейкоциты 9,5."
+  );
 });
 
 // --- 2. reinforcement has to quote the learner ------------------------------
@@ -317,7 +320,13 @@ test("a rule the mentor does cite must be quoted, not paraphrased", () => {
   assert.ok(rule, "the registry holds at least one rule approved for teaching");
   const brief = minimalBrief({
     approvedTeachingRules: [rule],
-    candidateIssues: [{ issue_id: "prophylaxis", safety_critical: false }],
+    candidateIssues: [
+      {
+        issue_id: "prophylaxis",
+        safety_critical: false,
+        clinical_rule_ids: [rule.rule_id],
+      },
+    ],
   });
   const paraphrased = {
     mode: "TEACH",
@@ -704,10 +713,7 @@ test("CONTINUE cannot consume a held standing-risk gate", async () => {
 
   assert.equal(result.session.workingMemory.operativeState.procedure_started, false);
   assert.equal(result.mentor.source, "deterministic");
-  assert.deepEqual(result.mentor.rejectionReasons, [
-    "standing_gate_intervention_required",
-    "standing_gate_intervention_required",
-  ]);
+  assert.deepEqual(result.mentor.rejectionReasons, ["standing_gate_intervention_required"]);
   assert.match(result.mentor.text, /внематочная беременность/iu);
 });
 

@@ -267,8 +267,11 @@ test("mentor prompt receives issues and context but no reference rendering", () 
   });
   const user = JSON.parse(prompt.user);
   assert.equal(Object.hasOwn(user, "reference_rendering"), false);
-  assert.equal(user.brief.candidate_issues[0].issue_id, "current_decision");
-  assert.deepEqual(user.brief.previous_mentor_question_contract.expects, ["contingency"]);
+  assert.equal(user.candidate_issues[0].issue_id, "current_decision");
+  assert.deepEqual(
+    user.deterministic_policy_shadow.previous_mentor_question_contract.expects,
+    ["contingency"]
+  );
 });
 
 test("stale investigation-purpose gap is suppressed after topic moves to management", () => {
@@ -691,8 +694,9 @@ test("the mentor cannot create an issue outside the deterministic brief", async 
         }),
     }
   );
-  assert.equal(result.source, "silent");
-  assert.equal(result.mode, "CONTINUE");
-  assert.deepEqual(result.rejectionReasons, ["issue_not_in_brief", "issue_not_in_brief"]);
+  assert.equal(result.source, "deterministic");
+  assert.equal(result.mode, "CLARIFY");
+  assert.equal(result.text, issue.fallback_text);
+  assert.deepEqual(result.rejectionReasons, ["issue_not_in_brief"]);
   assert.deepEqual(result.firedHeuristicKeys, []);
 });

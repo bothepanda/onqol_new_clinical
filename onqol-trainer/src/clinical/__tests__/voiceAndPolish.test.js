@@ -149,7 +149,7 @@ test("the form the resident used about herself reaches the next turn's prompt", 
   assert.equal(brief.learnerAddressForm, LEARNER_ADDRESS_FORM.FEMININE);
   const prompt = buildMentorPrompt({ brief, learnerText: "дальше?" });
   assert.match(prompt.system, /address form is feminine/);
-  assert.equal(JSON.parse(prompt.user).brief.learner_address_form, "feminine");
+  assert.equal(JSON.parse(prompt.user).learner_address_form, "feminine");
 });
 
 // --- 2. how much engine text one line of orders produces --------------------

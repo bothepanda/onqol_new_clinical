@@ -98,9 +98,9 @@ test("the system prompt reproduces the behaviour specification verbatim", () => 
   }
 });
 
-// --- 1.2 full context ------------------------------------------------------
+// --- 1.2 minimal learner-visible context ----------------------------------
 
-test("the mentor receives the whole transcript, not a six-message window", async () => {
+test("the live mentor receives six recent messages and no hidden case context", async () => {
   const caseData = replayCase();
   let session = createV25Session({ caseData, mode: fixture.mode, seed: fixture.effective_seed });
   for (const entry of fixture.transcript.filter((item) => item.role === "user").slice(0, 5)) {
@@ -118,11 +118,16 @@ test("the mentor receives the whole transcript, not a six-message window", async
     plan: { parsed: {} },
     deterministicUpdate: {},
   });
-  assert.ok(brief.transcript.length > 6);
-  assert.equal(brief.learnerTurns.length, 5);
-  assert.ok(brief.learnerTurns[0].includes("физикальный осмотр"));
-  // The first turn is still readable on turn five - that is the whole point.
-  assert.ok(JSON.stringify(brief.transcript).includes("физикальный осмотр"));
+  const envelope = JSON.parse(buildMentorPrompt({ brief, learnerText: "дальше?" }).user);
+  assert.equal(envelope.recent_dialogue.length, 6);
+  assert.equal(Object.hasOwn(envelope, "brief"), false);
+  assert.equal(Object.hasOwn(envelope, "case_card"), false);
+  assert.equal(Object.hasOwn(envelope, "transcript"), false);
+  assert.equal(Object.hasOwn(envelope, "allowed_numbers"), false);
+  assert.equal(Object.hasOwn(envelope, "facts_contract"), false);
+  assert.ok(Array.isArray(envelope.revealed_facts));
+  assert.ok(Array.isArray(envelope.candidate_issues));
+  assert.ok(envelope.deterministic_policy_shadow);
 });
 
 test("the case card marks what the learner has not been given", () => {
@@ -235,7 +240,7 @@ test("a rejected reply buys one repair before the template", async () => {
   assert.match(prompts[1].repair_request.instruction_ru, /90/);
 });
 
-test("a second failure falls silent rather than reciting the template", async () => {
+test("a second clinical-boundary failure uses the deterministic candidate fallback", async () => {
   const caseData = replayCase();
   const brief = {
     ...briefFor(caseData),
@@ -267,12 +272,94 @@ test("a second failure falls silent rather than reciting the template", async ()
     }
   );
   assert.equal(calls, 2, "exactly one repair, never a third attempt");
-  // The authored template is no longer what speaks when the model's reply cannot
-  // be used: it is the wooden register this rewrite exists to remove, and the
-  // engine's own closing prompt already carries the turn. Silence instead.
-  assert.equal(result.mode, "CONTINUE");
-  assert.equal(result.text, "");
+  assert.equal(result.source, "deterministic");
+  assert.equal(result.mode, "CLARIFY");
+  assert.equal(result.text, "Авторский шаблон.");
   assert.deepEqual(result.rejectionReasons, ["uncited_numeric_fact", "uncited_numeric_fact"]);
+});
+
+test("a structural anchor failure falls back immediately without repair", async () => {
+  const caseData = replayCase();
+  const issue = {
+    issue_id: "current",
+    type: "reasoning_reinforcement",
+    safety_critical: false,
+    fallback_text: "Ход зафиксирован. Продолжай.",
+    evidence: [],
+  };
+  let calls = 0;
+  const result = await runMentorAgent(
+    {
+      brief: { ...briefFor(caseData), candidateIssues: [issue], mentorPolicy: null },
+      learnerText: "внематочную пока не снимаю",
+      caseData,
+      revealedFindingIds: [],
+    },
+    {
+      llm: async () => {
+        calls += 1;
+        return JSON.stringify({
+          mode: "REINFORCE",
+          issue_id: issue.issue_id,
+          mentor_text: "Опасную альтернативу держишь в поле зрения.",
+          anchor_quote: null,
+        });
+      },
+    }
+  );
+  assert.equal(calls, 1);
+  assert.equal(result.source, "deterministic");
+  assert.equal(result.text, issue.fallback_text);
+  assert.deepEqual(result.rejectionReasons, ["reinforce_without_anchor"]);
+  assert.equal(result.repairAttempted, false);
+});
+
+test("a model-selected issue owns the next-answer contract", async () => {
+  const caseData = replayCase();
+  const policyIssue = {
+    issue_id: "management_now",
+    type: "current_decision",
+    expected_answer_domains: ["management"],
+    safety_critical: false,
+    fallback_text: "Что делаешь дальше?",
+  };
+  const selectedIssue = {
+    issue_id: "contingency_now",
+    type: "current_decision",
+    hint_level: 2,
+    expected_answer_domains: ["contingency"],
+    safety_critical: false,
+    fallback_text: "Что изменит план?",
+  };
+  const result = await runMentorAgent(
+    {
+      brief: {
+        ...briefFor(caseData),
+        candidateIssues: [policyIssue, selectedIssue],
+        mentorPolicy: {
+          mode: "CLARIFY",
+          issue_id: policyIssue.issue_id,
+          expected_answer_domains: policyIssue.expected_answer_domains,
+          scaffolding_level: 1,
+        },
+      },
+      learnerText: "наблюдаю",
+      caseData,
+      revealedFindingIds: [],
+    },
+    {
+      llm: async () =>
+        JSON.stringify({
+          mode: "CLARIFY",
+          issue_id: selectedIssue.issue_id,
+          mentor_text: "Какое изменение заставит сменить план?",
+          anchor_quote: null,
+        }),
+    }
+  );
+  assert.equal(result.source, "llm");
+  assert.deepEqual(result.pendingQuestion?.expects, ["contingency"]);
+  assert.equal(result.pendingQuestion?.scaffolding_level, 2);
 });
 
 // --- 2.1 the router gates execution, not speech ----------------------------
@@ -297,7 +384,7 @@ test("an unrecognised fragment reaches the mentor and is never executed", async 
         spoken.push(turn);
         return JSON.stringify({
           mode: "CLARIFY",
-          issue_id: turn.brief.candidate_issues[0].issue_id,
+          issue_id: turn.candidate_issues[0].issue_id,
           mentor_text: "Кросс-матч в этом кейсе не смоделирован. Что ещё готовишь к операции?",
           factual_claims: [],
           question_domain: "management",
@@ -309,7 +396,7 @@ test("an unrecognised fragment reaches the mentor and is never executed", async 
   assert.doesNotMatch(result.reply, /Не распознано/);
   assert.match(result.reply, /Кросс-матч в этом кейсе не смоделирован/);
   assert.deepEqual(
-    spoken[0].brief.unrecognized_fragments,
+    spoken[0].deterministic_policy_shadow.unrecognized_fragments,
     ["группа крови и кросс-матч"],
     "the fragment has to reach the mentor for it to answer honestly"
   );
@@ -660,7 +747,7 @@ test("the execution profile records source, repairs and the policy shadow", asyn
         const turn = JSON.parse(prompt.user);
         return JSON.stringify({
           mode: "CLARIFY",
-          issue_id: turn.brief.candidate_issues[0].issue_id,
+          issue_id: turn.candidate_issues[0].issue_id,
           mentor_text: "Что из осмотра меняет твой план?",
           factual_claims: [],
           question_domain: "management",
