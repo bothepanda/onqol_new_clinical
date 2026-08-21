@@ -166,12 +166,22 @@ test("an adequate turn with only a minor gap is still left alone", () => {
   assert.equal(policy.issue_id, null);
 });
 
-test("the diagnosis declared on turn two is answered with a question, not silence", async () => {
+test("the diagnosis declared on turn two is asked what it rests on", async () => {
   const { turns } = await play(["физикальный осмотр и опрос", "о аппендицит определенно"]);
   const diagnosisTurn = turns[1];
   assert.notEqual(diagnosisTurn.mentor.mode, MENTOR_MODE.CONTINUE);
-  assert.ok(diagnosisTurn.mentor.issueId, "the mentor names the issue it is raising");
-  assert.match(diagnosisTurn.reply, /\?/);
+  // Grounds first: the dangerous alternative and stability stay queued for the
+  // turns after, but an unsupported claim is answered before either of them.
+  assert.equal(diagnosisTurn.mentor.issueId, "hypothesis_without_grounds");
+  assert.match(diagnosisTurn.reply, /на основании каких данных/iu);
+});
+
+test("a diagnosis the resident grounds in their own words is not interrogated", () => {
+  const policy = selectMentorPolicy({
+    assessment: { adequacy: ADEQUACY.SUFFICIENT, reason: "current_reasoning_is_expressed" },
+    candidateIssues: [],
+  });
+  assert.equal(policy.mode, MENTOR_MODE.CONTINUE);
 });
 
 test("the turn that decides the operation is asked for the approach, not for an action", async () => {

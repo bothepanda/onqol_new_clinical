@@ -937,6 +937,14 @@ function reasoning(overrides = {}) {
   if (overrides.workingDiagnosis) state.working_diagnosis.stated = true;
   if (overrides.stability) state.stability.stated = true;
   if (overrides.dangerousAlternative) state.differential.has_dangerous_alternative = true;
+  // What the learner said their version rests on. Without it the mentor asks for
+  // the grounds first, which is a different rule from the one under test.
+  if (overrides.groundsForDiagnosis) {
+    state.differential.stated = true;
+    state.differential.items = [
+      { concept_id: "diagnosis_acute_appendicitis", rank: null, dangerous: false, evidence_for: ["миграция боли"], evidence_against: [] },
+    ];
+  }
   if (overrides.managementPlan) state.management.plan_stated = true;
   if (overrides.contingency) state.contingency.stated = true;
   if (overrides.ownAssessment) state.consultation.own_assessment_stated = true;
@@ -959,8 +967,13 @@ test("the mentor names what is missing instead of asking 'что дальше?'"
       completedActions: ["focused_history", "abdominal_exam"],
       workingMemory: {
         turnNumber: 4,
-        // The learner named a diagnosis and said nothing about stability.
-        reasoningState: reasoning({ workingDiagnosis: true, dangerousAlternative: true }),
+        // The learner named a diagnosis, said what it rests on, and said nothing
+        // about stability.
+        reasoningState: reasoning({
+          workingDiagnosis: true,
+          dangerousAlternative: true,
+          groundsForDiagnosis: true,
+        }),
       },
     }),
     plan: plan(),

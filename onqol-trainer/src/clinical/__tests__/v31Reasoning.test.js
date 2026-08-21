@@ -693,7 +693,8 @@ test("core reasoning rules fire on a case that has never heard of appendicitis",
 
   const ids = selected.map((heuristic) => heuristic.id);
   assert.ok(
-    ids.includes("hypothesis_without_stability") || ids.includes("hypothesis_without_management"),
+    ["hypothesis_without_grounds", "hypothesis_without_stability", "hypothesis_without_management"]
+      .some((id) => ids.includes(id)),
     `expected a generic reasoning rule, got ${JSON.stringify(ids)}`
   );
   assert.equal(JSON.stringify(selected).includes("appendicitis"), false);

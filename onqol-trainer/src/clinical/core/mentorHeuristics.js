@@ -145,6 +145,36 @@ export const mentorHeuristics = [
     eligible_for_scoring: false,
   },
 
+  // --- Диагноз называется вместе с основаниями ----------------------------
+  {
+    // Placed first among the severity-3 rules on purpose. When a resident asserts
+    // a diagnosis, the first thing a supervisor asks is what it rests on - before
+    // the dangerous alternative and before stability, both of which stay in the
+    // queue for the turns after. Replay c1b4c2d9: "о аппендицит определенно" on
+    // turn 2, eight clinical minutes in, no investigations, and the trainer
+    // answered "рабочий диагноз зафиксирован".
+    //
+    // Fires on the learner's own words only: `hypothesis_evidence_for_stated` is
+    // set when they said what supports their version. A resident who names the
+    // migration of pain and the McBurney tenderness has grounded the claim and is
+    // not asked again.
+    id: "hypothesis_without_grounds",
+    type: "outstanding_priority",
+    severity: SEVERITY.IMPORTANT_OMISSION,
+    hint_level: HINT.DIRECTIONAL,
+    spec_section: "5. Working diagnosis and dangerous alternatives / 20. Correct answer, poor reasoning",
+    when: {
+      reasoning_all: ["working_diagnosis_stated"],
+      reasoning_none: ["hypothesis_evidence_for_stated"],
+    },
+    mentor_line: "Подожди. На основании каких данных ты ставишь этот диагноз?",
+    debrief_line_ru: "Основания для рабочего диагноза не были названы.",
+    rationale_for_reviewer:
+      "Названный диагноз без оснований — не то же самое, что неучтённая опасная альтернатива (premature_closure) и не то же, что односторонние доводы (unchallenged_hypothesis): здесь резидент не привёл вообще ничего. Открывающее «Подожди» — остановка в разговоре; регистр «Стоп» в этом продукте занят тем, что движок реально не выполнил, а диагноз фиксируется и кейс продолжается. Проверить: не слишком ли рано правило звучит для резидента, который называет диагноз и тут же в следующей фразе его обосновывает.",
+    provenance: AUTHORED,
+    eligible_for_scoring: false,
+  },
+
   // --- Стабильность раньше диагноза ---------------------------------------
   {
     // Was `diagnosis_without_severity`, gated on diagnosis_acute_appendicitis
