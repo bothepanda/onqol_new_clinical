@@ -428,6 +428,13 @@ function modeForFallback(issue) {
 }
 
 function expectationsForIssue(issue) {
+  // The rule's own declaration wins. This table below it covers the ids that
+  // are not heuristics - governance and dosing stops - and the rules that have
+  // not declared a domain yet. A question whose answer nobody can recognise is
+  // worse than no question: replay fe92b8b5 asked the resident what the
+  // diagnosis rested on, got three findings back, and answered "уточни, какое
+  // действие выполняешь".
+  if (issue?.expected_answer_domains?.length) return issue.expected_answer_domains;
   const id = issue?.issue_id || "";
   if (["no_contingency_plan", "checkpoint_what_changes_the_plan", "deterioration_unanswered"].includes(id)) {
     return ["contingency"];

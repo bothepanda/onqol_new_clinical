@@ -165,6 +165,7 @@ function plannerPromptFor({
   operationalizationStates = [],
   completedResumedOrders = false,
   managementDecisions = [],
+  answeredMentorQuestion = false,
 }) {
   // An incomplete order outranks every other prompt: the team cannot carry out
   // what has not been specified, and asking anything else implies it can.
@@ -200,6 +201,17 @@ function plannerPromptFor({
       managementDecisions.some((decision) => decision.decision_id === "operative_approach");
     if (decided && !approachSelected && !operative.procedure_started) {
       return OPERATIVE_APPROACH_PROMPT;
+    }
+    // The answer was recognised and recorded. Following it with "уточни, какое
+    // действие выполняешь" would ask the learner to repeat what the engine just
+    // took in - the exact failure of replay fe92b8b5, one step later.
+    if (answeredMentorQuestion) return "Ответ зафиксирован. Что делаешь дальше?";
+    // The mentor asked something and the learner said something back that the
+    // engine could not turn into an action or into recognised reasoning. Whatever
+    // else is true, it is not true that nothing was said, and "уточни, какое
+    // действие выполняешь" tells the learner their answer was not read at all.
+    if (session.workingMemory?.pendingMentorQuestion && !answeredMentorQuestion) {
+      return "Ответь на вопрос выше или назови следующее действие.";
     }
     // Repeating one sentence verbatim carries no new information, and a learner
     // who reads it twice reasonably concludes the trainer is stuck. The replay
@@ -395,6 +407,8 @@ export async function planClinicalTurn({ input, caseData, session, options = {} 
       hasClinicalAction: actions.length > 0 || (parsed.managementDecisions || []).length > 0,
       hasPatientQuestion: (parsed.intents || []).some((intent) => intent.type === "question"),
       hasReasoning: Boolean(parsed.reasoning),
+      workingDiagnosisConceptId:
+        session.workingMemory?.reasoningState?.working_diagnosis?.concept_id || null,
     }
   );
   const standaloneReasoning = mentorAnswer ? null : interpretStandaloneReasoning(input);
@@ -573,6 +587,7 @@ export async function planClinicalTurn({ input, caseData, session, options = {} 
               (entry) => entry.kind !== "reasoning_only"
             ),
             managementDecisions: parsed.managementDecisions || [],
+            answeredMentorQuestion: Boolean(mentorAnswer),
           }),
     prerequisiteWarnings: prerequisites,
     riskFlags: actions

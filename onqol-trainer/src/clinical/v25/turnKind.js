@@ -130,6 +130,14 @@ export function classifyTurn(input) {
   return { kind: "unknown", semantic_kind: "unknown", reason: null, blocks_clinical_turn: false };
 }
 
+/**
+ * Genuine uncertainty is an answer about the learner's state, not a set of
+ * grounds. Same shape as the pattern the mentor policy uses to tell "не знаю"
+ * apart from evasion.
+ */
+const GENUINE_UNCERTAINTY_RE =
+  /(?:^|[^а-яё])(не\s+знаю|не\s+помню|не\s+уверен(?:а)?|затрудняюсь|не\s+могу\s+решить)(?:$|[^а-яё])/iu;
+
 function emptyContextualReasoning() {
   return {
     stability: { stated: false, learner_assessment: null },
@@ -220,6 +228,34 @@ export function interpretPendingMentorAnswer(input, pendingQuestion, context = {
       trigger_concept_ids: [],
       trigger_verbatim: [verbatim],
     };
+  }
+  // The two questions that ask the learner to argue: what supports the working
+  // hypothesis, and what does not fit it. The answer is recorded as evidence on
+  // the hypothesis - the learner's own words, never a patient fact - which is
+  // what stops the same rule asking again and what stops the debrief reporting
+  // grounds as never named when they were named on the very next turn.
+  const grounds = expects.has("diagnosis_grounds");
+  const counter = expects.has("counter_evidence");
+  // "ммм" is not an argument. The engine cannot judge whether the reasoning is
+  // good - that is the mentor's job and it reads the words - but it can tell
+  // that nothing was named, and it must not let a filler close the question the
+  // way a real answer does.
+  const namesSomething =
+    !/^(?:м+|э+|ну|хм+|ааа+)[\s.!?]*$/iu.test(verbatim) &&
+    !GENUINE_UNCERTAINTY_RE.test(verbatim) &&
+    /\p{L}{4,}/u.test(verbatim);
+  if ((grounds || counter) && context.workingDiagnosisConceptId && namesSomething) {
+    matched = true;
+    delta.differential.items = [
+      {
+        concept_id: context.workingDiagnosisConceptId,
+        rank: null,
+        dangerous: false,
+        evidence_for: grounds ? [verbatim] : [],
+        evidence_against: counter ? [verbatim] : [],
+      },
+    ];
+    delta.differential.concept_ids = [context.workingDiagnosisConceptId];
   }
   if (expects.has("stability")) {
     matched = true;

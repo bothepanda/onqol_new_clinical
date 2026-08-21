@@ -736,6 +736,10 @@ export function buildMentorBrief({
         provenance: heuristic.provenance,
         why_now: heuristic.why_now,
         reasoning_gap: heuristic.id,
+        // What an answer to this rule's question looks like. Declared on the
+        // rule so the interpreter that has to recognise the answer and the
+        // question that provokes it cannot drift apart.
+        expected_answer_domains: heuristic.expected_answer_domains || [],
         safety_critical: heuristic.severity === 4,
         relevant_to_current_turn: true,
         evidence: [],
@@ -767,6 +771,7 @@ export function buildMentorBrief({
     safety_critical: Boolean(move.safety_critical),
     relevant_to_current_turn: move.relevant_to_current_turn !== false,
     evidence: move.evidence || [],
+    expected_answer_domains: move.expected_answer_domains || [],
     fallback_text: move.template || null,
     parameter_safety: move.parameter_safety || null,
     clinical_rule_ids: move.clinical_rule_ids || [],

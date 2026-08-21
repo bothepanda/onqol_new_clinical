@@ -137,6 +137,7 @@ export const mentorHeuristics = [
     rearm_on_deterioration: true,
     mentor_line:
       "Картина меняется, а план — нет. Что сейчас опаснее всего в ближайший час?",
+    expected_answer_domains: ["contingency"],
     debrief_line_ru:
       "Состояние пациента менялось, а изменение плана не было сформулировано.",
     rationale_for_reviewer:
@@ -168,6 +169,7 @@ export const mentorHeuristics = [
       reasoning_none: ["hypothesis_evidence_for_stated"],
     },
     mentor_line: "Подожди. На основании каких данных ты ставишь этот диагноз?",
+    expected_answer_domains: ["diagnosis_grounds"],
     debrief_line_ru: "Основания для рабочего диагноза не были названы.",
     rationale_for_reviewer:
       "Названный диагноз без оснований — не то же самое, что неучтённая опасная альтернатива (premature_closure) и не то же, что односторонние доводы (unchallenged_hypothesis): здесь резидент не привёл вообще ничего. Открывающее «Подожди» — остановка в разговоре; регистр «Стоп» в этом продукте занят тем, что движок реально не выполнил, а диагноз фиксируется и кейс продолжается. Проверить: не слишком ли рано правило звучит для резидента, который называет диагноз и тут же в следующей фразе его обосновывает.",
@@ -191,6 +193,7 @@ export const mentorHeuristics = [
     },
     mentor_line:
       "Название болезни уже есть. Мне сейчас важнее другое: пациент стабилен или нет, и по каким признакам?",
+    expected_answer_domains: ["stability"],
     debrief_line_ru:
       "Оценка стабильности пациента не была сформулирована до рабочего диагноза.",
     rationale_for_reviewer:
@@ -211,6 +214,7 @@ export const mentorHeuristics = [
       min_turn: 4,
     },
     mentor_line: "Хорошо, диагноз есть. И что ты теперь с этим пациентом делаешь?",
+    expected_answer_domains: ["management"],
     debrief_line_ru:
       "Диагноз был назван, а переход к тактике не был сформулирован.",
     rationale_for_reviewer:
@@ -273,6 +277,7 @@ export const mentorHeuristics = [
       reasoning_none: ["hypothesis_evidence_against_stated"],
     },
     mentor_line: "Аргументы за я услышал. А что в этой картине НЕ укладывается в твою версию?",
+    expected_answer_domains: ["counter_evidence"],
     debrief_line_ru:
       "Доводы против ведущей гипотезы не были названы.",
     rationale_for_reviewer:
@@ -359,6 +364,7 @@ export const mentorHeuristics = [
       reasoning_none: ["observation_plan_complete"],
     },
     mentor_line: "Наблюдаем что, до какого момента, и что должно произойти, чтобы решение поменялось?",
+    expected_answer_domains: ["observation", "contingency"],
     debrief_line_ru:
       "Критерии завершения наблюдения остались неполными.",
     rationale_for_reviewer:
@@ -377,6 +383,7 @@ export const mentorHeuristics = [
       reasoning_none: ["contingency_stated"],
     },
     mentor_line: "План есть. Что заставит тебя его поменять?",
+    expected_answer_domains: ["contingency"],
     debrief_line_ru:
       "План на случай изменения ситуации не был сформулирован.",
     rationale_for_reviewer:
@@ -520,6 +527,7 @@ export const mentorHeuristics = [
     },
     mentor_line:
       "Последний вопрос по ходу: какой результат заставит тебя поменять решение — и что ты делаешь, если он придёт именно таким?",
+    expected_answer_domains: ["contingency"],
     debrief_line_ru:
       "Условие изменения плана осталось неявным.",
     rationale_for_reviewer:
