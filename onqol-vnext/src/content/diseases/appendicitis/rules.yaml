@@ -1,0 +1,87 @@
+# Reviewed clinical rules for the appendicitis vertical slice.
+#
+# Each rule is loaded by `core/rules/ruleEngine.js` and evaluated only against
+# `core/state/learnerView.js` output plus non-hidden state (Foundation Spec
+# §51-52). `conditions[].type` values must match an evaluator in
+# `core/rules/conditions.js`; an unmatched type fails closed to UNKNOWN, never
+# to MET.
+#
+# `level` is one of the four safety levels (Foundation Spec §57). `level` is
+# never shown to the learner - only the mentor's natural-language response is.
+schema_version: "1.0"
+
+rules:
+  - id: RULE-CONSENT-BEFORE-PROCEDURE
+    topic: consent_required_before_operative_access
+    level: LEVEL_4_CATASTROPHIC
+    conditions:
+      - type: commandTypeIs
+        commandType: START_PROCEDURE
+      - type: consentNotObtained
+    teaching_point_ru: >-
+      Оперативный доступ невозможен без оформленного согласия пациента.
+      Получи согласие, прежде чем начинать вмешательство.
+    source_ids: [WSES2025]
+    review_status: reviewed_internal
+    score_weight: 0
+
+  - id: RULE-DELAY-OVER-24H-UNCOMPLICATED
+    topic: TRAP-DELAY-OVER-24H
+    level: LEVEL_2_EDUCATIONAL
+    conditions:
+      - type: managementIntentIs
+        intent: operative
+      - type: minutesSincePlanCommittedGte
+        minutes: 1440 # 24h
+      - type: procedureNotStarted
+    teaching_point_ru: >-
+      При неосложнённом аппендиците, отобранном для операции, задержка свыше
+      24 часов от поступления не поддержана текущими рекомендациями без
+      отдельного клинического обоснования. Что удерживает от операции сейчас?
+    source_ids: [WSES2025]
+    review_status: reviewed_internal
+    score_weight: 0
+
+  - id: RULE-CEFAZOLIN-PROPHYLAXIS-DOSE
+    topic: dosing.cefazolin.prophylaxis
+    level: LEVEL_2_EDUCATIONAL
+    conditions:
+      - type: commandTypeIs
+        commandType: ORDER_MEDICATION
+      - type: commandParamEquals
+        param: drugId
+        value: cefazolin
+      - type: commandParamOutsideRange
+        param: doseMg
+        min: 2000
+        max: 3000
+    teaching_point_ru: >-
+      Стандартная периоперационная профилактика цефазолином — 2 г в/в (3 г при
+      массе тела 120 кг и более), в пределах 60 минут до разреза. Проверь дозу.
+    source_ids: [WSES2025]
+    knf_note: "КНФ РК приводит отличную схему (1 г, редозинг 0.5-1 г q6-8h); расхождение обсуждается в debrief, не как автоматическая коррекция резидента."
+    review_status: reviewed_internal
+    reviewers: ["Сарина Т.Т.", "Каукенова Б.Н."]
+    reviewed_at: "2026-08-20"
+    allowed_runtime_effects: [mentor_teaching]
+    score_weight: 0
+
+  - id: RULE-ROUTINE-DRAIN-UNCOMPLICATED
+    topic: TRAP-ROUTINE-DRAIN
+    level: LEVEL_1_DEFENSIBLE
+    conditions:
+      - type: commandTypeIs
+        commandType: OPERATIVE_DECISION
+      - type: commandParamEquals
+        param: choice
+        value: place_drain
+    teaching_point_ru: >-
+      Рутинное дренирование после неосложнённой лапароскопической аппендэктомии
+      не поддержано текущими рекомендациями, но остаётся защитимым выбором в
+      отдельных ситуациях; можно обсудить в дебрифе.
+    source_ids: [WSES2025]
+    review_status: reviewed_internal
+    score_weight: 0
+
+review_status: reviewed_internal
+independent_review_status: pending

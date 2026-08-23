@@ -1,0 +1,62 @@
+# Natural history and treatment-response parameters.
+#
+# `TRJ-STABLE` is the only trajectory active in the first vertical slice: a
+# patient who does not deteriorate if managed within a reasonable window, and
+# whose pain/physiology respond to analgesia and fluids the way appendicitis
+# does. This is deliberately modest scope - a septic/unstable trajectory
+# (`TRJ-SEPTIC-SHOCK` in the legacy corpus) needs a treatment-response engine
+# this slice does not build, so it is intentionally left out; see
+# docs/KNOWN_GAPS.md.
+schema_version: "1.0"
+
+trajectories:
+  TRJ-STABLE:
+    id: TRJ-STABLE
+    description_ru: "Стабильное течение без лечения источника: боль и воспалительные маркеры медленно нарастают; после аппендэктомии происходит выздоровление."
+    review_status: pending
+    # Passive progression while the source is not yet controlled: applied by
+    # the disease-progression handler on every TIME_ADVANCED that has not yet
+    # reached source control.
+    pre_source_control_drift_per_hour:
+      heart_rate: 1
+      temperature_c: 0.03
+      crp: 4
+      pain_score: 0.15
+    post_source_control_recovery_per_hour:
+      pain_score: -0.6
+      heart_rate: -1.5
+      temperature_c: -0.05
+      crp: -3
+
+treatment_effects:
+  # Reviewed direction and rough magnitude only - not a pharmacokinetic model.
+  # Each effect is applied once, at the minute the administration event fires,
+  # and again nowhere else, so its trace in the event log stays legible.
+  analgesia_iv_nsaid:
+    applies_to: [ketorolac, ketoprofen]
+    pain_score_delta: -3
+    onset_minutes: 20
+    duration_minutes: 240
+    review_status: pending
+  crystalloid_bolus_500_1000ml:
+    applies_to_fluid: [crystalloid]
+    heart_rate_delta: -6
+    systolic_bp_delta: 4
+    onset_minutes: 30
+    review_status: pending
+  antibiotic_prophylaxis:
+    infection_trajectory_note: "reduces surgical site infection risk; no acute physiology effect modeled pre-op"
+    review_status: pending
+
+investigation_timing:
+  # etaMinutes to formal result, preliminaryAtMinutes where a preliminary
+  # report is realistic ahead of the formal one (Contract §9.2).
+  cbc: { etaMinutes: 40 }
+  chemistry: { etaMinutes: 45 }
+  crp: { etaMinutes: 40 }
+  urinalysis: { etaMinutes: 30 }
+  betahcg: { etaMinutes: 35 }
+  ultrasound_abdomen: { etaMinutes: 45, preliminaryAtMinutes: 30 }
+  ct_abdomen: { etaMinutes: 70, preliminaryAtMinutes: 45 }
+
+review_status: pending

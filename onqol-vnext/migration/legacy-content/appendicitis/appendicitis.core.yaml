@@ -1,0 +1,679 @@
+schema_version: "0.2"
+disease_id: app-acute
+canonical_name: acute_appendicitis
+status: reviewed_internal
+clinical_review_status: reviewed_internal
+independent_review_status: pending
+translation_status:
+  ru: internal_review
+  kk: draft_clinical_translation
+supported_locales: [ru, kk]
+default_locale: ru
+last_clinical_review: "2026-08-08"
+next_scheduled_review: "2028-08-01"
+review_policy:
+  expire_after_months: 24
+  production_requires_independent_review: true
+
+coding:
+  system: ICD-10
+  category: K35
+  subcodes_status: needs_local_coding_review
+  note: "Keep the K35 category as canonical for MVP. Current Kazakhstan documents include K35.2, K35.3 and K35.8. The exact coding system/version and the subcodes used by pilot institutions require formal local coding review; until then the MVP stores category K35 only. The earlier claim that the 2018/2019 protocol lists K35.0/K35.1/K35.9 was not reliable and is withdrawn."
+
+sources:
+  - id: WSES2025
+    source_type: guideline
+    jurisdiction: international
+    title: "Diagnosis and Treatment of Acute Appendicitis: 2025 Edition of the World Society of Emergency Surgery Jerusalem Guidelines"
+    authors_short: "Podda M, Ceresoli M, De Simone B, et al."
+    journal: "JAMA Surgery"
+    publication_year: 2026
+    volume: 161
+    issue: 3
+    pages: "283-295"
+    doi: "10.1001/jamasurg.2025.6218"
+    url: "https://jamanetwork.com/journals/jamasurgery/article-abstract/2844195"
+    evidence_method: GRADE
+    key_questions: 19
+    recommendations_total: 35
+    literature_search_through: "2025-05"
+    priority: 1
+  - id: KZ_AA_2018
+    source_type: local_protocol
+    jurisdiction: KZ
+    title: "Клинический протокол диагностики и лечения: Острый аппендицит"
+    development_year: 2018
+    approval_date: "2019-03-04"
+    approval_body: "Объединенная комиссия по качеству медицинских услуг Министерства здравоохранения Республики Казахстан"
+    protocol_number: "61"
+    url: "https://nrchd.kz/storage/documents/%D0%9A%D0%BB%D0%B8%D0%BD%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%B8%D0%B5%20%D0%BF%D1%80%D0%BE%D1%82%D0%BE%D0%BA%D0%BE%D0%BB%D1%8B/%D0%9F%D0%BE%D1%82%D0%BE%D0%BA%20%D0%BA%D0%BB%D0%B8%D0%BD%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%B8%D0%B5%20%D0%BF%D1%80%D0%BE%D1%82%D0%BE%D0%BA%D0%BE%D0%BB%D1%8B/%D0%9E%D1%81%D1%82%D1%80%D1%8B%D0%B9%20%D0%B0%D0%BF%D0%BF%D0%B5%D0%BD%D0%B4%D0%B8%D1%86%D0%B8%D1%82.pdf"
+    priority: 2
+    role: "Kazakhstan delta layer, terminology, resource branches, and local formulary context; not a replacement for the current international evidence layer."
+
+source_classes:
+  guideline: "Direct recommendation from an external guideline"
+  local_protocol: "Requirement or recommendation from Kazakhstan clinical protocol"
+  operationalized: "ON QOL operational rule derived from evidence/resource constraints; requires explicit clinical review"
+
+classification:
+  uncomplicated:
+    rule_id: class_uncomplicated
+    definition_key: classification.uncomplicated
+    machine_definition:
+      requires_appendiceal_inflammation: true
+      excludes:
+        - extended_gangrene_or_necrosis
+        - perforation
+        - periappendicular_abscess
+        - diffuse_peritonitis
+    source_ids: [WSES2025]
+  complicated:
+    rule_id: class_complicated
+    definition_key: classification.complicated
+    any_of:
+      - extended_gangrene_or_necrosis
+      - perforation
+      - periappendicular_abscess
+      - diffuse_peritonitis
+    source_ids: [WSES2025]
+  appendicolith:
+    rule_id: class_appendicolith
+    is_complicated_by_definition: false
+    note_key: classification.appendicolith_note
+    source_ids: [WSES2025]
+
+recommendations:
+  - id: WSES-R1
+    topic: diagnosis_risk_stratification
+    populations: [adult, child]
+    action: use_risk_scores_to_guide_initial_workup
+    named_tools: [AIR, AAS, PAS]
+    strength: conditional
+    certainty: moderate
+    source_ids: [WSES2025]
+    text_key: rec.WSES-R1
+  - id: WSES-R2
+    topic: diagnosis_low_probability
+    populations: [adult, child]
+    action: use_risk_scores_to_identify_low_probability_and_guide_imaging_or_observation
+    named_tools: [AIR, AAS, PAS]
+    strength: conditional
+    certainty: low
+    source_ids: [WSES2025]
+    text_key: rec.WSES-R2
+  - id: WSES-R3.1
+    topic: imaging_adult
+    populations: [adult]
+    action: risk_scores_plus_ultrasound_as_alternative_when_ct_unavailable_or_radiation_minimization_priority
+    preferred_if_available: low_dose_ct
+    ct_protocol_msv_lt: 3
+    display_range: "<2-3 mSv"
+    strength: conditional
+    certainty: moderate
+    source_ids: [WSES2025]
+    text_key: rec.WSES-R3.1
+  - id: WSES-R3.2
+    topic: imaging_pediatric
+    populations: [child, adolescent]
+    action: ultrasound_first_line_then_low_dose_ct_if_nondiagnostic_or_high_suspicion_persists
+    strength: conditional
+    certainty: moderate
+    source_ids: [WSES2025]
+    text_key: rec.WSES-R3.2
+  - id: WSES-R3.3
+    topic: imaging_obesity
+    populations: [adult_obesity]
+    bmi_gte: 30
+    action: ct_preferably_low_dose_over_ultrasound_as_primary_imaging
+    strength: conditional
+    certainty: low
+    source_ids: [WSES2025]
+    text_key: rec.WSES-R3.3
+  - id: WSES-R3.4
+    topic: imaging_older
+    populations: [older_adult]
+    age_gte: 65
+    action: ct_preferably_low_dose_over_ultrasound_as_primary_imaging
+    strength: conditional
+    certainty: very_low
+    source_ids: [WSES2025]
+    text_key: rec.WSES-R3.4
+  - id: WSES-R4
+    topic: imaging_pregnancy
+    populations: [pregnant]
+    action: mri_after_negative_or_inconclusive_ultrasound_if_suspicion_persists
+    avoid_clinically_significant_delay_for_mri: true
+    strength: conditional
+    certainty: moderate
+    source_ids: [WSES2025]
+    text_key: rec.WSES-R4
+  - id: WSES-R5.1
+    topic: nom_uncomplicated_adult
+    populations: [adult]
+    condition: uncomplicated
+    action: antibiotics_as_alternative_to_appendectomy
+    prerequisites: [appropriate_clinical_monitoring, shared_decision_making]
+    strength: conditional
+    certainty: moderate
+    source_ids: [WSES2025]
+    text_key: rec.WSES-R5.1
+  - id: WSES-R5.2
+    topic: nom_uncomplicated_child
+    populations: [child]
+    condition: uncomplicated
+    action: antibiotics_as_alternative_to_appendectomy
+    prerequisites: [appropriate_clinical_monitoring, shared_decision_making]
+    strength: conditional
+    certainty: moderate
+    source_ids: [WSES2025]
+    text_key: rec.WSES-R5.2
+  - id: WSES-R5.3
+    topic: pregnancy_uncomplicated
+    populations: [pregnant]
+    condition: uncomplicated
+    action: laparoscopic_appendectomy_preferred
+    alternative: nom_if_surgery_increased_risk_or_not_immediately_available
+    strength: conditional
+    certainty: very_low
+    source_ids: [WSES2025]
+    text_key: rec.WSES-R5.3
+  - id: WSES-R5.4
+    topic: older_uncomplicated
+    populations: [older_adult]
+    condition: uncomplicated
+    action: appendectomy_preferred
+    alternative: nom_particularly_with_significant_comorbidity_and_high_surgical_risk
+    strength: conditional
+    certainty: very_low
+    source_ids: [WSES2025]
+    text_key: rec.WSES-R5.4
+  - id: WSES-R6
+    topic: outpatient_nom
+    populations: [adult]
+    condition: uncomplicated
+    action: outpatient_antibiotic_management_option
+    prerequisites: [proper_follow_up, access_to_medical_services_if_deterioration]
+    strength: conditional
+    certainty: moderate
+    source_ids: [WSES2025]
+    text_key: rec.WSES-R6
+  - id: WSES-R7.1
+    topic: followup_after_nom_adult
+    populations: [adult]
+    condition: uncomplicated_after_nom
+    action: against_routine_followup_beyond_30_days
+    routine_followup_days_gt: 30
+    exceptions: [persistent_symptoms, recurrent_symptoms, diagnostic_uncertainty, malignancy_risk_factors]
+    strength: conditional
+    certainty: very_low
+    source_ids: [WSES2025]
+    text_key: rec.WSES-R7.1
+  - id: WSES-R7.2
+    topic: followup_after_nom_child
+    populations: [child]
+    condition: uncomplicated_after_nom
+    action: against_routine_followup_beyond_30_days
+    routine_followup_days_gt: 30
+    exceptions: [persistent_symptoms, recurrent_symptoms, diagnostic_uncertainty]
+    strength: conditional
+    certainty: very_low
+    source_ids: [WSES2025]
+    text_key: rec.WSES-R7.2
+  - id: WSES-R8
+    topic: interval_appendectomy_after_uncomplicated_nom
+    populations: [adult]
+    condition: uncomplicated_after_nom
+    action: against_routine_interval_appendectomy_without_persistent_or_recurrent_symptoms
+    strength: conditional
+    certainty: low
+    source_ids: [WSES2025]
+    text_key: rec.WSES-R8
+  - id: WSES-R9.1
+    topic: timing_surgery_adult
+    populations: [adult]
+    condition: uncomplicated_selected_for_surgery
+    action: laparoscopic_appendectomy_within_24h_of_admission
+    max_hours_from_admission: 24
+    strength: strong
+    certainty: moderate
+    source_ids: [WSES2025]
+    text_key: rec.WSES-R9.1
+  - id: WSES-R9.2
+    topic: timing_surgery_child
+    populations: [child]
+    condition: uncomplicated_selected_for_surgery
+    action: laparoscopic_appendectomy_within_24h_of_admission
+    max_hours_from_admission: 24
+    strength: strong
+    certainty: moderate
+    source_ids: [WSES2025]
+    text_key: rec.WSES-R9.2
+  - id: WSES-R10.1
+    topic: lavage_adult
+    populations: [adult]
+    condition: complicated_undergoing_laparoscopic_appendectomy
+    action: evacuate_free_contaminated_fluid
+    preferred_by_wses: suction_without_routine_lavage
+    # Руководства расходятся: SAGES допускает и аспирацию, и аспирацию с лаважем.
+    # Поэтому действие не бинарное и не оценивается. Клиническое ревью 19.08.2026.
+    guideline_disagreement: true
+    accepted_alternatives: [suction_alone, suction_with_lavage]
+    eligible_for_scoring: false
+    strength: conditional
+    certainty: moderate
+    source_ids: [WSES2025, SAGES_APPENDICITIS]
+    text_key: rec.WSES-R10.1
+  - id: WSES-R10.2
+    topic: lavage_child
+    populations: [child]
+    condition: complicated_undergoing_laparoscopic_appendectomy
+    action: suction_contaminated_fluid_without_lavage
+    strength: conditional
+    certainty: moderate
+    source_ids: [WSES2025]
+    text_key: rec.WSES-R10.2
+  - id: WSES-R11.1
+    topic: drain_adult
+    populations: [adult]
+    condition: complicated_undergoing_laparoscopic_appendectomy
+    action: avoid_routine_prophylactic_abdominal_drainage
+    # Не запрет дренирования по конкретному показанию; сам факт дренажа не
+    # является критической ошибкой без оценки показаний.
+    prohibits_indicated_drainage: false
+    strength: conditional
+    certainty: low
+    source_ids: [WSES2025, SAGES_APPENDICITIS]
+    text_key: rec.WSES-R11.1
+  - id: WSES-R11.2
+    topic: drain_child
+    populations: [child]
+    condition: complicated_undergoing_laparoscopic_appendectomy
+    action: avoid_routine_abdominal_drains
+    strength: conditional
+    certainty: very_low
+    source_ids: [WSES2025]
+    text_key: rec.WSES-R11.2
+  - id: WSES-R12
+    topic: macroscopically_normal_appendix
+    populations: [adult, child]
+    condition: diagnostic_laparoscopy_no_other_pathology_explains_presentation
+    action: remove_macroscopically_normal_appendix
+    strength: conditional
+    certainty: very_low
+    source_ids: [WSES2025]
+    text_key: rec.WSES-R12
+  - id: WSES-R13.1
+    topic: periappendicular_abscess_adult
+    populations: [adult]
+    condition: complicated_with_periappendicular_abscess
+    branches:
+      - when: age_lt_35
+        action: early_laparoscopic_appendectomy_suggested
+        alternative_if_inadequate_laparoscopic_expertise_or_emergency_resources: initial_nom_then_interval_appendectomy_6_12_weeks
+      - when: age_gte_35
+        action: suggest_against_early_appendectomy
+        rationale_parameter: appendiceal_neoplasm_risk_up_to_14_3_percent
+    strength: conditional
+    certainty: moderate
+    source_ids: [WSES2025]
+    text_key: rec.WSES-R13.1
+  - id: WSES-R13.2
+    topic: periappendicular_abscess_child
+    populations: [child]
+    condition: complicated_with_periappendicular_abscess
+    action: early_laparoscopic_appendectomy_suggested
+    alternative_if_inadequate_laparoscopic_expertise_or_emergency_resources: initial_nom_then_interval_appendectomy_6_12_weeks
+    strength: conditional
+    certainty: moderate
+    source_ids: [WSES2025]
+    text_key: rec.WSES-R13.2
+  - id: WSES-R14.1
+    topic: interval_appendectomy_after_abscess_adult
+    populations: [adult]
+    condition: complicated_with_periappendicular_abscess_initially_managed_nonoperatively
+    age_gte: 35
+    action: interval_appendectomy_6_12_weeks
+    interval_weeks: [6, 12]
+    rationale_parameter: reduce_missed_appendiceal_neoplasm
+    strength: strong
+    certainty: moderate
+    source_ids: [WSES2025]
+    text_key: rec.WSES-R14.1
+  - id: WSES-R14.2
+    topic: interval_appendectomy_after_abscess_child
+    populations: [child]
+    condition: complicated_with_periappendicular_abscess_initially_managed_nonoperatively
+    action: against_routine_interval_appendectomy
+    strength: conditional
+    certainty: low
+    source_ids: [WSES2025]
+    text_key: rec.WSES-R14.2
+  - id: WSES-R15.1
+    topic: preop_antibiotic_uncomplicated_adult
+    populations: [adult]
+    condition: uncomplicated_undergoing_laparoscopic_appendectomy
+    action: single_dose_preoperative_prophylactic_antibiotic
+    strength: strong
+    certainty: moderate
+    source_ids: [WSES2025]
+    text_key: rec.WSES-R15.1
+  - id: WSES-R15.2
+    topic: preop_antibiotic_uncomplicated_child
+    populations: [child]
+    condition: uncomplicated_undergoing_laparoscopic_appendectomy
+    action: single_dose_preoperative_prophylactic_antibiotic
+    strength: conditional
+    certainty: low
+    source_ids: [WSES2025]
+    text_key: rec.WSES-R15.2
+  - id: WSES-R16.1
+    topic: preop_antibiotic_complicated_adult
+    populations: [adult]
+    condition: complicated_undergoing_laparoscopic_appendectomy
+    action: preoperative_prophylaxis_plus_therapeutic_antibiotics_while_awaiting_appendectomy_particularly_if_immediate_surgery_not_feasible
+    strength: strong
+    certainty: high
+    source_ids: [WSES2025]
+    text_key: rec.WSES-R16.1
+  - id: WSES-R16.2
+    topic: preop_antibiotic_complicated_child
+    populations: [child]
+    condition: complicated_undergoing_laparoscopic_appendectomy
+    action: preoperative_prophylaxis_plus_therapeutic_antibiotics_while_awaiting_appendectomy_particularly_if_immediate_surgery_not_feasible
+    strength: strong
+    certainty: moderate
+    source_ids: [WSES2025]
+    text_key: rec.WSES-R16.2
+  - id: WSES-R17.1
+    topic: postop_antibiotic_uncomplicated_adult
+    populations: [adult]
+    condition: uncomplicated_after_laparoscopic_appendectomy
+    action: against_postoperative_antibiotics
+    strength: conditional
+    certainty: low
+    source_ids: [WSES2025]
+    text_key: rec.WSES-R17.1
+  - id: WSES-R17.2
+    topic: postop_antibiotic_uncomplicated_child
+    populations: [child]
+    condition: uncomplicated_after_laparoscopic_appendectomy
+    action: no_recommendation
+    strength: none
+    certainty: very_low
+    source_ids: [WSES2025]
+    text_key: rec.WSES-R17.2
+  - id: WSES-R18.1
+    topic: postop_antibiotic_complicated_adult
+    populations: [adult]
+    condition: complicated_after_laparoscopic_appendectomy
+    action: postoperative_antibiotics
+    strength: strong
+    certainty: moderate
+    source_ids: [WSES2025]
+    text_key: rec.WSES-R18.1
+  - id: WSES-R18.2
+    topic: postop_antibiotic_complicated_child
+    populations: [child]
+    condition: complicated_after_laparoscopic_appendectomy
+    action: postoperative_antibiotics
+    strength: conditional
+    certainty: low
+    source_ids: [WSES2025]
+    text_key: rec.WSES-R18.2
+  - id: WSES-R19.1
+    topic: postop_antibiotic_duration_complicated_adult
+    populations: [adult]
+    condition: complicated_after_laparoscopic_appendectomy_with_adequate_source_control
+    action: short_course_2_3_days_instead_of_5_7
+    duration_days: [2, 3]
+    comparator_days: [5, 7]
+    strength: conditional
+    certainty: moderate
+    source_ids: [WSES2025]
+    text_key: rec.WSES-R19.1
+  - id: WSES-R19.2
+    topic: postop_antibiotic_duration_complicated_child
+    populations: [child]
+    condition: complicated_after_laparoscopic_appendectomy_with_adequate_source_control
+    action: short_course_2_3_days_instead_of_5_7
+    duration_days: [2, 3]
+    comparator_days: [5, 7]
+    strength: conditional
+    certainty: moderate
+    source_ids: [WSES2025]
+    text_key: rec.WSES-R19.2
+
+numeric_facts:
+  appendiceal_neoplasm_risk_with_periappendicular_abscess_age_gte_35:
+    value_up_to_percent: 14.3
+    source_ids: [WSES2025]
+  nom_recurrence_uncomplicated:
+    value_percent_range: null
+    source_ids: []
+    verification_status: withdrawn_2026_08_19_unqualified_range_not_supported
+    withdrawal_note: "The previously stored recurrence range was carried from an internal card and never verified against a source line. It is not learner-visible and not reviewer-facing. Reviewer documentation may cite APPAC (Salminen 2018, JAMA, DOI 10.1001/jama.2018.13201) recurrence of 27.3% at 1 year and 39.1% at 5 years, always with the time horizon and the study population stated. No recurrence percentage reaches a learner until a rule carrying it completes the approval workflow."
+  surgery_window_uncomplicated_selected_for_surgery:
+    max_hours_from_admission: 24
+    source_ids: [WSES2025]
+  interval_appendectomy_after_abscess_age_gte_35:
+    weeks: [6, 12]
+    source_ids: [WSES2025]
+  postop_antibiotics_complicated_after_adequate_source_control:
+    days: [2, 3]
+    source_ids: [WSES2025]
+
+risk_scores:
+  # The guideline names all three. What the PRODUCT may name is split by
+  # population: PAS is a paediatric score and the current vertical slice is
+  # adult, so the adult runtime never suggests it.
+  allowed_names: [AIR, AAS, PAS]
+  adult_allowed_names: [AIR, AAS]
+  pediatric_only_names: [PAS]
+  numeric_cutoffs_available_in_corpus: false
+  generator_rule: "May name the score and qualitative stratum. Must not invent numeric cutoffs until primary score-validation sources are added."
+
+resource_context:
+  levels: [basic, limited, enhanced, maximal]
+  diagnosis_routes:
+    basic:
+      available: [clinical_assessment, basic_laboratory_tests]
+      ct_available: false
+      ultrasound: variable
+      preferred_logic: risk_stratification_and_active_observation_when_appropriate
+      source_basis: [WSES-R1, WSES-R2]
+    limited:
+      available: [clinical_assessment, basic_laboratory_tests, ultrasound]
+      ct_available: false
+      preferred_logic: risk_stratification_plus_ultrasound
+      source_basis: [WSES-R3.1]
+    enhanced:
+      available: [clinical_assessment, laboratory_tests, ultrasound, low_dose_ct]
+      ct_available: true
+      preferred_logic: low_dose_ct_when_indicated
+      source_basis: [WSES-R3.1]
+    maximal:
+      available: [clinical_assessment, laboratory_tests, ultrasound, low_dose_ct, mri]
+      ct_available: true
+      mri_available: true
+      source_basis: [WSES-R3.1, WSES-R4]
+  note: "Resource definitions are ON QOL infrastructure categories. Clinical actions within them must retain provenance: guideline/local_protocol/operationalized."
+
+kz_protocol_delta:
+  - id: KZDELTA-1
+    topic: risk_score
+    kz_position: alvarado_with_numeric_cutoffs
+    current_wses_position: AIR_AAS_PAS
+    delta_type: tool_replacement
+    source_ids: [KZ_AA_2018, WSES2025]
+    text_key: kzdelta.KZDELTA-1
+  - id: KZDELTA-2
+    topic: intermediate_risk_observation_antibiotics
+    kz_position: observation_12_24h_plus_empiric_antibiotic_therapy
+    current_wses_position: single_preop_prophylactic_dose_for_uncomplicated_surgical_patients; no_extra_waiting_antibiotics_as_default
+    delta_type: direct_conflict_or_scope_mismatch
+    source_ids: [KZ_AA_2018, WSES2025]
+    text_key: kzdelta.KZDELTA-2
+    clinical_review_note: "Confirm exact scope before scoring because KZ text addresses diagnostically uncertain intermediate-risk patients, while WSES-R15.1 addresses confirmed uncomplicated appendicitis undergoing laparoscopic appendectomy. Do not automatically treat as a one-to-one contradiction."
+  - id: KZDELTA-3
+    topic: nom_uncomplicated
+    kz_position: not_present_as_standard_option; antibiotics_when_patient_refuses_surgery
+    current_wses_position: antibiotics_valid_alternative_with_monitoring_and_shared_decision_making
+    delta_type: missing_option
+    source_ids: [KZ_AA_2018, WSES2025]
+    text_key: kzdelta.KZDELTA-3
+  - id: KZDELTA-4
+    topic: pregnancy_laparoscopy
+    kz_position: laparoscopy_not_first_choice
+    current_wses_position: laparoscopic_appendectomy_preferred_for_uncomplicated_appendicitis_in_pregnancy
+    delta_type: direct_conflict
+    source_ids: [KZ_AA_2018, WSES2025]
+    text_key: kzdelta.KZDELTA-4
+  - id: KZDELTA-5
+    topic: postop_antibiotic_duration_complicated
+    kz_position_days: [3, 5]
+    current_wses_position_days: [2, 3]
+    delta_type: parameter_difference
+    source_ids: [KZ_AA_2018, WSES2025]
+    text_key: kzdelta.KZDELTA-5
+  - id: KZDELTA-6
+    topic: interval_appendectomy_after_abscess
+    kz_position: no_age_35_threshold; 6_8_weeks_in_selected_recurrent_context
+    current_wses_position: interval_appendectomy_6_12_weeks_after_initial_nom_for_abscess_age_gte_35
+    delta_type: age_threshold_and_interval_difference
+    source_ids: [KZ_AA_2018, WSES2025]
+    text_key: kzdelta.KZDELTA-6
+  - id: KZDELTA-7
+    topic: surgery_timing
+    kz_position: emergency_operation
+    current_wses_position: within_24h_for_uncomplicated_selected_for_surgery
+    delta_type: framing_difference
+    source_ids: [KZ_AA_2018, WSES2025]
+    text_key: kzdelta.KZDELTA-7
+  - id: KZDELTA-8
+    topic: antibiotic_molecules
+    kz_position: named_molecules_and_doses
+    current_wses_position: no_specific_molecule_in_recommendations
+    delta_type: local_protocol_fills_formulary_gap
+    source_ids: [KZ_AA_2018, WSES2025]
+    text_key: kzdelta.KZDELTA-8
+
+teaching_traps:
+  - id: TRAP-US-NEGATIVE
+    level: A
+    concept: negative_ultrasound_does_not_rule_out_appendicitis_when_suspicion_persists
+    source_ids: [WSES-R3.1, WSES-R3.2]
+    text_key: trap.TRAP-US-NEGATIVE
+  - id: TRAP-SCORE-DIAGNOSIS
+    level: A
+    concept: risk_score_is_stratification_not_definitive_diagnosis
+    source_ids: [WSES-R1, WSES-R2]
+    text_key: trap.TRAP-SCORE-DIAGNOSIS
+  - id: TRAP-POSTOP-ABX-UNCOMPLICATED
+    level: A
+    concept: routine_postop_antibiotics_in_uncomplicated_adult
+    source_ids: [WSES-R17.1]
+    text_key: trap.TRAP-POSTOP-ABX-UNCOMPLICATED
+  - id: TRAP-LONG-ABX-COMPLICATED
+    level: A
+    concept: routine_5_7_day_course_after_adequate_source_control
+    source_ids: [WSES-R19.1, WSES-R19.2]
+    text_key: trap.TRAP-LONG-ABX-COMPLICATED
+  - id: TRAP-ROUTINE-DRAIN
+    level: A
+    concept: routine_drain_after_laparoscopic_appendectomy_complicated
+    source_ids: [WSES-R11.1, WSES-R11.2]
+    text_key: trap.TRAP-ROUTINE-DRAIN
+  - id: TRAP-LAVAGE
+    level: A
+    concept: routine_lavage_instead_of_suction_alone
+    source_ids: [WSES-R10.1, WSES-R10.2]
+    text_key: trap.TRAP-LAVAGE
+  - id: TRAP-DELAY-OVER-24H
+    level: A
+    concept: delay_over_24h_for_uncomplicated_selected_for_surgery
+    source_ids: [WSES-R9.1, WSES-R9.2]
+    text_key: trap.TRAP-DELAY-OVER-24H
+  - id: TRAP-NORMAL-APPENDIX-LEAVE
+    level: A
+    concept: leave_macroscopically_normal_appendix_when_no_other_pathology_found
+    source_ids: [WSES-R12]
+    text_key: trap.TRAP-NORMAL-APPENDIX-LEAVE
+  - id: TRAP-NOM-NO-MONITORING
+    level: B
+    concept: nom_without_monitoring_or_access_to_escalation
+    source_ids: [WSES-R5.1, WSES-R5.2, WSES-R6]
+    text_key: trap.TRAP-NOM-NO-MONITORING
+  - id: TRAP-ABSCESS-AGE35-EARLY-SURGERY
+    level: B
+    concept: early_appendectomy_as_default_for_abscess_age_gte_35
+    source_ids: [WSES-R13.1]
+    text_key: trap.TRAP-ABSCESS-AGE35-EARLY-SURGERY
+  - id: TRAP-ABSCESS-AGE35-NO-INTERVAL
+    level: B
+    concept: omit_interval_appendectomy_after_nom_abscess_age_gte_35
+    source_ids: [WSES-R14.1]
+    text_key: trap.TRAP-ABSCESS-AGE35-NO-INTERVAL
+
+scoring_semantics:
+  strong_recommendation:
+    default_weight: high
+    justified_deviation_possible: true
+    requires_reason_if_deviating: true
+  conditional_recommendation:
+    default_weight: medium
+    justified_deviation_possible: true
+    do_not_encode_as_absolute_ban: true
+  no_recommendation:
+    default_weight: none
+    score_only_if_case_has_separately_reviewed_local_rule: true
+
+case_generator_constraints:
+  - id: GEN-1
+    rule: "Clinical correctness must come from structured recommendations, not model judgment."
+  - id: GEN-2
+    rule: "Never invent numeric AIR/AAS/PAS cutoffs until primary score sources are added."
+  - id: GEN-3
+    rule: "Never invent a specific antibiotic molecule/dose from WSES2025. If local-protocol antibiotics are exposed, label provenance as KZ_AA_2018 and keep local formulary review separate."
+  - id: GEN-4
+    rule: "A conditional recommendation must not be converted into an absolute prohibition in scoring or feedback."
+  - id: GEN-5
+    rule: "Do not state that NOM is prohibited in all complicated appendicitis. Periappendicular abscess has a guideline-supported nonoperative branch in selected settings."
+  - id: GEN-6
+    rule: "If WSES and Kazakhstan protocol differ, feedback must disclose both positions and the delta type."
+  - id: GEN-7
+    rule: "A case may only reveal tests available at the selected resource level."
+
+operationalized_rules:
+  - id: OP-TRANSFER-1
+    topic: transfer_before_or_after_source_control_in_abdominal_sepsis
+    status: needs_clinical_review
+    source_type: operationalized
+    eligible_for_scoring: false
+    text_key: op.OP-TRANSFER-1
+    note: "Prior corpus treated 'source control on site then transfer' as a hard red line. This is too categorical without a reviewed transport/time/resource rule. Keep as an unresolved decision framework, not a correct-answer rule."
+  - id: OP-PREG-TRANSFER
+    topic: pregnant_patient_transfer_vs_local_operation_by_resource_level
+    status: needs_clinical_review
+    source_type: operationalized
+    eligible_for_scoring: false
+    text_key: op.OP-PREG-TRANSFER
+  - id: OP-BASIC-DIAGNOSTIC-UNCERTAINTY
+    topic: local_operation_vs_observation_vs_transfer_when_no_ct
+    status: needs_clinical_review
+    source_type: operationalized
+    eligible_for_scoring: false
+    text_key: op.OP-BASIC-DIAGNOSTIC-UNCERTAINTY
+
+review:
+  primary:
+    reviewer: "Каукенова Б.Н."
+    date: "2026-08-08"
+    status: reviewed_internal
+  independent:
+    reviewer: null
+    date: null
+    status: pending
+  release_gate:
+    production_allowed: false
+    reason: "Independent clinical review pending; Kazakh clinical-language review pending; local coding and formulary items unresolved."

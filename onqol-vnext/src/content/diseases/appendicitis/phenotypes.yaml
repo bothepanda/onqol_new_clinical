@@ -1,0 +1,91 @@
+# Phenotype library for acute appendicitis.
+#
+# Ported from the reviewed legacy corpus (migration/legacy-content/
+# appendicitis/phenotypes.js) with content copied verbatim where it was marked
+# authored/reviewed. `clinical_review_status: pending` is copied forward
+# unchanged - vNext does not upgrade a legacy status by moving the file.
+#
+# First vertical slice ships two phenotypes: `classic` (baseline, for
+# regression coverage) and `retrocecal` (the APP-004 concept named in the
+# rebuild task as the preferred migration source - weak anterior peritoneal
+# signs, a real diagnostic-uncertainty teaching point).
+schema_version: "1.0"
+
+phenotypes:
+  classic:
+    phenotype_id: classic
+    title_ru: "Классическая презентация"
+    compatible_morphologies: [uncomplicated_inflammation]
+    presentation:
+      hours_from_onset: [6, 14]
+      pain_score: [5, 8]
+      pain_sites_ru: ["в правой подвздошной области"]
+      history_fixed_ru:
+        - "боль началась около пупка и переместилась в правую подвздошную область"
+        - "боль усиливается при движении и кашле"
+        - "аппетита нет"
+      history_counted_ru:
+        singular_ru: "рвота была однократно"
+        range: [1, 2]
+      examination_slots:
+        contour: обычный
+        palpation: мягкий
+        tenderness: локальная
+        max_point: "точка Мак-Бурнея"
+        guarding: локальное
+        rebound: "положительный локально"
+        peristalsis: выслушивается
+      examination_slot_choices:
+        rovsing: [положительный, отрицательный]
+        percussion: [есть, нет]
+    imaging:
+      ultrasound_variants_ru:
+        - "Визуализируется увеличенный в диаметре несжимаемый аппендикс с признаками воспаления."
+        - "Аппендикс визуализирован не полностью, исследование неинформативно."
+      ct_ru: "КТ-признаки острого аппендицита без признаков перфорации и абсцесса."
+      operative_truth_ru: "Воспалительно изменённый аппендикс без признаков перфорации и абсцесса."
+    clinical_review_status: pending
+
+  retrocecal:
+    phenotype_id: retrocecal
+    title_ru: "Ретроцекальное расположение"
+    compatible_morphologies: [uncomplicated_inflammation]
+    key_skill_ru: "Понимать ограничения осмотра и УЗИ, выбирать КТ, наблюдение или безопасный маршрут"
+    presentation:
+      hours_from_onset: [10, 30]
+      pain_score: [4, 8]
+      pain_sites_ru: ["в правом боку", "в пояснице справа", "в правом подреберье"]
+      history_variants_ru:
+        - "усиливается при ходьбе"
+        - "усиливается при разгибании правого бедра"
+      examination_slots:
+        contour: обычный
+        rebound: отрицательный
+        guarding: нет
+        max_point: "по локализации боли"
+        peristalsis: выслушивается
+      examination_slot_choices:
+        psoas: [положительный, отрицательный]
+    imaging:
+      ultrasound_ru: "Аппендикс достоверно не визуализирован, кишечные газы в большом количестве."
+      ct_ru: "Аппендикс расположен ретроцекально, увеличен и воспалительно изменён."
+      operative_truth_ru: "Аппендикс расположен ретроцекально, воспалительно изменён."
+    clinical_review_status: pending
+
+case_presets:
+  - case_preset_id: APP-CLASSIC-01
+    title_ru: "Классический аппендицит"
+    phenotype_id: classic
+    morphology: uncomplicated_inflammation
+    trajectory_id: TRJ-STABLE
+    default_real_hospital_profile_id: KZ-R2-URBAN
+    runtime_status: learner_active
+
+  - case_preset_id: APP-004
+    title_ru: "Ретроцекальный аппендицит со слабой передней перитонеальной симптоматикой"
+    phenotype_id: retrocecal
+    morphology: uncomplicated_inflammation
+    trajectory_id: TRJ-STABLE
+    default_real_hospital_profile_id: KZ-R1-DISTRICT
+    runtime_status: learner_active
+    key_skill_ru: "Понимать ограничения осмотра и УЗИ, выбирать КТ, наблюдение или безопасный маршрут"

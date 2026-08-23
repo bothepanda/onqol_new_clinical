@@ -1,0 +1,107 @@
+# Examination phrasing.
+#
+# Ported from the legacy examSlots.js split (migration/legacy-content/
+# appendicitis/examSlots.js): a phenotype declares STATES, this file owns
+# WORDS, so a finding is written once and every patient who has that state
+# reads the same reviewed sentence. A slot the phenotype leaves unspecified is
+# not printed and not silently filled with a plausible negative.
+schema_version: "1.0"
+localisation_token: "{локализация}"
+
+exam_slots:
+  - id: contour
+    group: inspection
+    title_ru: "форма, симметрия, участие в дыхании, вздутие"
+    states:
+      обычный: "живот обычной формы, симметричный, не вздут, участвует в акте дыхания"
+      вздут: "живот вздут, симметричный, участвует в акте дыхания"
+
+  - id: palpation
+    group: palpation
+    title_ru: "мягкость при пальпации"
+    states:
+      мягкий: "при пальпации живот мягкий"
+
+  - id: tenderness
+    group: palpation
+    title_ru: "болезненность при пальпации"
+    states:
+      локальная: "локально болезненный {локализация}"
+      "локальная умеренная": "умеренно болезненный {локализация}"
+      разлитая: "живот болезненный во всех отделах"
+
+  - id: max_point
+    group: palpation
+    title_ru: "точка максимальной болезненности"
+    states:
+      "точка Мак-Бурнея": "максимальная болезненность в точке Мак-Бурнея"
+      "по локализации боли": "максимальная болезненность соответствует заявленной локализации боли"
+
+  - id: guarding
+    group: palpation
+    title_ru: "защитное напряжение мышц"
+    states:
+      нет: "защитного напряжения мышц нет"
+      локальное: "определяется локальное защитное напряжение мышц"
+
+  - id: rebound
+    group: peritoneal
+    title_ru: "симптом Щёткина-Блюмберга"
+    states:
+      отрицательный: "симптом Щёткина-Блюмберга отрицательный"
+      сомнительный: "симптом Щёткина-Блюмберга сомнительный"
+      "положительный локально": "симптом Щёткина-Блюмберга положительный локально"
+
+  - id: rovsing
+    group: peritoneal
+    title_ru: "симптом Ровзинга"
+    states:
+      положительный: "симптом Ровзинга положительный"
+      отрицательный: "симптом Ровзинга отрицательный"
+
+  - id: psoas
+    group: peritoneal
+    title_ru: "псоас-симптом"
+    states:
+      положительный: "псоас-симптом положительный"
+      отрицательный: "псоас-симптом отрицательный"
+
+  - id: percussion
+    group: peritoneal
+    title_ru: "перкуторная болезненность"
+    states:
+      есть: "перкуторная болезненность в правой подвздошной области"
+      нет: "перкуторная болезненность не выявлена"
+
+  - id: peristalsis
+    group: auscultation
+    title_ru: "перистальтика"
+    states:
+      выслушивается: "перистальтика выслушивается, обычной звучности"
+
+# The universal normal-exam layer (Foundation Spec §8, Contract §5.3): a
+# reviewed, coherent "nothing relevant here" response for regions the learner
+# reasonably examines that are not central to the authored appendicitis case.
+# Case-specific findings always take precedence over this layer.
+universal_normal_layer:
+  default_ru: "Клинически значимых изменений нет."
+  regions:
+    mouth_ru: "Слизистая ротовой полости обычной окраски, без налёта, миндалины не увеличены."
+    legs_ru: "Кожные покровы нижних конечностей обычной окраски, отёков нет, пульсация на периферических артериях сохранена."
+    neuro_ru: "Сознание ясное, очаговой неврологической симптоматики нет."
+    groin_ru: "Паховые области без особенностей, грыжевых выпячиваний нет."
+    rectal_ru: "не смоделировано для текущего фенотипа"
+  review_status: reviewed_internal
+
+history_bundle_ru:
+  # Returned once for a general "соберу анамнез"-type request (Contract §5.2).
+  # Phenotype-specific detail (pain_sites_ru, history_fixed_ru/variants_ru) is
+  # merged in by the patient module at generation time.
+  template: >-
+    Жалобы на боль в животе {onset_hours} часов назад, начало {onset_description}.
+    {phenotype_history}. Стул и мочеиспускание не нарушены, если не указано иное.
+    Аллергии не отмечает. Хронические заболевания и постоянный приём препаратов
+    отрицает, если не указано иное.
+  review_status: pending
+
+review_status: reviewed_internal

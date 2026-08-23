@@ -1,0 +1,76 @@
+# Disease card: acute appendicitis.
+#
+# Provenance carried forward from the legacy reviewed corpus
+# (migration/legacy-content/appendicitis/appendicitis.core.yaml), re-expressed
+# in the vNext content shape. review_status values are copied verbatim, not
+# upgraded - "reviewed_internal" here means the same thing it meant there:
+# reviewed by the clinical owner, independent review still pending. Nothing in
+# this module may claim `approved_for_training` that the source did not.
+schema_version: "1.0"
+disease_id: acute_appendicitis
+presentation_category: acute_abdomen
+review_status: reviewed_internal
+independent_review_status: pending
+last_clinical_review: "2026-08-08"
+next_scheduled_review: "2028-08-01"
+
+sources:
+  - id: WSES2025
+    title: "Diagnosis and Treatment of Acute Appendicitis: 2025 Edition of the World Society of Emergency Surgery Jerusalem Guidelines"
+    organization: "World Society of Emergency Surgery"
+    publication_year: 2026
+    doi: "10.1001/jamasurg.2025.6218"
+    jurisdiction: international
+  - id: KZ_AA_2018
+    title: "Клинический протокол диагностики и лечения: Острый аппендицит"
+    organization: "МЗ РК, протокол №61"
+    approval_date: "2019-03-04"
+    jurisdiction: KZ
+    role: "Kazakhstan delta layer; not a substitute for the international evidence layer."
+
+classification:
+  uncomplicated:
+    rule_id: class_uncomplicated
+    source_ids: [WSES2025]
+  complicated:
+    rule_id: class_complicated
+    any_of: [gangrene_necrosis, perforation, abscess, diffuse_peritonitis]
+    source_ids: [WSES2025]
+
+# Physiology by MORPHOLOGY, not by phenotype - carried over verbatim from the
+# surgeon's 09.08.2026 correction in phenotypes.js: where the appendix sits
+# changes where it hurts and what imaging shows, not how high the CRP goes.
+physiology_envelopes:
+  uncomplicated_inflammation:
+    heart_rate: [72, 112]
+    temperature_c: [36.7, 38.5]
+    systolic_bp: [100, 140]
+    respiratory_rate: [14, 24]
+    wbc: [8, 18]
+    neutrophil_percent: [65, 90]
+    crp: [2, 140]
+    review_status: pending
+    derived_from: "union of authored ranges for early_subtle, classic, pelvic, retrocecal"
+
+numeric_facts:
+  surgery_window_uncomplicated_selected_for_surgery_max_hours: 24
+  postop_antibiotics_complicated_after_source_control_days: [2, 3]
+  source_ids: [WSES2025]
+
+teaching_traps:
+  - id: TRAP-US-NEGATIVE
+    concept: negative_ultrasound_does_not_rule_out_appendicitis_when_suspicion_persists
+    source_ids: [WSES2025]
+  - id: TRAP-SCORE-DIAGNOSIS
+    concept: risk_score_is_stratification_not_definitive_diagnosis
+    source_ids: [WSES2025]
+  - id: TRAP-DELAY-OVER-24H
+    concept: delay_over_24h_for_uncomplicated_selected_for_surgery
+    source_ids: [WSES2025]
+  - id: TRAP-ROUTINE-DRAIN
+    concept: routine_drain_after_laparoscopic_appendectomy_uncomplicated
+    source_ids: [WSES2025]
+
+release_gate:
+  production_allowed: false
+  reason: "Independent clinical review and Kazakh clinical-language review are pending, matching the legacy corpus's own gate."

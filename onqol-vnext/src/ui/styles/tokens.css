@@ -1,0 +1,29 @@
+/*
+ * Design tokens: the ON QOL visual identity, extracted from the legacy
+ * V25Trainer.css (task brief §5.2) as clean, reusable tokens rather than
+ * copied component classes. Teal/blue on pale mint, mono chrome, proportional
+ * sans for conversation - the same system, none of the `v25-*` names.
+ */
+:root {
+  --onqol-brand: #16697a;
+  --onqol-brand-soft: #3a7a84;
+  --onqol-ink: #16697a;
+  --onqol-deep: #10505e;
+  --onqol-mint: #e6f0f1;
+  --onqol-paper: #f4f8f7;
+  --onqol-white: #ffffff;
+  --onqol-line: rgba(22, 105, 122, 0.25);
+  --onqol-muted: #3a7a84;
+  --onqol-soft: #eaf2f3;
+  --onqol-text: #0d2124;
+
+  --onqol-warn-bg: #fdf6e9;
+  --onqol-warn-line: #ecdcbe;
+  --onqol-warn-ink: #8a6620;
+
+  --onqol-mono: "IBM Plex Mono", "Courier New", ui-monospace, monospace;
+  --onqol-sans: Inter, "Segoe UI", Arial, sans-serif;
+
+  --onqol-radius-card: 8px;
+  --onqol-radius-pill: 999px;
+}

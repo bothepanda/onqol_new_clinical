@@ -1,0 +1,71 @@
+# Operative pathway, decision-level fidelity (Foundation Spec §59, Contract
+# §17.1): approximately 2-5 meaningful intraoperative decisions, not manual
+# instrument simulation.
+schema_version: "1.0"
+
+preop_requirements:
+  # `blocking: true` items are hard prerequisites (Contract §16); the rest are
+  # important-but-non-blocking and surface in debrief if omitted.
+  - id: consent
+    label_ru: "информированное согласие"
+    blocking: true
+  - id: antibiotic_prophylaxis
+    label_ru: "антибиотикопрофилактика в пределах 60 минут до разреза"
+    blocking: true
+    source_ids: [WSES2025]
+  - id: npo_status
+    label_ru: "статус NPO / готовность к анестезии"
+    blocking: true
+  - id: anesthesia_review
+    label_ru: "осмотр анестезиолога"
+    blocking: true
+  - id: iv_access
+    label_ru: "венозный доступ"
+    blocking: false
+  - id: site_marking
+    label_ru: "маркировка операционного поля"
+    blocking: false
+
+approach_options: [laparoscopic, open]
+
+operative_sequence:
+  - step: entry
+    finding_id: appendix_visualized
+    description_ru: >-
+      Камера введена в брюшную полость. Визуализируется утолщённый воспалённый
+      аппендикс{pelvic_fluid_note}.
+    decision_id: initial_operative_decision
+    decision_prompt_ru: "Что делаешь?"
+    expected_elements: [appendectomy, fluid_management_if_present]
+    source_ids: [WSES2025]
+
+decisions:
+  initial_operative_decision:
+    id: initial_operative_decision
+    options:
+      # `source_control: true` is what tells the CORE that this choice
+      # achieves source control - the core no longer knows any operation name
+      # (Core Foundation Spec §63/§71, task brief P0-6). A second disease
+      # declares its own source-control-achieving options the same way.
+      - id: appendectomy_only
+        matches_ru: ["удалю аппендикс", "аппендэктомия"]
+        sufficient: true
+        source_control: true
+      - id: appendectomy_plus_aspiration
+        matches_ru: ["удалю аппендикс, аспирирую жидкость"]
+        sufficient: true
+        source_control: true
+      - id: place_drain
+        matches_ru: ["дренаж", "поставлю дренаж"]
+        teaching_trap_id: TRAP-ROUTINE-DRAIN
+        source_control: false
+    next: source_control_decision
+
+  source_control_decision:
+    id: source_control_decision
+    auto_resolves_if: appendectomy_completed
+    options:
+      - id: standard_closure
+        sufficient: true
+
+review_status: reviewed_internal

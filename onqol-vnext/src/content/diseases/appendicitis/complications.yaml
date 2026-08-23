@@ -1,0 +1,42 @@
+# Probabilistic postoperative course (Foundation Spec §41, §20).
+#
+# First vertical slice models exactly one branch point so the "recovery vs
+# complication" mechanism can be demonstrated end-to-end without overreaching
+# on unreviewed complication-rate content: superficial surgical-site infection
+# after appendectomy, at a modest incidence, present regardless of decision
+# quality, and slightly more likely when postoperative monitoring is
+# inadequate. Rates are illustrative pilot placeholders, not sourced
+# epidemiology - see review_status.
+schema_version: "1.0"
+
+postoperative_course:
+  baseline_recovery:
+    milestones_hours: [6, 24, 48]
+    description_ru:
+      "6": "боль контролируется анальгетиками, перистальтика восстанавливается"
+      "24": "пероральный приём переносит, дренажей нет, температура нормальная"
+      "48": "готов к выписке при отсутствии осложнений"
+
+  complications:
+    - id: superficial_ssi
+      label_ru: "поверхностная инфекция области хирургического вмешательства"
+      base_probability: 0.04
+      probability_with_inadequate_monitoring: 0.09
+      earliest_onset_hours: 48
+      latest_onset_hours: 120
+      presentation_ru: "гиперемия и болезненность в области раны, субфебрильная температура"
+      management_hint_ru: "локальная обработка раны, антибиотики по показаниям при системных признаках"
+      source_ids: [WSES2025]
+      review_status: pending
+
+discharge_criteria:
+  - id: afebrile
+    label_ru: "нормальная температура тела не менее 24 часов"
+  - id: oral_intake_tolerated
+    label_ru: "переносит пероральный приём"
+  - id: pain_controlled_oral
+    label_ru: "боль контролируется пероральными анальгетиками"
+  - id: no_active_complication
+    label_ru: "нет признаков активного осложнения"
+
+review_status: pending
