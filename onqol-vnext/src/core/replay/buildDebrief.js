@@ -1,10 +1,13 @@
 import { EVENT } from "../events/eventTypes.js";
+import { reviewStatusOf, authorityLayerOf, jurisdictionOf, isJurisdictional } from "../rules/contentProvenance.js";
+import { hasWorkingDiagnosis } from "../reasoning/reasoningState.js";
+import { isLearnerFacingSessionApproved } from "../session/sessionPurpose.js";
 
 /**
  * Formative debrief v1 (task brief §15, Contract §25, Mentor Spec §21).
  *
  * Built ENTIRELY from the event log - never from a language model
- * remembering the conversation (Core Foundation Spec §62). That is what
+ * remembering the conversation (Core Runtime Spec §62). That is what
  * prevents the failure mode the foundation spec calls out by name: telling a
  * learner they never ordered antibiotics when they did order them and the
  * simulator failed to execute it.
@@ -34,14 +37,36 @@ export function buildDebrief({ session, bundle }) {
     observedBehavior: buildObservedBehavior(events),
     whatWentWell: buildStrengths(state, events),
     importantMisses: buildMisses(state, bundle),
+    jurisdictionNotes: buildJurisdictionNotes(state, bundle),
     consequences: buildConsequences(events),
     referenceComparison: buildReferenceComparison(bundle),
     resourceLimitations: buildResourceLimitations(events),
     simulatorLimitations: buildSimulatorLimitations(state),
+    // Review matrix §G1 / task §3: a build running non-approved patient truth
+    // must say so wherever it reports on itself.
+    contentGovernance: buildContentGovernance(state),
     learningObjectives: buildLearningObjectives(state),
     reading: buildReading(bundle),
     // Deliberately absent: any numeric competence score (Governance Spec §22).
   };
+}
+
+function buildJurisdictionNotes(state, bundle) {
+  const context = state.session.jurisdictionContext;
+  if (!context || state.hospital.jurisdiction === context) return [];
+  const requirements = (bundle.operative?.preop_requirements ?? []).filter(
+    (item) => isJurisdictional(item) && jurisdictionOf(item) === context,
+  );
+  return requirements
+    .filter((item) => !state.preop.completed.includes(item.id))
+    .map((item) => ({
+      kind: "jurisdiction_workflow_note",
+      itemId: item.id,
+      jurisdiction: context,
+      pointRu: `Требование рабочего процесса РК: ${item.label_ru}.`,
+      noteRu: "Это не универсальное требование evidence-based маршрута Reference Hospital и не блокировало операцию.",
+      sourceIds: item.source_ids ?? [],
+    }));
 }
 
 function buildCaseSummary(state, events) {
@@ -143,18 +168,39 @@ function buildStrengths(state, events) {
  * here, because no rule in the current bundle is `approved_for_training` -
  * see `simulatorLimitations` instead. That gap is reported honestly rather
  * than filled with plausible teaching.
+ *
+ * TWO REMEDIATION CHANGES (2026-08-25):
+ *
+ *  - `site_marking` is simply gone from the content (matrix PR12), so it can no
+ *    longer appear here. Nothing in this function had to change for that,
+ *    which is the point of misses being content-driven.
+ *  - A jurisdictional requirement is LABELLED as one (matrix §13). "Группа
+ *    крови и резус-фактор не назначены" is a Kazakhstan workflow omission, not
+ *    a failure of international evidence-based practice, and the debrief must
+ *    not blur the two.
  */
 function buildMisses(state, bundle) {
   const misses = [];
 
   if (state.managementPlan.intent === "operative") {
-    const required = bundle.operative.preop_requirements ?? [];
+    // `state.preop.required` is the JURISDICTION-FILTERED list committed with
+    // the plan; falling back to the full content list would reintroduce KZ
+    // items in a non-KZ hospital.
+    const required = state.preop.required?.length ? state.preop.required : (bundle.operative.preop_requirements ?? []);
     for (const item of required) {
       if (state.preop.completed.includes(item.id)) continue;
+      const jurisdictional = isJurisdictional(item);
       misses.push({
-        kind: "preoperative_omission",
+        kind: jurisdictional ? "jurisdictional_workflow_omission" : "preoperative_omission",
         itemId: item.id,
-        pointRu: `Не выполнено до операции: ${item.label_ru}.`,
+        authorityLayer: authorityLayerOf(item),
+        jurisdiction: jurisdictionOf(item),
+        pointRu: jurisdictional
+          ? `Не оформлено до операции по требованиям юрисдикции (${jurisdictionOf(item)}): ${item.label_ru}.`
+          : `Не выполнено до операции: ${item.label_ru}.`,
+        noteRu: jurisdictional
+          ? "Требование стандарта конкретной юрисдикции/стационара, а не универсальное доказательное правило."
+          : null,
         blocking: Boolean(item.blocking),
         sourceIds: item.source_ids ?? [],
         traceableTo: "content:operative.preop_requirements",
@@ -203,11 +249,11 @@ function attributionOf(event) {
 /**
  * Comparison against the reference pathway. Only approved content may be
  * cited as "the reference"; nothing here claims a single correct pathway
- * where content supports several (Contract §22.3, Foundation Spec §54).
+ * where content supports several (Contract §22.3, Core Runtime Spec §54).
  */
 function buildReferenceComparison(bundle) {
   const rules = bundle.rules?.rules ?? [];
-  const approved = rules.filter((rule) => rule.review_status === "approved_for_training");
+  const approved = rules.filter((rule) => reviewStatusOf(rule) === "approved_for_training");
   if (approved.length === 0) {
     return {
       available: false,
@@ -252,6 +298,28 @@ function buildSimulatorLimitations(state) {
   }));
 }
 
+/**
+ * The release-honesty block (review matrix §G1, §18; task §26.H).
+ *
+ * A debrief is where a learner or a reviewer forms an impression of how real
+ * this simulation is. If the patient was generated from content nobody has
+ * approved, and if clinical discharge readiness was never evaluated, the
+ * debrief is exactly where that has to be said - not only in a report the
+ * learner never opens.
+ */
+export function buildContentGovernance(state) {
+  const kinds = new Set(state.simulatorLimitations.map((entry) => entry.kind));
+  return {
+    patientTruthApproved: state.session.patientTruthApproved === true,
+    pilotReady: isLearnerFacingSessionApproved(state.session),
+    noteRu:
+      state.session.patientTruthApproved === true
+        ? "Клинический контент этого сценария одобрен для обучения."
+        : "Этот сценарий работает на клиническом контенте, который ещё не прошёл рецензирование (разработческая сборка). Он не предназначен для пилота с резидентами.",
+    withheldKinds: [...kinds],
+  };
+}
+
 function buildLearningObjectives(state) {
   const objectives = [];
   if (state.managementPlan.intent === "operative" && state.preop.completed.length < (state.preop.required?.length ?? 0)) {
@@ -260,7 +328,7 @@ function buildLearningObjectives(state) {
   if (state.observations.examinations.filter((entry) => entry.region === "reassessment").length < 2) {
     objectives.push("Планировать переоценку как отдельное действие с конкретными параметрами и сроком.");
   }
-  if (!state.reasoning.workingDiagnosis) {
+  if (!hasWorkingDiagnosis(state.reasoning)) {
     objectives.push("Формулировать рабочую гипотезу и опасные альтернативы явно, до принятия решения об операции.");
   }
   if (state.operative.completed && state.monitoring.prescribed.length === 0) {

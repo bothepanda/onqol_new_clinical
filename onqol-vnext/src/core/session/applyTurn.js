@@ -30,7 +30,7 @@ export function applyCommand({ session, command, turnContext }) {
 }
 
 /**
- * Several commands from one learner turn (Foundation Spec §9, Contract §8.1):
+ * Several commands from one learner turn (Core Runtime Spec §9, Contract §8.1):
  * each is executed and folded in order, but nothing here forces artificial
  * waiting between them - they all land at the same clock minute unless a
  * handler itself schedules future work.

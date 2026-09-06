@@ -18,6 +18,7 @@ function newSession({ mode = "real", realProfileId = "KZ-R2-URBAN", seed = "cons
     mode,
     realProfileId,
     casePresetId: "APP-004",
+    sessionPurpose: "internal_development",
     bundle,
     locale: "ru",
     startIso: "2026-08-23T02:15:00+05:00",

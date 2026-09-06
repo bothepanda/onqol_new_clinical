@@ -18,6 +18,17 @@ export const RULE_CONDITION = Object.freeze({
     return capability ? capability.available === false : undefined;
   },
 
+  /**
+   * The positive form. Needed by RULE-LAPAROSCOPIC-PREFERRED-WHEN-AVAILABLE:
+   * the claim "laparoscopy is preferred" is conditional on the stack actually
+   * being there, and the simulator must never imply open surgery is impossible
+   * in a hospital that has no laparoscopy (matrix O01/MR04).
+   */
+  hospitalCapabilityAvailable: (condition, ctx) => {
+    const capability = ctx.state.hospital.capabilities[condition.capabilityKey];
+    return capability ? capability.available === true : undefined;
+  },
+
   commandParamEquals: (condition, ctx) => ctx.command?.params?.[condition.param] === condition.value,
 
   commandParamOutsideRange: (condition, ctx) => {
@@ -43,4 +54,24 @@ export const RULE_CONDITION = Object.freeze({
   },
 
   procedureNotStarted: (condition, ctx) => ctx.state.operative.started === false,
+
+  /** Source control has been achieved - i.e. this is now a postoperative patient. */
+  sourceControlAchieved: (condition, ctx) => ctx.state.operative.sourceControl === true,
+
+  /**
+   * Does the drug/fluid named by a command parameter carry a content tag?
+   *
+   * Keeps class-level rules ("no routine postoperative ANTIBIOTICS") out of the
+   * business of enumerating drug ids: the formulary declares
+   * `tags: [antibiotic, ...]` and the rule matches on the tag. Returns
+   * `undefined` - and therefore UNKNOWN, and therefore ineligible - when the
+   * bundle is not in scope or the drug is unknown, so the rule fails closed.
+   */
+  commandParamHasTag: (condition, ctx) => {
+    const value = ctx.command?.params?.[condition.param];
+    if (value == null) return undefined;
+    const entry = ctx.bundle?.shared?.medications?.medications?.[value];
+    if (!entry) return undefined;
+    return (entry.tags ?? []).includes(condition.tag);
+  },
 });

@@ -2,8 +2,13 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { interpretTurn } from "./interpretTurn.js";
 import { validateCommand } from "../../core/commands/commandTypes.js";
+import { withShared } from "../../core/content/loadBundle.js";
+import diseaseBundle from "../../content/generated/appendicitis.json" with { type: "json" };
+import sharedBundle from "../../content/generated/shared.json" with { type: "json" };
 
-// Behavioral regression #1-2 (Core Foundation Spec §68, task brief §27).
+const bundle = withShared(diseaseBundle, sharedBundle);
+
+// Behavioral regression #1-2 (Core Runtime Spec §68, task brief §27).
 
 test('"осмотрю пациента" asks what is examined - EXAMINE with region missing', () => {
   const { commands } = interpretTurn({ text: "осмотрю пациента" });
@@ -69,9 +74,10 @@ test('"не знаю" is read as a mentor answer signalling STUCK, not a clinica
 });
 
 test("free-form clinical reasoning with no recognized action updates reasoning only, not the simulator", () => {
-  const result = interpretTurn({ text: "думаю, это может быть аппендицит, но надо исключить гинекологическую причину" });
+  const result = interpretTurn({ text: "думаю, это может быть аппендицит, но надо исключить гинекологическую причину", bundle });
   assert.equal(result.intent, "CLINICAL_REASONING");
-  assert.equal(result.commands.length, 0);
+  assert.equal(result.commands.length, 1);
+  assert.equal(result.commands[0].type, "STATE_REASONING");
 });
 
 test('"ОАК и КТ ОБП" splits on the conjunction "и", not only on commas', () => {

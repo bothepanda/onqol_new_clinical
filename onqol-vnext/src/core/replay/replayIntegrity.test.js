@@ -18,6 +18,7 @@ function playThrough(seed, mode = "reference", realProfileId) {
     mode,
     realProfileId,
     casePresetId: "APP-004",
+    sessionPurpose: "internal_development",
     bundle,
     locale: "ru",
     startIso: "2026-08-23T02:15:00+05:00",
@@ -26,14 +27,14 @@ function playThrough(seed, mode = "reference", realProfileId) {
     "опрошу пациента",
     "живот",
     "ОАК и СРБ",
-    "кетопрофен 100 мг в/в",
+    "кетопрофен 100 мг в/м",
     "переоценю боль через 90 минут",
     "идём на операцию",
     "нулевой стол",
     "венозный доступ",
-    "антибиотикопрофилактика цефазолин 2 г",
+    "антибиотикопрофилактика цефазолин 2 г в/в, антибиотикопрофилактика метронидазол 500 мг в/в",
     "вызываю анестезиолога на осмотр",
-    "переоценю через 40 минут",
+    "переоценю витальные через 40 минут",
     "получаю согласие",
     "иду лапароскопически",
     "удалю аппендикс, аспирирую жидкость из малого таза",
@@ -71,14 +72,21 @@ test("replaying the exported event log from the seed reproduces the exported sta
         seed: session.state.session.seed,
         mode: session.state.session.mode,
         locale: session.state.session.locale,
+        purpose: session.state.session.purpose,
+        jurisdictionContext: session.state.session.jurisdictionContext,
+        interactionFlags: session.state.session.interactionFlags,
+        presetRuntimeStatus: session.state.session.presetRuntimeStatus,
+        productionReleaseAllowed: session.state.session.productionReleaseAllowed,
         presentationCategory: session.state.session.presentationCategory,
         contentVersions: session.state.session.contentVersions,
+        patientTruthApproved: session.state.session.patientTruthApproved,
       },
       patient: {
         truth: session.patient.truth,
         initialPhysiology: session.patient.initialPhysiology,
         initialSymptoms: session.patient.initialSymptoms,
         demographics: session.patient.demographics,
+        presentation: session.patient.presentation,
       },
       hospital: {
         profileId: session.state.hospital.profileId,
@@ -86,6 +94,8 @@ test("replaying the exported event log from the seed reproduces the exported sta
         capabilities: session.state.hospital.capabilities,
         staff: session.state.hospital.staff,
         dynamicConstraints: session.state.hospital.dynamicConstraints,
+        jurisdiction: session.state.hospital.jurisdiction,
+        radiologyPolicy: session.state.hospital.radiologyPolicy,
       },
       clock: session.clockRoot,
     }),
@@ -138,8 +148,8 @@ test("the debrief separates simulator limitation from learner omission", () => {
   assert.equal("score" in debrief, false);
   assert.equal(JSON.stringify(debrief).includes('"score"'), false);
 
-  // Reference comparison must not be fabricated when no approved rule exists.
-  assert.equal(debrief.referenceComparison.available, false);
+  // Approved reviewed rules may now populate the reference comparison.
+  assert.equal(debrief.referenceComparison.available, true);
 });
 
 test("the debrief never claims a treatment was not given when the event log shows it was", () => {

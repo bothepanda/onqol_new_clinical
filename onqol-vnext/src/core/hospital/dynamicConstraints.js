@@ -3,12 +3,12 @@
  *
  * A static profile says what a hospital HAS. This says what is wrong with it
  * tonight: the CT is down, the single overnight OR is occupied, the senior
- * surgeon is delayed, the ICU has no bed. Foundation Spec §14.2 treats these
+ * surgeon is delayed, the ICU has no bed. Core Runtime Spec §14.2 treats these
  * as first-class, because adapting to them is the actual learning objective
  * of Real-world mode.
  *
  * OPERATIONAL DATA, NOT CLINICAL CONTENT. These are Hospital/World Engine
- * facts (Foundation Spec §46) - how long a scanner is broken is not a
+ * facts (Core Runtime Spec §46) - how long a scanner is broken is not a
  * clinical rule, and so is not subject to the `approved_for_training` gate
  * in `core/rules/governance.js`. They cannot alter biology; they only alter
  * what is available, which is precisely the separation Contract §3.3
@@ -16,7 +16,7 @@
  *
  * SEEDED, NOT RANDOM PER SESSION. The roll happens once at session creation
  * from the session seed, so replaying a seed reproduces the same broken
- * scanner (Foundation Spec §42). At most one constraint is drawn, and most
+ * scanner (Core Runtime Spec §42). At most one constraint is drawn, and most
  * sessions draw none - a hospital where something is always broken teaches
  * learners to expect the trick rather than to adapt.
  */

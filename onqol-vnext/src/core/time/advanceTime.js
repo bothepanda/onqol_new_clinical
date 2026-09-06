@@ -3,12 +3,16 @@ import { createEvent } from "../events/eventLog.js";
 import { drainPendingWork } from "./scheduler.js";
 import { hospitalIso } from "./clock.js";
 import { isRuntimeAuthoritative, simulatorLimitation } from "../rules/governance.js";
+import { reviewStatusOf } from "../rules/contentProvenance.js";
+import { activePainField } from "../state/painState.js";
+import { reduceEvents } from "../state/worldState.js";
+import { evaluateBoundedStateTransition } from "./boundedStateTransitions.js";
 
 /**
  * Advancing the clock to `targetMinutes`.
  *
  * Two independent things happen, both producing ordinary events so replay
- * stays exact (Core Foundation Spec §61):
+ * stays exact (Core Runtime Spec §61):
  *
  *  1. Every piece of *scheduled* work due by `targetMinutes` drains - a test
  *     resulting, an infusion completing, a consultant arriving, a treatment
@@ -17,16 +21,16 @@ import { isRuntimeAuthoritative, simulatorLimitation } from "../rules/governance
  *     caused it (see `executeCommand.js`), so this function never invents
  *     timing - it only resolves timing someone already authored.
  *
- *  2. Disease progression (pre-source-control drift, post-source-control
- *     recovery) is computed directly over the whole
- *     `[elapsedMinutes, targetMinutes]` interval, as one DISEASE_PROGRESSED
- *     event carrying the resulting absolute values. This is deliberately NOT
- *     modeled as a queued pending item: a queue entry would have to be
- *     re-armed after every drain, which is exactly the kind of state that
- *     lives outside the event log and breaks pure replay (see git history on
- *     this file for the bug that motivated the change). Computing it directly
- *     from elapsed time keeps `pending` limited to things that are genuinely
- *     scheduled by a specific past action.
+ *  2. Natural course over the whole `[elapsedMinutes, targetMinutes]` interval
+ *     is offered to the trajectory's reviewed course model, as one
+ *     DISEASE_PROGRESSED event carrying absolute values. Computed directly
+ *     rather than queued, so `pending` stays limited to things a specific past
+ *     action genuinely scheduled.
+ *
+ *     As of the 2026-08-25 clinical remediation there is NO approved course
+ *     model: the previous fixed per-hour drift was withdrawn by clinical
+ *     review, and nothing replaced it. Every advance therefore records a
+ *     simulator limitation instead of moving patient truth.
  *
  * GOVERNANCE (task brief P0-5): every clinical-content-driven change here -
  * trajectory drift, recovery, treatment effect, complication probability -
@@ -41,8 +45,14 @@ export function advanceTime({ state, clockRoot, bundle, rng, targetMinutes, caus
 
   const runItem = (currentState, item) => runPendingItem({ state: currentState, clockRoot, bundle, rng, item, cause });
   const { events } = drainPendingWork(state, targetMinutes, runItem);
-
-  const progressionEvents = buildProgressionEvents({ state, clockRoot, bundle, targetMinutes, cause });
+  const afterPending = reduceEvents(state, events);
+  // Second Clinical Reviewer Decision, 2026-09-01 (Sarina T.T.): the
+  // postoperative recovery course starts once the OPERATION is complete
+  // (PROCEDURE_COMPLETED), not at source control alone - source control can
+  // precede closure and anaesthetic emergence.
+  const progressionEvents = afterPending.operative.completed
+    ? buildPostoperativeRecoveryEvents({ state: afterPending, clockRoot, bundle, rng, targetMinutes, cause })
+    : buildProgressionEvents({ state: afterPending, clockRoot, bundle, rng, targetMinutes, cause });
 
   const timeEvent = createEvent({
     type: EVENT.TIME_ADVANCED,
@@ -56,23 +66,36 @@ export function advanceTime({ state, clockRoot, bundle, rng, targetMinutes, caus
 }
 
 /**
- * Pre-source-control drift and post-source-control recovery, from the
- * trajectory the patient is actually on. Both directions live in the same
- * content object (`trajectories.yaml`), so both are gated by that object's
- * single `review_status` - a trajectory is approved as a whole natural
- * history or not at all.
+ * Natural course, from the trajectory the patient is actually on.
+ *
+ * Pre- and post-source-control behaviour live in the same content object, so
+ * both are gated by that object's single review status - a trajectory is
+ * approved as a whole natural history or not at all.
  */
-function buildProgressionEvents({ state, clockRoot, bundle, targetMinutes, cause }) {
+function buildProgressionEvents({ state, clockRoot, bundle, rng, targetMinutes, cause }) {
   const trajectoryId = state.truth.trajectoryId ?? "TRJ-STABLE";
   const trajectory = bundle.trajectories.trajectories[trajectoryId];
   if (!trajectory) return [];
 
-  const hours = (targetMinutes - state.clock.elapsedMinutes) / 60;
-  if (hours <= 0) return [];
+  if (targetMinutes <= state.clock.elapsedMinutes) return [];
 
   const atIso = hospitalIso(clockRoot, targetMinutes);
 
-  if (!isRuntimeAuthoritative(trajectory.review_status)) {
+  // Two independent conditions, both of which must hold before natural course
+  // may touch patient truth:
+  //
+  //   1. the trajectory content is `approved_for_training`;
+  //   2. it actually carries a reviewed course MODEL.
+  //
+  // (2) is new in the 2026-08-25 remediation. The old fixed per-hour arithmetic
+  // (HR +1/h, T +0.03/h, CRP +4/h, pain +0.15/h) was withdrawn by the clinical
+  // review as not being a guideline-derived biological law (matrix T01/T02),
+  // and the task forbids inventing replacement numbers. `natural_course_model`
+  // is therefore null, and would stay inert even if someone promoted the
+  // trajectory's review status by hand - promotion alone cannot resurrect
+  // deleted arithmetic.
+  const model = trajectory.natural_course_model;
+  if (!isRuntimeAuthoritative(reviewStatusOf(trajectory)) || model == null) {
     // The patient does not silently freeze in time as if nothing were
     // modeled - the withheld progression is recorded, once per advance, so
     // the debrief can say "disease progression is not simulated in this
@@ -86,38 +109,145 @@ function buildProgressionEvents({ state, clockRoot, bundle, targetMinutes, cause
         payload: simulatorLimitation({
           kind: "trajectory",
           id: trajectoryId,
-          reviewStatus: trajectory.review_status,
+          reviewStatus: reviewStatusOf(trajectory) ?? null,
         }),
         cause: { actor: "system", source: "governance_gate" },
       }),
     ];
   }
 
-  const rates = state.operative.sourceControl
-    ? trajectory.post_source_control_recovery_per_hour
-    : trajectory.pre_source_control_drift_per_hour;
-  if (!rates) return [];
+  // Reached only by a trajectory that is BOTH approved and carries a reviewed
+  // bounded state-transition model. No such content exists yet; when it does,
+  // it produces its own absolute values here rather than a per-hour delta.
+  const step = evaluateBoundedStateTransition({
+    model,
+    state,
+    currentStateId: state.truth.naturalCourseStateId,
+    enteredAtMinutes: state.truth.naturalCourseStateEnteredAtMinutes,
+    targetMinutes,
+    rng,
+    streamName: `natural_course:${trajectoryId}`,
+  });
+  if (!step) return [];
+  return courseEvents({
+    eventType: EVENT.DISEASE_PROGRESSED,
+    step,
+    atMinutes: targetMinutes,
+    atIso,
+    cause: { ...cause, source: cause?.source ?? `trajectory:${trajectoryId}` },
+  });
+}
 
-  const physiology = {
-    heartRate: Math.round(state.physiology.heartRate + (rates.heart_rate ?? 0) * hours),
-    temperatureC: round1(state.physiology.temperatureC + (rates.temperature_c ?? 0) * hours),
-    crp: Math.round(state.physiology.crp + (rates.crp ?? 0) * hours),
-  };
-  const painScore = clampPain(round1(state.symptoms.painScore + (rates.pain_score ?? 0) * hours));
+function buildPostoperativeRecoveryEvents({ state, clockRoot, bundle, rng, targetMinutes, cause }) {
+  const course = bundle.trajectories?.post_source_control_course;
+  const model = course?.model;
+  const atIso = hospitalIso(clockRoot, targetMinutes);
+  if (!isRuntimeAuthoritative(reviewStatusOf(course)) || model == null) {
+    return [
+      createEvent({
+        type: EVENT.SIMULATOR_LIMITATION_NOTED,
+        atMinutes: targetMinutes,
+        atIso,
+        payload: simulatorLimitation({
+          kind: "postoperative_recovery",
+          id: course?.provenance?.id ?? "post_source_control_course",
+          reviewStatus: reviewStatusOf(course) ?? null,
+        }),
+        cause: { actor: "system", source: "governance_gate" },
+      }),
+    ];
+  }
+  const step = evaluateBoundedStateTransition({
+    model,
+    state,
+    currentStateId: state.postop.recovery?.stateId,
+    enteredAtMinutes: state.postop.recovery?.enteredAtMinutes,
+    targetMinutes,
+    rng,
+    streamName: "postoperative_recovery",
+  });
+  if (!step) {
+    // No milestone transition is due yet. If the model has not been entered at
+    // all, materialise its DECLARED initial state once - `initial_state_id` and
+    // that state's `postop_pain_state`, read straight from the approved content
+    // (`evaluateBoundedStateTransition` already treats a null `stateId` as being
+    // in this state). This is not a time-scaled or invented value: it is the
+    // entry condition of the reviewed recovery model, so the immediate
+    // postoperative patient carries the qualitative pain stage the model
+    // assigns to `pacu_emergence` ("significant") instead of an empty field
+    // until the first milestone is reached.
+    const initialStateId = model.initial_state_id ?? model.states?.[0]?.id ?? null;
+    const initialState = (model.states ?? []).find((s) => s.id === initialStateId) ?? null;
+    if (state.postop.recovery?.stateId == null && initialStateId && initialState?.postop_pain_state) {
+      return [
+        createEvent({
+          type: EVENT.POSTOPERATIVE_RECOVERY_UPDATED,
+          atMinutes: targetMinutes,
+          atIso,
+          payload: {
+            symptoms: { postopPainStage: initialState.postop_pain_state },
+            truth: { recoveryPhase: initialStateId },
+            transition: {
+              id: "postoperative_recovery_initialised",
+              from: null,
+              to: initialStateId,
+              // Keep the recovery clock anchored where PROCEDURE_COMPLETED set
+              // it, so the next milestone's `eligible_after_minutes` still
+              // measures from the operation-complete event.
+              enteredAtMinutes: state.postop.recovery.enteredAtMinutes ?? targetMinutes,
+            },
+          },
+          cause: { ...cause, source: cause?.source ?? "postoperative_recovery" },
+        }),
+      ];
+    }
+    return [];
+  }
+  return courseEvents({
+    eventType: EVENT.POSTOPERATIVE_RECOVERY_UPDATED,
+    step,
+    atMinutes: targetMinutes,
+    atIso,
+    cause: { ...cause, source: cause?.source ?? "postoperative_recovery" },
+  });
+}
 
-  return [
+function courseEvents({ eventType, step, atMinutes, atIso, cause }) {
+  const events = [
     createEvent({
-      type: EVENT.DISEASE_PROGRESSED,
-      atMinutes: targetMinutes,
+      type: eventType,
+      atMinutes,
       atIso,
       payload: {
-        physiology,
-        symptoms: { painScore },
-        stage: state.operative.sourceControl ? "recovering" : "untreated",
+        ...step.effects,
+        transition: {
+          id: step.transitionId,
+          from: step.from,
+          to: step.to,
+          enteredAtMinutes: step.enteredAtMinutes,
+        },
       },
-      cause: { ...cause, source: cause?.source ?? `trajectory:${trajectoryId}` },
+      cause: { ...cause, ruleIds: step.ruleIds, sourceIds: step.sourceIds },
     }),
   ];
+  if (step.deterioration) {
+    events.push(
+      createEvent({
+        type: EVENT.DETERIORATION_DETECTED,
+        atMinutes,
+        atIso,
+        payload: {
+          causeId: step.deterioration.cause_id ?? step.transitionId,
+          textRu: step.deterioration.text_ru ?? null,
+          physiology: step.effects.physiology,
+          truth: step.effects.truth,
+          findingIds: step.deterioration.finding_ids ?? [],
+        },
+        cause: { actor: "system", source: "deterioration_watcher", ruleIds: step.ruleIds, sourceIds: step.sourceIds },
+      }),
+    );
+  }
+  return events;
 }
 
 function runPendingItem({ state, clockRoot, bundle, rng, item, cause }) {
@@ -193,6 +323,10 @@ function runPendingItem({ state, clockRoot, bundle, rng, item, cause }) {
     // gate at order time (`scheduleGovernedTreatmentEffect`), so reaching
     // here means the effect is approved and its deltas may touch patient
     // truth.
+    // Only ever scheduled for content that already passed the governance gate
+    // AND carries a reviewed response envelope (`scheduleGovernedTreatmentEffect`
+    // in executeCommand.js). Reaching here means both are true, so the
+    // envelope's deltas may touch patient truth.
     case "treatment_effect": {
       const physiology = {};
       for (const [key, delta] of Object.entries(item.deltas ?? {})) {
@@ -200,8 +334,13 @@ function runPendingItem({ state, clockRoot, bundle, rng, item, cause }) {
         physiology[key] = key === "temperatureC" ? round1(state.physiology[key] + delta) : Math.round(state.physiology[key] + delta);
       }
       const symptoms = {};
+      // Analgesia acts on whichever pain state is active; it can never write
+      // the pre-source-control pain of a patient whose source is already
+      // controlled (matrix PO01).
       if (item.symptomDeltas?.painScore != null) {
-        symptoms.painScore = clampPain(round1(state.symptoms.painScore + item.symptomDeltas.painScore));
+        const field = activePainField(state.symptoms);
+        const current = state.symptoms[field];
+        if (current != null) symptoms[field] = clampPain(round1(current + item.symptomDeltas.painScore));
       }
       return {
         events: [
@@ -210,22 +349,67 @@ function runPendingItem({ state, clockRoot, bundle, rng, item, cause }) {
             atMinutes: item.dueAtMinutes,
             atIso,
             payload: { effectId: item.effectId, physiology, symptoms, resolvedPendingId: item.id },
-            cause: { actor: "system", source: `treatment_effect:${item.effectId}` },
+            cause: {
+              actor: "system",
+              commandId: item.commandId,
+              ruleIds: item.ruleId ? [item.ruleId] : [],
+              sourceIds: item.sourceIds ?? [],
+              source: `treatment_effect:${item.effectId}`,
+            },
           }),
         ],
       };
     }
 
+    // Matrix PR02 / task §13.2: if the learner never asked when the patient
+    // last ate or drank, the anesthesiologist obtains it on arrival. This is a
+    // real workflow event with a real actor - not a silent state flip - and
+    // the learner's omission still reaches the debrief.
+    case "fasting_discovery": {
+      if (state.preop.fasting?.obtained) return { events: [] };
+      return {
+        events: [
+          createEvent({
+            type: EVENT.FASTING_HISTORY_OBTAINED,
+            atMinutes: item.dueAtMinutes,
+            atIso,
+            payload: { fasting: state.preop.fasting ?? null, obtainedBy: "anesthesiologist", resolvedPendingId: item.id },
+            cause: { actor: "system", source: "anesthesia_review" },
+          }),
+        ],
+      };
+    }
+
+    // Arrival at the receiving facility, after the authored transport time
+    // (Contract §3.2). Generic: the destination rides on the pending entry.
+    case "transfer_arrival":
+      return {
+        events: [
+          createEvent({
+            type: EVENT.PATIENT_TRANSFERRED,
+            atMinutes: item.dueAtMinutes,
+            atIso,
+            payload: { detail: item.destination, resolvedPendingId: item.id },
+            cause: { actor: "system", source: "interfacility_transport" },
+          }),
+        ],
+      };
+
     case "complication_check":
-      return { events: complicationCheckEvents({ state, bundle, rng, item, atIso }) };
+      return { events: complicationCheckEvents({ bundle, rng, item, atIso }) };
 
     default:
       return { events: [] };
   }
 }
 
-function complicationCheckEvents({ state, bundle, rng, item, atIso }) {
-  const complication = bundle.complications.postoperative_course.complications.find((c) => c.id === item.complicationId);
+// `state` is deliberately NOT a parameter any more: the only thing this
+// function used it for was `state.monitoring.adequacy`, to pick between a
+// base and an "inadequate monitoring" probability. Matrix T07/PO09 removed
+// that relationship as an unsupported causal claim, and removing the argument
+// makes reintroducing it a visible change rather than a one-line edit.
+function complicationCheckEvents({ bundle, rng, item, atIso }) {
+  const complication = (bundle.complications.postoperative_course.complications ?? []).find((c) => c.id === item.complicationId);
   if (!complication) {
     // Content named a complication id that isn't in the compiled bundle - do
     // not silently leave the pending item queued forever re-rolling itself.
@@ -244,14 +428,14 @@ function complicationCheckEvents({ state, bundle, rng, item, atIso }) {
   // content. An unapproved rate is NOT rolled and NOT quietly treated as
   // "cleared" - clearing it would assert, falsely, that a reviewed
   // probability had been evaluated and came out negative.
-  if (!isRuntimeAuthoritative(complication.review_status)) {
+  if (!isRuntimeAuthoritative(reviewStatusOf(complication))) {
     return [
       createEvent({
         type: EVENT.SIMULATOR_LIMITATION_NOTED,
         atMinutes: item.dueAtMinutes,
         atIso,
         payload: {
-          ...simulatorLimitation({ kind: "complication", id: complication.id, reviewStatus: complication.review_status }),
+          ...simulatorLimitation({ kind: "complication", id: complication.id, reviewStatus: reviewStatusOf(complication) ?? null }),
           resolvedPendingId: item.id,
         },
         cause: { actor: "system", source: "governance_gate" },
@@ -259,16 +443,21 @@ function complicationCheckEvents({ state, bundle, rng, item, atIso }) {
     ];
   }
 
-  // Monitoring adequacy is DERIVED world state (task brief P1-2.2), not a
-  // manually-set field: an inadequate monitoring environment changes which
-  // authored probability branch applies.
-  const probability =
-    state.monitoring.adequacy === "inadequate" ? complication.probability_with_inadequate_monitoring : complication.base_probability;
+  // MONITORING ADEQUACY NO LONGER SELECTS A PROBABILITY BRANCH.
+  //
+  // The previous version read `probability_with_inadequate_monitoring` when the
+  // derived monitoring adequacy was "inadequate". Matrix T07/PO09 removed that
+  // outright: "inadequate monitoring raises the biological incidence of SSI" is
+  // a causal claim with no supporting evidence. Monitoring affects DETECTION
+  // and ESCALATION, not incidence, and a future model must say so explicitly
+  // rather than reusing this branch. The multiplier is also gone from
+  // `complications.yaml`, so there is nothing left to read.
+  const probability = complication.base_probability;
   const fires = rng.stream("complications").chance(probability);
   const cause = { actor: "system", source: "complication_check", ruleIds: [complication.id] };
 
   if (!fires) {
-    // A negative check is itself an auditable fact (Core Foundation Spec
+    // A negative check is itself an auditable fact (Core Runtime Spec
     // §41): this complication was rolled for, at this probability, and ruled
     // out - not merely "nothing happened".
     return [

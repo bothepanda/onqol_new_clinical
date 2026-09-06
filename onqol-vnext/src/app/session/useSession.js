@@ -7,39 +7,45 @@ import {
   renderStatusSnapshot,
   renderClarification,
   renderUnsupported,
+  renderOrderValidationFailure,
   renderUnavailableResource,
   renderPreopNotReady,
   renderDischargeNotReady,
+  renderDispositionNotReady,
+  renderHospitalPolicyBlock,
+  renderOptionNotModeled,
+  renderNoPendingWork,
+  renderUnrecognizedFragments,
 } from "../../ai/renderer/renderStatus.js";
 import { exportSession } from "../../core/replay/exportSession.js";
 import { buildDebrief } from "../../core/replay/buildDebrief.js";
 import { withShared } from "../../core/content/loadBundle.js";
+import { seededStartIso } from "./seededStart.js";
 import diseaseBundle from "../../content/generated/appendicitis.json";
 import sharedBundle from "../../content/generated/shared.json";
+import { AI_INTERACTION_V2 } from "../../ai/interaction/featureFlags.js";
+import { createGatewayProviderClient } from "../../ai/providerClient.js";
+import {
+  clearPersistedSession,
+  createPersistedSession,
+  loadPersistedSession,
+  savePersistedSession,
+} from "./sessionPersistence.js";
 
 const bundle = withShared(diseaseBundle, sharedBundle);
 const CASE_PRESET_ID = "APP-004";
+const shadowProvider = createGatewayProviderClient();
 
 function nowIso() {
   return new Date().toISOString();
 }
 
 function randomSeed() {
+  const requested = new URLSearchParams(globalThis.location?.search ?? "").get("seed");
+  if (requested && import.meta.env.DEV && /^[A-Za-z0-9_-]{1,80}$/.test(requested)) return requested;
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-/**
- * Scenario start time is seeded, not a fixed constant (task brief §14):
- * hardcoding every case to 02:15 made time-of-day resource logic untestable
- * in play and made every session feel identical before the first word.
- */
-function seededStartIso(seed) {
-  let hash = 0;
-  for (const char of seed) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
-  const hour = String(hash % 24).padStart(2, "0");
-  const minute = String((hash >> 5) % 60).padStart(2, "0");
-  return `2026-08-23T${hour}:${minute}:00+05:00`;
-}
 
 /**
  * Owns one session's lifecycle for the React tree.
@@ -55,8 +61,12 @@ export function useSession() {
   const [messages, setMessages] = useState([]);
   const [busy, setBusy] = useState(false);
   const [debrief, setDebrief] = useState(null);
+  const [resumeCandidate, setResumeCandidate] = useState(() =>
+    loadPersistedSession(globalThis.localStorage, bundle),
+  );
 
   const startSession = useCallback(({ mode, realProfileId, locale = "ru" }) => {
+    clearPersistedSession(globalThis.localStorage);
     const seed = randomSeed();
     const next = createSession({
       sessionId: `session-${Date.now()}`,
@@ -64,6 +74,8 @@ export function useSession() {
       mode,
       realProfileId,
       casePresetId: CASE_PRESET_ID,
+      sessionPurpose: "internal_development",
+      interactionFlags: { [AI_INTERACTION_V2]: import.meta.env.VITE_AI_INTERACTION_V2 === "true" },
       bundle,
       locale,
       startIso: seededStartIso(seed),
@@ -72,6 +84,20 @@ export function useSession() {
     setDebrief(null);
     const arrival = next.events.find((e) => e.type === "PATIENT_ARRIVED");
     setMessages([toMessage("env", renderEvent({ event: arrival, bundle, patient: next.patient }))]);
+    setResumeCandidate(null);
+  }, []);
+
+  const resumeSession = useCallback(() => {
+    if (!resumeCandidate) return;
+    setSession(resumeCandidate.session);
+    setMessages(resumeCandidate.messages);
+    setDebrief(resumeCandidate.completed ? buildDebrief({ session: resumeCandidate.session, bundle }) : null);
+    setResumeCandidate(null);
+  }, [resumeCandidate]);
+
+  const discardPersistedSession = useCallback(() => {
+    clearPersistedSession(globalThis.localStorage);
+    setResumeCandidate(null);
   }, []);
 
   const submitTurn = useCallback(
@@ -81,7 +107,7 @@ export function useSession() {
       setMessages((prev) => [...prev, { id: `${Date.now()}-learner`, role: "learner", speakerRu: null, textRu: text }]);
 
       const learnerVisibleBefore = buildLearnerVisibleState(session.state);
-      const turn = submitLearnerTurn({ session, text });
+      const turn = submitLearnerTurn({ session, text, shadowProvider });
       const rendered = [];
 
       // Events produced by time passing during a stated wait are narrated in
@@ -93,11 +119,17 @@ export function useSession() {
 
       for (const result of turn.outcomes) {
         if (result.outcome === "STATUS_SNAPSHOT") rendered.push(toMessage("env", renderStatusSnapshot(learnerVisibleBefore)));
-        else if (result.outcome === "CLARIFY") rendered.push(toMessage("env", renderClarification(result.missing)));
+        else if (result.outcome === "CLARIFY")
+          rendered.push(toMessage("env", renderClarification(result.missing, { promptRu: result.clarifyPromptRu, by: result.clarifyBy })));
         else if (result.outcome === "UNSUPPORTED_CONTENT") rendered.push(toMessage("env", renderUnsupported()));
+        else if (result.outcome === "ORDER_VALIDATION_FAILED") rendered.push(toMessage("env", renderOrderValidationFailure(result)));
+        else if (result.outcome === "NO_PENDING_WORK") rendered.push(toMessage("env", renderNoPendingWork()));
         else if (result.outcome === "UNAVAILABLE_RESOURCE") rendered.push(toMessage("env", renderUnavailableResource(result.reasonKey)));
         else if (result.outcome === "PREOP_NOT_READY") rendered.push(toMessage("env", renderPreopNotReady(result.missingItems, bundle)));
         else if (result.outcome === "DISCHARGE_NOT_READY") rendered.push(toMessage("env", renderDischargeNotReady(result.blockers)));
+        else if (result.outcome === "DISPOSITION_NOT_READY") rendered.push(toMessage("env", renderDispositionNotReady(result.blockers)));
+        else if (result.outcome === "HOSPITAL_POLICY_BLOCK") rendered.push(toMessage("env", renderHospitalPolicyBlock(result)));
+        else if (result.outcome === "OPTION_NOT_MODELED") rendered.push(toMessage("env", renderOptionNotModeled(result)));
         else if (result.outcome === "SAFETY_STOP") {
           rendered.push({ id: `${Date.now()}-safety`, role: "mentor", speakerRu: "Наставник", textRu: result.teachingPointRu });
         } else {
@@ -107,22 +139,42 @@ export function useSession() {
         }
       }
 
+      // Time consumed BY an action (interfacility transport) is narrated after
+      // the action itself - the ambulance leaves, then it arrives (Contract §7.1).
+      for (const event of turn.afterEvents ?? []) {
+        rendered.push(toMessage("env", renderEvent({ event, bundle, patient: turn.session.patient })));
+      }
+
+      if (turn.interpreted.unmatchedFragments?.length) {
+        rendered.push(toMessage("env", renderUnrecognizedFragments(turn.interpreted.unmatchedFragments)));
+      }
+
       if (turn.mentor?.textRu) {
         rendered.push({ id: `${Date.now()}-mentor`, role: "mentor", speakerRu: "Наставник", textRu: turn.mentor.textRu });
       }
 
       setSession(turn.session);
-      setMessages((prev) => [...prev, ...rendered.filter(Boolean)]);
+      void turn.shadowTelemetryPromise.then((telemetry) => {
+        if (!telemetry) return;
+        setSession((current) => {
+          if (!current || current.sessionId !== telemetry.sessionId) return current;
+          const alreadyRecorded = (current.aiTelemetry ?? []).some((item) => item.turn === telemetry.turn);
+          return alreadyRecorded ? current : { ...current, aiTelemetry: [...(current.aiTelemetry ?? []), telemetry] };
+        });
+      });
+      const nextMessages = [...messages, { id: `${Date.now()}-learner-persisted`, role: "learner", speakerRu: null, textRu: text }, ...rendered.filter(Boolean)];
+      setMessages(nextMessages);
+      savePersistedSession(globalThis.localStorage, createPersistedSession({ session: turn.session, messages: nextMessages }));
 
       // A case ends when the patient reaches a terminal state, not when the
-      // learner stops typing (Core Foundation Spec §56) - that is when the
+      // learner stops typing (Core Runtime Spec §56) - that is when the
       // debrief becomes available.
       if (turn.session.state.session.status === "complete") {
         setDebrief(buildDebrief({ session: turn.session, bundle }));
       }
       setBusy(false);
     },
-    [session],
+    [messages, session],
   );
 
   const downloadExport = useCallback(() => {
@@ -139,7 +191,10 @@ export function useSession() {
 
   const learnerVisible = useMemo(() => (session ? buildLearnerVisibleState(session.state) : null), [session]);
 
-  return { session, messages, busy, debrief, startSession, submitTurn, downloadExport, learnerVisible, bundle };
+  return {
+    session, messages, busy, debrief, resumeCandidate, startSession, resumeSession,
+    discardPersistedSession, submitTurn, downloadExport, learnerVisible, bundle,
+  };
 }
 
 function toMessage(role, rendered) {

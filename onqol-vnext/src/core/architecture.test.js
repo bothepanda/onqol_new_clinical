@@ -42,7 +42,7 @@ function logicOf(filePath) {
 }
 
 /**
- * The scaling acceptance test (Core Foundation Spec §63/§71, task brief
+ * The scaling acceptance test (Core Runtime Spec §63/§71, task brief
  * P0-6 and §17 regression #29).
  *
  * The core and the AI layer must not know that this particular disease is

@@ -12,13 +12,14 @@ function freshSession() {
     seed: "replay-seed",
     mode: "reference",
     casePresetId: "APP-004",
+    sessionPurpose: "internal_development",
     bundle,
     locale: "ru",
     startIso: "2026-08-23T02:15:00+05:00",
   });
 }
 
-// Core Foundation Spec §67-§68: current state must be reconstructible from
+// Core Runtime Spec §67-§68: current state must be reconstructible from
 // the initial seed plus event history alone.
 test("replaying the full event log from scratch reproduces the live state exactly", () => {
   let session = freshSession();

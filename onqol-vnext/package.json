@@ -13,9 +13,22 @@
     "lint": "eslint .",
     "content:build": "node scripts/buildContentIndex.mjs",
     "content:check": "node scripts/buildContentIndex.mjs --check",
-    "test": "npm run content:build && node --test \"src/**/*.test.js\"",
+    "wave2:corpus": "node scripts/runWave2ShadowCorpus.mjs",
+    "wave21:live": "node scripts/runWave21LiveShadow.mjs",
+    "wave22:development": "node scripts/runWave22LiveEvaluation.mjs --suite development",
+    "wave22:holdout": "node scripts/runWave22LiveEvaluation.mjs --suite holdout",
+    "wave22:safety": "node scripts/runWave22LiveEvaluation.mjs --suite safety",
+    "wave22:live": "node scripts/runWave22LiveEvaluation.mjs --suite all",
+    "wave23:development": "node scripts/runWave23Bakeoff.mjs --suite development",
+    "wave23:freeze": "node scripts/freezeWave23.mjs",
+    "wave23:freeze:check": "node scripts/freezeWave23.mjs --check",
+    "wave23:holdout": "node scripts/runWave23Bakeoff.mjs --suite holdout",
+    "wave23:safety": "node scripts/runWave23Bakeoff.mjs --suite safety",
+    "wave23:bakeoff": "node scripts/runWave23Bakeoff.mjs --suite all",
+    "test": "npm run content:build && node --test \"src/**/*.test.js\" \"scripts/**/*.test.js\"",
+    "test:e2e": "playwright test",
     "pack:safe": "node scripts/packSafe.mjs",
-    "verify": "npm run content:check && npm test && npm run lint && npm run build"
+    "verify": "npm run content:check && npm test && npm run wave2:corpus && npm run lint && npm run build"
   },
   "dependencies": {
     "react": "^19.2.6",
@@ -24,6 +37,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.62.1",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",

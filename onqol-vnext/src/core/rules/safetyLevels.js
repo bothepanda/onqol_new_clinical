@@ -1,5 +1,5 @@
 /**
- * The four-level clinical error model (Foundation Spec §57, Contract §18).
+ * The four-level clinical error model (Core Runtime Spec §57, Contract §18).
  *
  * These labels are an internal execution classification. They are never
  * rendered to the learner - the mentor speaks in plain teaching language, and

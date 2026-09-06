@@ -85,6 +85,42 @@ export function decideMentorResponse({ state, turnResult, mentorSignal }) {
     };
   }
 
+  // Matrix O02 / MR04: the learner opened rather than laparoscoped, in a
+  // hospital that HAS a laparoscopy stack.
+  //
+  // Why this is not driven by a rule: RULE-LAPAROSCOPIC-PREFERRED-WHEN-AVAILABLE
+  // is unapproved and therefore inert, and the mentor may not state an
+  // unapproved clinical claim. But this branch states none. It reports one
+  // HOSPITAL RESOURCE FACT the learner can already see - the stack is available
+  // - and asks them to justify their own choice. Asking "why" is not teaching,
+  // and the question deliberately does not say open surgery is wrong or
+  // impossible (matrix O02: "Allow if learner persists").
+  const startedOpen = (turnResult?.events ?? []).find(
+    (event) => event.type === "PROCEDURE_STARTED" && event.payload.approach === "open",
+  );
+  const laparoscopyAvailable = state.hospital?.capabilities?.laparoscopy?.available === true;
+  if (startedOpen && laparoscopyAvailable && !state.mentor.raisedIssues.includes("open_approach_rationale")) {
+    return {
+      mode: MENTOR_MODE.CLARIFY,
+      textRu: "Почему выбираешь открытый доступ? Лапароскопическая стойка доступна.",
+      openQuestion: { issueId: "open_approach_rationale", expects: ["operative_approach_rationale"], scaffolding: 1 },
+      scaffolding: 1,
+    };
+  }
+
+  // Matrix O12/O13: the learner chose an operative option the simulator will
+  // not perform. The CHALLENGE text comes from content
+  // (`operative.yaml#options[].challenge_ru`), so the mentor asks the clinical
+  // question without the simulator inventing a consequence.
+  if (turnResult?.outcome === "OPTION_NOT_MODELED" && turnResult.challengeRu) {
+    return {
+      mode: MENTOR_MODE.CHALLENGE,
+      textRu: turnResult.challengeRu,
+      openQuestion: { issueId: `operative_option:${turnResult.blockedReason}`, expects: ["operative_rationale"], scaffolding: 1 },
+      scaffolding: 1,
+    };
+  }
+
   // A Level-2 rule fired without blocking execution: the mentor may challenge
   // once (Mentor Spec §5.2/§6.4, Contract §18 Level 2 default).
   const challenge = (turnResult?.firedRules ?? []).find((rule) => rule.level === "LEVEL_2_EDUCATIONAL");
@@ -113,7 +149,7 @@ export function decideMentorResponse({ state, turnResult, mentorSignal }) {
 
 /**
  * Building the envelope the mentor is allowed to reason from - the
- * hidden-truth boundary (Foundation Spec §51-52) made concrete for this
+ * hidden-truth boundary (Core Runtime Spec §51-52) made concrete for this
  * layer specifically, so a future LLM-backed mentor renderer has exactly one
  * object to receive and cannot reach past it for `state.truth`.
  */

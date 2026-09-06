@@ -18,9 +18,11 @@ export function AppHeader({ locale, onLocaleChange, onBrandClick }) {
               key={code}
               type="button"
               aria-pressed={locale === code}
+              disabled={code !== "ru"}
+              title={code === "ru" ? undefined : "Скоро"}
               onClick={() => onLocaleChange(code)}
             >
-              {t(locale, `localeSwitch.${code}`)}
+              {t(locale, `localeSwitch.${code}`)}{code === "ru" ? "" : " · скоро"}
             </button>
           ))}
         </div>

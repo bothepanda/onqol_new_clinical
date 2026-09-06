@@ -12,7 +12,7 @@
  *
  * The domain core (`src/core`) never imports this file or anything
  * provider-specific - it only ever receives already-decided commands and
- * already-rendered text, matching Core Foundation Spec §66.
+ * already-rendered text, matching Core Runtime Spec §66.
  */
 import process from "node:process";
 
@@ -20,6 +20,7 @@ const DEFAULT_TIMEOUT_MS = 20_000;
 
 export function createAiGateway({ env = process.env } = {}) {
   const apiKey = env.OPENAI_API_KEY;
+  const model = env.ONQOL_AI_MODEL ?? "gpt-5-mini";
   const allowedOrigin = env.ONQOL_ALLOWED_ORIGIN ?? null;
   const rateLimiter = createFixedWindowLimiter({ windowMs: 60_000, max: Number(env.ONQOL_RATE_LIMIT_PER_MIN ?? 60) });
 
@@ -49,7 +50,7 @@ export function createAiGateway({ env = process.env } = {}) {
       return;
     }
 
-    handleRequest(req, res, { apiKey, timeoutMs: Number(env.ONQOL_AI_TIMEOUT_MS ?? DEFAULT_TIMEOUT_MS) }).catch((error) => {
+    handleRequest(req, res, { apiKey, model, timeoutMs: Number(env.ONQOL_AI_TIMEOUT_MS ?? DEFAULT_TIMEOUT_MS) }).catch((error) => {
       res.statusCode = 502;
       res.setHeader("Content-Type", "application/json");
       res.end(JSON.stringify({ error: "provider_error", detail: String(error?.message ?? error) }));
@@ -57,7 +58,7 @@ export function createAiGateway({ env = process.env } = {}) {
   };
 }
 
-async function handleRequest(req, res, { apiKey, timeoutMs }) {
+async function handleRequest(req, res, { apiKey, model, timeoutMs }) {
   const body = await readJsonBody(req);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -67,7 +68,7 @@ async function handleRequest(req, res, { apiKey, timeoutMs }) {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: body.model ?? "gpt-5-mini",
+        model,
         messages: body.messages,
         response_format: body.responseFormat,
         store: false,

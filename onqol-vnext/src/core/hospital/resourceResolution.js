@@ -3,7 +3,7 @@ import { withinHours } from "../time/clock.js";
 /**
  * Resolving one requested resource against the active hospital profile.
  *
- * This is where Foundation Spec §50's three-way distinction is enforced in
+ * This is where Core Runtime Spec §50's three-way distinction is enforced in
  * code, because it is the single most important product-safety rule in the
  * hospital layer: a request must resolve to exactly one of
  *
@@ -14,7 +14,7 @@ import { withinHours } from "../time/clock.js";
  *
  * and only "unavailable_resource" may ever be spoken to the learner as a
  * hospital limitation. Collapsing "unsupported_content" into "unavailable" -
- * or the reverse - is exactly the bug Product Behavior Contract §50 and the
+ * or the reverse - is exactly the bug Core Runtime Spec §50 and the
  * vNext task brief call out by name ("never say a medication is unavailable
  * merely because the software failed to recognize it").
  */
@@ -40,7 +40,7 @@ export function resolveResource({ hospital, capabilityKey, clock }) {
 }
 
 /**
- * Recognized-but-unavailable staff/consultant (Foundation Spec §22-§23):
+ * Recognized-but-unavailable staff/consultant (Core Runtime Spec §22-§23):
  * calling is always a valid action; the ETA is a hospital fact, not a
  * mentor-authored number.
  */

@@ -9,6 +9,13 @@ import { constraintForCapability } from "../hospital/dynamicConstraints.js";
 import { buildLearnerVisibleState } from "../state/learnerView.js";
 import { eligibleRules, governanceBlockedEligibleRules } from "../rules/ruleEngine.js";
 import { isRuntimeAuthoritative } from "../rules/governance.js";
+import { reviewStatusOf, authorityLayerOf, jurisdictionOf } from "../rules/contentProvenance.js";
+import { appliesInJurisdiction } from "../hospital/hospitalProfiles.js";
+import { simulatorLimitation } from "../rules/governance.js";
+import { normalizeReasoningDelta, REASONING_SCHEMA_VERSION } from "../reasoning/reasoningState.js";
+import { isInteractionV2Enabled } from "../../ai/interaction/featureFlags.js";
+import { contentConditionsMet } from "../rules/contentConditions.js";
+import { validateMedicationOrder, evaluateProphylaxisAtMinute } from "../rules/medicationOrderValidation.js";
 
 /**
  * Executing one validated command against the current world.
@@ -16,12 +23,12 @@ import { isRuntimeAuthoritative } from "../rules/governance.js";
  * Return shape is always the same:
  *
  *   { outcome: "EXECUTED", events }
- *   { outcome: "CLARIFY", missing }                 -- Foundation Spec §48
+ *   { outcome: "CLARIFY", missing }                 -- Core Runtime Spec §48
  *   { outcome: "STAFF_CLARIFICATION", staffRole, ... } -- Contract §10
  *   { outcome: "SAFETY_STOP", ruleId, teachingPointRu }-- Mentor Spec §6.6
- *   { outcome: "UNSUPPORTED_CONTENT", capabilityKey }  -- Foundation Spec §50
- *   { outcome: "UNAVAILABLE_RESOURCE", reasonKey }      -- Foundation Spec §50
- *   { outcome: "PREOP_NOT_READY", missingItems }        -- Foundation Spec §58
+ *   { outcome: "UNSUPPORTED_CONTENT", capabilityKey }  -- Core Runtime Spec §50
+ *   { outcome: "UNAVAILABLE_RESOURCE", reasonKey }      -- Core Runtime Spec §50
+ *   { outcome: "PREOP_NOT_READY", missingItems }        -- Core Runtime Spec §58
  *
  * Every branch that fires a Level-3/4 rule goes through the rule engine
  * first, evaluated against `buildLearnerVisibleState` - never against
@@ -44,8 +51,9 @@ export function executeCommand({ state, clockRoot, bundle, rng, patient, command
   // ones that stop the command for a non-clinical reason.
   const learnerVisible = buildLearnerVisibleState(state);
   const rules = bundle.rules.rules ?? [];
-  const fired = eligibleRules(rules, { state, learnerVisible, command });
-  const governanceBlocked = governanceBlockedEligibleRules(rules, { state, learnerVisible, command });
+  const ruleContext = { state, learnerVisible, command, bundle };
+  const fired = eligibleRules(rules, ruleContext);
+  const governanceBlocked = governanceBlockedEligibleRules(rules, ruleContext);
   const blocking = fired.find((rule) => rule.level === "LEVEL_4_CATASTROPHIC");
   if (blocking) {
     return { outcome: "SAFETY_STOP", ruleId: blocking.id, teachingPointRu: blocking.teaching_point_ru, command, governanceBlocked };
@@ -56,11 +64,25 @@ export function executeCommand({ state, clockRoot, bundle, rng, patient, command
   // invariant intrinsic to the architecture, independent of any specific
   // clinical content item's review status - which is why it still holds
   // while the consent safety rule itself is governance-blocked.
-  if (command.type === COMMAND.START_PROCEDURE && !state.preop.ready) {
+  if (command.type === COMMAND.START_PROCEDURE) {
+    const prophylaxis = evaluateProphylaxisAtMinute({ policy: bundle.operative?.antibiotic_prophylaxis, state });
     const missingItems = state.preop.required
       .filter((item) => item.blocking && !state.preop.completed.includes(item.id))
       .map((item) => item.id);
-    return { outcome: "PREOP_NOT_READY", missingItems, command, governanceBlocked };
+    if (!prophylaxis.complete && state.preop.required.some((item) => item.id === "antibiotic_prophylaxis")) {
+      if (!missingItems.includes("antibiotic_prophylaxis")) missingItems.push("antibiotic_prophylaxis");
+    }
+    if (!state.preop.ready || missingItems.length > 0) {
+      return { outcome: "PREOP_NOT_READY", missingItems, command, governanceBlocked };
+    }
+  }
+  if (isImpossiblePostoperativeRoute(state, command)) {
+    return {
+      outcome: "DISPOSITION_NOT_READY",
+      blockers: [{ reasonRu: "Послеоперационный маршрут доступен только после завершения операции." }],
+      command,
+      governanceBlocked,
+    };
   }
   // Level 2/3 rules do not block execution by default (Contract §18) - they
   // are surfaced to the mentor layer as candidate teaching moments and still
@@ -91,6 +113,29 @@ const HANDLERS = {
     ],
   }),
 
+  [COMMAND.ASK_PATIENT]: ({ state, clockRoot, bundle, patient, command }) => {
+    const answerRu = patientAnswerFor(command.params.topic, patient, bundle);
+    if (!answerRu) {
+      return { outcome: "UNSUPPORTED_CONTENT", capabilityKey: `patient_question:${command.params.topic}` };
+    }
+    return {
+      outcome: "EXECUTED",
+      events: [
+        createEvent({
+          type: EVENT.PATIENT_QUESTION_ANSWERED,
+          atMinutes: state.clock.elapsedMinutes,
+          atIso: nowIso(clockRoot, state),
+          payload: {
+            topic: command.params.topic,
+            answerRu,
+            findingIds: [`history.${command.params.topic}`],
+          },
+          cause: { actor: "learner", commandId: command.id },
+        }),
+      ],
+    };
+  },
+
   [COMMAND.EXAMINE]: ({ state, clockRoot, command }) => ({
     outcome: "EXECUTED",
     events: [
@@ -106,9 +151,40 @@ const HANDLERS = {
 
   [COMMAND.REQUEST_STATUS]: () => ({ outcome: "EXECUTED", events: [] }), // pure read; renderer handles it
 
+  [COMMAND.WAIT]: ({ command, turnContext }) => ({
+    outcome: command.params.untilNextPending === true && turnContext.waitTargetMinutes == null ? "NO_PENDING_WORK" : "EXECUTED",
+    events: [],
+  }),
+
   [COMMAND.ORDER_TEST]: ({ state, clockRoot, bundle, command, patient }) => {
     const timing = bundle.trajectories.investigation_timing[command.params.testId];
     if (!timing) return { outcome: "UNSUPPORTED_CONTENT", capabilityKey: `test:${command.params.testId}` };
+
+    // Matrix V07 / task §8: an investigation may declare a parameter the order
+    // is incomplete without. "БХАК" is the case that matters - it used to
+    // auto-populate a whole chemistry panel nobody asked for. The requirement
+    // is CONTENT, not a branch on the string "chemistry", so any investigation
+    // can declare one.
+    if (timing.requires_parameter) {
+      const supplied = command.params[timing.requires_parameter];
+      if (!supplied || (Array.isArray(supplied) && supplied.length === 0)) {
+        return {
+          outcome: "CLARIFY",
+          missing: [timing.requires_parameter],
+          clarifyPromptRu: timing.clarify_prompt_ru ?? null,
+          clarifyBy: "laboratory",
+          command,
+        };
+      }
+    }
+
+    // Matrix I12 / task §10: a department policy, never a universal medical
+    // contraindication. Off in every shipped profile; when a site turns it on,
+    // the refusal is spoken by RADIOLOGY as a local workflow fact and is
+    // recorded with `authority_layer: hospital_rule` so the debrief cannot
+    // present it as evidence-based medicine.
+    const contrastBlock = contrastPolicyBlock({ state, testId: command.params.testId });
+    if (contrastBlock) return { ...contrastBlock, command };
 
     const capabilityKey = TEST_CAPABILITY[command.params.testId] ?? "laboratory";
     const resolution = resolveResource({
@@ -130,24 +206,39 @@ const HANDLERS = {
     }
 
     const etaMinutes = timing.etaMinutes + resolution.etaMinutes;
-    const scheduledPending = buildTestSchedule(command, timing, state, patient, etaMinutes, resolution.etaMinutes);
+    const scheduledPending = [
+      ...buildTestSchedule(command, timing, state, patient, bundle, etaMinutes, resolution.etaMinutes),
+      // A preoperative requirement that IS an investigation (the KZ ABO/Rh and
+      // coagulation items) completes when its result lands, not when the
+      // learner says the word. Content declares the link via
+      // `investigation_id`; nothing here knows what a blood group is.
+      ...preopItemsSatisfiedBy(command, bundle, state, etaMinutes),
+    ];
     const orderedEvent = createEvent({
       type: EVENT.TEST_ORDERED,
       atMinutes: state.clock.elapsedMinutes,
       atIso: nowIso(clockRoot, state),
-      payload: { investigationId: command.params.testId, testId: command.params.testId, etaMinutes, scheduledPending },
+      payload: {
+        investigationId: command.params.testId,
+        testId: command.params.testId,
+        analytes: command.params.analytes ?? null,
+        etaMinutes,
+        scheduledPending,
+      },
       cause: { actor: "learner", commandId: command.id },
     });
 
     return { outcome: "EXECUTED", events: [orderedEvent] };
   },
 
-  [COMMAND.ORDER_MEDICATION]: ({ state, clockRoot, bundle, command }) => {
-    // Foundation Spec §50's three-way distinction, for medications: a drugId
+  [COMMAND.ORDER_MEDICATION]: ({ state, clockRoot, bundle, command, rng }) => {
+    // Core Runtime Spec §50's three-way distinction, for medications: a drugId
     // absent from the reviewed formulary is `unsupported_content` - never
     // reported to the learner as a hospital stock-out (Contract §50.2).
     const known = bundle.shared?.medications?.medications?.[command.params.drugId];
     if (!known) return { outcome: "UNSUPPORTED_CONTENT", capabilityKey: `medication:${command.params.drugId}` };
+    const validation = validateMedicationOrder({ medication: known, command, state });
+    if (!validation.ok) return { outcome: "ORDER_VALIDATION_FAILED", ...validation };
 
     const effectPending = scheduleGovernedTreatmentEffect({
       bundle,
@@ -155,6 +246,8 @@ const HANDLERS = {
       command,
       matchKey: "drugId",
       matchValue: command.params.drugId,
+      route: command.params.route,
+      rng,
     });
 
     return {
@@ -178,7 +271,7 @@ const HANDLERS = {
     };
   },
 
-  [COMMAND.ORDER_INFUSION]: ({ state, clockRoot, bundle, command }) => {
+  [COMMAND.ORDER_INFUSION]: ({ state, clockRoot, bundle, command, rng }) => {
     const known = bundle.shared?.medications?.fluids?.[command.params.fluidId];
     if (!known) return { outcome: "UNSUPPORTED_CONTENT", capabilityKey: `fluid:${command.params.fluidId}` };
     const durationMinutes = command.params.durationMinutes ?? 0;
@@ -188,6 +281,8 @@ const HANDLERS = {
       command,
       matchKey: "fluidId",
       matchValue: command.params.fluidId,
+      route: "iv",
+      rng,
     });
     const scheduledPending = [
       ...(durationMinutes
@@ -249,7 +344,16 @@ const HANDLERS = {
         type: EVENT.REASONING_STATED,
         atMinutes: state.clock.elapsedMinutes,
         atIso: nowIso(clockRoot, state),
-        payload: { ...command.params },
+        payload: isInteractionV2Enabled(state.session)
+          ? {
+              schemaVersion: REASONING_SCHEMA_VERSION,
+              delta: normalizeReasoningDelta({
+                ...command.params,
+                text: command.params.text ?? command.sourceText,
+              }),
+              evidenceSpans: command.params.evidenceSpans ?? [command.sourceText].filter(Boolean),
+            }
+          : { ...command.params },
         cause: { actor: "learner", commandId: command.id },
       }),
     ],
@@ -282,7 +386,14 @@ const HANDLERS = {
         type: EVENT.MANAGEMENT_PLAN_COMMITTED,
         atMinutes: state.clock.elapsedMinutes,
         atIso: nowIso(clockRoot, state),
-        payload: { intent: command.params.intent, requiredPreop: bundle.operative.preop_requirements },
+        payload: {
+          intent: command.params.intent,
+          // Matrix §13 / task §14: jurisdictional requirements apply only in a
+          // hospital that declares that jurisdiction. A KZ ABO/Rh requirement
+          // must never appear in a non-KZ hospital's preop list, and must never
+          // be presented as universal medicine when it does appear.
+          requiredPreop: applicablePreopRequirements(bundle, state.hospital),
+        },
         cause: { actor: "learner", commandId: command.id },
       }),
     ],
@@ -306,14 +417,21 @@ const HANDLERS = {
   // not a synthetic "mark preop item done" shortcut. `preop.ready` is derived
   // from these actually having happened (worldState.js#derivePreopReady).
 
+  // Matrix PR01: ordering nil-by-mouth is a real order, and it is NOT the same
+  // thing as having assessed when the patient last ate and drank. The old
+  // handler completed a blocking `npo_status` preop item, which made "нулевой
+  // стол" a magic word that unlocked the operating theatre. Now it prescribes
+  // oral intake status, and the fasting ASSESSMENT is completed only by
+  // actually obtaining the history (ASK_FASTING_HISTORY, or the
+  // anesthesiologist on arrival).
   [COMMAND.SET_NPO]: ({ state, clockRoot, command }) => ({
     outcome: "EXECUTED",
     events: [
       createEvent({
-        type: EVENT.PREOP_ITEM_COMPLETED,
+        type: EVENT.ORAL_INTAKE_PRESCRIBED,
         atMinutes: state.clock.elapsedMinutes,
         atIso: nowIso(clockRoot, state),
-        payload: { itemId: "npo_status" },
+        payload: { level: "nil_by_mouth" },
         cause: { actor: "learner", commandId: command.id },
       }),
     ],
@@ -332,9 +450,34 @@ const HANDLERS = {
     ],
   }),
 
+  // Matrix AB03 / task §16.1: "антибиотикопрофилактика" on its own is an
+  // INTENT, not an order. The nurse asks which drug, what dose and by which
+  // route; the system never fills any of the three in (`REQUIRED_PARAMS` in
+  // commandTypes.js makes the incomplete command CLARIFY before it gets here).
   [COMMAND.GIVE_ANTIBIOTIC_PROPHYLAXIS]: ({ state, clockRoot, bundle, command }) => {
     const known = bundle.shared?.medications?.medications?.[command.params.drugId];
     if (!known) return { outcome: "UNSUPPORTED_CONTENT", capabilityKey: `medication:${command.params.drugId}` };
+    const validation = validateMedicationOrder({ medication: known, command, state });
+    if (!validation.ok) return { outcome: "ORDER_VALIDATION_FAILED", ...validation };
+    const regimen = evaluateProphylaxisAtMinute({
+      policy: bundle.operative?.antibiotic_prophylaxis,
+      state,
+      currentOrder: command,
+    });
+    const completionEvents = regimen.complete ? [
+      createEvent({
+        type: EVENT.PREOP_ITEM_COMPLETED,
+        atMinutes: state.clock.elapsedMinutes,
+        atIso: nowIso(clockRoot, state),
+        payload: {
+          itemId: "antibiotic_prophylaxis",
+          administeredAtMinutes: state.clock.elapsedMinutes,
+          regimenId: regimen.regimenId,
+          timingValidated: true,
+        },
+        cause: { actor: "learner", commandId: command.id, ruleIds: ["ABX-PROPHYLAXIS-APP004-PILOT"] },
+      }),
+    ] : [];
     return {
       outcome: "EXECUTED",
       events: [
@@ -345,13 +488,7 @@ const HANDLERS = {
           payload: { orderId: command.id, purpose: "prophylaxis", ...command.params },
           cause: { actor: "learner", commandId: command.id },
         }),
-        createEvent({
-          type: EVENT.PREOP_ITEM_COMPLETED,
-          atMinutes: state.clock.elapsedMinutes,
-          atIso: nowIso(clockRoot, state),
-          payload: { itemId: "antibiotic_prophylaxis" },
-          cause: { actor: "learner", commandId: command.id },
-        }),
+        ...completionEvents,
       ],
     };
   },
@@ -369,6 +506,10 @@ const HANDLERS = {
     const scheduledPending = [
       { id: `${command.id}::arrival`, kind: "staff_arrival", role: "anesthesiologist", dueAtMinutes },
       { id: `${command.id}::preop_item`, kind: "preop_item_ready", itemId: "anesthesia_review", dueAtMinutes },
+      // Matrix PR02/MR05: if the learner never asked when the patient last ate
+      // or drank, the anesthesiologist obtains it. The information reaches the
+      // case either way; the learner's omission still reaches the debrief.
+      { id: `${command.id}::fasting`, kind: "fasting_discovery", dueAtMinutes },
     ];
     return {
       outcome: "EXECUTED",
@@ -402,12 +543,29 @@ const HANDLERS = {
     return {
       outcome: "EXECUTED",
       events: [
+        // Matrix PR08 / task §14.1: a jurisdictional investigation the learner
+        // never ordered is noticed by staff and obtained through workflow. The
+        // omission is RECORDED (so debrief can name it) but does not create an
+        // "irrational prolonged deadlock" - these items are non-blocking.
+        ...jurisdictionalCatchUpEvents({ state, clockRoot, bundle, command }),
         createEvent({
           type: EVENT.PROCEDURE_STARTED,
           atMinutes: state.clock.elapsedMinutes,
           atIso: nowIso(clockRoot, state),
           payload: { approach: command.params.approach },
           cause: { actor: "learner", commandId: command.id },
+        }),
+        // The patient is physically in theatre once the operation starts.
+        // Tracking it is not decoration: `left_theatre_and_recovery` is one of
+        // the structural discharge criteria, and without this the world
+        // believed an operated patient was still in the emergency department -
+        // so "выписываю" straight off the table met every structural check.
+        createEvent({
+          type: EVENT.PATIENT_MOVED,
+          atMinutes: state.clock.elapsedMinutes,
+          atIso: nowIso(clockRoot, state),
+          payload: { to: "operating_room", monitoringLevel: "intraoperative" },
+          cause: { actor: "system", source: "operative_sequence", commandId: command.id },
         }),
         createEvent({
           type: EVENT.OPERATIVE_FINDING_REVEALED,
@@ -420,7 +578,7 @@ const HANDLERS = {
     };
   },
 
-  // Content-driven (Foundation Spec §63/§71, task brief P0-6): which choice
+  // Content-driven (Core Runtime Spec §63/§71, task brief P0-6): which choice
   // ids count as source control, and which complications get scheduled
   // afterward, come entirely from `operative.yaml` / `complications.yaml`.
   // Nothing here compares against a specific choice string or complication
@@ -429,6 +587,35 @@ const HANDLERS = {
   [COMMAND.OPERATIVE_DECISION]: ({ state, clockRoot, bundle, command }) => {
     const decision = bundle.operative.decisions[command.params.decisionId];
     const option = decision?.options?.find((candidate) => candidate.id === command.params.choice);
+
+    // Matrix O12/O13, task §17.8/§17.9: an option content marks
+    // `executable: false` is RECOGNISED - the learner's intent is understood
+    // and can be challenged in their own terms - but it is not performed,
+    // because performing it would require a consequence model (unnecessary
+    // partial cecectomy) or an untreated-disease trajectory (closing without
+    // appendectomy) that no reviewer has approved. The simulator neither
+    // executes it nor fabricates a complication for it.
+    if (option && option.executable === false) {
+      return {
+        outcome: "OPTION_NOT_MODELED",
+        challengeRu: option.challenge_ru ?? null,
+        blockedReason: option.blocked_reason ?? "needs_reviewed_content",
+        events: [
+          createEvent({
+            type: EVENT.SIMULATOR_LIMITATION_NOTED,
+            atMinutes: state.clock.elapsedMinutes,
+            atIso: nowIso(clockRoot, state),
+            payload: simulatorLimitation({
+              kind: "operative_option",
+              id: option.id,
+              reviewStatus: option.blocked_reason ?? null,
+            }),
+            cause: { actor: "system", source: "governance_gate", commandId: command.id },
+          }),
+        ],
+      };
+    }
+
     const events = [
       createEvent({
         type: EVENT.OPERATIVE_DECISION_MADE,
@@ -448,11 +635,22 @@ const HANDLERS = {
           payload: {},
           cause: { actor: "learner", commandId: command.id },
         }),
+        // Matrix PO17: automatic hospital workflow, triggered by content
+        // (`complications.yaml#postoperative_course.automatic_workflow`), not
+        // by a branch that knows what an appendix is.
+        ...automaticWorkflowEvents({ state, clockRoot, bundle, trigger: "source_control_completed" }),
         createEvent({
           type: EVENT.PROCEDURE_COMPLETED,
           atMinutes: state.clock.elapsedMinutes,
           atIso: nowIso(clockRoot, state),
-          payload: { scheduledPending: complicationChecks },
+          payload: { closureStatementRu: bundle.operative.closure_statement_ru ?? null, scheduledPending: complicationChecks },
+          cause: { actor: "system", source: "operative_sequence" },
+        }),
+        createEvent({
+          type: EVENT.PATIENT_MOVED,
+          atMinutes: state.clock.elapsedMinutes,
+          atIso: nowIso(clockRoot, state),
+          payload: { to: "recovery", monitoringLevel: "recovery" },
           cause: { actor: "system", source: "operative_sequence" },
         }),
       );
@@ -474,34 +672,82 @@ const HANDLERS = {
   }),
 
   // Safe transfer to another facility is a valid terminal state (Core
-  // Foundation Spec §56), tracked distinctly from an in-hospital DISPOSITION
+  // Core Runtime Spec §56), tracked distinctly from an in-hospital DISPOSITION
   // move so the debrief can tell the two apart.
-  [COMMAND.TRANSFER]: ({ state, clockRoot, command }) => ({
-    outcome: "EXECUTED",
-    events: [
+  //
+  // TRANSPORT TAKES TIME (PBC-3, Contract §3.2/§7.1). Every real profile
+  // already authored a `transferEtaMinutes` (150/45/20) and nothing read it,
+  // so the ambulance arrived at the receiving hospital in zero minutes and
+  // the case closed on the same clock tick the learner decided. Contract §3.2
+  // names transfer duration as a defining Real-Hospital fact ("a transfer
+  // takes 60 to 90 minutes") and §7.1 lists transport among the things
+  // clinical time advances for.
+  //
+  // This is OPERATIONAL data, not clinical content (Core Runtime Spec §46): an
+  // ambulance journey time is not a clinical rule and is not governance-gated.
+  // The arrival is scheduled rather than applied here, so the interval drains
+  // pending work like any other passage of time, and the departure is a
+  // separate visible event from the arrival.
+  [COMMAND.TRANSFER]: ({ state, clockRoot, command }) => {
+    const etaMinutes = state.hospital.transferEtaMinutes ?? 0;
+    const scheduledPending = etaMinutes > 0
+      ? [{
+          id: `${command.id}::transfer_arrival`,
+          kind: "transfer_arrival",
+          destination: command.params.destination,
+          dueAtMinutes: state.clock.elapsedMinutes + etaMinutes,
+        }]
+      : [];
+    const events = [
       createEvent({
         type: EVENT.TRANSFER_INITIATED,
         atMinutes: state.clock.elapsedMinutes,
         atIso: nowIso(clockRoot, state),
-        payload: { destination: command.params.destination },
+        payload: { destination: command.params.destination, etaMinutes, scheduledPending },
         cause: { actor: "learner", commandId: command.id },
       }),
-      createEvent({
-        type: EVENT.PATIENT_TRANSFERRED,
-        atMinutes: state.clock.elapsedMinutes,
-        atIso: nowIso(clockRoot, state),
-        payload: { detail: command.params.destination },
-        cause: { actor: "learner", commandId: command.id },
-      }),
-    ],
-  }),
+    ];
+    // No authored transport time (Reference Hospital): arrival is immediate,
+    // which keeps the terminal state reachable rather than inventing a number.
+    if (etaMinutes <= 0) {
+      events.push(
+        createEvent({
+          type: EVENT.PATIENT_TRANSFERRED,
+          atMinutes: state.clock.elapsedMinutes,
+          atIso: nowIso(clockRoot, state),
+          payload: { detail: command.params.destination },
+          cause: { actor: "learner", commandId: command.id },
+        }),
+      );
+    }
+    // `consumesMinutes` is the general "this action takes clinical time"
+    // seam (Contract §7.1: time advances for transport, procedures, observation).
+    // `submitLearnerTurn` advances the clock by it AFTER the command executes,
+    // which drains the journey's pending work and resolves the arrival above.
+    return { outcome: "EXECUTED", events, consumesMinutes: etaMinutes };
+  },
 
-  [COMMAND.DISCHARGE]: ({ state, clockRoot, command }) => {
-    const blockers = evaluateDischargeReadiness(state);
-    if (blockers.length > 0) return { outcome: "DISCHARGE_NOT_READY", blockers, command };
+  [COMMAND.DISCHARGE]: ({ state, clockRoot, bundle, command }) => {
+    const readiness = evaluateDischargeReadiness(state, bundle);
+    if (readiness.blockers.length > 0) {
+      return { outcome: "DISCHARGE_NOT_READY", blockers: readiness.blockers, command };
+    }
     return {
       outcome: "EXECUTED",
       events: [
+        // The withheld clinical-readiness criteria are recorded on the log at
+        // the moment of discharge, so the debrief can say plainly that clinical
+        // discharge readiness was NOT evaluated in this build. Silently
+        // discharging without saying so would be the dishonest version.
+        ...readiness.blockedCriteria.map((limitation) =>
+          createEvent({
+            type: EVENT.SIMULATOR_LIMITATION_NOTED,
+            atMinutes: state.clock.elapsedMinutes,
+            atIso: nowIso(clockRoot, state),
+            payload: limitation,
+            cause: { actor: "system", source: "governance_gate:discharge_criteria" },
+          }),
+        ),
         createEvent({
           type: EVENT.PATIENT_DISCHARGED,
           atMinutes: state.clock.elapsedMinutes,
@@ -509,9 +755,43 @@ const HANDLERS = {
           payload: { detail: command.params.detail ?? null },
           cause: { actor: "learner", commandId: command.id },
         }),
+        // Matrix PO18/PO20: the system issues the reviewed follow-up wording
+        // and red flags. The resident is not made to type discharge boilerplate
+        // in every case, and is not quizzed on reciting return precautions.
+        ...dischargeBundleEvents({ state, clockRoot, bundle }),
       ],
     };
   },
+
+  // Matrix PO05 / task §18.2: early oral intake as tolerated. Recorded so the
+  // debrief shows what was actually ordered; NO physiological consequence is
+  // modeled, because none has been reviewed.
+  [COMMAND.ORDER_ORAL_INTAKE]: ({ state, clockRoot, command }) => ({
+    outcome: "EXECUTED",
+    events: [
+      createEvent({
+        type: EVENT.ORAL_INTAKE_PRESCRIBED,
+        atMinutes: state.clock.elapsedMinutes,
+        atIso: nowIso(clockRoot, state),
+        payload: { level: command.params.level ?? "liquids" },
+        cause: { actor: "learner", commandId: command.id },
+      }),
+    ],
+  }),
+
+  // Matrix PR02: the learner asking when the patient last ate and drank.
+  [COMMAND.ASK_FASTING_HISTORY]: ({ state, clockRoot, command }) => ({
+    outcome: "EXECUTED",
+    events: [
+      createEvent({
+        type: EVENT.FASTING_HISTORY_OBTAINED,
+        atMinutes: state.clock.elapsedMinutes,
+        atIso: nowIso(clockRoot, state),
+        payload: { fasting: state.preop.fasting ?? null, obtainedBy: "learner", findingIds: ["history.fasting"] },
+        cause: { actor: "learner", commandId: command.id },
+      }),
+    ],
+  }),
 
   [COMMAND.END_CASE]: ({ state, clockRoot, command }) => ({
     outcome: "EXECUTED",
@@ -527,15 +807,159 @@ const HANDLERS = {
   }),
 };
 
+/**
+ * Focused answers may only expose facts already present in the generated
+ * patient or wording already authored inside the full history bundle.
+ */
+function patientAnswerFor(topic, patient, bundle) {
+  if (topic === "nausea_vomiting") return patient.presentation.nauseaVomitingRu ?? null;
+  return bundle.findings?.history_bundle_ru?.focused_answers_ru?.[topic] ?? null;
+}
+
 const TEST_CAPABILITY = Object.freeze({
   cbc: "laboratory",
   chemistry: "laboratory",
   crp: "laboratory",
   urinalysis: "laboratory",
   betahcg: "laboratory",
+  coagulation: "laboratory",
+  blood_group_rh: "laboratory",
   ultrasound_abdomen: "ultrasound",
   ct_abdomen: "ct",
 });
+
+/** Investigations that use intravenous contrast, for the radiology policy below. */
+const IV_CONTRAST_TESTS = Object.freeze(["ct_abdomen"]);
+
+/**
+ * The creatinine-before-contrast question (matrix I12, task §10).
+ *
+ * ACR supports RISK-BASED renal-function screening, not universal creatinine
+ * testing, so "no creatinine means contrast CT is medically impossible" is not
+ * a clinical rule and this codebase must never teach it as one. If a site wants
+ * that behaviour it is a DEPARTMENT policy on the hospital profile, spoken by
+ * radiology in operational language, and tagged `hospital_rule` so the debrief
+ * classifies it as jurisdictional workflow rather than medicine.
+ *
+ * Every shipped profile has it OFF (matrix §13: NEEDS SITE POLICY).
+ */
+function contrastPolicyBlock({ state, testId }) {
+  if (!IV_CONTRAST_TESTS.includes(testId)) return null;
+  if (state.hospital.radiologyPolicy?.requiresCurrentCreatinineForContrastCt !== true) return null;
+  const creatinineResulted = state.investigations.chemistry?.status === "resulted" &&
+    (state.investigations.chemistry.result?.analytes ?? []).includes("creatinine");
+  if (creatinineResulted) return null;
+  return {
+    outcome: "HOSPITAL_POLICY_BLOCK",
+    policyId: "radiology.contrast_requires_current_creatinine",
+    authorityLayer: "hospital_rule",
+    speakerRu: "Рентгенолог",
+    textRu: "В этом отделении КТ с в/в контрастированием без актуального креатинина не выполняют.",
+  };
+}
+
+/**
+ * Preop requirements that apply in THIS hospital (matrix §13).
+ *
+ * A requirement with `jurisdiction: null` is universal; one with
+ * `jurisdiction: "KZ"` applies only in a hospital that declares KZ. This is
+ * the mechanism that keeps the KZ ABO/Rh and coagulation standards from being
+ * presented to the learner as international evidence-based practice.
+ */
+function applicablePreopRequirements(bundle, hospital) {
+  return (bundle.operative.preop_requirements ?? []).filter((item) =>
+    appliesInJurisdiction(jurisdictionOf(item), hospital.jurisdiction ?? null),
+  );
+}
+
+/**
+ * Jurisdictional items the learner never ordered, caught up by staff at the
+ * theatre door (matrix PR08).
+ *
+ * Two events per item, and both matter: PREOP_ITEM_OMITTED is what the debrief
+ * reads to say the learner did not order it, and PREOP_ITEM_COMPLETED, caused
+ * by staff rather than the learner, is what stops the case deadlocking on a
+ * form. Neither is a clinical judgement.
+ */
+function jurisdictionalCatchUpEvents({ state, clockRoot, bundle, command }) {
+  const events = [];
+  for (const item of applicablePreopRequirements(bundle, state.hospital)) {
+    if (authorityLayerOf(item) !== "hospital_rule") continue;
+    if (item.blocking) continue;
+    if (state.preop.completed.includes(item.id)) continue;
+    // The learner ORDERED it and it is simply still in the lab. That is not an
+    // omission, and telling them "не была назначена" when they назначили it is
+    // exactly the debrief failure the foundation spec names by example.
+    if (item.investigation_id && state.investigations[item.investigation_id]) continue;
+    events.push(
+      createEvent({
+        type: EVENT.PREOP_ITEM_OMITTED,
+        atMinutes: state.clock.elapsedMinutes,
+        atIso: hospitalIso(clockRoot, state.clock.elapsedMinutes),
+        payload: { itemId: item.id, jurisdiction: jurisdictionOf(item), authorityLayer: "hospital_rule" },
+        cause: { actor: "system", source: "jurisdictional_preop_catch_up", commandId: command.id },
+      }),
+      createEvent({
+        type: EVENT.PREOP_ITEM_COMPLETED,
+        atMinutes: state.clock.elapsedMinutes,
+        atIso: hospitalIso(clockRoot, state.clock.elapsedMinutes),
+        payload: { itemId: item.id, obtainedBy: item.obtained_by_staff_if_omitted ?? "nurse", jurisdiction: jurisdictionOf(item) },
+        cause: { actor: "system", source: "jurisdictional_preop_catch_up", commandId: command.id },
+      }),
+    );
+  }
+  return events;
+}
+
+/**
+ * Preop requirements this investigation order satisfies, scheduled to complete
+ * when the result actually arrives.
+ */
+function preopItemsSatisfiedBy(command, bundle, state, etaMinutes) {
+  return applicablePreopRequirements(bundle, state.hospital)
+    .filter((item) => item.investigation_id === command.params.testId)
+    .map((item) => ({
+      id: `${command.id}::preop::${item.id}`,
+      kind: "preop_item_ready",
+      itemId: item.id,
+      dueAtMinutes: state.clock.elapsedMinutes + etaMinutes,
+    }));
+}
+
+/** Hospital workflow that simply happens, declared by content (matrix PO17). */
+function automaticWorkflowEvents({ state, clockRoot, bundle, trigger }) {
+  const workflow = bundle.complications?.postoperative_course?.automatic_workflow ?? [];
+  return workflow
+    .filter((entry) => entry.trigger === trigger)
+    .map((entry) =>
+      createEvent({
+        type: EVENT.SPECIMEN_SENT_TO_PATHOLOGY,
+        atMinutes: state.clock.elapsedMinutes,
+        atIso: hospitalIso(clockRoot, state.clock.elapsedMinutes),
+        payload: { workflowId: entry.id, labelRu: entry.label_ru },
+        cause: { actor: "system", source: "hospital_workflow" },
+      }),
+    );
+}
+
+/** The reviewed discharge bundle (matrix PO18, PO20). */
+function dischargeBundleEvents({ state, clockRoot, bundle }) {
+  const dischargeBundle = bundle.complications?.discharge_bundle;
+  if (!dischargeBundle) return [];
+  return [
+    createEvent({
+      type: EVENT.DISCHARGE_INSTRUCTIONS_ISSUED,
+      atMinutes: state.clock.elapsedMinutes,
+      atIso: hospitalIso(clockRoot, state.clock.elapsedMinutes),
+      payload: {
+        followUpRu: dischargeBundle.follow_up_ru,
+        histopathologyRu: dischargeBundle.histopathology_ru,
+        returnPrecautionsRu: dischargeBundle.return_precautions_ru ?? [],
+      },
+      cause: { actor: "system", source: "discharge_bundle" },
+    }),
+  ];
+}
 
 /**
  * Resolving what a test will show, from patient truth, at the moment it is
@@ -550,10 +974,13 @@ const TEST_CAPABILITY = Object.freeze({
  * has one truth, and an investigation reports what was true when the sample
  * was taken or the image was acquired.
  */
-function buildTestSchedule(command, timing, state, patient, etaMinutes, resourceEtaMinutes) {
+function buildTestSchedule(command, timing, state, patient, bundle, etaMinutes, resourceEtaMinutes) {
   const testId = command.params.testId;
   const isImaging = testId === "ultrasound_abdomen" || testId === "ct_abdomen";
-  const result = isImaging ? imagingResultFor(testId, patient) : labResultFor(testId, state.physiology);
+  const result = isImaging
+    ? imagingResultFor(testId, patient)
+    : labResultFor(testId, state.physiology, patient, bundle, command.params);
+  const preliminary = isImaging ? imagingPreliminaryFor(testId, patient) ?? result : result;
   const orderedAt = state.clock.elapsedMinutes;
 
   const items = [];
@@ -565,7 +992,7 @@ function buildTestSchedule(command, timing, state, patient, etaMinutes, resource
       investigationId: testId,
       testId,
       dueAtMinutes: orderedAt + timing.preliminaryAtMinutes + resourceEtaMinutes,
-      preliminaryText: result,
+      preliminaryText: preliminary,
     });
   }
   items.push({
@@ -580,26 +1007,89 @@ function buildTestSchedule(command, timing, state, patient, etaMinutes, resource
   return items;
 }
 
+/**
+ * Imaging results, assembled from reviewed content only.
+ *
+ * ULTRASOUND (matrix I02/I03). The retrocecal appendix is more likely to be
+ * nondiagnostic, and the authored wording says exactly that: "не визуализирован
+ * ... исследование неинформативно". It is NOT rendered as a negative study, and
+ * `ultrasound_visualized_enabled` is false because the share of visualised
+ * retrocecal appendices is unreviewed.
+ *
+ * CT (matrix I04, I05, I07, I08, I09). A FULL abdomen/pelvis report assembled
+ * from the authored sections plus the seeded free-fluid variant plus the
+ * authored conclusion. No appendix DIAMETER appears anywhere: the numeric range
+ * is NEEDS SOURCE, and §20 forbids the renderer inventing one. No appendicolith
+ * and no incidental findings exist in the content, so none can be printed.
+ */
 function imagingResultFor(testId, patient) {
   if (testId === "ultrasound_abdomen") {
-    return patient.imaging.ultrasound_ru ?? patient.imaging.ultrasound_variants_ru?.[0] ?? null;
+    return patient.imaging.ultrasound_ru ?? null;
   }
-  if (testId === "ct_abdomen") return patient.imaging.ct_ru ?? null;
+  if (testId === "ct_abdomen") return buildCtReport(patient);
   return null;
 }
 
-function labResultFor(testId, physiology) {
+function imagingPreliminaryFor(testId, patient) {
+  if (testId === "ct_abdomen") return patient.imaging?.ct_report_ru?.preliminary_ru ?? null;
+  return null;
+}
+
+function buildCtReport(patient) {
+  const report = patient.imaging?.ct_report_ru;
+  // Migrated V3.5 phenotypes carry a single authored CT sentence rather than
+  // APP-004's newer sectioned report. Returning that sentence verbatim keeps
+  // the old reviewed-internal wording without inventing missing sections.
+  if (!report) return patient.imaging?.ct_ru ?? null;
+  const sections = (report.sections ?? []).map((section) => section.text_ru);
+  const freeFluid = patient.imaging.ctFreeFluid?.text_ru;
+  return {
+    kind: "structured_report",
+    modalityRu: report.modality_ru,
+    sectionsRu: [...sections, ...(freeFluid ? [freeFluid] : [])],
+    conclusionRu: report.conclusion_ru,
+  };
+}
+
+/**
+ * Laboratory results.
+ *
+ * BIOCHEMISTRY (matrix V07, task §8): only the analytes the learner NAMED are
+ * reported, from the content's own per-analyte wording. Nothing is added that
+ * was not requested, and no numeric value is asserted - the reviewed content is
+ * qualitative because no reference range or value for this patient has been
+ * reviewed.
+ *
+ * URINALYSIS (matrix V06): the seeded variant, which may carry a small
+ * nonspecific finding and is never presented as evidence of UTI/stone.
+ *
+ * COAGULATION / ABO-Rh: KZ jurisdictional investigations. The ABO/Rh RESULT is
+ * deliberately not a fabricated blood group - the case does not model
+ * transfusion, and inventing "A(II) Rh+" would be exactly the invented clinical
+ * fact §20 prohibits.
+ */
+function labResultFor(testId, physiology, patient, bundle, params) {
   switch (testId) {
     case "cbc":
       return { wbc: physiology.wbc, neutrophilPercent: physiology.neutrophilPercent };
-    case "chemistry":
-      return { note: "без значимых отклонений" };
+    case "chemistry": {
+      const catalogue = bundle?.trajectories?.chemistry_analytes ?? {};
+      const requested = params.analytes ?? [];
+      return {
+        analytes: requested,
+        linesRu: requested.map((id) => catalogue[id]?.result_ru ?? `${id}: результат не смоделирован`),
+      };
+    }
     case "crp":
       return { crp: physiology.crp };
     case "urinalysis":
-      return { note: "без значимых отклонений" };
+      return { note: patient?.laboratory?.urinalysisRu ?? "Общий анализ мочи без значимых отклонений." };
     case "betahcg":
       return { note: "отрицательный" };
+    case "coagulation":
+      return { note: "показатели коагулограммы в пределах референсных значений" };
+    case "blood_group_rh":
+      return { note: "группа крови и резус-фактор определены и внесены в карту" };
     default:
       return null;
   }
@@ -638,39 +1128,66 @@ function buildConstraintDisclosure({ state, clockRoot, capabilityKey, reasonKey,
 }
 
 /**
- * Governed treatment-effect scheduling (task brief P0-3).
+ * Governed treatment-effect scheduling.
  *
- * Reads `bundle.trajectories.treatment_effects` generically - no drug or
- * fluid id is special-cased here beyond what the content's `applies_to` /
- * `applies_to_fluid` arrays declare. An effect only schedules a pending item
- * when it is `approved_for_training` (`isRuntimeAuthoritative`); otherwise
- * this returns an empty array and the order still executes (the medication
- * IS given), it just has no modeled physiological consequence yet - an
- * honest simulator limitation, not a fabricated one (task §21).
+ * THREE things must now be true before an effect touches patient truth, where
+ * the previous version required only the first two:
+ *
+ *   1. content declares an effect for this drug/fluid;
+ *   2. that effect is `approved_for_training`;
+ *   3. the effect matches the ROUTE actually ordered, and carries a reviewed
+ *      `response_envelope`.
+ *
+ * (3) is the 2026-08-25 remediation (matrix M04/M05, task §12.1). The old
+ * `analgesia_iv_nsaid -> pain -3` applied one magnitude to ketorolac and
+ * ketoprofen by any route. Now every (drug, route) pair is its own content
+ * object, and all of them ship with `response_envelope: null` - so the
+ * medication is genuinely GIVEN and recorded, and nothing pretends to know
+ * what happens next.
  */
-function scheduleGovernedTreatmentEffect({ bundle, state, command, matchKey, matchValue }) {
+function scheduleGovernedTreatmentEffect({ bundle, state, command, matchKey, matchValue, route, rng }) {
   const effects = bundle.trajectories?.treatment_effects ?? {};
   const entry = Object.entries(effects).find(([, effect]) => {
+    const routeMatches = !effect.applies_to_routes || (route != null && effect.applies_to_routes.includes(route));
+    if (!routeMatches) return false;
     if (matchKey === "drugId") return effect.applies_to?.includes(matchValue);
     if (matchKey === "fluidId") return effect.applies_to_fluid?.includes(matchValue);
     return false;
   });
   if (!entry) return [];
   const [effectId, effect] = entry;
-  if (!isRuntimeAuthoritative(effect.review_status)) return [];
+  if (!isRuntimeAuthoritative(reviewStatusOf(effect))) return [];
 
-  const onsetMinutes = effect.onset_minutes ?? 0;
+  const envelope = effect.response_envelope;
+  if (envelope == null) return [];
+
+  // Matrix M09: a fluid effect is conditional on an actual volume state, which
+  // base APP-004 does not have and this pass does not model.
+  if (effect.requires_patient_state && state.truth?.[effect.requires_patient_state] !== true) return [];
+
+  const onsetMinutes = envelope.onset_minutes ?? 0;
+  const sample = (value, name) => {
+    if (Number.isFinite(value)) return value;
+    if (Array.isArray(value) && value.length === 2 && value.every(Number.isFinite)) {
+      return rng.stream(`treatment_effect:${effectId}:${command.id}:${name}`).range(value[0], value[1], 1);
+    }
+    return undefined;
+  };
   return [
     {
       id: `${command.id}::effect::${effectId}`,
       kind: "treatment_effect",
       effectId,
       deltas: {
-        heartRate: effect.heart_rate_delta,
-        systolicBp: effect.systolic_bp_delta,
-        temperatureC: effect.temperature_c_delta,
+        heartRate: sample(envelope.heart_rate_delta ?? envelope.heart_rate_delta_range, "heartRate"),
+        systolicBp: sample(envelope.systolic_bp_delta ?? envelope.systolic_bp_delta_range, "systolicBp"),
+        temperatureC: sample(envelope.temperature_c_delta ?? envelope.temperature_c_delta_range, "temperatureC"),
       },
-      symptomDeltas: { painScore: effect.pain_score_delta },
+      symptomDeltas: { painScore: sample(envelope.pain_score_delta ?? envelope.pain_score_delta_range, "painScore") },
+      commandId: command.id,
+      ruleId: effect.provenance?.id ?? effectId,
+      sourceIds: effect.source_ids ?? [],
+      durationMinutes: envelope.duration_minutes ?? null,
       dueAtMinutes: state.clock.elapsedMinutes + onsetMinutes,
     },
   ];
@@ -698,19 +1215,90 @@ function scheduleGovernedComplicationChecks({ bundle, state, command }) {
 }
 
 /**
- * Structural discharge gate (task brief P1-2): observable state facts, not
- * an unapproved clinical scoring rule. `discharge_criteria` content
- * (`complications.yaml`) is `pending` review, so this does not cite it as
- * authoritative teaching - it only checks facts already tracked as world
- * state (fever, an active unresolved complication) that the architecture
- * needs regardless of any specific clinical content's review status.
+ * Discharge readiness (matrix PO12-PO16, PO21; task §19).
+ *
+ * Two layers, kept strictly apart, because collapsing them is what produced
+ * the finding the clinical review flagged - a patient discharged 12 h after
+ * admission with pain 7.6/10 because only structural flags were checked.
+ *
+ * STRUCTURAL (`authority_layer: workflow`). Facts the architecture owns and
+ * can evaluate without making any clinical claim: has the operation finished,
+ * is there an unresolved complication, has the patient left theatre and
+ * recovery. These carry `review_status: not_a_clinical_rule` and are selected
+ * by their authority layer, NOT by being promoted.
+ *
+ * CLINICAL (`authority_layer: clinical_rule`). Functional readiness -
+ * haemodynamics, pain controlled on an oral regimen, tolerating intake, no
+ * persistent vomiting, mobile. These are PROPOSALS pending review, so they are
+ * skipped here and returned as `blockedCriteria` for the caller to record as
+ * simulator limitations.
+ *
+ * The consequence is stated plainly rather than papered over: in this build
+ * clinical discharge readiness is NOT evaluated, and that is reported as a
+ * release blocker. The alternative - inventing a pain threshold or a "24 h
+ * afebrile" rule to make the gate feel real - is exactly what the review
+ * removed (matrix PO11, PO12, PO13).
+ *
+ * WHAT IS NOT CHECKED, BY EXPLICIT DECISION: flatus or stool (PO16), a minimum
+ * 24-hour stay (PO13), a next-day CBC (PO10), or an arbitrary pain <= 3 (PO12).
  */
-function evaluateDischargeReadiness(state) {
+function evaluateDischargeReadiness(state, bundle) {
+  const criteria = bundle?.complications?.discharge_criteria ?? [];
   const blockers = [];
-  if (state.physiology.temperatureC >= 38.0) blockers.push("fever");
-  const hasActiveComplication = state.session.status !== "complete" && (state.postop?.activeComplications?.length ?? 0) > 0;
-  if (hasActiveComplication) blockers.push("active_complication");
-  return blockers;
+  const blockedCriteria = [];
+
+  for (const criterion of criteria) {
+    if (authorityLayerOf(criterion) === "workflow") {
+      if (!STRUCTURAL_DISCHARGE_CHECKS[criterion.id]) continue;
+      if (!STRUCTURAL_DISCHARGE_CHECKS[criterion.id](state)) {
+        blockers.push({ id: criterion.id, reasonRu: criterion.learner_reason_ru ?? criterion.label_ru });
+      }
+      continue;
+    }
+    // Clinical readiness: governed, and currently never authoritative.
+    if (!isRuntimeAuthoritative(reviewStatusOf(criterion))) {
+      blockedCriteria.push(
+        simulatorLimitation({ kind: "discharge_criterion", id: criterion.id, reviewStatus: reviewStatusOf(criterion) ?? null }),
+      );
+      continue;
+    }
+    if (criterion.runtime_evaluation === "unavailable_without_recovery_calibration") {
+      blockedCriteria.push(
+        simulatorLimitation({ kind: "discharge_runtime_fact", id: criterion.id, reviewStatus: "approved_rule_unmeasured_patient_fact" }),
+      );
+      continue;
+    }
+    if (criterion.runtime_evaluation === "conditional_only") continue;
+    if (!contentConditionsMet(criterion.conditions, state) && criterion.blocking !== false) {
+      blockers.push({ id: criterion.id, reasonRu: criterion.learner_reason_ru ?? criterion.label_ru });
+    }
+  }
+
+  return { blockers, blockedCriteria };
+}
+
+/**
+ * Structural checks. Every one of these is a workflow fact with no threshold
+ * and no clinical claim in it - which is why they can run while all clinical
+ * criteria are governance-blocked.
+ */
+const STRUCTURAL_DISCHARGE_CHECKS = Object.freeze({
+  operation_completed: (state) =>
+    state.managementPlan.intent !== "operative" || state.operative.completed === true,
+  no_active_unresolved_complication: (state) =>
+    (state.postop?.activeComplications?.length ?? 0) === 0,
+  left_theatre_and_recovery: (state) =>
+    !["operating_room", "recovery"].includes(state.location),
+});
+
+function isImpossiblePostoperativeRoute(state, command) {
+  if (state.managementPlan.intent !== "operative" || state.operative.completed) return false;
+  const destination = command.type === COMMAND.DISPOSITION
+    ? command.params.destination
+    : command.type === COMMAND.MOVE_PATIENT
+      ? command.params.to
+      : null;
+  return ["recovery", "surgical_ward"].includes(destination);
 }
 
 export { advanceTime, schedulePending };

@@ -1,4 +1,12 @@
 import { EVENT, DISCLOSING_EVENTS, TERMINAL_EVENTS } from "../events/eventTypes.js";
+import { activePainScore, toPostSourceControlPain } from "./painState.js";
+import {
+  createEmptyReasoningState,
+  createLegacyReasoningState,
+  mergeLegacyReasoningState,
+  mergeReasoningState,
+} from "../reasoning/reasoningState.js";
+import { isInteractionV2Enabled } from "../../ai/interaction/featureFlags.js";
 
 /**
  * The world, as independent dimensions.
@@ -26,10 +34,20 @@ export function createInitialState({ session, patient, hospital, clock }) {
       seed: session.seed,
       mode: session.mode, // "reference" | "real"
       locale: session.locale,
+      jurisdictionContext: session.jurisdictionContext ?? null,
+      purpose: session.purpose,
+      interactionFlags: { ...(session.interactionFlags ?? {}) },
+      presetRuntimeStatus: session.presetRuntimeStatus ?? null,
+      productionReleaseAllowed: session.productionReleaseAllowed === true,
       presentationCategory: session.presentationCategory,
       contentVersions: session.contentVersions,
       status: "active", // active | complete | incomplete
       endpoint: null,
+      // Review matrix §G1 / task §3: a build generating non-approved patient
+      // truth may run for internal development, but it must SAY SO. This flag
+      // rides on session state, is exported, and is repeated in the debrief,
+      // so no downstream surface can present such a build as pilot-ready.
+      patientTruthApproved: session.patientTruthApproved ?? false,
     },
 
     clock: { elapsedMinutes: 0, startIso: clock.startIso, offset: clock.offset },
@@ -63,12 +81,9 @@ export function createInitialState({ session, patient, hospital, clock }) {
     observations: { vitals: [], examinations: [], history: [] },
 
     // ---- What the learner has decided ---------------------------------
-    reasoning: {
-      stabilityStated: false,
-      workingDiagnosis: null,
-      differential: [],
-      statements: [],
-    },
+    reasoning: isInteractionV2Enabled(session)
+      ? createEmptyReasoningState()
+      : createLegacyReasoningState(),
     managementPlan: { intent: null, committedAt: null }, // "operative" | "nonoperative" | "observation"
 
     preop: {
@@ -77,6 +92,13 @@ export function createInitialState({ session, patient, hospital, clock }) {
       omitted: [],
       consent: "not_obtained", // not_obtained | obtained | refused
       ready: false,
+      // Matrix PR02 / task §13.2: the fasting history is real patient data the
+      // learner may ask for and the anesthesiologist obtains if they did not.
+      // It is NOT a hard stop (matrix PR01) - `fasting_assessment` is a
+      // non-blocking preop item.
+      fasting: patient.presentation?.fastingHistory
+        ? { ...patient.presentation.fastingHistory }
+        : null,
     },
 
     operative: {
@@ -89,7 +111,17 @@ export function createInitialState({ session, patient, hospital, clock }) {
       completed: false,
     },
 
-    postop: { disposition: null, day: 0, activeComplications: [] },
+    postop: {
+      disposition: null,
+      day: 0,
+      activeComplications: [],
+      recovery: { stateId: null, enteredAtMinutes: null, facts: {} },
+      // Matrix PO05 / PO17: ordinary ward workflow the resident is not quizzed
+      // on. Tracked so the debrief can show what actually happened.
+      oralIntake: null, // null | "liquids" | "diet_as_tolerated" | "nil_by_mouth"
+      histopathologySent: false,
+      dischargeBundleIssued: false,
+    },
 
     // Content that would have acted but was withheld by the runtime
     // governance gate (`core/rules/governance.js`). Kept as world state so
@@ -108,6 +140,15 @@ export function createInitialState({ session, patient, hospital, clock }) {
       // exposes, so a broken scanner is not announced before it is met.
       constraints: [],
       dynamicConstraints: [...(hospital.dynamicConstraints ?? [])],
+      // Which jurisdiction's workflow rules this hospital runs under, and its
+      // department policies. Both are HOSPITAL facts, not clinical ones: they
+      // decide which jurisdictional preoperative requirements apply and
+      // whether radiology enforces a local pre-contrast policy (matrix §13).
+      jurisdiction: hospital.jurisdiction ?? null,
+      radiologyPolicy: { ...(hospital.radiologyPolicy ?? {}) },
+      // Transport time to a receiving facility (Contract §3.2 "a transfer
+      // takes 60 to 90 minutes"). Authored per profile; null in Reference.
+      transferEtaMinutes: hospital.transferEtaMinutes ?? null,
       staff: { ...hospital.staff },
     },
 
@@ -116,6 +157,12 @@ export function createInitialState({ session, patient, hospital, clock }) {
     // that will finish, a consultant who will arrive, a disease step that will
     // happen. Ordered by dueAt when drained.
     pending: [],
+
+    // The order a hospital character is currently waiting on an answer for
+    // (Contract §8.2/§10). Set by CLARIFICATION_REQUESTED, discharged by the
+    // next learner turn - the same lifetime as `mentor.openQuestion`, and for
+    // the same reason: a question must not outlive the turn that answered it.
+    clarification: null, // { commandType, params, missing, askedTurn }
 
     // ---- Teaching bookkeeping (never clinical truth) ---------------------
     mentor: {
@@ -152,7 +199,7 @@ export function applyEvent(state, event) {
         // when (task brief §14's PAIN row in the sidebar reads this).
         vitals: [
           ...next.observations.vitals,
-          { atMinutes: event.atMinutes, values: { ...state.physiology, painScore: state.symptoms.painScore } },
+          { atMinutes: event.atMinutes, values: vitalsSnapshot(state) },
         ],
       };
       break;
@@ -165,22 +212,70 @@ export function applyEvent(state, event) {
       // fresh one - but a question must never outlive the turn that answered
       // it, or every later turn gets read as a reply to an old question.
       next.mentor = { ...state.mentor, openQuestion: null };
+      // Same discharge rule for a staff clarification: this turn is the reply
+      // to it, so it must not still be open on the turn after this one.
+      next.clarification = null;
       break;
 
+    // TIME_ADVANCED CARRIES NO PATIENT TRUTH, ON PURPOSE.
+    //
+    // It used to apply `payload.physiology` and `payload.symptoms`, which was
+    // an ungoverned write path into patient truth: nothing produced such a
+    // payload, but any future producer would have bypassed the governance gate
+    // entirely just by attaching values to a clock tick. The clock advancing is
+    // not a clinical event. Physiology changes through DISEASE_PROGRESSED
+    // (gated on the trajectory) or TREATMENT_EFFECT_APPLIED (gated on the
+    // effect), and through nothing else - see the causal-trace regression test.
     case EVENT.TIME_ADVANCED:
+      break;
+
+    // The reducer previously ignored `payload.symptoms` here while
+    // `advanceTime` was emitting it, so a DISEASE_PROGRESSED event recorded a
+    // pain value that never reached state - the log and the world disagreed,
+    // and an approved trajectory still could not have moved pain. Both halves
+    // are now consistent.
+    case EVENT.DISEASE_PROGRESSED:
+      next.truth = {
+        ...state.truth,
+        stage: event.payload.stage ?? state.truth.stage,
+        ...(event.payload.truth ?? {}),
+        naturalCourseStateId: event.payload.transition?.to ?? state.truth.naturalCourseStateId,
+        naturalCourseStateEnteredAtMinutes: event.payload.transition?.enteredAtMinutes ?? state.truth.naturalCourseStateEnteredAtMinutes,
+      };
       if (event.payload.physiology) next.physiology = { ...state.physiology, ...event.payload.physiology };
       if (event.payload.symptoms) next.symptoms = { ...state.symptoms, ...event.payload.symptoms };
       break;
 
-    case EVENT.DISEASE_PROGRESSED:
-      next.truth = { ...state.truth, stage: event.payload.stage ?? state.truth.stage };
+    case EVENT.POSTOPERATIVE_RECOVERY_UPDATED:
       if (event.payload.physiology) next.physiology = { ...state.physiology, ...event.payload.physiology };
+      if (event.payload.symptoms) next.symptoms = { ...state.symptoms, ...event.payload.symptoms };
+      if (event.payload.truth) next.truth = { ...state.truth, ...event.payload.truth };
+      next.postop = {
+        ...state.postop,
+        ...(event.payload.postop ?? {}),
+        recovery: {
+          ...state.postop.recovery,
+          ...(event.payload.postop?.recovery ?? {}),
+          stateId: event.payload.transition?.to ?? state.postop.recovery.stateId,
+          enteredAtMinutes: event.payload.transition?.enteredAtMinutes ?? state.postop.recovery.enteredAtMinutes,
+        },
+      };
       break;
 
     case EVENT.HISTORY_OBTAINED:
       next.observations = {
         ...next.observations,
         history: [...next.observations.history, { atMinutes: event.atMinutes, bundle: event.payload.bundleId }],
+      };
+      break;
+
+    case EVENT.PATIENT_QUESTION_ANSWERED:
+      next.observations = {
+        ...next.observations,
+        history: [
+          ...next.observations.history,
+          { atMinutes: event.atMinutes, topic: event.payload.topic, findingIds: event.payload.findingIds ?? [] },
+        ],
       };
       break;
 
@@ -204,7 +299,7 @@ export function applyEvent(state, event) {
         // when (task brief §14's PAIN row in the sidebar reads this).
         vitals: [
           ...next.observations.vitals,
-          { atMinutes: event.atMinutes, values: { ...state.physiology, painScore: state.symptoms.painScore } },
+          { atMinutes: event.atMinutes, values: vitalsSnapshot(state) },
         ],
       };
       break;
@@ -299,15 +394,9 @@ export function applyEvent(state, event) {
       break;
 
     case EVENT.REASONING_STATED:
-      next.reasoning = {
-        ...state.reasoning,
-        stabilityStated: state.reasoning.stabilityStated || Boolean(event.payload.stability),
-        workingDiagnosis: event.payload.workingDiagnosis ?? state.reasoning.workingDiagnosis,
-        differential: event.payload.differential?.length
-          ? unique([...state.reasoning.differential, ...event.payload.differential])
-          : state.reasoning.differential,
-        statements: [...state.reasoning.statements, { atTurn: state.turn, text: event.payload.text }],
-      };
+      next.reasoning = isInteractionV2Enabled(state.session)
+        ? mergeReasoningState(state.reasoning, event.payload, state.turn)
+        : mergeLegacyReasoningState(state.reasoning, event.payload, state.turn);
       break;
 
     case EVENT.MANAGEMENT_PLAN_COMMITTED:
@@ -333,8 +422,34 @@ export function applyEvent(state, event) {
       break;
     }
 
+    // Matrix PR02: fasting history is DATA, not a gate. Recording it also
+    // completes the (non-blocking) `fasting_assessment` preop item, whoever
+    // obtained it - the learner by asking, or the anesthesiologist on arrival.
+    case EVENT.FASTING_HISTORY_OBTAINED: {
+      const completed = unique([...state.preop.completed, "fasting_assessment"]);
+      next.preop = {
+        ...state.preop,
+        fasting: { ...(state.preop.fasting ?? {}), ...(event.payload.fasting ?? {}), obtained: true, obtainedBy: event.payload.obtainedBy ?? "learner" },
+        completed,
+        ready: derivePreopReady(state, completed),
+      };
+      break;
+    }
+
     case EVENT.CONSENT_REFUSED:
       next.preop = { ...state.preop, consent: "refused", ready: false };
+      break;
+
+    case EVENT.ORAL_INTAKE_PRESCRIBED:
+      next.postop = { ...state.postop, oralIntake: event.payload.level };
+      break;
+
+    case EVENT.SPECIMEN_SENT_TO_PATHOLOGY:
+      next.postop = { ...state.postop, histopathologySent: true };
+      break;
+
+    case EVENT.DISCHARGE_INSTRUCTIONS_ISSUED:
+      next.postop = { ...state.postop, dischargeBundleIssued: true };
       break;
 
     case EVENT.PATIENT_MOVED:
@@ -366,13 +481,36 @@ export function applyEvent(state, event) {
       };
       break;
 
+    // Matrix PO01 / task §18.1: pain before and after source control are
+    // different states, not one variable. The TRANSITION is structural and
+    // happens here; the post-source-control pain VALUE is content
+    // (`trajectories.yaml#post_source_control_course`), that content is null
+    // pending review, and nothing invents a recovery curve to fill it.
+    //
+    // Second Clinical Reviewer Decision, 2026-09-01 (Sarina T.T.): source
+    // control can precede completion of the operation, anaesthetic
+    // maintenance and surgical closure, so it is NOT the postoperative
+    // recovery clock anchor. That anchor lives on PROCEDURE_COMPLETED below.
     case EVENT.SOURCE_CONTROL_COMPLETED:
       next.operative = { ...state.operative, sourceControl: true };
-      next.truth = { ...state.truth, sourceControlled: true };
+      next.truth = { ...state.truth, sourceControlled: true, stage: "post_source_control" };
+      next.symptoms = toPostSourceControlPain(state.symptoms);
       break;
 
+    // The operation-complete event: closure is recorded (payload carries the
+    // closure statement) and the patient is moved toward recovery. Second
+    // Clinical Reviewer Decision, 2026-09-01 (Sarina T.T., REVISE on
+    // TRJ-POSTOP-RECOVERY): this, not SOURCE_CONTROL_COMPLETED, is where the
+    // postoperative recovery clock (`postop.recovery.enteredAtMinutes`)
+    // starts. `stateId` is deliberately left for the model's own
+    // `initial_state_id` to supply (see `evaluateBoundedStateTransition`)
+    // rather than being hardcoded here.
     case EVENT.PROCEDURE_COMPLETED:
       next.operative = { ...state.operative, completed: true, pendingDecision: null };
+      next.postop = {
+        ...state.postop,
+        recovery: { ...state.postop.recovery, enteredAtMinutes: event.atMinutes },
+      };
       break;
 
     case EVENT.RESOURCE_CONSTRAINT_REVEALED:
@@ -416,6 +554,7 @@ export function applyEvent(state, event) {
     case EVENT.DETERIORATION_DETECTED:
       if (event.payload.physiology) next.physiology = { ...state.physiology, ...event.payload.physiology };
       if (event.payload.truth) next.truth = { ...state.truth, ...event.payload.truth };
+      next.mentor = { ...state.mentor, openQuestion: null };
       break;
 
     case EVENT.COMPLICATION_OCCURRED:
@@ -432,6 +571,18 @@ export function applyEvent(state, event) {
         ...state.simulatorLimitations,
         { atMinutes: event.atMinutes, kind: event.payload.kind, id: event.payload.id, reviewStatus: event.payload.reviewStatus },
       ];
+      break;
+
+    // The hospital is now waiting on the learner for a named parameter.
+    // Recorded as world state, not as a chat message, so the NEXT turn can be
+    // read as the answer to it (PBC-8).
+    case EVENT.CLARIFICATION_REQUESTED:
+      next.clarification = {
+        commandType: event.payload.commandType,
+        params: event.payload.params ?? {},
+        missing: event.payload.missing ?? [],
+        askedTurn: state.turn,
+      };
       break;
 
     case EVENT.MENTOR_INTERVENED:
@@ -542,7 +693,7 @@ function deriveMonitoringAdequacy(state) {
 
 /**
  * A patient is not "ready for the OR" merely because every entry of an
- * empty `required` list is vacuously satisfied (Core Foundation Spec §58:
+ * empty `required` list is vacuously satisfied (Core Runtime Spec §58:
  * readiness must be real, not conversational). Readiness requires an actual
  * operative management plan to have populated `required` in the first
  * place, and every `blocking` item in it to be completed.
@@ -551,6 +702,16 @@ function derivePreopReady(state, completed) {
   const blocking = state.preop.required.filter((item) => item.blocking);
   if (state.managementPlan.intent !== "operative" || blocking.length === 0) return false;
   return blocking.every((item) => completed.includes(item.id));
+}
+
+/**
+ * One vitals snapshot. Pain rides in the same record as the vital signs so
+ * there is a single disclosure fact, and it is read through `activePainScore`
+ * so a patient whose source has been controlled is never reported as still
+ * having the pre-source-control pain (matrix PO01).
+ */
+function vitalsSnapshot(state) {
+  return { ...state.physiology, painScore: activePainScore(state.symptoms), painState: state.symptoms.painState };
 }
 
 function patchInvestigation(state, id, patch) {

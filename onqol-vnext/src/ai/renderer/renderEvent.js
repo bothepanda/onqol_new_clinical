@@ -3,7 +3,7 @@ import { EVENT } from "../../core/events/eventTypes.js";
 /**
  * Turning one domain event into learner-facing Russian text.
  *
- * Foundation Spec §53: "the model may vary phrasing, it may not vary the
+ * Core Runtime Spec §53: "the model may vary phrasing, it may not vary the
  * clinical truth". This renderer is the deterministic, content-driven
  * default - every sentence it produces is assembled from a reviewed
  * template (`content/diseases/.../findings.yaml`, `disease.yaml`) plus a
@@ -20,6 +20,9 @@ export function renderEvent({ event, bundle, patient }) {
     case EVENT.HISTORY_OBTAINED:
       return { speakerRu: "Пациент", textRu: renderHistoryBundle(bundle, patient) };
 
+    case EVENT.PATIENT_QUESTION_ANSWERED:
+      return { speakerRu: "Пациент", textRu: event.payload.answerRu };
+
     case EVENT.EXAMINATION_PERFORMED:
       return { speakerRu: "Осмотр", textRu: renderExamination(event, bundle, patient) };
 
@@ -33,18 +36,21 @@ export function renderEvent({ event, bundle, patient }) {
       };
 
     case EVENT.TEST_PRELIMINARY_REPORTED:
-      return { speakerRu: staffForTest(event.payload.investigationId), textRu: `Предварительно: ${event.payload.preliminary}` };
+      return {
+        speakerRu: staffForTest(event.payload.investigationId),
+        textRu: `Предварительно: ${formatResult(event.payload.preliminary, event.payload.investigationId)}`,
+      };
 
     case EVENT.TEST_RESULTED:
       return { speakerRu: "Лаборатория/Диагностика", textRu: renderTestResult(event) };
 
     case EVENT.MEDICATION_ADMINISTERED:
-      return { speakerRu: "Медсестра", textRu: `Введено: ${event.payload.drugId} ${event.payload.dose ?? ""} ${event.payload.route ?? ""}`.trim() };
+      return { speakerRu: "Медсестра", textRu: renderMedicationAdministered(event, bundle) };
 
     case EVENT.INFUSION_STARTED:
       return {
         speakerRu: "Медсестра",
-        textRu: `Инфузия начата: ${event.payload.fluidId ?? ""} ${event.payload.volumeMl ?? ""} мл${event.payload.durationMinutes ? ` за ${event.payload.durationMinutes} мин` : " болюсно"}.`,
+        textRu: `Инфузия начата: ${fluidLabelRu(event.payload.fluidId, bundle)} ${event.payload.volumeMl ?? ""} мл${event.payload.durationMinutes ? ` за ${event.payload.durationMinutes} мин` : " болюсно"}.`.replace(/\s{2,}/g, " "),
       };
 
     // Perioperative events previously rendered as `null`, so the learner
@@ -76,14 +82,54 @@ export function renderEvent({ event, bundle, patient }) {
     case EVENT.SOURCE_CONTROL_COMPLETED:
       return { speakerRu: "Операционная", textRu: "Источник санирован." };
 
+    // Matrix O16: end-of-operation boilerplate comes from content, and the
+    // resident is not quizzed on counts or port closure.
     case EVENT.PROCEDURE_COMPLETED:
-      return { speakerRu: "Операционная", textRu: "Операция завершена. Куда переводим пациента?" };
+      return {
+        speakerRu: "Операционная",
+        textRu: [event.payload.closureStatementRu, "Куда переводим пациента?"].filter(Boolean).join(" "),
+      };
+
+    // Matrix PR02: the fasting history, spoken by whoever obtained it.
+    case EVENT.FASTING_HISTORY_OBTAINED:
+      return renderFastingHistory(event, bundle);
+
+    case EVENT.ORAL_INTAKE_PRESCRIBED:
+      return { speakerRu: "Медсестра", textRu: ORAL_INTAKE_RU[event.payload.level] ?? "Режим питания назначен." };
+
+    // Matrix PO17: automatic hospital workflow, stated once, never quizzed.
+    case EVENT.SPECIMEN_SENT_TO_PATHOLOGY:
+      return { speakerRu: "Операционная", textRu: `${capitalise(event.payload.labelRu ?? "материал направлен на гистологическое исследование")}.` };
+
+    // Matrix PO18/PO20: the reviewed discharge bundle, issued by the system.
+    case EVENT.DISCHARGE_INSTRUCTIONS_ISSUED:
+      return renderDischargeBundle(event);
+
+    // Matrix PR08: a jurisdictional investigation the learner did not order,
+    // noticed and obtained by staff. Spoken as hospital workflow, never as a
+    // clinical correction.
+    case EVENT.PREOP_ITEM_OMITTED:
+      return {
+        speakerRu: "Медсестра",
+        textRu: `${capitalise(preopLabelRu(event.payload.itemId, bundle))} не была назначена — оформляю по порядку отделения.`,
+      };
 
     case EVENT.PATIENT_MOVED:
       return { speakerRu: "Система", textRu: `Пациент переведён: ${locationLabelRu(event.payload.to)}.` };
 
+    // Departure and arrival are two separate moments once transport takes
+    // real time (Contract §3.2/§7.1) - the learner sees the ambulance leave,
+    // then sees it arrive, rather than one instantaneous teleport.
+    case EVENT.TRANSFER_INITIATED:
+      return {
+        speakerRu: "Система",
+        textRu: event.payload.etaMinutes
+          ? `Организован перевод в другой стационар. Расчётное время в пути — ${event.payload.etaMinutes} мин.`
+          : "Организован перевод в другой стационар.",
+      };
+
     case EVENT.PATIENT_TRANSFERRED:
-      return { speakerRu: "Система", textRu: "Пациент переведён в другой стационар." };
+      return { speakerRu: "Система", textRu: "Пациент доставлен в принимающий стационар. Случай передан." };
 
     case EVENT.STAFF_CALLED:
       return { speakerRu: "Диспетчер", textRu: `${staffLabelRu(event.payload.role)} вызван(а), ожидаемое время — ${event.payload.etaMinutes} мин.` };
@@ -114,21 +160,36 @@ export function renderEvent({ event, bundle, patient }) {
   }
 }
 
+/**
+ * The history bundle.
+ *
+ * Every slot is filled from what the patient module actually generated, and an
+ * absent fact renders as nothing rather than as a plausible negative: a patient
+ * with no self-treatment gets no self-treatment sentence, and a MALE patient
+ * has no `sexConditionalHistoryRu` at all, so there is nothing here that could
+ * leak an LMP line into a male history (task §11).
+ */
 function renderHistoryBundle(bundle, patient) {
   const template = bundle.findings.history_bundle_ru.template;
   const phenotypeHistory = [
     ...(patient.presentation.historyFixedRu ?? []),
     ...(patient.presentation.historyVariantsRu ?? []),
   ].join(", ");
+  const sexConditional = (patient.presentation.sexConditionalHistoryRu ?? []).join("; ");
   return template
     .replace("{onset_hours}", String(Math.round(patient.presentation.onsetHours)))
     .replace("{onset_description}", "постепенно")
-    .replace("{phenotype_history}", phenotypeHistory || "без дополнительных уточнений");
+    .replace("{phenotype_history}", phenotypeHistory || "без дополнительных уточнений")
+    .replace("{nausea_vomiting}", patient.presentation.nauseaVomitingRu ?? "тошноты и рвоты нет")
+    .replace("{self_treatment}", patient.presentation.selfTreatmentRu ? `${capitalise(patient.presentation.selfTreatmentRu)}.` : "")
+    .replace("{sex_conditional}", sexConditional ? `${capitalise(sexConditional)}.` : "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
 
 /**
  * A reassessment reports the parameters the learner actually named
- * (Contract §10, Foundation Spec §12) - not a generic "no significant
+ * (Contract §10, Core Runtime Spec §12) - not a generic "no significant
  * change".
  *
  * The previous version routed PATIENT_REASSESSED through the ordinary
@@ -182,18 +243,154 @@ function renderAbdominalExam(bundle, patient) {
     if (!grouped.has(slot.group)) grouped.set(slot.group, []);
     grouped.get(slot.group).push(filled);
   }
-  const text = [...grouped.values()].map((sentences) => sentences.join(", ") + ".").join(" ");
+  const text = [
+    ...[...grouped.values()].map((sentences) => sentences.join(", ") + "."),
+    ...(patient.presentation?.examinationExtraRu ?? []),
+  ].join(" ");
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 function renderTestResult(event) {
   const { investigationId, result } = event.payload;
+  return formatResult(result, investigationId);
+}
+
+/**
+ * One investigation result as prose.
+ *
+ * The CT branch is the point of this function. Matrix I04 / task §9.2: CT is a
+ * FULL abdomen/pelvis report, not an "appendix-only" test, because the case
+ * begins as an undifferentiated acute abdomen. Every sentence comes from the
+ * authored `ct_report_ru.sections`; the renderer concatenates, it does not
+ * compose. In particular there is NO appendix diameter anywhere - matrix I05
+ * leaves that number NEEDS SOURCE - and no appendicolith or incidental finding,
+ * because none exists in content to print.
+ */
+function formatResult(result, investigationId) {
+  if (result == null) return `${labelForTest(investigationId)}: результат получен.`;
   if (typeof result === "string") return `${labelForTest(investigationId)}: ${result}`;
-  if (result && typeof result === "object") {
-    const parts = Object.entries(result).map(([key, value]) => `${key}: ${value}`);
-    return `${labelForTest(investigationId)} — ${parts.join(", ")}`;
+
+  if (result.kind === "structured_report") {
+    return [result.modalityRu ? `${result.modalityRu}.` : null, ...(result.sectionsRu ?? []), result.conclusionRu]
+      .filter(Boolean)
+      .join(" ");
   }
-  return `${labelForTest(investigationId)}: результат получен.`;
+
+  // Biochemistry: only the analytes the learner asked for (matrix V07).
+  if (Array.isArray(result.linesRu)) {
+    return `${labelForTest(investigationId)} — ${result.linesRu.join("; ")}.`;
+  }
+
+  if (typeof result.note === "string") return `${labelForTest(investigationId)}: ${result.note}`;
+
+  // Named in Russian, not by the internal field name (PBC-13). The learner
+  // used to read «ОАК — wbc: 15.6, neutrophilPercent: 81» - English
+  // identifiers straight out of the physiology object, the same leak as the
+  // nurse saying "ketoprofen ... im".
+  //
+  // ONLY THE NAME IS TRANSLATED. The value is passed through untouched and no
+  // unit is appended: a unit is a clinical assertion, and the reviewed
+  // physiology envelope does not carry one (see the vitals/labs review table).
+  // An unmapped field falls back to its own key rather than being dropped.
+  const entries = Object.entries(result);
+  const testLabel = labelForTest(investigationId);
+
+  // A single-field result whose field IS the test («СРБ — СРБ: 44») reads as a
+  // stutter; print the value once.
+  if (entries.length === 1 && (LAB_FIELD_RU[entries[0][0]] ?? entries[0][0]) === testLabel) {
+    return `${testLabel}: ${formatLabValue(entries[0][0], entries[0][1])}`;
+  }
+
+  const parts = entries.map(([key, value]) => `${LAB_FIELD_RU[key] ?? key}: ${formatLabValue(key, value)}`);
+  return `${testLabel} — ${parts.join(", ")}`;
+}
+
+const LAB_FIELD_RU = Object.freeze({
+  wbc: "лейкоциты",
+  neutrophilPercent: "нейтрофилы",
+  crp: "СРБ",
+});
+
+/**
+ * The value, unchanged. The only thing appended is a unit the FIELD NAME
+ * already carries (`neutrophilPercent` is a percentage by definition) - never
+ * a unit that would be a new clinical assertion. The reviewed physiology
+ * envelope carries no units of its own, so nothing else gets one here.
+ */
+function formatLabValue(key, value) {
+  return key === "neutrophilPercent" ? `${value} %` : String(value);
+}
+
+/**
+ * What the nurse says when a drug is given (PBC-13).
+ *
+ * The previous line interpolated `payload.drugId` and `payload.route` raw, so
+ * the learner was told «Введено: ketoprofen 100мг im» - a Latin internal
+ * identifier and a route code, from a character who is supposed to be a
+ * Russian-speaking nurse (Contract §13). The Russian labels already exist in
+ * reviewed content (`shared/medications/formulary.yaml#label_ru`), so this
+ * invents no clinical fact: it prints the name the content already carries,
+ * and falls back to the id if content has none rather than guessing a
+ * translation.
+ *
+ * The DOSE is passed through exactly as the learner stated it. Nothing here
+ * normalises, converts or judges it - dose validity is unreviewed clinical
+ * content (matrix M04/AB07), and a renderer is not where that changes.
+ */
+function renderMedicationAdministered(event, bundle) {
+  const { drugId, dose, route } = event.payload;
+  const parts = [drugLabelRu(drugId, bundle), dose ? formatDoseRu(dose) : null, route ? ROUTE_RU[route] ?? route : null];
+  return `Введено: ${parts.filter(Boolean).join(", ")}.`;
+}
+
+/** "100мг" -> "100 мг", "2г" -> "2 г". Spacing only; the number is untouched. */
+function formatDoseRu(dose) {
+  return String(dose).replace(/(\d)\s*(мг|г|мл)$/i, "$1 $2");
+}
+
+const ROUTE_RU = Object.freeze({ iv: "внутривенно", im: "внутримышечно", sc: "подкожно", oral: "перорально" });
+
+function drugLabelRu(drugId, bundle) {
+  return bundle?.shared?.medications?.medications?.[drugId]?.label_ru ?? drugId;
+}
+
+function fluidLabelRu(fluidId, bundle) {
+  return bundle?.shared?.medications?.fluids?.[fluidId]?.label_ru ?? fluidId ?? "";
+}
+
+const ORAL_INTAKE_RU = Object.freeze({
+  nil_by_mouth: "Пациент переведён на нулевой стол, ничего внутрь.",
+  liquids: "Разрешена жидкость перорально.",
+  diet_as_tolerated: "Разрешена диета по переносимости.",
+});
+
+function renderFastingHistory(event, bundle) {
+  const content = bundle.findings?.fasting_history;
+  const fasting = event.payload.fasting;
+  if (!content || !fasting) return { speakerRu: "Пациент", textRu: "Время последнего приёма пищи и жидкости уточнено." };
+  const byAnesthesiologist = event.payload.obtainedBy === "anesthesiologist";
+  const template = byAnesthesiologist ? content.anesthesia_discovery_ru : content.answer_template_ru;
+  return {
+    speakerRu: byAnesthesiologist ? "Анестезиолог" : "Пациент",
+    textRu: template
+      .replace("{solid}", String(Math.round(fasting.lastSolidFoodHoursAgo)))
+      .replace("{liquid}", String(Math.round(fasting.lastClearLiquidHoursAgo))),
+  };
+}
+
+function renderDischargeBundle(event) {
+  const { followUpRu, histopathologyRu, returnPrecautionsRu } = event.payload;
+  const precautions = returnPrecautionsRu?.length
+    ? `Немедленно обратиться при: ${returnPrecautionsRu.join("; ")}.`
+    : null;
+  return {
+    speakerRu: "Система",
+    textRu: ["Выписные рекомендации:", followUpRu, histopathologyRu, precautions].filter(Boolean).join(" "),
+  };
+}
+
+function capitalise(text) {
+  return text ? text.charAt(0).toUpperCase() + text.slice(1) : text;
 }
 
 function renderOperativeFinding(event, bundle, patient) {
@@ -209,8 +406,10 @@ function labelForTest(testId) {
     crp: "СРБ",
     urinalysis: "ОАМ",
     betahcg: "бета-ХГЧ",
+    coagulation: "коагулограмма",
+    blood_group_rh: "группа крови и резус-фактор",
     ultrasound_abdomen: "УЗИ брюшной полости",
-    ct_abdomen: "КТ брюшной полости",
+    ct_abdomen: "КТ органов брюшной полости и малого таза",
   };
   return labels[testId] ?? testId;
 }
@@ -222,7 +421,7 @@ function staffForTest(testId) {
 /**
  * The chosen option's own words, from content. No operation name is written
  * in this file - a second disease's decisions render through this same
- * function with no change (Foundation Spec §63).
+ * function with no change (Core Runtime Spec §63).
  */
 function operativeChoiceLabelRu(payload, bundle) {
   const decision = bundle.operative?.decisions?.[payload.decisionId];

@@ -1,10 +1,14 @@
 import { reduceEvents } from "../state/worldState.js";
 import { appendEvents, createEvent } from "../events/eventLog.js";
 import { EVENT } from "../events/eventTypes.js";
+import { validateCommand } from "../commands/commandTypes.js";
 import { hospitalIso } from "../time/clock.js";
 import { applyCommands, applyTimeAdvance } from "./applyTurn.js";
 import { interpretTurn } from "../../ai/interpreter/interpretTurn.js";
 import { decideMentorResponse } from "../../ai/mentor/mentorEngine.js";
+import { isInteractionV2Enabled } from "../../ai/interaction/featureFlags.js";
+import { runSplitSemanticShadow } from "../../ai/interpreter/splitSemanticInterpreter.js";
+import { createNullProviderClient } from "../../ai/providerClient.js";
 
 /**
  * One complete learner turn: raw text in, `{ session, outcomes, mentor }` out.
@@ -24,14 +28,27 @@ import { decideMentorResponse } from "../../ai/mentor/mentorEngine.js";
  * so the export can answer "what did the learner say, what did the system
  * think it meant, what did it execute, and what did it refuse".
  */
-export function submitLearnerTurn({ session, text }) {
+export function submitLearnerTurn({ session, text, shadowProvider }) {
   const atIso = (state) => hospitalIso(session.clockRoot, state.clock.elapsedMinutes);
+  const turnContext = buildTurnContext(session);
 
   const interpreted = interpretTurn({
     text,
-    turnContext: buildTurnContext(session),
+    turnContext,
+    bundle: session.bundle,
     idPrefix: `t${session.state.turn}`,
   });
+  // Shadow output has no authority and is deliberately kept outside the
+  // domain event log. This promise is never awaited by the clinical path.
+  const shadowTelemetryPromise = isInteractionV2Enabled(session.state.session)
+    ? runSplitSemanticShadow({
+        provider: shadowProvider ?? createNullProviderClient(),
+        text,
+        locale: session.state.session.locale,
+        turnContext,
+        bundle: session.bundle,
+      }).then((telemetry) => ({ ...telemetry, sessionId: session.sessionId, turn: session.state.turn }))
+    : Promise.resolve(null);
 
   // The turn itself is an event, before anything it asked for happens.
   const turnEvent = createEvent({
@@ -42,6 +59,7 @@ export function submitLearnerTurn({ session, text }) {
       rawText: text,
       intent: interpreted.intent,
       mentorSignal: interpreted.mentorSignal ?? null,
+      unmatchedFragments: interpreted.unmatchedFragments ?? [],
       interpretedCommands: interpreted.commands.map((c) => ({ id: c.id, type: c.type, params: c.params })),
     },
     cause: { actor: "learner", source: "interpreter" },
@@ -56,7 +74,7 @@ export function submitLearnerTurn({ session, text }) {
   // A pure read (status request) or a turn addressed to the mentor produces
   // no domain events and must not move the clock (Contract §6, §8).
   if (interpreted.intent === "REQUEST_CURRENT_STATUS") {
-    return { session: working, interpreted, outcomes: [{ outcome: "STATUS_SNAPSHOT" }], mentor: null };
+    return { session: working, interpreted, outcomes: [{ outcome: "STATUS_SNAPSHOT" }], mentor: null, shadowTelemetryPromise };
   }
 
   if (interpreted.intent === "MENTOR_ANSWER" || interpreted.commands.length === 0) {
@@ -66,28 +84,76 @@ export function submitLearnerTurn({ session, text }) {
       mentorSignal: interpreted.mentorSignal,
     });
     working = recordMentorIntervention(working, mentor, atIso);
-    return { session: working, interpreted, outcomes: [], mentor };
+    return { session: working, interpreted, outcomes: [], mentor, shadowTelemetryPromise };
   }
 
   // A stated wait ("переоценю через 30 минут", "переоценю утром") advances
   // the clock FIRST - draining every result, effect and arrival due in that
   // window - so the reassessment observes the world after that time has
   // passed, not at the moment it was requested (Contract §12).
-  const waitCommand = interpreted.commands.find((c) => c.params.afterMinutes != null);
+  //
+  // BUT ONLY ONCE THE PLAN IS ACTUALLY CLEAR (Contract §10, PBC-10).
+  //
+  // Contract §10 fixes the order explicitly: ON QOL asks what will be
+  // reassessed if that is not clear, and only *"once the reassessment plan is
+  // clear"* does clinical time advance. The previous version advanced the
+  // clock on any command carrying `afterMinutes`, before the command was
+  // validated - so "переоценю через 3 часа" with no named target burned three
+  // hours of clinical time, drained every pending result into them, and only
+  // then had the nurse ask "Что именно переоцениваешь?". The learner was
+  // charged three irreversible hours for a reassessment that never happened,
+  // and the answer to the clarification then applied at a time they never
+  // chose. Validating first is what makes the clarification a question rather
+  // than a receipt.
+  const waitCommand = interpreted.commands.find(
+    (c) =>
+      (c.params.afterMinutes != null || (c.type === "WAIT" && c.params.untilNextPending === true)) &&
+      validateCommand(c).outcome !== "CLARIFY",
+  );
   let timeEvents = [];
+  let waitTargetMinutes = null;
   if (waitCommand) {
-    const target = working.state.clock.elapsedMinutes + waitCommand.params.afterMinutes;
-    const advanced = applyTimeAdvance({
-      session: working,
-      targetMinutes: target,
-      cause: { actor: "learner", source: "stated_wait" },
-    });
-    working = advanced.session;
-    timeEvents = advanced.newEvents;
+    waitTargetMinutes = waitCommand.params.afterMinutes != null
+      ? working.state.clock.elapsedMinutes + waitCommand.params.afterMinutes
+      : nextPendingMinute(working.state);
+    if (waitTargetMinutes != null) {
+      const advanced = applyTimeAdvance({
+        session: working,
+        targetMinutes: waitTargetMinutes,
+        cause: { actor: "learner", source: "stated_wait" },
+      });
+      working = advanced.session;
+      timeEvents = advanced.newEvents;
+    }
   }
 
-  const { session: afterCommands, results } = applyCommands({ session: working, commands: interpreted.commands });
+  const { session: afterCommands, results } = applyCommands({
+    session: working,
+    commands: interpreted.commands,
+    turnContext: { waitTargetMinutes },
+  });
   working = afterCommands;
+
+  // An action that itself takes clinical time (Contract §7.1: "clinical time
+  // advances according to actions, investigations, treatment, TRANSPORT,
+  // observation, scheduled reassessment, procedures"). Unlike a stated wait,
+  // this interval is consumed AFTER the command executes - the ambulance
+  // leaves, then the journey happens - so the clock moves here rather than
+  // above, and the interval drains pending work like any other passage of
+  // time. Concurrent actions share one interval (§7.2) rather than queueing.
+  // Rendered AFTER the command's own output, not before it (unlike
+  // `timeEvents`, which precede the action that waited for them).
+  let afterEvents = [];
+  const consumesMinutes = Math.max(0, ...results.map((result) => result.consumesMinutes ?? 0));
+  if (consumesMinutes > 0) {
+    const advanced = applyTimeAdvance({
+      session: working,
+      targetMinutes: working.state.clock.elapsedMinutes + consumesMinutes,
+      cause: { actor: "learner", source: "action_duration" },
+    });
+    working = advanced.session;
+    afterEvents = advanced.newEvents;
+  }
 
   // Every command's disposition, recorded (P0-8).
   const trailEvents = results.map((result) =>
@@ -100,6 +166,9 @@ export function submitLearnerTurn({ session, text }) {
         commandType: result.command?.type ?? null,
         outcome: result.outcome,
         missing: result.missing ?? null,
+        // What the learner ALREADY supplied, so the answer to the
+        // clarification can be merged into it rather than replacing it (PBC-8).
+        params: result.command?.params ?? null,
         reasonKey: result.reasonKey ?? null,
         capabilityKey: result.capabilityKey ?? null,
         ruleIds: result.firedRules?.map((rule) => rule.id) ?? [],
@@ -121,7 +190,7 @@ export function submitLearnerTurn({ session, text }) {
   });
   working = recordMentorIntervention(working, mentor, atIso);
 
-  return { session: working, interpreted, outcomes: results, mentor, timeEvents };
+  return { session: working, interpreted, outcomes: results, mentor, timeEvents, afterEvents, shadowTelemetryPromise };
 }
 
 /**
@@ -136,6 +205,7 @@ function buildTurnContext(session) {
   const pendingDecision = pendingDecisionId ? bundle.operative.decisions[pendingDecisionId] : null;
   return {
     openMentorQuestion: state.mentor.openQuestion,
+    openClarification: state.clarification,
     preopReady: state.preop.ready,
     managementIntent: state.managementPlan.intent,
     pendingDecisionId,
@@ -173,7 +243,14 @@ function recordMentorIntervention(session, mentor, atIso) {
 }
 
 function trailEventTypeFor(outcome) {
-  if (outcome === "EXECUTED") return EVENT.COMMAND_ACCEPTED;
+  if (outcome === "EXECUTED" || outcome === "NO_PENDING_WORK") return EVENT.COMMAND_ACCEPTED;
   if (outcome === "CLARIFY") return EVENT.CLARIFICATION_REQUESTED;
   return EVENT.COMMAND_REJECTED;
+}
+
+function nextPendingMinute(state) {
+  const future = (state.pending ?? [])
+    .map((item) => item.dueAtMinutes)
+    .filter((minute) => Number.isFinite(minute) && minute > state.clock.elapsedMinutes);
+  return future.length ? Math.min(...future) : null;
 }

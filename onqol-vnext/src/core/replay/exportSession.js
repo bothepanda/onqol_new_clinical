@@ -1,5 +1,5 @@
 /**
- * The versioned session export (Foundation Spec §30, Contract §61 audit
+ * The versioned session export (Core Runtime Spec §30, Contract §61 audit
  * requirement).
  *
  * `current_state` is included for convenience, but it is never the source of
@@ -19,6 +19,8 @@ export function exportSession({ session, generatedAtIso }) {
       id: session.state.session.id,
       mode: session.state.session.mode,
       locale: session.state.session.locale,
+      purpose: session.state.session.purpose,
+      interactionFlags: session.state.session.interactionFlags,
       status: session.state.session.status,
       endpoint: session.state.session.endpoint,
     },
@@ -69,6 +71,7 @@ function buildLearnerTurns(events) {
         rawText: event.payload.rawText,
         intent: event.payload.intent,
         mentorSignal: event.payload.mentorSignal,
+        unmatchedFragments: event.payload.unmatchedFragments ?? [],
         interpretedCommands: event.payload.interpretedCommands,
         commandOutcomes: [],
         mentor: null,

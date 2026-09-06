@@ -47,12 +47,19 @@ export const EVENT = Object.freeze({
   PROCEDURE_PERFORMED: "PROCEDURE_PERFORMED",
   MONITORING_PRESCRIBED: "MONITORING_PRESCRIBED",
   TREATMENT_EFFECT_APPLIED: "TREATMENT_EFFECT_APPLIED",
+  // Matrix PO05: early oral intake as tolerated is ordinary ward care. The
+  // order is recorded so it appears in the debrief; no physiological effect is
+  // modeled, because none has been reviewed.
+  ORAL_INTAKE_PRESCRIBED: "ORAL_INTAKE_PRESCRIBED",
 
   // Plan and perioperative state
   MANAGEMENT_PLAN_COMMITTED: "MANAGEMENT_PLAN_COMMITTED",
   PREOP_ITEM_COMPLETED: "PREOP_ITEM_COMPLETED",
   PREOP_ITEM_OMITTED: "PREOP_ITEM_OMITTED",
   CONSENT_OBTAINED: "CONSENT_OBTAINED",
+  // Matrix PR02: last solid food / clear liquid times. Obtained by the learner
+  // or, if they never asked, by the anesthesiologist on arrival.
+  FASTING_HISTORY_OBTAINED: "FASTING_HISTORY_OBTAINED",
   CONSENT_REFUSED: "CONSENT_REFUSED",
   PROCEDURE_STARTED: "PROCEDURE_STARTED",
   OPERATIVE_FINDING_REVEALED: "OPERATIVE_FINDING_REVEALED",
@@ -71,10 +78,16 @@ export const EVENT = Object.freeze({
 
   // Patient course
   DISEASE_PROGRESSED: "DISEASE_PROGRESSED",
+  POSTOPERATIVE_RECOVERY_UPDATED: "POSTOPERATIVE_RECOVERY_UPDATED",
   DETERIORATION_DETECTED: "DETERIORATION_DETECTED",
   COMPLICATION_OCCURRED: "COMPLICATION_OCCURRED",
   COMPLICATION_CHECK_CLEARED: "COMPLICATION_CHECK_CLEARED",
   RECOVERY_MILESTONE: "RECOVERY_MILESTONE",
+  // Matrix PO17: automatic hospital workflow, not a learner checkpoint.
+  SPECIMEN_SENT_TO_PATHOLOGY: "SPECIMEN_SENT_TO_PATHOLOGY",
+  // Matrix PO18/PO20: the system issues the reviewed follow-up wording and red
+  // flags after a valid discharge, rather than testing recitation every case.
+  DISCHARGE_INSTRUCTIONS_ISSUED: "DISCHARGE_INSTRUCTIONS_ISSUED",
 
   // Teaching
   MENTOR_INTERVENED: "MENTOR_INTERVENED",
@@ -103,6 +116,15 @@ export const DISCLOSING_EVENTS = Object.freeze([
   EVENT.PATIENT_REASSESSED,
   EVENT.VITALS_OBSERVED,
   EVENT.PATIENT_QUESTION_ANSWERED,
+  EVENT.FASTING_HISTORY_OBTAINED,
+  // Ordering an investigation discloses that it is running. The learner
+  // obviously knows what they just ordered, and Contract §6's own worked
+  // example of a status snapshot ends "CT formal report is pending" - which
+  // the snapshot could never say while an ordered-but-unresulted test was
+  // absent from `revealed.results`. It discloses the ORDER, never the result:
+  // TEST_ORDERED carries no `findingIds`, and the value stays hidden until
+  // TEST_PRELIMINARY_REPORTED or TEST_RESULTED lands.
+  EVENT.TEST_ORDERED,
   EVENT.TEST_PRELIMINARY_REPORTED,
   EVENT.TEST_RESULTED,
   EVENT.OPERATIVE_FINDING_REVEALED,

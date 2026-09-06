@@ -25,6 +25,7 @@ function newSession(seed = "journey-seed") {
     seed,
     mode: "reference",
     casePresetId: "APP-004",
+    sessionPurpose: "internal_development",
     bundle,
     locale: "ru",
     startIso: START_ISO,
@@ -67,13 +68,45 @@ test("«опрошу пациента» returns the core history bundle", () => 
   assert.equal(turn.session.state.observations.history.length, 1);
 });
 
-// --- Compound orders and clarification (Contract §8, Foundation Spec §9) ----
+// --- Compound orders and clarification (Contract §8, Core Runtime Spec §9) ----
 
 test("«ОАК, ОАМ и БХАК» becomes three parallel test orders in one turn", () => {
   const turn = say(newSession(), "ОАК, ОАМ и БХАК");
   assert.deepEqual(commandTypesOf(turn), ["ORDER_TEST", "ORDER_TEST", "ORDER_TEST"]);
-  assert.deepEqual(outcomesOf(turn), ["EXECUTED", "EXECUTED", "EXECUTED"]);
+  // Matrix V07: the first two execute; bare "БХАК" does NOT, because a
+  // biochemistry order with no named analytes is incomplete.
+  assert.deepEqual(outcomesOf(turn), ["EXECUTED", "EXECUTED", "CLARIFY"]);
   assert.equal(turn.session.state.clock.elapsedMinutes, 0, "issuing orders does not itself consume clinical time");
+});
+
+test("«БХАК» alone asks which values are needed instead of returning a hidden panel", () => {
+  // Matrix V07 REMOVE: "biochemistry panel auto-populates everything". The
+  // resident must request individual tests, and the LAB asks - not the mentor.
+  const turn = say(newSession(), "БХАК");
+  assert.deepEqual(outcomesOf(turn), ["CLARIFY"]);
+  assert.deepEqual(turn.outcomes[0].missing, ["analytes"]);
+  assert.equal(turn.outcomes[0].clarifyBy, "laboratory");
+  assert.equal(turn.outcomes[0].clarifyPromptRu, "Какие показатели биохимии нужны?");
+  assert.equal(turn.session.state.investigations.chemistry, undefined, "nothing was ordered");
+});
+
+test("«БХАК: креатинин, электролиты» orders exactly those values and no others", () => {
+  const turn = say(newSession(), "БХАК: креатинин, электролиты");
+  assert.deepEqual(outcomesOf(turn), ["EXECUTED"]);
+  assert.deepEqual(turn.interpreted.commands[0].params.analytes, ["creatinine", "electrolytes"]);
+  const resulted = say(turn.session, "переоценю витальные через 2 часа").session;
+  const result = resulted.state.investigations.chemistry.result;
+  assert.deepEqual(result.analytes, ["creatinine", "electrolytes"]);
+  assert.equal(result.linesRu.length, 2, "no test the learner did not request is invented");
+});
+
+test("СРБ stays a separate order and is never bundled into biochemistry", () => {
+  // Matrix V08: CRP is a separately orderable investigation, not something the
+  // system adds to a chemistry order on the learner's behalf.
+  const turn = say(newSession(), "БХАК: креатинин");
+  assert.equal(turn.session.state.investigations.crp, undefined);
+  const withCrp = say(turn.session, "СРБ").session;
+  assert.ok(withCrp.state.investigations.crp);
 });
 
 test("«кетопрофен 100 мг» without a route is a nurse clarification, not a guessed route", () => {
@@ -116,7 +149,7 @@ test("«переоценю боль и живот через 30 минут» adv
 
 test("ordered results arrive automatically once enough time has passed, without being asked for", () => {
   let session = saying(newSession(), ["ОАК и КТ ОБП"]);
-  const turn = say(session, "переоценю через 4 часа");
+  const turn = say(session, "переоценю витальные через 4 часа");
   session = turn.session;
   assert.equal(session.state.investigations.cbc.status, "resulted");
   assert.equal(session.state.investigations.ct_abdomen.status, "resulted");
@@ -131,7 +164,7 @@ test("parallel investigations complete at their own different times, not togethe
   // CT: 70 min authored + 60 min reference-CT turnaround = 130. At 90
   // minutes exactly one of the two is back - they are genuinely independent
   // timelines, not one batch that lands together.
-  const turn = say(session, "переоценю через 90 минут");
+  const turn = say(session, "переоценю витальные через 90 минут");
   assert.equal(turn.session.state.investigations.urinalysis.status, "resulted");
   assert.notEqual(turn.session.state.investigations.ct_abdomen.status, "resulted");
 });
@@ -157,15 +190,14 @@ test("preop readiness is derived from the learner's own real preparation actions
   assert.equal(session.state.preop.ready, false);
 
   session = saying(session, [
-    "нулевой стол",
     "венозный доступ",
-    "антибиотикопрофилактика цефазолин 2 г",
+    "антибиотикопрофилактика цефазолин 2 г в/в, антибиотикопрофилактика метронидазол 500 мг в/в",
     "вызываю анестезиолога на осмотр",
   ]);
   // The anesthesiologist has to actually arrive before that item is done.
   assert.equal(session.state.preop.completed.includes("anesthesia_review"), false);
 
-  session = say(session, "переоценю через 40 минут").session;
+  session = say(session, "переоценю витальные через 40 минут").session;
   assert.ok(session.state.preop.completed.includes("anesthesia_review"));
 
   session = say(session, "получаю согласие").session;
@@ -211,14 +243,21 @@ test("monitoring adequacy is derived: a ward patient with no monitoring orders i
   assert.equal(session.state.monitoring.adequacy, "inadequate");
 });
 
-test("«выписываю» is refused while a discharge criterion is unmet", () => {
-  // Straight from theatre, still febrile - discharge must not succeed merely
-  // because the learner said the word (task brief §13.5).
-  const session = say(throughOperation(), "в отделение").session;
-  const feverish = { ...session, state: { ...session.state, physiology: { ...session.state.physiology, temperatureC: 38.4 } } };
-  const turn = say(feverish, "выписываю");
+test("«выписываю» is refused while a STRUCTURAL discharge criterion is unmet", () => {
+  // Matrix PO14: discharge must not succeed merely because the learner said
+  // the word. The reason given is the content's own learner-facing wording -
+  // never an internal criterion id.
+  //
+  // The criterion exercised here is structural (the patient is still in
+  // theatre), because in this build every CLINICAL readiness criterion is
+  // governance-blocked - see the discharge governance test below, and the
+  // release blocker recorded in
+  // docs/review/APP004_CLINICAL_REMEDIATION_REPORT_2026-08-25.md.
+  const turn = say(throughOperation(), "выписываю");
   assert.deepEqual(outcomesOf(turn), ["DISCHARGE_NOT_READY"]);
   assert.equal(turn.session.state.session.status, "active");
+  assert.ok(turn.outcomes[0].blockers.some((blocker) => blocker.reasonRu?.length > 0));
+  assert.equal(turn.outcomes[0].blockers.some((blocker) => /criterion|_/.test(blocker.reasonRu ?? "")), false);
 });
 
 // --- Mentor state (task brief P0-7) ----------------------------------------
@@ -244,7 +283,7 @@ test("repeated «не знаю» reaches distinct scaffolding levels 3 and 4, no
 test("a competent learner can complete several consecutive turns with no mentor message", () => {
   let session = newSession();
   const mentorTexts = [];
-  for (const text of ["опрошу пациента", "живот", "ОАК и СРБ", "кетопрофен 100 мг в/в"]) {
+  for (const text of ["опрошу пациента", "живот", "ОАК и СРБ", "кетопрофен 100 мг в/м"]) {
     const turn = say(session, text);
     session = turn.session;
     mentorTexts.push(turn.mentor?.textRu ?? null);
@@ -286,13 +325,13 @@ test("the whole APP-004 case is playable from EMS handoff to a safe endpoint in 
     "500 мл физраствора за час",
     "переоценю боль и живот через 30 минут",
     "КТ ОБП",
-    "переоценю через 2 часа",
+    "переоценю витальные через 2 часа",
     "думаю, это аппендицит. идём на операцию",
-    "нулевой стол",
+    "когда последний раз ел и пил?",
     "венозный доступ",
-    "антибиотикопрофилактика цефазолин 2 г",
+    "антибиотикопрофилактика цефазолин 2 г в/в, антибиотикопрофилактика метронидазол 500 мг в/в",
     "вызываю анестезиолога на осмотр",
-    "переоценю через 40 минут",
+    "переоценю витальные через 40 минут",
     "получаю согласие",
   ]);
   assert.equal(session.state.preop.ready, true, "preop readiness reached through real actions only");
@@ -303,11 +342,12 @@ test("the whole APP-004 case is playable from EMS handoff to a safe endpoint in 
   ]);
   assert.equal(session.state.operative.sourceControl, true);
 
-  session = saying(session, ["в отделение", "vitals каждые 4 часа", "переоценю утром"]);
+  session = saying(session, ["в отделение", "vitals каждые 4 часа", "можно пить", "переоценю витальные утром"]);
   assert.equal(session.state.postop.disposition, "surgical_ward");
+  assert.equal(session.state.postop.oralIntake, "liquids");
+  assert.equal(session.state.postop.histopathologySent, true, "specimen goes to pathology as hospital workflow");
 
-  // Enough postoperative time to reach a discharge-eligible state.
-  session = saying(session, ["переоценю через 24 часа", "переоценю через 24 часа", "выписываю"]);
+  session = saying(session, ["переоценю витальные через 24 часа", "выписываю"]);
 
   assert.equal(session.state.session.status, "complete");
   assert.equal(session.state.session.endpoint.type, "PATIENT_DISCHARGED");
@@ -318,11 +358,10 @@ test("the whole APP-004 case is playable from EMS handoff to a safe endpoint in 
 function readyForTheatre() {
   return saying(newSession("theatre-seed"), [
     "идём на операцию",
-    "нулевой стол",
     "венозный доступ",
-    "антибиотикопрофилактика цефазолин 2 г",
+    "антибиотикопрофилактика цефазолин 2 г в/в, антибиотикопрофилактика метронидазол 500 мг в/в",
     "вызываю анестезиолога на осмотр",
-    "переоценю через 40 минут",
+    "переоценю витальные через 40 минут",
     "получаю согласие",
   ]);
 }
@@ -353,13 +392,15 @@ test("answering the mentor's preop question with real orders executes them", () 
   const committed = say(newSession(), "идём на операцию").session;
   assert.ok(committed.state.mentor.openQuestion, "a question is genuinely open");
 
-  const turn = say(committed, "нулевой стол, венозный доступ, антибиотикопрофилактика цефазолин 2 г");
+  const turn = say(committed, "нулевой стол, венозный доступ, антибиотикопрофилактика цефазолин 2 г в/в, антибиотикопрофилактика метронидазол 500 мг в/в");
   assert.deepEqual(
     commandTypesOf(turn),
-    ["SET_NPO", "ESTABLISH_IV_ACCESS", "GIVE_ANTIBIOTIC_PROPHYLAXIS"],
-    "the answer is also three real orders",
+    ["SET_NPO", "ESTABLISH_IV_ACCESS", "GIVE_ANTIBIOTIC_PROPHYLAXIS", "GIVE_ANTIBIOTIC_PROPHYLAXIS"],
+    "the answer is also four real orders",
   );
-  assert.ok(turn.session.state.preop.completed.includes("npo_status"));
+  // Matrix PR01: "нулевой стол" is now an oral-intake ORDER, not a magic word
+  // that completes a blocking preop item.
+  assert.equal(turn.session.state.postop.oralIntake, "nil_by_mouth");
   assert.ok(turn.session.state.preop.completed.includes("iv_access"));
   assert.ok(turn.session.state.preop.completed.includes("antibiotic_prophylaxis"));
 });

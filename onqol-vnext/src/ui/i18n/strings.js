@@ -1,5 +1,5 @@
 /**
- * UI chrome strings only (Core Foundation Spec §65). Clinical content stays
+ * UI chrome strings only (Core Runtime Spec §65). Clinical content stays
  * in `src/content/**` and is authored per-locale there, separately, by a
  * clinical reviewer - never mixed into this file. This file is the whole
  * locale layer for the shell: header, mode cards, sidebar labels, composer.

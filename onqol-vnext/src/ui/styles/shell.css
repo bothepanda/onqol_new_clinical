@@ -31,6 +31,7 @@
   cursor: pointer;
 }
 .onqol-locale-switch button[aria-pressed="true"] { background: var(--onqol-brand); color: #fff; }
+.onqol-locale-switch button:disabled { cursor: not-allowed; opacity: .48; }
 .onqol-account-button {
   display: flex;
   flex-direction: column;
@@ -65,6 +66,9 @@
 .onqol-mode-card:hover { transform: translateY(-1px); border-color: var(--onqol-brand); box-shadow: 0 5px 18px rgba(22, 105, 122, 0.1); }
 .onqol-mode-card strong { color: var(--onqol-brand); font-size: 22px; }
 .onqol-mode-card span { color: var(--onqol-brand-soft); font-size: 15px; line-height: 1.5; }
+.onqol-resume-card { margin: 0 0 22px; padding: 20px; display: grid; gap: 10px; border: 1px solid var(--onqol-brand); border-radius: 12px; background: var(--onqol-mint); }
+.onqol-resume-card > div, .onqol-debrief-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.onqol-resume-card button, .onqol-debrief-actions button { border: 1px solid var(--onqol-brand); border-radius: 8px; background: var(--onqol-white); color: var(--onqol-ink); padding: 10px 14px; cursor: pointer; }
 
 /* ---- Case bar ---------------------------------------------------------- */
 .onqol-case-bar {
@@ -112,6 +116,12 @@
   background: var(--onqol-white); color: var(--onqol-ink);
   padding: 9px 12px; font-size: 13px; cursor: pointer;
 }
+.onqol-debrief { overflow-y: auto; padding: 28px max(20px, calc((100% - 760px) / 2)); }
+.onqol-debrief h1 { margin: 4px 0 8px; }
+.onqol-debrief section { margin: 24px 0; padding-top: 18px; border-top: 1px solid var(--onqol-line); }
+.onqol-debrief h2 { margin: 0 0 10px; font-size: 18px; }
+.onqol-debrief ul { margin: 0; padding-left: 22px; display: grid; gap: 8px; }
+.onqol-debrief-warning { margin: 20px 0; padding: 14px; border-radius: 8px; background: var(--onqol-warn-bg); color: var(--onqol-warn-ink); }
 
 @media (max-width: 900px) {
   .onqol-workspace { grid-template-columns: minmax(0, 1fr); }

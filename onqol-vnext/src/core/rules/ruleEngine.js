@@ -1,5 +1,6 @@
 import { RULE_CONDITION } from "./conditions.js";
 import { partitionByAuthority, simulatorLimitation } from "./governance.js";
+import { reviewStatusOf } from "./contentProvenance.js";
 
 /**
  * Evaluating a reviewed clinical rule against learner-visible state only.
@@ -64,7 +65,7 @@ export function eligibleRules(rules, ctx) {
     .map((rule) => ({ rule, evaluation: evaluateRule(rule, ctx) }))
     .filter((entry) => entry.evaluation.eligible)
     .map((entry) => entry.rule);
-  return partitionByAuthority(clinicallyEligible, (rule) => rule.review_status).authoritative;
+  return partitionByAuthority(clinicallyEligible, reviewStatusOf).authoritative;
 }
 
 /**
@@ -78,7 +79,7 @@ export function governanceBlockedEligibleRules(rules, ctx) {
     .map((rule) => ({ rule, evaluation: evaluateRule(rule, ctx) }))
     .filter((entry) => entry.evaluation.eligible)
     .map((entry) => entry.rule);
-  return partitionByAuthority(clinicallyEligible, (rule) => rule.review_status).blocked.map((rule) =>
-    simulatorLimitation({ kind: "rule", id: rule.id, reviewStatus: rule.review_status }),
+  return partitionByAuthority(clinicallyEligible, reviewStatusOf).blocked.map((rule) =>
+    simulatorLimitation({ kind: "rule", id: rule.id, reviewStatus: reviewStatusOf(rule) ?? null }),
   );
 }

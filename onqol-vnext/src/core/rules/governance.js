@@ -1,6 +1,6 @@
 /**
  * Runtime clinical-content governance gate (Governance Spec §7-8, §19;
- * Core Foundation Spec §47; task brief P0-5).
+ * Core Runtime Spec §47; task brief P0-5).
  *
  * `scripts/buildContentIndex.mjs` already enforces provenance fields at
  * author/build time. This module is the counterpart at RUN time: the one
@@ -14,15 +14,24 @@
  * else - including the absence of the field - is NOT authoritative, and
  * this pass does not bulk-promote any existing content to reach that bar.
  *
- * What this gate does NOT cover, by design (Foundation Spec §44-46's
+ * What this gate does NOT cover, by design (Core Runtime Spec §44-46's
  * five-authority split): Hospital/World Engine operational data - resource
- * ETAs, staff arrival times, investigation turnaround - and Patient Engine
- * generation content (phenotype library, physiology envelopes) that
- * produces the patient itself rather than asserting a clinical rule about
- * safety, dosing, indication, or teaching. See the gap audit for the exact
- * reasoning; this file only gates Clinical Rule Layer content: rules,
- * treatment effects, disease trajectories, and complications.
+ * ETAs, staff arrival times, investigation turnaround. Those are operational
+ * facts about a simulated hospital, not clinical claims.
+ *
+ * PATIENT GENERATION IS NO LONGER AN EXCEPTION (matrix §G1, 2026-08-25).
+ * The previous version of this comment excused phenotype/physiology content
+ * from the gate because otherwise no patient could be generated. The clinical
+ * review rejected that: patient generation is explicitly Patient Truth and
+ * cannot be a permanent carve-out. It is still instantiated for internal
+ * development, but `core/patient/patientTruthGovernance.js` now inventories
+ * every generating content object, records each non-approved one as a
+ * SIMULATOR_LIMITATION on session start, and marks the whole session
+ * `patientTruthApproved: false` so no build carrying unapproved patient truth
+ * can be represented as pilot-ready.
  */
+
+import { reviewStatusOf } from "./contentProvenance.js";
 
 export const RUNTIME_AUTHORITATIVE_STATUS = "approved_for_training";
 
@@ -40,7 +49,7 @@ export function isRuntimeAuthoritative(reviewStatus) {
  * log/expose them as `SIMULATOR_LIMITATION`, never silently discard them
  * (Governance Spec §24 auditability; task §21 "must not be penalized").
  */
-export function partitionByAuthority(items, getReviewStatus = (item) => item?.review_status) {
+export function partitionByAuthority(items, getReviewStatus = reviewStatusOf) {
   const authoritative = [];
   const blocked = [];
   for (const item of items) {
@@ -48,6 +57,16 @@ export function partitionByAuthority(items, getReviewStatus = (item) => item?.re
     else blocked.push(item);
   }
   return { authoritative, blocked };
+}
+
+/**
+ * The gate applied to a whole content OBJECT rather than a bare status string.
+ * Added in the 2026-08-25 remediation pass so call sites stop reaching for
+ * `item.review_status` directly and pick up `provenance.review_status`
+ * automatically (see `contentProvenance.js`).
+ */
+export function isContentAuthoritative(item) {
+  return isRuntimeAuthoritative(reviewStatusOf(item));
 }
 
 /** A structured, non-clinical marker for "this would have applied, but isn't approved yet". */
