@@ -1,42 +1,295 @@
-# Probabilistic postoperative course (Foundation Spec §41, §20).
+# Postoperative course, complications and discharge.
 #
-# First vertical slice models exactly one branch point so the "recovery vs
-# complication" mechanism can be demonstrated end-to-end without overreaching
-# on unreviewed complication-rate content: superficial surgical-site infection
-# after appendectomy, at a modest incidence, present regardless of decision
-# quality, and slightly more likely when postoperative monitoring is
-# inadequate. Rates are illustrative pilot placeholders, not sourced
-# epidemiology - see review_status.
+# Remediated 2026-08-25 against APP004_CLINICAL_REVIEW_MATRIX_v1.0_2026-08-25
+# §6 (T06/T07), §11 (postoperative care and discharge) and the task §4.7,
+# §18, §19.
+#
+# WHAT WAS DELETED IN THIS PASS
+#
+#   superficial_ssi (base_probability 0.04)
+#     Matrix T06 / §14: the reviewer chose a CLEAN uncomplicated recovery for
+#     the first approved APP-004. The complication is not rolled, and is NOT
+#     replaced by another complication (§4.7).
+#
+#   probability_with_inadequate_monitoring 0.09
+#     Matrix T07/PO09: "inadequate monitoring raises the biological incidence
+#     of SSI" is a causal model with no supporting evidence. Monitoring
+#     affects DETECTION and ESCALATION, not incidence. Deleted outright; the
+#     branch is also gone from core/time/advanceTime.js.
+#
+#   discharge_criteria.afebrile "не менее 24 часов"
+#     Matrix PO13/PO16 and §19.1: same-day/next-day discharge is acceptable
+#     for selected uncomplicated laparoscopic patients, so a 24 h afebrile
+#     requirement is not supported. Also removed: any flatus/stool
+#     requirement (matrix PO16) and the pain <= 3 cutoff (matrix PO12).
 schema_version: "1.0"
 
 postoperative_course:
-  baseline_recovery:
-    milestones_hours: [6, 24, 48]
-    description_ru:
-      "6": "боль контролируется анальгетиками, перистальтика восстанавливается"
-      "24": "пероральный приём переносит, дренажей нет, температура нормальная"
-      "48": "готов к выписке при отсутствии осложнений"
+  # Matrix PO05/PO06: early oral intake as tolerated and early mobilization
+  # are ordinary ward workflow, not high-stakes learner checkpoints.
+  ward_workflow:
+    early_oral_intake_ru: "После восстановления после наркоза, при отсутствии значимой тошноты и рвоты, разрешена жидкость, затем диета по переносимости."
+    early_mobilization_ru: "Ранняя активизация в пределах палаты в день операции по переносимости."
+    ward_minimum_monitoring_ru: "Стандартный минимум наблюдения в отделении выполняется независимо от отдельного назначения."
+    provenance:
+      id: POSTOP-WARD-WORKFLOW-APP004
+      authority_layer: clinical_pathway
+      jurisdiction: international
+      source: "APP004_CLINICAL_REVIEW_MATRIX_v1.0_2026-08-25 PO05, PO06, PO07, PO08"
+      source_version_or_date: "2026-08-25"
+      evidence_strength: expert_consensus
+      review_status: reviewed_internal
+      reviewed_by: ["Botagoz Kaukenova — Clinical Lead"]
+      reviewed_at: "2026-08-31"
+      second_review_required: false
+      second_reviewed_by: null
+      second_reviewed_at: null
+      next_review_due: null
+      notes: "Matrix gate READY / NOT A CLINICAL RULE. Awaiting recorded reviewer identity before promotion."
 
-  complications:
+  # Matrix PO17: standard hospital workflow, performed automatically, not a
+  # clerical action the resident is quizzed on.
+  automatic_workflow:
+    - id: histopathology_send
+      trigger: source_control_completed
+      label_ru: "макропрепарат направлен на гистологическое исследование"
+      authority_layer: hospital_workflow
+  provenance_automatic_workflow:
+      id: POSTOP-AUTOMATIC-WORKFLOW-APP004
+      authority_layer: hospital_workflow
+      jurisdiction: KZ
+      source: "APP004_CLINICAL_REVIEW_MATRIX_v1.0_2026-08-25 PO17"
+      source_version_or_date: "2026-08-25"
+      evidence_strength: expert_consensus
+      review_status: reviewed_internal
+      reviewed_by: null
+      reviewed_at: "2026-08-25"
+      second_review_required: false
+      second_reviewed_by: null
+      second_reviewed_at: null
+      next_review_due: null
+      notes: "Hospital workflow, not a clinical rule."
+
+  # Matrix T06 / task §4.7: EMPTY on purpose for the first approved APP-004.
+  # A later complication module must arrive with reviewed incidence and
+  # modifiers of its own; nothing is placed here as a stand-in.
+  complications: []
+
+  # The removed content, retained as a review record so the deletion is
+  # auditable and the reviewer can see exactly what was withdrawn. Nothing in
+  # `withdrawn_complications` is read by the runtime.
+  withdrawn_complications:
     - id: superficial_ssi
-      label_ru: "поверхностная инфекция области хирургического вмешательства"
-      base_probability: 0.04
-      probability_with_inadequate_monitoring: 0.09
-      earliest_onset_hours: 48
-      latest_onset_hours: 120
-      presentation_ru: "гиперемия и болезненность в области раны, субфебрильная температура"
-      management_hint_ru: "локальная обработка раны, антибиотики по показаниям при системных признаках"
-      source_ids: [WSES2025]
-      review_status: pending
+      withdrawn_at: "2026-08-25"
+      withdrawn_because: "APP004_CLINICAL_REVIEW_MATRIX_v1.0_2026-08-25 T06 (REMOVE from first APP-004) and T07 (REMOVE monitoring multiplier)."
+      previous_base_probability: 0.04
+      previous_probability_with_inadequate_monitoring: 0.09
+      required_before_reinstatement:
+        - "Sourced incidence for uncomplicated laparoscopic appendectomy"
+        - "Reviewed modifier model (if any) that does not equate monitoring intensity with biological incidence"
+        - "Independent second review"
 
+# ---------------------------------------------------------------------------
+# Discharge (matrix PO12-PO21, task §19)
+# ---------------------------------------------------------------------------
+# Two kinds of criterion, deliberately separated:
+#
+#   authority_layer: workflow  - structural facts the architecture owns and can
+#                                evaluate without any clinical claim (has the
+#                                operation finished, is there an unresolved
+#                                complication, has the patient left theatre).
+#                                These carry review_status: not_a_clinical_rule
+#                                and are selected by authority_layer, NEVER by
+#                                being promoted to approved_for_training.
+#   authority_layer: clinical_rule - functional clinical readiness. These are
+#                                PROPOSED and `pending`; the governed
+#                                evaluator in core/commands/executeCommand.js
+#                                skips them and records a simulator limitation
+#                                rather than pretending a reviewed criterion
+#                                was checked.
 discharge_criteria:
-  - id: afebrile
-    label_ru: "нормальная температура тела не менее 24 часов"
-  - id: oral_intake_tolerated
-    label_ru: "переносит пероральный приём"
-  - id: pain_controlled_oral
-    label_ru: "боль контролируется пероральными анальгетиками"
-  - id: no_active_complication
-    label_ru: "нет признаков активного осложнения"
+  - id: operation_completed
+    authority_layer: workflow
+    label_ru: "операция завершена"
+    # PBC-19/PBC-24. `label_ru` names the criterion in the SATISFIED form, and
+    # `renderDischargeNotReady` falls back to it when no failure wording
+    # exists - so refusing discharge before the operation told the learner
+    # "Выписать сейчас нельзя: операция завершена", which states the exact
+    # opposite of the blocker. Every other criterion here already carried a
+    # `learner_reason_ru`; this one did not. Workflow wording only: it asserts
+    # no clinical claim and remains `not_a_clinical_rule`.
+    learner_reason_ru: "запланированная операция ещё не выполнена"
+    review_status: not_a_clinical_rule
+    notes: "Structural workflow fact owned by the architecture; asserts no clinical claim, so it is neither promoted nor gated as clinical content (matrix gate: NOT A CLINICAL RULE)."
 
-review_status: pending
+  - id: no_active_unresolved_complication
+    authority_layer: workflow
+    label_ru: "нет активного неразрешённого осложнения"
+    learner_reason_ru: "есть признаки активного осложнения, которое не разрешено"
+    review_status: not_a_clinical_rule
+    notes: "Structural workflow fact owned by the architecture; asserts no clinical claim, so it is neither promoted nor gated as clinical content (matrix gate: NOT A CLINICAL RULE)."
+
+  - id: left_theatre_and_recovery
+    authority_layer: workflow
+    label_ru: "пациент выведен из операционной и из палаты пробуждения"
+    learner_reason_ru: "пациент ещё не переведён из операционной/палаты пробуждения"
+    review_status: not_a_clinical_rule
+    notes: "Structural workflow fact owned by the architecture; asserts no clinical claim, so it is neither promoted nor gated as clinical content (matrix gate: NOT A CLINICAL RULE)."
+
+  # ---- proposed clinical readiness, NOT active -----------------------------
+  # These functional criteria are clinically approved (matrix §18 / PO12-PO16),
+  # but the patient fact that would satisfy each stays dependent on unbuilt
+  # postoperative recovery calibration, so runtime evaluation is unavailable and
+  # is surfaced as a simulator limitation rather than an invented threshold.
+  # `review_status` lives in `provenance` so reviewer identity travels with it.
+  - id: haemodynamically_stable
+    authority_layer: clinical_rule
+    label_ru: "гемодинамика стабильна"
+    learner_reason_ru: "гемодинамика нестабильна"
+    runtime_evaluation: unavailable_without_recovery_calibration
+    threshold: null # NEEDS_CLINICAL_REVIEW
+    provenance: &discharge_criterion_prov
+      id: DISCHARGE-CRITERION-HAEMODYNAMIC-STABILITY-APP004
+      authority_layer: clinical_rule
+      jurisdiction: international
+      source: "APP004_CLINICAL_REVIEW_MATRIX_v1.0_2026-08-25 PO12-PO16, PO21; SRC-SDD-2021; SRC-WSES-2020"
+      source_version_or_date: "2026-08-25"
+      evidence_strength: guideline_plus_expert_consensus
+      review_status: approved_for_training
+      reviewed_by: ["Botagoz Kaukenova — Clinical Lead"]
+      reviewed_at: "2026-08-31"
+      second_review_required: true
+      second_reviewed_by: ["Sarina T.T. — General Surgery / Surgical Oncology, NROC"]
+      second_reviewed_at: "2026-08-31"
+      next_review_due: null
+      notes: >-
+        Functional criterion approved 2026-08-31; runtime evaluation stays
+        unavailable until postoperative recovery calibration exists.
+  - id: pain_controlled_on_oral_regimen
+    authority_layer: clinical_rule
+    label_ru: "боль контролируется пероральной схемой, без потребности в повторных парентеральных дозах"
+    learner_reason_ru: "боль требует повторных парентеральных доз"
+    runtime_evaluation: unavailable_without_recovery_calibration
+    threshold: null # matrix PO12: NO arbitrary pain <= 3 cutoff
+    provenance:
+      <<: *discharge_criterion_prov
+      id: DISCHARGE-CRITERION-PAIN-CONTROLLED-ORAL-APP004
+  - id: tolerating_oral_intake
+    authority_layer: clinical_rule
+    label_ru: "переносит пероральный приём жидкости/пищи"
+    learner_reason_ru: "пациент не переносит пероральный приём"
+    runtime_evaluation: unavailable_without_recovery_calibration
+    provenance:
+      <<: *discharge_criterion_prov
+      id: DISCHARGE-CRITERION-TOLERATING-ORAL-INTAKE-APP004
+  - id: no_significant_persistent_vomiting
+    authority_layer: clinical_rule
+    label_ru: "нет значимой сохраняющейся рвоты"
+    learner_reason_ru: "пациента продолжает рвать"
+    runtime_evaluation: unavailable_without_recovery_calibration
+    provenance:
+      <<: *discharge_criterion_prov
+      id: DISCHARGE-CRITERION-NO-PERSISTENT-VOMITING-APP004
+  - id: mobile
+    authority_layer: clinical_rule
+    label_ru: "пациент активизирован"
+    learner_reason_ru: "пациент ещё не активизирован"
+    runtime_evaluation: unavailable_without_recovery_calibration
+    provenance:
+      <<: *discharge_criterion_prov
+      id: DISCHARGE-CRITERION-MOBILE-APP004
+  - id: urinary_function_acceptable
+    authority_layer: clinical_rule
+    label_ru: "мочеиспускание восстановлено (когда клинически значимо)"
+    learner_reason_ru: "не восстановлено самостоятельное мочеиспускание"
+    runtime_evaluation: conditional_only
+    blocking: false
+    notes: "Checked only when retention risk or another modeled urinary issue exists; never a universal gate."
+    provenance:
+      <<: *discharge_criterion_prov
+      id: DISCHARGE-CRITERION-URINARY-FUNCTION-APP004
+      notes: >-
+        Conditional criterion approved 2026-08-31; evaluated only when a modeled
+        retention risk exists, never as a universal discharge gate.
+
+# EXPLICITLY NOT DISCHARGE CRITERIA. Listed so a future edit cannot quietly
+# reintroduce them, and so the regression suite can assert their absence.
+discharge_criteria_explicitly_removed:
+  - id: flatus_or_stool
+    removed_because: "matrix PO16 REMOVE — not required for uncomplicated laparoscopic appendectomy discharge"
+  - id: minimum_24h_admission
+    removed_because: "matrix PO13 APPROVE same-day/next-day discharge (SRC-SDD-2021); PO21 keeping a ready patient overnight is at most a resource note"
+  - id: afebrile_24h
+    removed_because: "matrix PO11/PO13 — isolated low-grade early temperature is not a complication, and 24 h afebrile is unsupported"
+  - id: routine_next_day_cbc
+    removed_because: "matrix PO10 REMOVE — not mandatory after uncomplicated stable laparoscopic appendectomy"
+  - id: pain_score_at_or_below_3
+    removed_because: "matrix PO12 REMOVE — function and control matter, not an arbitrary threshold"
+
+provenance_discharge_criteria:
+  id: DISCHARGE-CRITERIA-APP004
+  authority_layer: clinical_rule
+  jurisdiction: international
+  source: "APP004_CLINICAL_REVIEW_MATRIX_v1.0_2026-08-25 PO12-PO16, PO21; SRC-SDD-2021; SRC-WSES-2020"
+  source_version_or_date: "2026-08-25"
+  evidence_strength: guideline_plus_expert_consensus
+  review_status: approved_for_training
+  reviewed_by: ["Botagoz Kaukenova — Clinical Lead"]
+  reviewed_at: "2026-08-31"
+  second_review_required: true
+  second_reviewed_by: ["Sarina T.T. — General Surgery / Surgical Oncology, NROC"]
+  second_reviewed_at: "2026-08-31"
+  next_review_due: null
+  notes: >-
+    Functional criteria approved on 2026-08-31 without arbitrary pain, time,
+    laboratory, stool/flatus or universal urination thresholds. Runtime facts
+    that would satisfy them remain separately dependent on postoperative
+    recovery calibration.
+
+# ---------------------------------------------------------------------------
+# System-generated discharge bundle (matrix PO18, PO20; task §19.5, §19.6)
+# ---------------------------------------------------------------------------
+# The learner is NOT required to recite follow-up wording or red flags in every
+# case. The system emits the reviewed bundle after a valid discharge decision.
+# Suture-removal instructions are deliberately absent (matrix PO19): they
+# depend on the closure material, which is not modeled.
+discharge_bundle:
+  follow_up_ru: "Контроль у хирурга по месту жительства."
+  histopathology_ru: "Результат гистологического исследования — по месту жительства."
+  return_precautions_ru:
+    - "усиление боли в животе"
+    - "лихорадка"
+    - "повторная рвота или невозможность пить"
+    - "покраснение, отделяемое или расхождение краёв раны"
+    - "отсутствие стула и газов с нарастающим вздутием"
+  provenance:
+    id: DISCHARGE-BUNDLE-APP004
+    authority_layer: clinical_workflow
+    jurisdiction: KZ
+    source: "APP004_CLINICAL_REVIEW_MATRIX_v1.0_2026-08-25 PO18 (KZ reviewer wording), PO20"
+    source_version_or_date: "2026-08-25"
+    evidence_strength: expert_consensus
+    review_status: approved_for_training
+    reviewed_by: ["Botagoz Kaukenova — Clinical Lead"]
+    reviewed_at: "2026-08-31"
+    second_review_required: false
+    second_reviewed_by: null
+    second_reviewed_at: null
+    next_review_due: null
+    notes: "Matrix gate READY. Awaiting recorded reviewer identity before promotion to approved_for_training."
+
+provenance:
+  id: CONTENT-COMPLICATIONS-APPENDICITIS
+  authority_layer: patient_truth
+  jurisdiction: international
+  source: "APP004_CLINICAL_REVIEW_MATRIX_v1.0_2026-08-25 §6, §11"
+  source_version_or_date: "2026-08-25"
+  evidence_strength: expert_consensus
+  review_status: pending
+  reviewed_by: null
+  reviewed_at: null
+  second_review_required: true
+  second_reviewed_by: null
+  second_reviewed_at: null
+  next_review_due: null
+  notes: "File-level status."

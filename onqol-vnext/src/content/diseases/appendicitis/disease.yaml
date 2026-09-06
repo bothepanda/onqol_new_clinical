@@ -1,45 +1,118 @@
 # Disease card: acute appendicitis.
 #
-# Provenance carried forward from the legacy reviewed corpus
-# (migration/legacy-content/appendicitis/appendicitis.core.yaml), re-expressed
-# in the vNext content shape. review_status values are copied verbatim, not
-# upgraded - "reviewed_internal" here means the same thing it meant there:
-# reviewed by the clinical owner, independent review still pending. Nothing in
-# this module may claim `approved_for_training` that the source did not.
+# Remediated 2026-08-25 against APP004_CLINICAL_REVIEW_MATRIX_v1.0_2026-08-25.
+# review_status values are NEVER upgraded by an edit to this file. Every
+# content object now carries a `provenance:` block (task §21); `review_status`
+# lives inside it and is read at runtime through
+# `core/rules/contentProvenance.js#reviewStatusOf`.
 schema_version: "1.0"
 disease_id: acute_appendicitis
 presentation_category: acute_abdomen
-review_status: reviewed_internal
-independent_review_status: pending
-last_clinical_review: "2026-08-08"
-next_scheduled_review: "2028-08-01"
+
+provenance:
+  id: DISEASE-ACUTE-APPENDICITIS
+  authority_layer: clinical_rule
+  jurisdiction: international
+  source: "WSES Jerusalem Guidelines 2025 (SRC-WSES-2025); WSES 2020 (SRC-WSES-2020)"
+  source_version_or_date: "2026-03 (JAMA Surg 2026;161(3):283-295)"
+  evidence_strength: guideline
+  review_status: reviewed_internal
+  reviewed_by: null
+  reviewed_at: "2026-08-08"
+  second_review_required: true
+  second_reviewed_by: null
+  second_reviewed_at: null
+  next_review_due: "2028-08-01"
+  notes: "Independent clinical review pending. Disease card itself asserts no runtime patient truth."
 
 sources:
-  - id: WSES2025
+  - id: SRC-WSES-2025
     title: "Diagnosis and Treatment of Acute Appendicitis: 2025 Edition of the World Society of Emergency Surgery Jerusalem Guidelines"
     organization: "World Society of Emergency Surgery"
     publication_year: 2026
     doi: "10.1001/jamasurg.2025.6218"
     jurisdiction: international
-  - id: KZ_AA_2018
+  - id: SRC-WSES-2020
+    title: "Diagnosis and treatment of acute appendicitis: 2020 update of the WSES Jerusalem guidelines"
+    organization: "World Society of Emergency Surgery"
+    publication_year: 2020
+    doi: "10.1186/s13017-020-00306-3"
+    jurisdiction: international
+  - id: SRC-ASHP-PROPH
+    title: "Clinical practice guidelines for antimicrobial prophylaxis in surgery"
+    organization: "ASHP/IDSA/SIS/SHEA"
+    publication_year: 2013
+    doi: "10.2146/ajhp120568"
+    jurisdiction: international
+  - id: SRC-ACR-ABD
+    title: "ACR Appropriateness Criteria: Acute Nonlocalized Abdominal Pain; Right Lower Quadrant Pain"
+    organization: "American College of Radiology"
+    jurisdiction: international
+  - id: SRC-ACR-CONTRAST
+    title: "ACR Manual on Contrast Media (current online edition)"
+    organization: "American College of Radiology"
+    jurisdiction: international
+  - id: SRC-ASA-FASTING-2023
+    title: "2023 ASA Practice Guidelines for Preoperative Fasting"
+    organization: "American Society of Anesthesiologists"
+    publication_year: 2023
+    doi: "10.1097/ALN.0000000000004381"
+    jurisdiction: international
+  - id: SRC-SAGES-VTE
+    title: "VTE Prophylaxis for Laparoscopic Surgery Guidelines: An Update"
+    organization: "SAGES"
+    jurisdiction: international
+  - id: SRC-SDD-2021
+    title: "Same-day discharge after appendectomy for acute appendicitis: systematic review and meta-analysis"
+    organization: "Int J Colorectal Dis 2021;36:1297-1309"
+    publication_year: 2021
+    jurisdiction: international
+  - id: SRC-KZ-ANESTH-2023
+    title: "Стандарт организации оказания анестезиологической и реаниматологической помощи"
+    organization: "МЗ РК, Adilet V2300032409"
+    jurisdiction: KZ
+    role: "Kazakhstan jurisdictional layer. Not universal EBM."
+  - id: SRC-KZ-BLOOD-2020
+    title: "Правила проведения трансфузии крови и её компонентов"
+    organization: "МЗ РК, Adilet V2000021478"
+    jurisdiction: KZ
+    role: "Kazakhstan jurisdictional layer. Not universal EBM."
+  - id: SRC-KZ-APP-2018
     title: "Клинический протокол диагностики и лечения: Острый аппендицит"
     organization: "МЗ РК, протокол №61"
     approval_date: "2019-03-04"
     jurisdiction: KZ
-    role: "Kazakhstan delta layer; not a substitute for the international evidence layer."
+    role: "Local/historical context only until the current official protocol is confirmed (matrix source registry)."
 
 classification:
   uncomplicated:
     rule_id: class_uncomplicated
-    source_ids: [WSES2025]
+    source_ids: [SRC-WSES-2025]
   complicated:
     rule_id: class_complicated
     any_of: [gangrene_necrosis, perforation, abscess, diffuse_peritonitis]
-    source_ids: [WSES2025]
+    source_ids: [SRC-WSES-2025]
 
-# Physiology by MORPHOLOGY, not by phenotype - carried over verbatim from the
-# surgeon's 09.08.2026 correction in phenotypes.js: where the appendix sits
-# changes where it hurts and what imaging shows, not how high the CRP goes.
+# ---------------------------------------------------------------------------
+# Physiology generation
+# ---------------------------------------------------------------------------
+#
+# Matrix V01/V03/V05: the single broad envelope below is NOT an approved
+# "ordinary stable APP-004 patient" description. The reviewer's decision is
+# that WBC/neutrophils/CRP/HR/T/RR must become LINKED inflammatory profiles
+# (minimal / moderate / marked), and that the exact numeric envelopes have not
+# been validated.
+#
+# What this pass does, and deliberately does not do:
+#   - it does NOT invent minimal/moderate/marked numbers (task §6: "Do not
+#     invent final numeric ranges"), so `inflammatory_profiles` ships as an
+#     authored SCAFFOLD with null ranges awaiting the reviewer;
+#   - it DOES delete the "later presentation => automatically higher every
+#     lab" drift that used to bias every draw (matrix V04 REMOVE);
+#   - the legacy union envelope is retained ONLY so a patient can still be
+#     instantiated for internal development, and is explicitly flagged
+#     `development_only: true`. `core/patient/patientTruthGovernance.js`
+#     records it as non-approved patient truth on every session.
 physiology_envelopes:
   uncomplicated_inflammation:
     heart_rate: [72, 112]
@@ -49,28 +122,234 @@ physiology_envelopes:
     wbc: [8, 18]
     neutrophil_percent: [65, 90]
     crp: [2, 140]
-    review_status: pending
-    derived_from: "union of authored ranges for early_subtle, classic, pelvic, retrocecal"
+    development_only: true
+    provenance:
+      id: ENV-UNCOMPLICATED-INFLAMMATION
+      authority_layer: patient_truth
+      jurisdiction: international
+      source: null
+      source_version_or_date: null
+      evidence_strength: NEEDS_SOURCE
+      review_status: pending
+      reviewed_by: null
+      reviewed_at: null
+      second_review_required: true
+      second_reviewed_by: null
+      second_reviewed_at: null
+      next_review_due: null
+      notes: >-
+        APP004 Numeric Calibration Review 2026-08-31 (ENV) — Clinical Lead
+        decision: REVISE to the linked minimal/moderate/marked
+        `inflammatory_profiles` calibration. This union envelope is NOT
+        approved; it is retained only as the development-instantiation fallback
+        until the Clinical Lead supplies the three profile range sets (and the
+        per-profile selection weights) and re-review is recorded. The generator
+        selection mechanism is already in place
+        (`inflammatory_profiles.selection`, currently disabled).
+        review_status stays pending. See
+        docs/review/APP004_VITALS_LABS_REVIEW_TABLE.md.
+
+        Second Clinical Reviewer Decision, 2026-09-01 (Sarina T.T.): the
+        "ENV + inflammatory profiles" row was APPROVED, but her comment
+        addresses the `inflammatory_profiles` numeric ranges (minimal /
+        moderate / marked_but_stable) specifically, not this union envelope's
+        own values, which were never themselves given a Clinical Lead first
+        review (`reviewed_by` on this object has always been null). This
+        object's own review_status is therefore left `pending` rather than
+        promoted; the three linked profiles below carry the actual approved
+        calibration and are now the active generation path
+        (`inflammatory_profiles.selection.generation_enabled: true`). This
+        envelope is retained only for internal development, replay
+        compatibility and audit history, per the second reviewer's decision
+        that the legacy envelope must not be used for learner_pilot /
+        production generation.
+
+  # Exact V3.5 faculty-preview envelope for APP-005. Preserved so the old case
+  # can be reconstructed for review, not as an approved physiologic model.
+  diffuse_peritonitis:
+    heart_rate: [88, 140]
+    temperature_c: [37.4, 39.5]
+    systolic_bp: [80, 130]
+    respiratory_rate: [16, 34]
+    wbc: [11, 24]
+    neutrophil_percent: [75, 95]
+    crp: [40, 350]
+    development_only: true
+    provenance:
+      id: ENV-DIFFUSE-PERITONITIS-V35
+      authority_layer: patient_truth
+      jurisdiction: international
+      source: "onqol-trainer/src/clinical/v35/phenotypes.js PHYSIOLOGY_ENVELOPES.complicated"
+      source_version_or_date: "3.5.7 / 2026-08-10"
+      evidence_strength: NEEDS_SOURCE
+      review_status: pending
+      reviewed_by: null
+      reviewed_at: null
+      second_review_required: true
+      second_reviewed_by: null
+      second_reviewed_at: null
+      next_review_due: null
+      notes: >-
+        Migrated unchanged for faculty review. V3.5 marked the envelope pending;
+        no coherent organ-dysfunction cluster or treatment-response calibration exists.
+
+# Matrix V03 / APP004 Numeric Calibration Review 2026-08-31 (ENV): Clinical Lead
+# decision is REVISE to this linked 3-profile calibration, and the Clinical Lead
+# has now supplied the verbatim ranges and selection weights below.
+#
+# These are expert-reviewed SIMULATION CALIBRATION ranges for generating
+# coherent, stable, uncomplicated APP-004 patients. They are NOT diagnostic
+# thresholds, NOT appendicitis severity criteria, NOT epidemiological
+# distributions, NOT guideline cutoffs, NOT treatment triggers. Profile ID is
+# hidden generation truth and is never disclosed to the learner. Nothing in the
+# runtime may infer diagnosis, severity class, management, operative indication
+# or a safety rule from profile membership.
+#
+# GENERATION CONTRACT (enforced in patientGenerator.js selectInflammatoryProfile):
+#   - select exactly ONE profile per patient, then draw EVERY physiology /
+#     laboratory field from that profile only (centred sampling); never mix
+#     fields from different profiles;
+#   - no symptom-duration coupling, no deterministic intra-profile correlation
+#     beyond membership itself.
+#
+# STATUS: the three profiles are `approved_for_training` (Clinical Lead +
+# second reviewer Sarina T.T., 2026-09-01) and `selection.generation_enabled`
+# is now `true` — this is the active generation path for APP-004. An APP-004
+# learner_pilot / production session MUST use these profiles and MUST fail the
+# session gate (never silently fall back to the union envelope) if the
+# calibration is missing, unapproved or invalid — see
+# `evaluateInflammatoryCalibrationForPilot` in patientTruthGovernance.js,
+# called from createSession.js.
+inflammatory_profiles:
+  selection:
+    generation_enabled: true # ENV + 3 profiles approved_for_training, second review 2026-09-01 (Sarina T.T.)
+    sampling: centred
+    order: [minimal, moderate, marked_but_stable]
+    # APP-004 pilot simulation-diversity configuration ONLY. This is NOT a
+    # real-world prevalence estimate.
+    weights_are_epidemiological_prevalence: false
+    weights: [0.30, 0.50, 0.20] # minimal / moderate / marked_but_stable
+  minimal:
+    heart_rate: [72, 90]
+    temperature_c: [36.6, 37.5]
+    systolic_bp: [105, 140]
+    respiratory_rate: [14, 18]
+    wbc: [8.0, 11.5]
+    neutrophil_percent: [65, 78]
+    crp: [2, 25]
+    generation_enabled: false
+    provenance:
+      id: PROFILE-INFLAMMATORY-MINIMAL
+      authority_layer: patient_truth
+      jurisdiction: international
+      source: "APP004 Numeric Calibration Review 2026-08-31 (ENV) — Clinical Lead verbatim calibration values"
+      source_version_or_date: "2026-08-31"
+      evidence_strength: expert_consensus
+      review_status: approved_for_training
+      reviewed_by: ["Botagoz Kaukenova — Clinical Lead"]
+      reviewed_at: "2026-08-31"
+      second_review_required: true
+      second_reviewed_by: ["Sarina T.T. — General Surgery / Surgical Oncology, NROC"]
+      second_reviewed_at: "2026-09-01"
+      next_review_due: null
+      notes: >-
+        Simulation calibration for a low-inflammation stable uncomplicated
+        APP-004 patient. Not diagnostic thresholds or severity criteria.
+        Second Clinical Reviewer Decision, 2026-09-01: APPROVED — "numeric
+        ranges are clinically plausible for stable uncomplicated appendicitis";
+        selection weights approved as simulation/curriculum calibration only,
+        not epidemiological prevalence.
+  moderate:
+    heart_rate: [80, 98]
+    temperature_c: [37.0, 38.0]
+    systolic_bp: [105, 140]
+    respiratory_rate: [14, 20]
+    wbc: [10.5, 14.5]
+    neutrophil_percent: [72, 85]
+    crp: [10, 60]
+    generation_enabled: false
+    provenance:
+      id: PROFILE-INFLAMMATORY-MODERATE
+      authority_layer: patient_truth
+      jurisdiction: international
+      source: "APP004 Numeric Calibration Review 2026-08-31 (ENV) — Clinical Lead verbatim calibration values"
+      source_version_or_date: "2026-08-31"
+      evidence_strength: expert_consensus
+      review_status: approved_for_training
+      reviewed_by: ["Botagoz Kaukenova — Clinical Lead"]
+      reviewed_at: "2026-08-31"
+      second_review_required: true
+      second_reviewed_by: ["Sarina T.T. — General Surgery / Surgical Oncology, NROC"]
+      second_reviewed_at: "2026-09-01"
+      next_review_due: null
+      notes: >-
+        Simulation calibration for a mid-range stable uncomplicated APP-004
+        patient. Not diagnostic thresholds or severity criteria.
+        Second Clinical Reviewer Decision, 2026-09-01: APPROVED — "numeric
+        ranges are clinically plausible for stable uncomplicated appendicitis";
+        selection weights approved as simulation/curriculum calibration only,
+        not epidemiological prevalence.
+  marked_but_stable:
+    heart_rate: [90, 104]
+    temperature_c: [37.5, 38.2]
+    systolic_bp: [100, 135]
+    respiratory_rate: [16, 21]
+    wbc: [13.0, 16.5]
+    neutrophil_percent: [80, 90]
+    crp: [40, 100]
+    generation_enabled: false
+    provenance:
+      id: PROFILE-INFLAMMATORY-MARKED
+      authority_layer: patient_truth
+      jurisdiction: international
+      source: "APP004 Numeric Calibration Review 2026-08-31 (ENV) — Clinical Lead verbatim calibration values"
+      source_version_or_date: "2026-08-31"
+      evidence_strength: expert_consensus
+      review_status: approved_for_training
+      reviewed_by: ["Botagoz Kaukenova — Clinical Lead"]
+      reviewed_at: "2026-08-31"
+      second_review_required: true
+      second_reviewed_by: ["Sarina T.T. — General Surgery / Surgical Oncology, NROC"]
+      second_reviewed_at: "2026-09-01"
+      next_review_due: null
+      notes: >-
+        Simulation calibration for a higher-inflammation but still HAEMODYNAMICALLY
+        STABLE uncomplicated APP-004 patient. "marked_but_stable" is a simulation
+        label, not a severity class. Not diagnostic thresholds.
+        Second Clinical Reviewer Decision, 2026-09-01: APPROVED — the upper
+        marked_but_stable ranges "appropriately overlap with values that may
+        increase suspicion for complicated disease but do not independently
+        establish complicated appendicitis"; selection weights approved as
+        simulation/curriculum calibration only, not epidemiological prevalence.
 
 numeric_facts:
-  surgery_window_uncomplicated_selected_for_surgery_max_hours: 24
-  postop_antibiotics_complicated_after_source_control_days: [2, 3]
-  source_ids: [WSES2025]
+  # Matrix T04 / §14: WSES 2025 states appendectomy for UNCOMPLICATED
+  # appendicitis may be safely delayed WITHIN 24 h without increased adverse
+  # outcomes. That is a permission, not a deadline, and the runtime rule now
+  # says so (see rules.yaml RULE-DELAY-BEYOND-24H-UNCOMPLICATED).
+  safe_delay_window_uncomplicated_hours: 24
+  source_ids: [SRC-WSES-2025]
 
 teaching_traps:
-  - id: TRAP-US-NEGATIVE
-    concept: negative_ultrasound_does_not_rule_out_appendicitis_when_suspicion_persists
-    source_ids: [WSES2025]
+  - id: TRAP-US-NONDIAGNOSTIC
+    concept: nondiagnostic_ultrasound_is_not_a_negative_study
+    source_ids: [SRC-WSES-2025, SRC-ACR-ABD]
   - id: TRAP-SCORE-DIAGNOSIS
     concept: risk_score_is_stratification_not_definitive_diagnosis
-    source_ids: [WSES2025]
-  - id: TRAP-DELAY-OVER-24H
-    concept: delay_over_24h_for_uncomplicated_selected_for_surgery
-    source_ids: [WSES2025]
+    source_ids: [SRC-WSES-2025]
+  - id: TRAP-DELAY-BEYOND-24H
+    concept: delay_beyond_24h_for_uncomplicated_selected_for_surgery
+    source_ids: [SRC-WSES-2025]
   - id: TRAP-ROUTINE-DRAIN
     concept: routine_drain_after_laparoscopic_appendectomy_uncomplicated
-    source_ids: [WSES2025]
+    source_ids: [SRC-WSES-2025]
+  - id: TRAP-ROUTINE-POSTOP-ANTIBIOTICS
+    concept: no_postoperative_antibiotics_after_uncomplicated_appendectomy
+    source_ids: [SRC-WSES-2025]
 
 release_gate:
   production_allowed: false
-  reason: "Independent clinical review and Kazakh clinical-language review are pending, matching the legacy corpus's own gate."
+  reason: >-
+    APP004_CLINICAL_REVIEW_MATRIX_v1.0_2026-08-25 §18: natural trajectory and
+    treatment response are NO-GO until rewritten and reviewed; patient truth
+    needs provenance/range review. Resident pilot NO-GO.

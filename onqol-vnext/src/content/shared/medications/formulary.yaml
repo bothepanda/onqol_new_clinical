@@ -1,34 +1,265 @@
-# Recognized medications/fluids for the appendicitis vertical slice.
-#
-# This is the "recognized" half of Foundation Spec §50's three-way
-# distinction. A drugId not listed here is `unsupported_content` regardless of
-# hospital mode - the platform does not model it yet, which is a simulator
-# limitation and must never be phrased to the learner as "not in stock"
-# (Contract §50.2, and behavioral regression #17 in the vNext task brief).
-#
-# `formulary_status` distinguishes REFERENCE availability (all listed drugs)
-# from REAL-mode hospital-specific gaps, applied by the hospital profile, not
-# hardcoded here.
-schema_version: "1.0"
+# Recognized medication catalogue. Approval applies only to the listed pilot
+# dose/route validation boundary; treatment-response magnitude remains a
+# separate governed object in trajectories.yaml.
+schema_version: "1.1"
 
 medications:
   cefazolin:
     label_ru: "цефазолин"
-    reference_dose_range_mg: [2000, 3000]
-    source_ids: [WSES2025]
+    tags: [antibiotic, cephalosporin, beta_lactam]
+    anaerobic_cover: false
+    order_validation:
+      routes:
+        iv:
+          allowed_doses_mg: [2000, 3000]
+          minimum_weight_kg_by_dose_mg: { "3000": 120 }
+    provenance: &reviewed_abx
+      id: MED-CEFAZOLIN-PILOT
+      authority_layer: clinical_rule
+      jurisdiction: international
+      source: "APP-004 — Second Clinical Review, AB-04 and Adult pilot regimens; SRC-ASHP-PROPH"
+      source_version_or_date: "2026-08-31"
+      evidence_strength: guideline_plus_independent_review
+      review_status: approved_for_training
+      reviewed_by: ["Botagoz Kaukenova — Clinical Lead"]
+      reviewed_at: "2026-08-31"
+      second_review_required: true
+      second_reviewed_by: ["Sarina T.T. — General Surgery / Surgical Oncology, NROC"]
+      second_reviewed_at: "2026-08-31"
+      next_review_due: null
+      notes: "2 g IV is the base-pilot dose; 3 g is valid only when a modeled body weight is at least 120 kg. Cefazolin alone is incomplete appendectomy prophylaxis."
+
   metronidazole:
     label_ru: "метронидазол"
-    reference_dose_range_mg: [500, 500]
-    source_ids: [WSES2025]
-  ketorolac:
-    label_ru: "кеторолак"
+    tags: [antibiotic, nitroimidazole]
+    anaerobic_cover: true
+    order_validation:
+      routes:
+        iv: { allowed_doses_mg: [500] }
+    provenance:
+      <<: *reviewed_abx
+      id: MED-METRONIDAZOLE-PILOT
+      notes: "500 mg IV; appendectomy prophylaxis component or reviewed severe-allergy alternative."
+
+  cefoxitin:
+    label_ru: "цефокситин"
+    tags: [antibiotic, cephalosporin, beta_lactam]
+    anaerobic_cover: true
+    order_validation:
+      routes:
+        iv: { allowed_doses_mg: [2000] }
+    provenance:
+      <<: *reviewed_abx
+      id: MED-CEFOXITIN-PILOT
+      notes: "2 g IV; Reference option. Real-hospital availability must come from the active formulary/resource profile."
+
+  cefotetan:
+    label_ru: "цефотетан"
+    tags: [antibiotic, cephalosporin, beta_lactam]
+    anaerobic_cover: true
+    order_validation:
+      routes:
+        iv: { allowed_doses_mg: [2000] }
+    provenance:
+      <<: *reviewed_abx
+      id: MED-CEFOTETAN-PILOT
+      notes: "2 g IV; Reference option. Real-hospital availability must come from the active formulary/resource profile."
+
+  clindamycin:
+    label_ru: "клиндамицин"
+    tags: [antibiotic, lincosamide]
+    order_validation:
+      routes:
+        iv: { allowed_doses_mg: [900] }
+    provenance:
+      <<: *reviewed_abx
+      id: MED-CLINDAMYCIN-PILOT
+      notes: "900 mg IV, only as a component of the reviewed severe beta-lactam allergy regimen."
+
+  aztreonam:
+    label_ru: "азтреонам"
+    tags: [antibiotic, monobactam]
+    order_validation:
+      routes:
+        iv: { allowed_doses_mg: [2000] }
+    provenance:
+      <<: *reviewed_abx
+      id: MED-AZTREONAM-PILOT
+      notes: "2 g IV, only as a component of the reviewed severe beta-lactam allergy regimen."
+
+  gentamicin:
+    label_ru: "гентамицин"
+    tags: [antibiotic, aminoglycoside]
+    order_validation:
+      routes:
+        iv: { allowed_dose_mg_per_kg: [5] }
+    provenance:
+      <<: *reviewed_abx
+      id: MED-GENTAMICIN-PILOT
+      notes: "5 mg/kg dosing weight IV. Absolute-dose execution remains unavailable until dosing weight is modeled."
+
+  paracetamol:
+    label_ru: "парацетамол"
+    tags: [analgesic, non_opioid]
+    class: paracetamol
+    order_validation:
+      routes:
+        oral: { allowed_doses_mg: [1000] }
+        iv: { allowed_doses_mg: [1000] }
+      max_24h_mg: 4000
+      minimum_interval_minutes: 360
+    provenance: &reviewed_analgesic
+      id: MED-PARACETAMOL-PILOT
+      authority_layer: clinical_rule
+      jurisdiction: international
+      source: "APP-004 — Second Clinical Review, PAIN-02 and pilot formulary; PROSPECT 2024"
+      source_version_or_date: "2026-08-31"
+      evidence_strength: guideline_plus_independent_review
+      review_status: approved_for_training
+      reviewed_by: ["Botagoz Kaukenova — Clinical Lead"]
+      reviewed_at: "2026-08-31"
+      second_review_required: true
+      second_reviewed_by: ["Sarina T.T. — General Surgery / Surgical Oncology, NROC"]
+      second_reviewed_at: "2026-08-31"
+      next_review_due: null
+      notes: "Pilot order boundary only; no drug-effect magnitude is implied."
+
+  ibuprofen:
+    label_ru: "ибупрофен"
+    tags: [analgesic, nsaid]
     class: nsaid_analgesic
+    order_validation:
+      routes:
+        oral: { allowed_doses_mg: [400] }
+      max_24h_mg: 2400
+      minimum_interval_minutes: 360
+    provenance:
+      <<: *reviewed_analgesic
+      id: MED-IBUPROFEN-PILOT
+
+  tramadol:
+    label_ru: "трамадол"
+    tags: [analgesic, opioid_like]
+    class: opioid_like_analgesic
+    role: rescue_only
+    order_validation:
+      routes:
+        oral: { allowed_doses_mg: [50, 100] }
+        iv: { allowed_doses_mg: [50, 100], administration: slow }
+      max_24h_mg: 400
+      minimum_interval_minutes: 360
+    provenance:
+      <<: *reviewed_analgesic
+      id: MED-TRAMADOL-PILOT
+      notes: "Rescue only. The 400 mg/day pilot ceiling is an order-validation boundary, not a toxicity threshold."
+
+  metamizole:
+    label_ru: "метамизол"
+    tags: [analgesic, non_opioid, kz_formulary_alternative]
+    class: pyrazolone_analgesic
+    availability_scope: KZ_or_explicit_formulary
+    order_validation:
+      routes:
+        oral: { allowed_dose_range_mg: [500, 1000] }
+        iv: { allowed_dose_range_mg: [500, 1000] }
+      max_24h_mg: 4000
+      minimum_interval_minutes: 360
+    provenance:
+      <<: *reviewed_analgesic
+      id: MED-METAMIZOLE-KZ-PILOT
+      jurisdiction: KZ
+      source: "APP-004 — Second Clinical Review, PAIN-02 and Specific answer 2; Kazakhstan National Formulary"
+      notes: "Recognized KZ/formulary-aware alternative, not mandatory or universally preferred."
+
   ketoprofen:
     label_ru: "кетопрофен"
+    tags: [analgesic, nsaid, kz_formulary_alternative]
     class: nsaid_analgesic
+    availability_scope: KZ_or_explicit_formulary
+    order_validation:
+      routes:
+        im: { allowed_doses_mg: [100] }
+      max_24h_mg: 200
+      minimum_interval_minutes: 720
+    provenance:
+      <<: *reviewed_analgesic
+      id: MED-KETOPROFEN-KZ-PILOT
+      jurisdiction: KZ
+      source: "APP-004 — Second Clinical Review, Specific answer 1; Kazakhstan medication framework"
+      notes: "100 mg IM q12h. Generic 100 mg IV bolus is not authorized."
+
+  ketorolac:
+    label_ru: "кеторолак"
+    tags: [analgesic, nsaid]
+    class: nsaid_analgesic
+    order_validation: null
+    provenance:
+      id: MED-KETOROLAC-PENDING
+      authority_layer: clinical_rule
+      jurisdiction: international
+      source: null
+      source_version_or_date: null
+      evidence_strength: NEEDS_SOURCE
+      review_status: pending
+      reviewed_by: null
+      reviewed_at: null
+      second_review_required: true
+      second_reviewed_by: null
+      second_reviewed_at: null
+      next_review_due: null
+      notes: "Present in the development formulary but explicitly not promoted by the 2026-08-31 review."
+
+  enoxaparin:
+    label_ru: "эноксапарин"
+    tags: [anticoagulant, vte_prophylaxis]
+    role: prophylaxis_only
+    order_validation:
+      routes:
+        sc: { allowed_doses_mg: [40] }
+      minimum_interval_minutes: 1440
+    provenance:
+      <<: *reviewed_analgesic
+      id: MED-ENOXAPARIN-VTE-PILOT
+      source: "APP-004 — Second Clinical Review, VTE section"
+      notes: "40 mg SC once daily only when Caprini/bleeding/renal gates permit. No renal-adjustment dose is authored."
+
+not_in_reference_set:
+  - id: metamizole_plus_diphenhydramine
+    label_ru: "метамизол + дифенгидрамин"
+    excluded_because: "Diphenhydramine must not be bundled automatically; it requires an independent supported indication."
+  - id: diphenhydramine
+    label_ru: "дифенгидрамин"
+    excluded_because: "No independent indication is modeled in APP-004."
+
+nsaid_suitability_checks:
+  - { id: known_nsaid_allergy, checks_field: allergies }
+  - { id: renal_dysfunction, checks_field: renal_function }
+  - { id: gi_ulcer_or_bleeding_history, checks_field: gi_history }
+  - { id: bleeding_risk, checks_field: bleeding_risk }
+  - { id: decompensated_heart_failure, checks_field: heart_failure }
+  - { id: pregnancy_when_relevant, checks_field: pregnancy_status }
+provenance_nsaid_suitability_checks:
+  <<: *reviewed_analgesic
+  id: MED-NSAID-SUITABILITY-CHECKS
+  notes: "Approved gates; base APP-004 does not generate these contraindications."
 
 fluids:
   crystalloid:
     label_ru: "кристаллоидный раствор"
+    review_status: pending
 
-review_status: reviewed_internal
+provenance:
+  id: CONTENT-SHARED-FORMULARY
+  authority_layer: clinical_rule
+  jurisdiction: international
+  source: "APP-004 — Second Clinical Review, 2026-08-31"
+  source_version_or_date: "2026-08-31"
+  evidence_strength: mixed
+  review_status: reviewed
+  reviewed_by: ["Botagoz Kaukenova — Clinical Lead", "Sarina T.T. — General Surgery / Surgical Oncology, NROC"]
+  reviewed_at: "2026-08-31"
+  second_review_required: false
+  second_reviewed_by: null
+  second_reviewed_at: null
+  next_review_due: null
+  notes: "Per-medication provenance controls authority; treatment-effect calibrations remain separate."

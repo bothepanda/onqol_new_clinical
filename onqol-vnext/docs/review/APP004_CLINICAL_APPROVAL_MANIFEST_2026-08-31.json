@@ -1,0 +1,504 @@
+{
+  "manifest": "APP004_CLINICAL_APPROVAL_MANIFEST",
+  "date": "2026-08-31",
+  "content_version": "20b1c6fc188564c9",
+  "clinical_authority": [
+    "APP004_CLINICAL_ACTIVATION_DECISIONS_v1.1_2026-08-31",
+    "APP-004 — Second Clinical Review (Sarina T.T., General Surgery / Surgical Oncology, NROC, 2026-08-31)",
+    "APP004_CLINICAL_REVIEW_MATRIX_v1.0_2026-08-25",
+    "APP004 Numeric Calibration Review 2026-08-31 — Clinical Lead targeted remediation decisions"
+  ],
+  "pilot_gate": "NO_GO_FOR_RESIDENT_PILOT",
+  "patient_truth_approved": false,
+  "numeric_calibration_remediation_2026_08_31": {
+    "ENV-UNCOMPLICATED-INFLAMMATION": "REVISE — linked 3-profile calibration; Clinical Lead supplied verbatim minimal/moderate/marked_but_stable ranges + weights 0.30/0.50/0.20 (simulation diversity, not prevalence); one profile per patient, centred, no cross-profile mixing; selection.generation_enabled=false so mechanism stays dormant and generation still uses the union envelope; guardrail (evaluateInflammatoryCalibrationForPilot / selectInflammatoryProfile) forbids union fallback once enabled; held pending 2nd review",
+    "PHENOTYPE-RETROCECAL-APP004": "APPROVE 6–24h / pain 4–8; REMOVE extended-window / uncommon-pain-site / partial-US branches; REVISE urinalysis 60/20/20, CT free-fluid 70/15/15, psoas 25/75; self-treatment uniform; held pending 2nd review",
+    "CAL-NAUSEA-VOMITING-SELECTION-APP004": "APPROVE uniform as non-epidemiological simulation sampling; held pending 2nd review",
+    "FINDINGS-FASTING-HISTORY": "APPROVE 4–10h / 1–4h ranges; add invariant clear-liquid ≤ solid-food; no anaesthesia threshold / delay; held pending 2nd review",
+    "TRJ-POSTOP-RECOVERY": "REVISE — criteria-based model authored (early_recovery 6–12h / overnight_recovery 12–24h, 50/50; qualitative pain states; no per-hour arithmetic); ships dormant, held pending re-review",
+    "LAB-CHEMISTRY-ANALYTES-APP004": "APPROVE — all eight qualitative 'within reference range' results for base APP-004; promoted to approved_for_training"
+  },
+  "runtime_status_promotion": "NOT DONE — case_presets[APP-004].runtime_status stays development_only pending remediation, second-review requirements and release tests",
+  "approved_count": 46,
+  "approved": [
+    {
+      "id": "ABX-PROPHYLAXIS-APP004-PILOT",
+      "review_status": "approved_for_training",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "DEMOGRAPHICS-APP-BASE-ADULT",
+      "review_status": "approved_for_training",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "DISCHARGE-BUNDLE-APP004",
+      "review_status": "approved_for_training",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "DISCHARGE-CRITERIA-APP004",
+      "review_status": "approved_for_training",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "DISCHARGE-CRITERION-HAEMODYNAMIC-STABILITY-APP004",
+      "review_status": "approved_for_training",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "DISCHARGE-CRITERION-MOBILE-APP004",
+      "review_status": "approved_for_training",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "DISCHARGE-CRITERION-NO-PERSISTENT-VOMITING-APP004",
+      "review_status": "approved_for_training",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "DISCHARGE-CRITERION-PAIN-CONTROLLED-ORAL-APP004",
+      "review_status": "approved_for_training",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "DISCHARGE-CRITERION-TOLERATING-ORAL-INTAKE-APP004",
+      "review_status": "approved_for_training",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "DISCHARGE-CRITERION-URINARY-FUNCTION-APP004",
+      "review_status": "approved_for_training",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "FINDINGS-HISTORY-BUNDLE",
+      "review_status": "approved_for_training",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "FINDINGS-UNIVERSAL-NORMAL-LAYER",
+      "review_status": "approved_for_training",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "MED-AZTREONAM-PILOT",
+      "review_status": "approved_for_training",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "MED-CEFAZOLIN-PILOT",
+      "review_status": "approved_for_training",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "MED-CEFOTETAN-PILOT",
+      "review_status": "approved_for_training",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "MED-CEFOXITIN-PILOT",
+      "review_status": "approved_for_training",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "MED-CLINDAMYCIN-PILOT",
+      "review_status": "approved_for_training",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "MED-ENOXAPARIN-VTE-PILOT",
+      "review_status": "approved_for_training",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "MED-GENTAMICIN-PILOT",
+      "review_status": "approved_for_training",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "MED-IBUPROFEN-PILOT",
+      "review_status": "approved_for_training",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "MED-KETOPROFEN-KZ-PILOT",
+      "review_status": "approved_for_training",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "MED-METAMIZOLE-KZ-PILOT",
+      "review_status": "approved_for_training",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "MED-METRONIDAZOLE-PILOT",
+      "review_status": "approved_for_training",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "MED-NSAID-SUITABILITY-CHECKS",
+      "review_status": "approved_for_training",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "MED-PARACETAMOL-PILOT",
+      "review_status": "approved_for_training",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "MED-TRAMADOL-PILOT",
+      "review_status": "approved_for_training",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "PHENOTYPE-RETROCECAL-APP004-QUALITATIVE",
+      "review_status": "approved_for_training",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "PREOP-ANESTHESIA-REVIEW-APP004",
+      "review_status": "approved_for_training",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "PREOP-ANTIBIOTIC-PROPHYLAXIS-APP004",
+      "review_status": "approved_for_training",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "PREOP-CONSENT-APP004",
+      "review_status": "approved_for_training",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "PREOP-FASTING-ASSESSMENT-APP004",
+      "review_status": "approved_for_training",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "PREOP-IV-ACCESS-APP004",
+      "review_status": "approved_for_training",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "PREOP-KZ-ABO-RH-APP004",
+      "review_status": "approved_for_training",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "PREOP-KZ-CBC-APP004",
+      "review_status": "approved_for_training",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "PREOP-KZ-COAGULATION-APP004",
+      "review_status": "approved_for_training",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "PREOP-VTE-ASSESSMENT",
+      "review_status": "approved_for_training",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "RULE-CEFAZOLIN-PROPHYLAXIS-DOSE",
+      "review_status": "approved_for_training",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "RULE-CEFAZOLIN-REQUIRES-ANAEROBIC-COVERAGE",
+      "review_status": "approved_for_training",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "RULE-CONSENT-BEFORE-PROCEDURE",
+      "review_status": "approved_for_training",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "RULE-DELAY-BEYOND-24H-UNCOMPLICATED",
+      "review_status": "approved_for_training",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "RULE-LAPAROSCOPIC-PREFERRED-WHEN-AVAILABLE",
+      "review_status": "approved_for_training",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "RULE-NO-ROUTINE-POSTOP-ANTIBIOTICS-UNCOMPLICATED",
+      "review_status": "approved_for_training",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "RULE-ROUTINE-DRAIN-UNCOMPLICATED",
+      "review_status": "approved_for_training",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "SYMPTOM-NAUSEA-VOMITING-COHERENCE",
+      "review_status": "approved_for_training",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "TRJ-STABLE",
+      "review_status": "approved_for_training",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "LAB-CHEMISTRY-ANALYTES-APP004",
+      "review_status": "approved_for_training",
+      "note": "APP004 Numeric Calibration Review 2026-08-31 — Clinical Lead: all eight analytes claimed within reference range for base APP-004; second_review_required false"
+    }
+  ],
+  "pending_count": 30,
+  "pending": [
+    {
+      "id": "CAL-NAUSEA-VOMITING-SELECTION-APP004",
+      "review_status": "pending",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "CONTENT-COMPLICATIONS-APPENDICITIS",
+      "review_status": "pending",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "CONTENT-FINDINGS-APPENDICITIS",
+      "review_status": "pending",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "CONTENT-OPERATIVE-APPENDICITIS",
+      "review_status": "pending",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "CONTENT-RULES-APPENDICITIS",
+      "review_status": "pending",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "CONTENT-TRAJECTORIES-APPENDICITIS",
+      "review_status": "pending",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "DEMOGRAPHICS-APP002-V35",
+      "review_status": "pending",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "EFFECT-ANALGESIA-KETOPROFEN-IM",
+      "review_status": "pending",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "EFFECT-ANALGESIA-KETOPROFEN-IV",
+      "review_status": "pending",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "EFFECT-ANALGESIA-KETOROLAC-IM",
+      "review_status": "pending",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "EFFECT-ANALGESIA-KETOROLAC-IV",
+      "review_status": "pending",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "EFFECT-ANALGESIA-PARACETAMOL-IV",
+      "review_status": "pending",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "EFFECT-ANALGESIA-PARACETAMOL-ORAL",
+      "review_status": "pending",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "EFFECT-FLUID-CRYSTALLOID",
+      "review_status": "pending",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "ENV-DIFFUSE-PERITONITIS-V35",
+      "review_status": "pending",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "ENV-UNCOMPLICATED-INFLAMMATION",
+      "review_status": "pending",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "FINDINGS-FASTING-HISTORY",
+      "review_status": "pending",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "HISTORY-REPRODUCTIVE-AGE-FEMALE",
+      "review_status": "pending",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "MED-KETOROLAC-PENDING",
+      "review_status": "pending",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "PHENOTYPE-CLASSIC",
+      "review_status": "pending",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "PHENOTYPE-EARLY-SUBTLE-V35",
+      "review_status": "pending",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "PHENOTYPE-LATE-COMPLICATED-V35",
+      "review_status": "pending",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "PHENOTYPE-PELVIC-V35",
+      "review_status": "pending",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "PHENOTYPE-RETROCECAL-APP004",
+      "review_status": "pending",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "PROFILE-INFLAMMATORY-MARKED",
+      "review_status": "pending",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "PROFILE-INFLAMMATORY-MINIMAL",
+      "review_status": "pending",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "PROFILE-INFLAMMATORY-MODERATE",
+      "review_status": "pending",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "TRJ-POSTOP-RECOVERY",
+      "review_status": "pending",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "TRJ-SEPTIC-SHOCK",
+      "review_status": "pending",
+      "note": "no provenance block (structural / list item)"
+    },
+    {
+      "id": "TRJ-SERIAL-EVOLUTION",
+      "review_status": "pending",
+      "note": "no provenance block (structural / list item)"
+    }
+  ],
+  "app004_active_pending_blockers": [
+    "ENV-UNCOMPLICATED-INFLAMMATION",
+    "PHENOTYPE-RETROCECAL-APP004",
+    "CAL-NAUSEA-VOMITING-SELECTION-APP004",
+    "FINDINGS-FASTING-HISTORY",
+    "TRJ-POSTOP-RECOVERY"
+  ],
+  "app004_active_pending_blockers_note": "LAB-CHEMISTRY-ANALYTES-APP004 cleared 2026-08-31 (Clinical Lead approval). The remaining five carry recorded Clinical Lead decisions from the APP004 Numeric Calibration Review but are held at review_status: pending — ENV and TRJ-POSTOP-RECOVERY await clinical re-review of revised/authored content; RETROCECAL, CAL-NAUSEA and FASTING await the outstanding independent second review. patient_truth_approved stays false and the pilot gate stays NO_GO.",
+  "update_2026_09_01": {
+    "note": "This top-level snapshot (manifest date 2026-08-31, approved/pending arrays above) is left unedited per audit-history policy. This field records what changed after the independent second review arrived. Full detail: docs/review/APP004_FINAL_SECOND_REVIEW_PACKET_2026-09-01.md, docs/review/APP004_POSTOP_CLOCK_ANCHOR_REREVIEW_2026-09-01.md.",
+    "second_review_decision_artifact": "Second Clinical Reviewer Decision.md (Sarina T.T. — General Surgery / Surgical Oncology, NROC, 2026-09-01)",
+    "promoted_to_approved_for_training": [
+      "PROFILE-INFLAMMATORY-MINIMAL",
+      "PROFILE-INFLAMMATORY-MODERATE",
+      "PROFILE-INFLAMMATORY-MARKED",
+      "PHENOTYPE-RETROCECAL-APP004",
+      "CAL-NAUSEA-VOMITING-SELECTION-APP004",
+      "FINDINGS-FASTING-HISTORY"
+    ],
+    "inflammatory_profile_generation_enabled": true,
+    "still_pending": {
+      "ENV-UNCOMPLICATED-INFLAMMATION": "legacy union envelope; never itself given a Clinical Lead first review (reviewed_by stays null); the second reviewer's comment addressed the profile ranges, not this object; retained only for internal development / replay compatibility / audit history, no longer read for learner_pilot / production generation",
+      "TRJ-POSTOP-RECOVERY": "REVISE - recovery-clock anchor changed in code from SOURCE_CONTROL_COMPLETED to PROCEDURE_COMPLETED; object stays pending awaiting the focused re-review of that fix alone; no other part of the authored model changed"
+    },
+    "patient_truth_approved": false,
+    "runtime_status_promotion": "NOT DONE - case_presets[APP-004].runtime_status stays development_only",
+    "pilot_gate": "NO_GO_FOR_RESIDENT_PILOT",
+    "blocked_patient_truth_objects_verified_2026_09_01": ["uncomplicated_inflammation", "post_source_control_course"],
+    "tests": "307/307 passing, 4/4 Playwright, clean lint"
+  },
+  "update_2026_09_01_governance_correction": {
+    "note": "inventoryPatientTruth (src/core/patient/patientTruthGovernance.js) previously counted the legacy union envelope as required patient-truth approval for every session purpose, even though patientGenerator.js never reaches it for learner_pilot/production once the linked profiles are active (it fails closed instead of falling back). This double-counted a real blocker. inventoryPatientTruth now takes an optional sessionPurpose and, for learner_pilot/production only, inventories the active linked-profile mechanism (evaluateInflammatoryCalibrationForPilot) in place of the envelope. internal_development/faculty_preview (and any call omitting sessionPurpose) are unaffected. This is an inventory-routing fix only - the envelope's clinical values and review_status (pending) are unchanged; it is not promoted.",
+    "blocked_patient_truth_objects_by_route_verified_2026_09_01": {
+      "internal_development_or_omitted": ["uncomplicated_inflammation", "post_source_control_course"],
+      "faculty_preview": ["uncomplicated_inflammation", "post_source_control_course"],
+      "learner_pilot": ["post_source_control_course"],
+      "production": ["post_source_control_course"]
+    },
+    "only_remaining_learner_pilot_blocker": "TRJ-POSTOP-RECOVERY",
+    "patient_truth_approved": false,
+    "runtime_status_promotion": "NOT DONE - case_presets[APP-004].runtime_status stays development_only",
+    "pilot_gate": "NO_GO_FOR_RESIDENT_PILOT",
+    "tests": "310/310 passing, 4/4 Playwright, clean lint"
+  },
+  "update_2026_09_01_postop_clock_anchor_focused_rereview": {
+    "note": "Focused Second Clinical Re-Review of the TRJ-POSTOP-RECOVERY recovery-clock anchor change (SOURCE_CONTROL_COMPLETED -> PROCEDURE_COMPLETED) received and recorded: APPROVE (Sarina T.T. — General Surgery / Surgical Oncology, NROC, 2026-09-01). Scope of the re-review was the clock anchor only; the 6-12h/12-24h windows, 50/50 variant weights, qualitative postoperative pain states, recovery domains, bounded transition model and discharge-readiness contract were not re-reviewed (unchanged) and were not altered.",
+    "decision_artifacts": [
+      "docs/review/APP004_POSTOP_CLOCK_ANCHOR_SECOND_REVIEW_DECISION_2026-09-01.md",
+      "docs/review/APP004_POSTOP_CLOCK_ANCHOR_REREVIEW_2026-09-01.md"
+    ],
+    "promoted_to_approved_for_training": ["TRJ-POSTOP-RECOVERY"],
+    "promotion_detail": "src/content/diseases/appendicitis/trajectories.yaml post_source_control_course.provenance: review_status pending -> approved_for_training; second_reviewed_by ['Sarina T.T. — General Surgery / Surgical Oncology, NROC']; second_reviewed_at '2026-09-01'; model_status authored_awaiting_clinical_re_review -> re_reviewed_runtime_authoritative. No other object promoted.",
+    "runtime_effect": "advanceTime.js#buildPostoperativeRecoveryEvents now runs the bounded recovery model once operative.completed is true (anchored at PROCEDURE_COMPLETED) instead of emitting SIMULATOR_LIMITATION_NOTED. Model sets only qualitative symptoms.postopPainStage and truth.recoveryPhase; it never writes a discharge-readiness field.",
+    "blocked_patient_truth_objects_by_route_verified_2026_09_01": {
+      "internal_development_or_omitted": ["uncomplicated_inflammation"],
+      "faculty_preview": ["uncomplicated_inflammation"],
+      "learner_pilot": [],
+      "production": []
+    },
+    "patient_truth_approved": { "learner_pilot": true, "production": true, "internal_development": false },
+    "legacy_union_envelope_unreachable_on_pilot_route_verified": "true - not present in the learner_pilot/production inventory (replaced by the approved inflammatory_profiles mechanism entry); 200/200 generated APP-004 patients fall inside an approved profile range; ENV-UNCOMPLICATED-INFLAMMATION own review_status still pending, unchanged and not promoted",
+    "recovery_clock_anchor_verified": "postop.recovery.enteredAtMinutes set only by PROCEDURE_COMPLETED (session.e2e tests A/B/C, incl. a synthetic 25-min gap between SOURCE_CONTROL_COMPLETED and PROCEDURE_COMPLETED)",
+    "discharge_not_time_satisfied_verified": "session.e2e test E + smokeApp004: after both recovery windows fully elapse, all clinical discharge criteria are still recorded as withheld simulator limitations, never silently met",
+    "release_battery": "content:check OK, content:build OK, npm test 310/310, Playwright 4/4, eslint clean, smokeApp004 OK",
+    "runtime_status_promotion": "NOT DONE - case_presets[APP-004].runtime_status stays development_only. Proposed change ready: development_only -> learner_enabled (see runtime_status_promotion_proposal).",
+    "runtime_status_promotion_proposal": "src/content/diseases/appendicitis/phenotypes.yaml, case_presets entry case_preset_id: APP-004, change 'runtime_status: development_only' -> 'runtime_status: learner_enabled'. With patientTruthApproved=true on the learner_pilot route, this makes evaluateSessionAudience({sessionPurpose:'learner_pilot'}) return allowed. approved_for_training would also work but additionally asserts production-readiness and is gated by disease.release_gate.production_allowed; learner_enabled is the minimal status for the resident pilot.",
+    "remaining_blocker": "src/ai/renderer/renderStatus.js#painLineRu still returns 'Послеоперационная боль в этой сборке не моделируется: контент послеоперационного восстановления на клиническом рецензировании.' whenever painState is post_source_control. That statement is now false (the model is approved_for_training and runtime-authoritative) and it hides the model's qualitative postopPainStage from the learner. Needs: expose postopPainStage via buildLearnerVisibleState and render the three approved stages (significant / improving / controlled_on_oral_analgesia) with clinically-reviewed Russian copy before residents run postoperative segments.",
+    "pilot_gate": "NO_GO_FOR_RESIDENT_PILOT (single remaining blocker above; clinical/governance/release gates all pass)",
+    "tests": "310/310 passing, 4/4 Playwright, clean lint"
+  },
+  "update_2026_09_01_postop_runtime_gap_closure": {
+    "note": "Follow-up remediation of the two learner-facing postoperative runtime gaps left open after the TRJ-POSTOP-RECOVERY promotion. runtime_status NOT changed.",
+    "gap_1_postoperative_pain_rendering": {
+      "status": "CLOSED",
+      "change": "buildLearnerVisibleState (src/core/state/learnerView.js) now exposes symptoms.postopPainStage (never truth.recoveryPhase). renderStatus.js#painLineRu renders reviewed Russian copy per stage {significant: 'Послеоперационная боль выраженная.', improving: 'Послеоперационная боль уменьшается.', controlled_on_oral_analgesia: 'Послеоперационная боль контролируется пероральными анальгетиками.'} and returns null when no stage is set. Obsolete '...не моделируется...' line removed. No numeric pain score, no time inference in the renderer.",
+      "supporting_model_change": "advanceTime.js#buildPostoperativeRecoveryEvents materialises the model's DECLARED initial state once (initial_state_id 'pacu_emergence' -> postop_pain_state 'significant') when the recovery clock is running and no milestone has fired yet, read straight from approved content. Not time-scaled, not invented.",
+      "tests": "src/ai/renderer/renderStatus.test.js (A/B/C reviewed copy per stage; D obsolete line never appears; live-model stage is exactly the authoritative output)."
+    },
+    "gap_2_discharge_readiness_wiring": {
+      "status": "NOT CLOSED - requires new clinical content",
+      "audit": "Of the five functional discharge criteria (haemodynamically_stable, pain_controlled_on_oral_regimen, tolerating_oral_intake, no_significant_persistent_vomiting, mobile), NONE can be evaluated from an existing approved patient state: (1) the approved TRJ-POSTOP-RECOVERY model's transitions set ONLY symptoms.postopPainStage and truth.recoveryPhase, both advanced purely by elapsed-time milestone gates (eligible_after_minutes), with no learner-action condition; (2) recovery_domains / domain_focus are attention cues, not satisfied-state assertions; (3) the discharge_readiness_contract explicitly says window_end_effect: expectation_only_never_override and 'MUST NOT set any discharge criterion to met ... merely because time passed'; (4) postop.oralIntake records the learner's ORDER, not tolerance; symptoms.nausea/vomitingEpisodes are the pre-operative presentation, never updated post-op; there is no mobilisation state and no approved haemodynamic-stability threshold (threshold: null NEEDS_CLINICAL_REVIEW).",
+      "conclusion": "Wiring any of the five would require inventing a threshold / oral-intake amount / mobilisation criterion / postoperative nausea-vomiting state, or treating a time-only phase as a discharge trigger - all explicitly forbidden. The five criteria remain emitted as unmet 'discharge_runtime_fact' simulator limitations (honest), not hidden.",
+      "missing_clinical_content": [
+        "postoperative haemodynamic/respiratory stability state or criterion-satisfying rule (no approved threshold exists)",
+        "postoperative oral-intake tolerance state (only the learner's order is recorded today)",
+        "postoperative nausea/vomiting recovery state (current nausea/vomiting is pre-operative presentation only)",
+        "postoperative mobilisation state (not modelled at all)",
+        "for pain_controlled_on_oral_regimen: a reviewed decision either that postopPainStage == controlled_on_oral_analgesia may satisfy the criterion despite being purely time-driven (conflicts with the current approved expectation_only_never_override contract), or a reviewed mechanism tying postopPainStage progression to learner reassessment/analgesia rather than elapsed time alone"
+      ],
+      "tests": "src/core/session/session.e2e.test.js 'F/I/J: ... elapsed time and recoveryPhase still satisfy NO clinical discharge criterion, and no numeric threshold was introduced'."
+    },
+    "release_battery": "content:check OK, content:build OK, npm test 316/316, Playwright 4/4, eslint clean, smokeApp004 OK, learner_pilot inventory blocked:[] / patientTruthApproved:true, learner_pilot gate: development_only rejected / learner_enabled allowed",
+    "runtime_status_promotion": "NOT DONE - case_presets[APP-004].runtime_status stays development_only.",
+    "runtime_status_promotion_proposal_when_unblocked": "src/content/diseases/appendicitis/phenotypes.yaml, case_presets entry case_preset_id: APP-004: 'runtime_status: development_only' -> 'runtime_status: learner_enabled'.",
+    "pilot_gate": "NO_GO_FOR_RESIDENT_PILOT - gap 2 requires clinical review of the missing postoperative recovery states listed above."
+  }
+}

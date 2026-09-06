@@ -1,30 +1,287 @@
-# Operative pathway, decision-level fidelity (Foundation Spec §59, Contract
-# §17.1): approximately 2-5 meaningful intraoperative decisions, not manual
-# instrument simulation.
+# Preoperative preparation and operative pathway, decision-level fidelity
+# ("level B": a handful of meaningful intraoperative decisions, not manual
+# instrument simulation).
+#
+# Remediated 2026-08-25 against APP004_CLINICAL_REVIEW_MATRIX_v1.0_2026-08-25
+# §8 (preop), §10 (operative), and the task §13, §14, §17.
 schema_version: "1.0"
 
+# ---------------------------------------------------------------------------
+# Preoperative requirements
+# ---------------------------------------------------------------------------
+# Three fields decide what each item MEANS, and they are deliberately separate:
+#
+#   authority_layer  what kind of claim this is. `clinical_rule` items are
+#                    universal medicine; `hospital_rule` items are jurisdiction
+#                    or site workflow and must NEVER be taught as universal
+#                    medicine (matrix §13).
+#   jurisdiction     null = applies everywhere; "KZ" = only when the active
+#                    hospital profile declares that jurisdiction.
+#   blocking         true = the patient genuinely cannot go to theatre without
+#                    it. NOT a synonym for "important".
+#
+# REMOVED IN THIS PASS
+#   site_marking  - matrix PR12 REMOVE. Gone from requirements, from mentor
+#                   issues and from debrief omissions (task §4.1). Recorded in
+#                   `removed_preop_requirements` so it cannot come back quietly.
+#   foley         - never authored; listed as removed so it cannot be added as
+#                   a universal prerequisite (matrix PR11, task §4.2).
+#
+# CHANGED IN THIS PASS
+#   npo_status -> fasting_assessment, blocking true -> FALSE. Matrix PR01: NPO
+#   is not a universal hard stop; emergency appendicitis may require proceeding
+#   despite inadequate fasting, and the ASA elective clear-liquid rule does not
+#   govern emergency acute abdomen. The fasting history is still obtained and
+#   still appears in debrief if the learner never asked.
 preop_requirements:
-  # `blocking: true` items are hard prerequisites (Contract §16); the rest are
-  # important-but-non-blocking and surface in debrief if omitted.
   - id: consent
     label_ru: "информированное согласие"
+    authority_layer: clinical_workflow
+    jurisdiction: null
     blocking: true
+    source_ids: [SRC-WSES-2025]
+    provenance: &reviewed_preop
+      id: PREOP-CONSENT-APP004
+      authority_layer: clinical_workflow
+      jurisdiction: null
+      source: "APP-004 Second Clinical Review PREOP-02/PREOP-03"
+      source_version_or_date: "2026-08-31"
+      evidence_strength: expert_consensus
+      review_status: approved_for_training
+      reviewed_by: ["Botagoz Kaukenova — Clinical Lead"]
+      reviewed_at: "2026-08-31"
+      second_review_required: true
+      second_reviewed_by: ["Sarina T.T. — General Surgery / Surgical Oncology, NROC"]
+      second_reviewed_at: "2026-08-31"
+      next_review_due: null
+      notes: "Simulator action records reviewed consent workflow; it is not a physiologic event generator."
+
+  - id: iv_access
+    label_ru: "функционирующий периферический венозный доступ"
+    authority_layer: clinical_workflow
+    jurisdiction: null
+    blocking: true
+    note_ru: "Матрица M10: один функционирующий периферический доступ достаточен для базового APP-004."
+    provenance:
+      <<: *reviewed_preop
+      id: PREOP-IV-ACCESS-APP004
+      source: "APP-004 Second Clinical Review PREOP-01"
+      second_review_required: false
+      second_reviewed_by: null
+      second_reviewed_at: null
+      notes: "One functioning peripheral IV is sufficient in the stable uncomplicated base case."
+
   - id: antibiotic_prophylaxis
-    label_ru: "антибиотикопрофилактика в пределах 60 минут до разреза"
+    label_ru: "антибиотикопрофилактика до разреза"
+    authority_layer: clinical_rule
+    jurisdiction: null
     blocking: true
-    source_ids: [WSES2025]
-  - id: npo_status
-    label_ru: "статус NPO / готовность к анестезии"
-    blocking: true
+    source_ids: [SRC-WSES-2025, SRC-ASHP-PROPH]
+    provenance:
+      <<: *reviewed_preop
+      id: PREOP-ANTIBIOTIC-PROPHYLAXIS-APP004
+      authority_layer: clinical_rule
+      source: "APP-004 Second Clinical Review ABX-01–ABX-08; SRC-ASHP-PROPH"
+      evidence_strength: guideline_plus_independent_review
+      notes: "Completion is derived only from a validated complete regimen within 60 minutes before incision."
+
   - id: anesthesia_review
     label_ru: "осмотр анестезиолога"
+    authority_layer: hospital_workflow
+    jurisdiction: null
     blocking: true
-  - id: iv_access
-    label_ru: "венозный доступ"
+    note_ru: "Завершается только после фактического прибытия анестезиолога (матрица PR06)."
+    approval_note: "Resident-pilot use authorized by Clinical Lead on 2026-08-31; independent anesthesiology specialty review remains pending."
+    provenance:
+      <<: *reviewed_preop
+      id: PREOP-ANESTHESIA-REVIEW-APP004
+      authority_layer: hospital_workflow
+      source: "APP-004 Clinical Activation Decisions v1.1 F6"
+      second_review_required: false
+      second_reviewed_by: null
+      second_reviewed_at: null
+      notes: "Clinical Lead explicitly authorized resident-pilot workflow use without inventing anesthetic drugs, airway parameters or fasting consequences; specialty review remains open."
+
+  - id: fasting_assessment
+    label_ru: "оценка времени последнего приёма пищи и жидкости"
+    authority_layer: clinical_workflow
+    jurisdiction: null
     blocking: false
+    obtained_by_staff_if_omitted: anesthesiologist
+    source_ids: [SRC-ASA-FASTING-2023]
+    note_ru: >-
+      Матрица PR01/PR03: важный элемент оценки, но НЕ универсальный запрет на операцию.
+      Тактика при коротком интервале голодания перед экстренной операцией в этой сборке
+      не моделируется — требуется анестезиологическое рецензирование.
+    approval_note: "Resident-pilot use authorized by Clinical Lead on 2026-08-31; no anesthesia drug or airway-parameter teaching is authorized."
+    provenance:
+      <<: *reviewed_preop
+      id: PREOP-FASTING-ASSESSMENT-APP004
+      source: "APP-004 Clinical Activation Decisions v1.1 F6; SRC-ASA-FASTING-2023"
+      second_review_required: false
+      second_reviewed_by: null
+      second_reviewed_at: null
+      notes: "Assessment is approved and nonblocking; the simulator does not infer a cancellation or airway plan from fasting time."
+
+  # ---- Kazakhstan jurisdictional requirements (matrix §13, PR08, PR09) ------
+  # These are HOSPITAL RULES, not universal medicine. They apply only when the
+  # active hospital profile declares jurisdiction "KZ", and the debrief must
+  # label them as jurisdictional workflow rather than EBM.
+  - id: blood_group_rh
+    label_ru: "группа крови и резус-фактор"
+    authority_layer: hospital_rule
+    jurisdiction: KZ
+    blocking: false
+    obtained_by_staff_if_omitted: nurse
+    investigation_id: blood_group_rh
+    source_ids: [SRC-KZ-ANESTH-2023, SRC-KZ-BLOOD-2020]
+    note_ru: >-
+      Требование действующих стандартов РК для хирургического пациента. Не является
+      универсальным международным требованием. Если не назначено — оформляется персоналом,
+      факт пропуска фиксируется в дебрифе без бесконечной блокировки (матрица PR08).
+    provenance:
+      <<: *reviewed_preop
+      id: PREOP-KZ-ABO-RH-APP004
+      authority_layer: hospital_rule
+      jurisdiction: KZ
+      source: "SRC-KZ-ANESTH-2023; SRC-KZ-BLOOD-2020; APP-004 Second Clinical Review"
+      evidence_strength: jurisdictional_standard
+      second_review_required: false
+      second_reviewed_by: null
+      second_reviewed_at: null
+      notes: "KZ workflow overlay only; nonblocking and never presented as universal medicine."
+
+  - id: cbc_kz_workflow
+    label_ru: "общий анализ крови"
+    authority_layer: hospital_rule
+    jurisdiction: KZ
+    blocking: false
+    obtained_by_staff_if_omitted: nurse
+    investigation_id: cbc
+    source_ids: [SRC-KZ-ANESTH-2023]
+    note_ru: "Требование рабочего процесса РК; в Reference Hospital само по себе операцию не блокирует."
+    provenance:
+      <<: *reviewed_preop
+      id: PREOP-KZ-CBC-APP004
+      authority_layer: hospital_rule
+      jurisdiction: KZ
+      source: "SRC-KZ-ANESTH-2023; APP-004 Second Clinical Review"
+      evidence_strength: jurisdictional_standard
+      second_review_required: false
+      second_reviewed_by: null
+      second_reviewed_at: null
+      notes: "KZ workflow overlay only; nonblocking."
+
+  - id: coagulation
+    label_ru: "коагулограмма"
+    authority_layer: hospital_rule
+    jurisdiction: KZ
+    blocking: false
+    obtained_by_staff_if_omitted: nurse
+    investigation_id: coagulation
+    source_ids: [SRC-KZ-ANESTH-2023]
+    note_ru: >-
+      Стандарт анестезиологической помощи РК 2023 указывает коагулограмму как «+» для
+      экстренной и срочной хирургии. Это юрисдикционное требование, а не универсальная
+      доказательная необходимость для каждой аппендэктомии (матрица PR09).
+    provenance:
+      <<: *reviewed_preop
+      id: PREOP-KZ-COAGULATION-APP004
+      authority_layer: hospital_rule
+      jurisdiction: KZ
+      source: "SRC-KZ-ANESTH-2023; APP-004 Second Clinical Review"
+      evidence_strength: jurisdictional_standard
+      second_review_required: false
+      second_reviewed_by: null
+      second_reviewed_at: null
+      notes: "KZ workflow overlay only; nonblocking and not a universal appendectomy requirement."
+
+antibiotic_prophylaxis:
+  administration_window_minutes_before_incision: 60
+  accepted_regimens:
+    - id: cefazolin_metronidazole
+      components:
+        - { drug_id: cefazolin, dose_mg: 2000, route: iv, redose_minutes: 240 }
+        - { drug_id: metronidazole, dose_mg: 500, route: iv, redose_minutes: null }
+      note: "Cefazolin 3 g is accepted only when modeled weight is >=120 kg."
+    - id: cefoxitin
+      components:
+        - { drug_id: cefoxitin, dose_mg: 2000, route: iv, redose_minutes: 120 }
+    - id: cefotetan
+      components:
+        - { drug_id: cefotetan, dose_mg: 2000, route: iv, redose_minutes: 360 }
+    - id: severe_allergy_clindamycin_aztreonam
+      requires: severe_beta_lactam_allergy
+      components:
+        - { drug_id: clindamycin, dose_mg: 900, route: iv, redose_minutes: 360 }
+        - { drug_id: aztreonam, dose_mg: 2000, route: iv, redose_minutes: 240 }
+    - id: severe_allergy_metronidazole_gentamicin
+      requires: severe_beta_lactam_allergy
+      components:
+        - { drug_id: metronidazole, dose_mg: 500, route: iv, redose_minutes: null }
+        - { drug_id: gentamicin, dose_mg_per_kg: 5, route: iv, redose_minutes: null }
+  provenance:
+    id: ABX-PROPHYLAXIS-APP004-PILOT
+    authority_layer: clinical_rule
+    jurisdiction: international
+    source: "APP-004 — Second Clinical Review, AB-01–AB-08 and Adult pilot regimens; SRC-ASHP-PROPH; SRC-WSES-2025"
+    source_version_or_date: "2026-08-31"
+    evidence_strength: guideline_plus_independent_review
+    review_status: approved_for_training
+    reviewed_by: ["Botagoz Kaukenova — Clinical Lead"]
+    reviewed_at: "2026-08-31"
+    second_review_required: true
+    second_reviewed_by: ["Sarina T.T. — General Surgery / Surgical Oncology, NROC"]
+    second_reviewed_at: "2026-08-31"
+    next_review_due: null
+    notes: "Effective tissue concentrations must be present at incision. Major-blood-loss redosing is not modeled in APP-004 v1."
+
+removed_preop_requirements:
   - id: site_marking
-    label_ru: "маркировка операционного поля"
-    blocking: false
+    removed_because: "matrix PR12 REMOVE — low educational relevance for single-structure appendectomy; generic checklist carryover."
+  - id: foley_catheter
+    removed_because: "matrix PR11 REMOVE — no universal urinary-catheter requirement for uncomplicated laparoscopic appendectomy."
+  - id: routine_broad_chemistry
+    removed_because: "matrix PR10 REMOVE as universal clinical rule — the learner requests individual tests (task §8)."
+  - id: lmwh_prophylaxis
+    removed_because: "matrix PR14 REMOVE — VTE prophylaxis must match risk; very-low/low risk may need no chemoprophylaxis (SRC-SAGES-VTE)."
+  - id: routine_postop_cbc
+    removed_because: "matrix PO10 REMOVE — not mandatory after uncomplicated stable laparoscopic appendectomy (task §4.3)."
+
+# Matrix PR13 / task §15: risk stratification is supported; the learner need
+# not literally type "Caprini", and pharmacologic prophylaxis is NOT required
+# for every patient. No drug or dose is authored here.
+vte_assessment:
+  method: Caprini
+  required: true
+  accepts_any_appropriate_plan: true
+  strata:
+    - { min: 0, max: 0, accepted: [early_ambulation] }
+    - { min: 1, max: 2, accepted: [ipc] }
+    - { min: 3, max: 4, accepted: [ipc, lmwh, low_dose_ufh] }
+    - { min: 5, max: null, accepted: [lmwh, low_dose_ufh], pharmacologic_expected: true }
+  pharmacologic_prophylaxis_content:
+    drug_id: enoxaparin
+    dose_mg: 40
+    route: sc
+    interval_minutes: 1440
+    default_timing: first_postoperative_after_adequate_hemostasis
+  source_ids: [SRC-SAGES-VTE]
+  provenance:
+    id: PREOP-VTE-ASSESSMENT
+    authority_layer: clinical_rule
+    jurisdiction: international
+    source: "SAGES VTE guideline (SRC-SAGES-VTE); matrix PR13, PR14"
+    source_version_or_date: null
+    evidence_strength: guideline
+    review_status: approved_for_training
+    reviewed_by: ["Botagoz Kaukenova — Clinical Lead"]
+    reviewed_at: "2026-08-31"
+    second_review_required: true
+    second_reviewed_by: ["Sarina T.T. — General Surgery / Surgical Oncology, NROC"]
+    second_reviewed_at: "2026-08-31"
+    next_review_due: null
+    notes: "Caprini thresholds and enoxaparin 40 mg SC daily approved. No renal-adjustment dose is authored; active major bleeding blocks pharmacologic prophylaxis."
 
 approach_options: [laparoscopic, open]
 
@@ -32,21 +289,20 @@ operative_sequence:
   - step: entry
     finding_id: appendix_visualized
     description_ru: >-
-      Камера введена в брюшную полость. Визуализируется утолщённый воспалённый
-      аппендикс{pelvic_fluid_note}.
+      Доступ выполнен, камера введена в брюшную полость. Червеобразный отросток
+      расположен ретроцекально, воспалительно изменён; перфорации и гангренозных
+      изменений не видно{pelvic_fluid_note}. Другой явной острой патологии в
+      осмотренных отделах не выявлено.
     decision_id: initial_operative_decision
     decision_prompt_ru: "Что делаешь?"
-    expected_elements: [appendectomy, fluid_management_if_present]
-    source_ids: [WSES2025]
+    source_ids: [SRC-WSES-2025]
 
 decisions:
   initial_operative_decision:
     id: initial_operative_decision
     options:
-      # `source_control: true` is what tells the CORE that this choice
-      # achieves source control - the core no longer knows any operation name
-      # (Core Foundation Spec §63/§71, task brief P0-6). A second disease
-      # declares its own source-control-achieving options the same way.
+      # `source_control: true` is what tells the CORE that this choice achieves
+      # source control - the core knows no operation name.
       - id: appendectomy_only
         matches_ru: ["удалю аппендикс", "аппендэктомия"]
         sufficient: true
@@ -55,10 +311,39 @@ decisions:
         matches_ru: ["удалю аппендикс, аспирирую жидкость"]
         sufficient: true
         source_control: true
+        note_ru: "Матрица O08: аспирация небольшого выпота достаточна; лаваж не требуется."
+      # Matrix O09 REVISE: allowed, no automatic harm, flagged as a
+      # suboptimal/resource-use point in debrief once approved teaching exists.
+      - id: appendectomy_plus_lavage
+        matches_ru: ["удалю аппендикс, промою брюшную полость", "лаваж"]
+        sufficient: true
+        source_control: true
+        teaching_trap_id: TRAP-ROUTINE-LAVAGE
+        note_ru: "Матрица O09: преимущества над аспирацией не показаны; разрешено, вреда не моделируем."
       - id: place_drain
         matches_ru: ["дренаж", "поставлю дренаж"]
         teaching_trap_id: TRAP-ROUTINE-DRAIN
         source_control: false
+        note_ru: "Матрица O10: ментор спрашивает зачем; при настойчивости дренаж ставится; в дебрифе — как ненужное, не как катастрофа."
+      # ---- governance-blocked options (matrix O12, O13) --------------------
+      # Present so the learner's intent is RECOGNISED and can be challenged,
+      # and `executable: false` so the simulator never fabricates a
+      # consequence model it does not have (task §17.8, §17.9).
+      - id: partial_cecectomy
+        matches_ru: ["резекция купола слепой кишки", "частичная цекэктомия"]
+        executable: false
+        blocked_reason: needs_reviewed_consequence_model
+        challenge_ru: >-
+          Резекция купола слепой кишки — это существенно больший объём вмешательства.
+          Что в увиденной картине его требует?
+        note_ru: "Матрица O12: высокий риск; не выполняется в v1, осложнение не выдумывается."
+      - id: close_without_appendectomy
+        matches_ru: ["ничего не делаю, ушиваю", "закрываю без аппендэктомии"]
+        executable: false
+        blocked_reason: needs_reviewed_untreated_trajectory
+        challenge_ru: >-
+          Отросток воспалён и виден. Что произойдёт с этим пациентом, если источник не убрать?
+        note_ru: "Матрица O13: возможен как путь обучения последствиям только после утверждения траектории без лечения."
     next: source_control_decision
 
   source_control_decision:
@@ -68,4 +353,35 @@ decisions:
       - id: standard_closure
         sufficient: true
 
-review_status: reviewed_internal
+# Matrix O16: end-of-operation boilerplate is generated by the system; the
+# resident is not quizzed on counts or port closure (matrix O04, O05, O06).
+closure_statement_ru: >-
+  Гемостаз состоятельный, явных повреждений соседних органов не выявлено,
+  другой острой патологии не выявлено. Операция завершена.
+
+# Matrix O04/O05/O06: explicitly OUT of scope for the first module.
+not_assessed_in_v1:
+  - trocar_placement
+  - retrocecal_mobilization_steps
+  - mesoappendix_energy_or_ligation_device
+  - appendiceal_stump_device
+  - port_closure
+  - sponge_and_instrument_counts
+
+provenance:
+  id: CONTENT-OPERATIVE-APPENDICITIS
+  authority_layer: clinical_workflow
+  jurisdiction: KZ
+  source: "APP004_CLINICAL_REVIEW_MATRIX_v1.0_2026-08-25 §8, §10, §13"
+  source_version_or_date: "2026-08-25"
+  evidence_strength: guideline_plus_expert_consensus
+  review_status: pending
+  reviewed_by: null
+  reviewed_at: null
+  second_review_required: true
+  second_reviewed_by: null
+  second_reviewed_at: null
+  next_review_due: null
+  notes: >-
+    Preop workflow: matrix §18 "Mostly ready; anesthesia + antibiotic high-risk
+    review remains". Operative level-B behaviour: "Mostly ready".

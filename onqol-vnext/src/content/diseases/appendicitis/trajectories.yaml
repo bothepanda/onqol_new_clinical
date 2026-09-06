@@ -1,62 +1,539 @@
 # Natural history and treatment-response parameters.
 #
-# `TRJ-STABLE` is the only trajectory active in the first vertical slice: a
-# patient who does not deteriorate if managed within a reasonable window, and
-# whose pain/physiology respond to analgesia and fluids the way appendicitis
-# does. This is deliberately modest scope - a septic/unstable trajectory
-# (`TRJ-SEPTIC-SHOCK` in the legacy corpus) needs a treatment-response engine
-# this slice does not build, so it is intentionally left out; see
-# docs/KNOWN_GAPS.md.
+# Remediated 2026-08-25 against APP004_CLINICAL_REVIEW_MATRIX_v1.0_2026-08-25
+# §6 (natural course), §7 (analgesia and fluids), §14 (critical corrections).
+#
+# WHAT WAS DELETED IN THIS PASS, AND WHY
+#
+#   pre_source_control_drift_per_hour   (HR +1, T +0.03, CRP +4, pain +0.15)
+#   post_source_control_recovery_per_hour (pain -0.6, HR -1.5, T -0.05, CRP -3)
+#     Matrix T01/T02/T05: a fixed per-hour arithmetic drift is not a
+#     guideline-derived biological law, an untreated uncomplicated patient
+#     does not necessarily worsen every hour, and postoperative recovery is a
+#     NEW state after source control rather than the same appendicitis pain
+#     counted backwards. Replaced by nothing: §4.9 says "Do not invent
+#     replacement numbers."
+#
+#   crystalloid_bolus_500_1000ml -> heart_rate_delta -6, systolic_bp_delta +4
+#     Matrix M08 / §14: a fixed hemodynamic delta for a stable euvolemic
+#     patient is physiologically unjustified. Deleted, not re-parameterised.
+#
+#   analgesia_iv_nsaid -> pain_score_delta -3 across ketorolac+ketoprofen
+#     Matrix M04/M05 / §12.1: one universal effect across different drugs and
+#     routes. Replaced by per-drug, per-route entries whose response envelopes
+#     are explicitly null pending pharmacy/clinical review.
+#
+#   antibiotic_prophylaxis -> infection risk reduction note
+#     Matrix AB09: no numerical SSI-risk delta is invented. Prophylaxis is
+#     recorded STRUCTURALLY (given, in a valid pre-incision window) only.
 schema_version: "1.0"
 
 trajectories:
   TRJ-STABLE:
     id: TRJ-STABLE
-    description_ru: "Стабильное течение без лечения источника: боль и воспалительные маркеры медленно нарастают; после аппендэктомии происходит выздоровление."
-    review_status: pending
-    # Passive progression while the source is not yet controlled: applied by
-    # the disease-progression handler on every TIME_ADVANCED that has not yet
-    # reached source control.
-    pre_source_control_drift_per_hour:
-      heart_rate: 1
-      temperature_c: 0.03
-      crp: 4
-      pain_score: 0.15
-    post_source_control_recovery_per_hour:
-      pain_score: -0.6
-      heart_rate: -1.5
-      temperature_c: -0.05
-      crp: -3
+    description_ru: >-
+      Стабильное симптомное неосложнённое течение в пределах узкого фенотипа
+      APP-004. До контроля источника симптомы сохраняются; спонтанная
+      перфорация, абсцесс, сепсис и числовой почасовой дрейф не моделируются.
+    natural_course_model:
+      kind: bounded_state_transitions
+      initial_state_id: persistent_uncomplicated
+      transitions: []
+    provenance:
+      id: TRJ-STABLE
+      authority_layer: patient_truth
+      jurisdiction: international
+      source: "APP004 Clinical Activation Decisions v1.1; APP-004 Second Clinical Review"
+      source_version_or_date: "2026-08-31"
+      evidence_strength: expert_consensus
+      review_status: approved_for_training
+      reviewed_by: ["Botagoz Kaukenova — Clinical Lead"]
+      reviewed_at: "2026-08-31"
+      second_review_required: true
+      second_reviewed_by: ["Sarina T.T. — General Surgery / Surgical Oncology, NROC"]
+      second_reviewed_at: "2026-08-31"
+      next_review_due: null
+      notes: >-
+        Qualitative no-transition contract only. It does not claim that real
+        appendicitis is biologically static; it fixes the narrow simulator
+        phenotype and deliberately contains no probabilities, numeric drift,
+        perforation threshold or deterioration threshold.
 
+  TRJ-SERIAL-EVOLUTION:
+    id: TRJ-SERIAL-EVOLUTION
+    description_ru: >-
+      Вариант для повторной оценки ранней или атипичной презентации. Старое
+      название сохранено, но сама динамика не перенесена: согласованной модели
+      переходов во времени нет.
+    natural_course_model: null
+    provenance:
+      id: TRJ-SERIAL-EVOLUTION
+      authority_layer: patient_truth
+      jurisdiction: international
+      source: "onqol-trainer V3.5 trajectory catalogue"
+      source_version_or_date: "3.5.7 / 2026-08-10"
+      evidence_strength: NEEDS_SOURCE
+      review_status: pending
+      reviewed_by: null
+      reviewed_at: null
+      second_review_required: true
+      second_reviewed_by: null
+      second_reviewed_at: null
+      next_review_due: null
+      notes: "Identifier migrated; legacy progression arithmetic was not migrated."
+
+  TRJ-SEPTIC-SHOCK:
+    id: TRJ-SEPTIC-SHOCK
+    description_ru: >-
+      Каркас тяжёлого осложнённого кейса APP-005. Клиническая динамика, ответ
+      на инфузию, антибиотики, вазопрессоры и контроль источника не утверждены.
+    natural_course_model: null
+    provenance:
+      id: TRJ-SEPTIC-SHOCK
+      authority_layer: patient_truth
+      jurisdiction: international
+      source: "onqol-trainer V3.5 trajectory catalogue"
+      source_version_or_date: "3.5.7 / 2026-08-10"
+      evidence_strength: NEEDS_SOURCE
+      review_status: pending
+      reviewed_by: null
+      reviewed_at: null
+      second_review_required: true
+      second_reviewed_by: null
+      second_reviewed_at: null
+      next_review_due: null
+      notes: >-
+        Faculty-preview seam only. No values or transitions from the legacy
+        unstable-patient engine were copied.
+
+# ---------------------------------------------------------------------------
+# Post-source-control course (matrix T05, PO01)
+# ---------------------------------------------------------------------------
+# Postoperative pain is a DIFFERENT state from appendicitis pain, not the same
+# variable decremented. The structural transition happens in
+# core/state/worldState.js SOURCE_CONTROL_COMPLETED.
+#
+# APP004 Numeric Calibration Review 2026-08-31 (POSTOP) — Clinical Lead
+# decision: REVISE. A bounded, criteria-based uncomplicated postoperative
+# recovery model is authored below to the Clinical Lead's design brief.
+#
+# Second Clinical Reviewer Decision, 2026-09-01 (Sarina T.T.): REVISE. The
+# recovery-clock anchor was SOURCE_CONTROL_COMPLETED, which can precede
+# completion of the operation, anaesthetic maintenance and surgical closure.
+# Fixed: the clock (`postop.recovery.enteredAtMinutes`) now starts at
+# PROCEDURE_COMPLETED (`core/state/worldState.js`, `core/time/advanceTime.js`)
+# - the operation-complete event, which carries the closure statement and is
+# immediately followed by the move to recovery. Nothing else in this block
+# changed: the two windows, weights, qualitative pain states and the
+# discharge-readiness contract below are exactly as the Clinical Lead
+# authored them.
+#
+# Focused Second Clinical Re-Review, 2026-09-01 (Sarina T.T.): APPROVE, scope
+# limited to the clock-anchor change alone (SOURCE_CONTROL_COMPLETED ->
+# PROCEDURE_COMPLETED). With that re-review recorded, this object is promoted
+# to `review_status: approved_for_training` and the model is now RUNTIME-
+# AUTHORITATIVE: advanceTime.js#buildPostoperativeRecoveryEvents runs it once
+# the operation is complete instead of emitting SIMULATOR_LIMITATION_NOTED.
+# The windows, weights, qualitative pain states and discharge-readiness
+# contract below were NOT re-reviewed (unchanged) and are untouched
+# (docs/review/APP004_POSTOP_CLOCK_ANCHOR_REREVIEW_2026-09-01.md).
+#
+# DESIGN CONSTRAINTS BAKED IN (do not relax without re-review):
+#   - The recovery window is NOT a discharge timer. Window end means only that
+#     an uncomplicated patient would normally be expected to have reached the
+#     relevant recovery phase. It MUST NOT set any discharge criterion to
+#     "met" and MUST NOT override an unmet criterion.
+#   - Functional milestones only. No deterministic per-hour HR / temperature /
+#     CRP / pain arithmetic. No numeric pain-decay curve.
+#   - Postoperative pain is a qualitative bounded state:
+#     significant -> improving -> controlled_on_oral_analgesia.
+#   - No new treatment-effect magnitudes are introduced here; progression
+#     depends on learner actions / reassessment already modelled elsewhere.
+#     Omitted or inadequate postoperative care must not be silently converted
+#     into successful recovery merely because time passed.
+#   - The two windows are simulation-diversity configuration, NOT epidemiological
+#     prevalence and NOT guideline-mandated lengths of stay.
+post_source_control_course:
+  # Seeded per patient (patientGenerator.js drawPostopRecoveryVariant). The
+  # window scales the milestone expectation; it does not schedule a discharge.
+  recovery_variants:
+    - id: early_recovery
+      recovery_window_hours: [6, 12]
+    - id: overnight_recovery
+      recovery_window_hours: [12, 24]
+  recovery_variant_weights: [50, 50] # simulation diversity only; not prevalence
+  recovery_variant_weights_are_epidemiological: false
+
+  # Qualitative bounded postoperative pain states for this pilot. No numbers.
+  postop_pain_states: [significant, improving, controlled_on_oral_analgesia]
+
+  # The learner-visible recovery domains the model must express. Discharge
+  # readiness is evaluated criterion-by-criterion from current patient state
+  # (complications.yaml discharge_criteria), never from window elapsed.
+  recovery_domains:
+    - anaesthesia_emergence          # consciousness / recovery from anaesthesia
+    - haemodynamic_respiratory_stability
+    - postoperative_pain
+    - nausea_vomiting
+    - oral_intake_tolerance
+    - mobilisation
+    - bleeding_or_wound_concern
+    - ready_for_discharge_assessment
+
+  discharge_readiness_contract:
+    evaluated_from: current_patient_state_per_criterion
+    window_end_effect: expectation_only_never_override
+    blocks_if_any_true:
+      - pain_not_controlled_on_oral_analgesia
+      - clinically_significant_persistent_nausea_or_vomiting
+      - oral_intake_not_tolerated
+      - mobilisation_unsafe
+      - vital_signs_unstable
+      - active_bleeding_or_wound_concern
+
+  model:
+    kind: bounded_state_transitions
+    initial_state_id: pacu_emergence
+    # NEEDS_CLINICAL_RE_REVIEW: states and milestone gates are authored to the
+    # design brief. Transition probabilities are 1 (deterministic milestone
+    # gates on conditions + variant-scaled eligibility), NOT invented hazard
+    # rates. Effects set qualitative phase/pain-stage flags only.
+    states:
+      - id: pacu_emergence
+        domain_focus: [anaesthesia_emergence, haemodynamic_respiratory_stability]
+        postop_pain_state: significant
+      - id: early_ward_recovery
+        domain_focus: [postoperative_pain, nausea_vomiting, mobilisation]
+        postop_pain_state: improving
+      - id: recovered_uncomplicated
+        domain_focus: [oral_intake_tolerance, mobilisation, ready_for_discharge_assessment]
+        postop_pain_state: controlled_on_oral_analgesia
+    transitions:
+      - id: emergence_to_early_ward__early
+        from: pacu_emergence
+        to: early_ward_recovery
+        probability: 1
+        eligible_after_minutes: 90
+        conditions:
+          - { path: truth.postopRecoveryVariantId, operator: equals, value: early_recovery }
+        effects:
+          symptoms: { postopPainStage: { set: improving } }
+          truth: { recoveryPhase: { set: early_ward_recovery } }
+      - id: emergence_to_early_ward__overnight
+        from: pacu_emergence
+        to: early_ward_recovery
+        probability: 1
+        eligible_after_minutes: 120
+        conditions:
+          - { path: truth.postopRecoveryVariantId, operator: equals, value: overnight_recovery }
+        effects:
+          symptoms: { postopPainStage: { set: improving } }
+          truth: { recoveryPhase: { set: early_ward_recovery } }
+      - id: early_ward_to_recovered__early
+        from: early_ward_recovery
+        to: recovered_uncomplicated
+        probability: 1
+        eligible_after_minutes: 360   # low end of the 6–12 h window; expectation only
+        conditions:
+          - { path: truth.postopRecoveryVariantId, operator: equals, value: early_recovery }
+        effects:
+          symptoms: { postopPainStage: { set: controlled_on_oral_analgesia } }
+          truth: { recoveryPhase: { set: recovered_uncomplicated } }
+      - id: early_ward_to_recovered__overnight
+        from: early_ward_recovery
+        to: recovered_uncomplicated
+        probability: 1
+        eligible_after_minutes: 720   # low end of the 12–24 h window; expectation only
+        conditions:
+          - { path: truth.postopRecoveryVariantId, operator: equals, value: overnight_recovery }
+        effects:
+          symptoms: { postopPainStage: { set: controlled_on_oral_analgesia } }
+          truth: { recoveryPhase: { set: recovered_uncomplicated } }
+
+  provenance:
+    id: TRJ-POSTOP-RECOVERY
+    authority_layer: patient_truth
+    jurisdiction: international
+    source: "APP004 Numeric Calibration Review 2026-08-31 (POSTOP) — Clinical Lead authored design brief"
+    source_version_or_date: "2026-08-31"
+    evidence_strength: expert_consensus
+    review_status: approved_for_training
+    reviewed_by: ["Botagoz Kaukenova — Clinical Lead"]
+    reviewed_at: "2026-08-31"
+    second_review_required: true
+    second_reviewed_by: ["Sarina T.T. — General Surgery / Surgical Oncology, NROC"]
+    second_reviewed_at: "2026-09-01"
+    next_review_due: null
+    model_status: re_reviewed_runtime_authoritative
+    notes: >-
+      Clinical Lead REVISE decision: two seeded uncomplicated recovery variants
+      (early_recovery 6–12 h, overnight_recovery 12–24 h, 50/50 simulation
+      diversity), criteria-based functional milestones, qualitative bounded
+      postoperative pain states only, NO per-hour vital-sign arithmetic, NO
+      automatic discharge at 6/12/24 h, discharge criteria evaluated
+      individually from current patient state. Transition probabilities are
+      deterministic milestone gates, not invented hazard rates. See
+      docs/review/APP004_VITALS_LABS_REVIEW_TABLE.md.
+
+      Second Clinical Reviewer Decision, 2026-09-01 (Sarina T.T. — General
+      Surgery / Surgical Oncology, NROC): REVISE — the recovery-clock anchor
+      (SOURCE_CONTROL_COMPLETED) was clinically incorrect and has been fixed
+      to PROCEDURE_COMPLETED (see docs/review/APP004_POSTOP_CLOCK_ANCHOR_REREVIEW_2026-09-01.md).
+      No other part of this model changed.
+
+      Focused Second Clinical Re-Review, 2026-09-01 (Sarina T.T. — General
+      Surgery / Surgical Oncology, NROC): APPROVE — scope limited to the
+      clock-anchor change from SOURCE_CONTROL_COMPLETED to PROCEDURE_COMPLETED.
+      PROCEDURE_COMPLETED is an appropriate postoperative recovery anchor: it
+      represents completion of the operative procedure including closure, sets
+      the operative state to completed, and is immediately followed by transfer
+      to the recovery phase, correctly separating intraoperative source-control
+      completion from the start of postoperative/anaesthetic recovery. The 6–12 h
+      / 12–24 h windows, 50/50 variant weights, qualitative postoperative pain
+      states, recovery domains, bounded transition model and discharge-readiness
+      logic were NOT re-reviewed (unchanged in this remediation) and remain
+      exactly as the Clinical Lead authored them. With this focused re-review
+      recorded as APPROVE, review_status is promoted to approved_for_training
+      and the model is now runtime-authoritative
+      (docs/review/APP004_POSTOP_CLOCK_ANCHOR_REREVIEW_2026-09-01.md).
+
+# ---------------------------------------------------------------------------
+# Treatment effects (matrix M01-M10, §14)
+# ---------------------------------------------------------------------------
+# Matching is now (drug OR fluid) AND route, so "ketoprofen IV" and
+# "ketoprofen IM" are different content objects and cannot share one effect.
+# `response_envelope: null` means the order still EXECUTES (the drug is
+# genuinely given and appears in the record) but no physiological consequence
+# is modeled - an honest simulator limitation, never a fabricated response.
 treatment_effects:
-  # Reviewed direction and rough magnitude only - not a pharmacokinetic model.
-  # Each effect is applied once, at the minute the administration event fires,
-  # and again nowhere else, so its trace in the event log stays legible.
-  analgesia_iv_nsaid:
-    applies_to: [ketorolac, ketoprofen]
-    pain_score_delta: -3
-    onset_minutes: 20
-    duration_minutes: 240
-    review_status: pending
-  crystalloid_bolus_500_1000ml:
-    applies_to_fluid: [crystalloid]
-    heart_rate_delta: -6
-    systolic_bp_delta: 4
-    onset_minutes: 30
-    review_status: pending
-  antibiotic_prophylaxis:
-    infection_trajectory_note: "reduces surgical site infection risk; no acute physiology effect modeled pre-op"
-    review_status: pending
+  analgesia_ketoprofen_iv:
+    applies_to: [ketoprofen]
+    applies_to_routes: [iv]
+    response_envelope: null # NEEDS_PHARMACY_REVIEW / NEEDS_CLINICAL_REVIEW
+    provenance:
+      id: EFFECT-ANALGESIA-KETOPROFEN-IV
+      authority_layer: clinical_rule
+      jurisdiction: KZ
+      source: null
+      source_version_or_date: null
+      evidence_strength: NEEDS_SOURCE
+      review_status: pending
+      reviewed_by: null
+      reviewed_at: null
+      second_review_required: true
+      second_reviewed_by: null
+      second_reviewed_at: null
+      next_review_due: null
+      notes: "Matrix M04/M05 NOT READY. See docs/review/APP004_ANALGESIA_REVIEW_TABLE.md."
 
+  analgesia_ketoprofen_im:
+    applies_to: [ketoprofen]
+    applies_to_routes: [im]
+    response_envelope: null
+    provenance:
+      id: EFFECT-ANALGESIA-KETOPROFEN-IM
+      authority_layer: clinical_rule
+      jurisdiction: KZ
+      source: null
+      source_version_or_date: null
+      evidence_strength: NEEDS_SOURCE
+      review_status: pending
+      reviewed_by: null
+      reviewed_at: null
+      second_review_required: true
+      second_reviewed_by: null
+      second_reviewed_at: null
+      next_review_due: null
+      notes: "Matrix M04/M05 NOT READY. See docs/review/APP004_ANALGESIA_REVIEW_TABLE.md."
+
+  analgesia_ketorolac_iv:
+    applies_to: [ketorolac]
+    applies_to_routes: [iv]
+    response_envelope: null
+    provenance:
+      id: EFFECT-ANALGESIA-KETOROLAC-IV
+      authority_layer: clinical_rule
+      jurisdiction: KZ
+      source: null
+      source_version_or_date: null
+      evidence_strength: NEEDS_SOURCE
+      review_status: pending
+      reviewed_by: null
+      reviewed_at: null
+      second_review_required: true
+      second_reviewed_by: null
+      second_reviewed_at: null
+      next_review_due: null
+      notes: "Matrix M04/M05 NOT READY. See docs/review/APP004_ANALGESIA_REVIEW_TABLE.md."
+
+  analgesia_ketorolac_im:
+    applies_to: [ketorolac]
+    applies_to_routes: [im]
+    response_envelope: null
+    provenance:
+      id: EFFECT-ANALGESIA-KETOROLAC-IM
+      authority_layer: clinical_rule
+      jurisdiction: KZ
+      source: null
+      source_version_or_date: null
+      evidence_strength: NEEDS_SOURCE
+      review_status: pending
+      reviewed_by: null
+      reviewed_at: null
+      second_review_required: true
+      second_reviewed_by: null
+      second_reviewed_at: null
+      next_review_due: null
+      notes: "Matrix M04/M05 NOT READY. See docs/review/APP004_ANALGESIA_REVIEW_TABLE.md."
+
+  analgesia_paracetamol_iv:
+    applies_to: [paracetamol]
+    applies_to_routes: [iv]
+    response_envelope: null
+    provenance:
+      id: EFFECT-ANALGESIA-PARACETAMOL-IV
+      authority_layer: clinical_rule
+      jurisdiction: KZ
+      source: null
+      source_version_or_date: null
+      evidence_strength: NEEDS_SOURCE
+      review_status: pending
+      reviewed_by: null
+      reviewed_at: null
+      second_review_required: true
+      second_reviewed_by: null
+      second_reviewed_at: null
+      next_review_due: null
+      notes: "Matrix M01 SECOND REVIEW for doses. See docs/review/APP004_ANALGESIA_REVIEW_TABLE.md."
+
+  analgesia_paracetamol_oral:
+    applies_to: [paracetamol]
+    applies_to_routes: [oral]
+    response_envelope: null
+    provenance:
+      id: EFFECT-ANALGESIA-PARACETAMOL-ORAL
+      authority_layer: clinical_rule
+      jurisdiction: KZ
+      source: null
+      source_version_or_date: null
+      evidence_strength: NEEDS_SOURCE
+      review_status: pending
+      reviewed_by: null
+      reviewed_at: null
+      second_review_required: true
+      second_reviewed_by: null
+      second_reviewed_at: null
+      next_review_due: null
+      notes: "Matrix PO02 SECOND REVIEW for doses. See docs/review/APP004_ANALGESIA_REVIEW_TABLE.md."
+
+  fluid_crystalloid:
+    applies_to_fluid: [crystalloid]
+    # Matrix M08/M09: any hemodynamic effect is CONDITIONAL on an actual
+    # volume-deficit state, which base APP-004 does not have and which is not
+    # modeled in this pass (task §12.4 "Do not invent fluid-response
+    # equations"). The seam is named so the later modifier has somewhere to go.
+    requires_patient_state: volume_deficit
+    response_envelope: null
+    provenance:
+      id: EFFECT-FLUID-CRYSTALLOID
+      authority_layer: patient_truth
+      jurisdiction: international
+      source: null
+      source_version_or_date: null
+      evidence_strength: NEEDS_SOURCE
+      review_status: pending
+      reviewed_by: null
+      reviewed_at: null
+      second_review_required: true
+      second_reviewed_by: null
+      second_reviewed_at: null
+      next_review_due: null
+      notes: "Matrix M08 REMOVE current effect / M09 needs volume-deficit state first."
+
+# ---------------------------------------------------------------------------
+# Investigation turnaround (Hospital/World Engine data, not a clinical rule)
+# ---------------------------------------------------------------------------
 investigation_timing:
-  # etaMinutes to formal result, preliminaryAtMinutes where a preliminary
-  # report is realistic ahead of the formal one (Contract §9.2).
   cbc: { etaMinutes: 40 }
-  chemistry: { etaMinutes: 45 }
-  crp: { etaMinutes: 40 }
+  # Matrix V07 / task §8: "БХАК" alone must NOT return a hidden panel. The
+  # order is incomplete until the learner names the analytes, and the LAB asks
+  # - not the mentor.
+  chemistry:
+    etaMinutes: 45
+    requires_parameter: analytes
+    clarify_prompt_ru: "Какие показатели биохимии нужны?"
+  crp: { etaMinutes: 40 } # matrix V08: SEPARATELY orderable, never auto-added
   urinalysis: { etaMinutes: 30 }
   betahcg: { etaMinutes: 35 }
+  coagulation: { etaMinutes: 50 } # KZ jurisdictional preop (matrix PR09)
+  blood_group_rh: { etaMinutes: 45 } # KZ jurisdictional preop (matrix PR08)
   ultrasound_abdomen: { etaMinutes: 45, preliminaryAtMinutes: 30 }
   ct_abdomen: { etaMinutes: 70, preliminaryAtMinutes: 45 }
 
-review_status: pending
+# Matrix V07 / task §8: "БХАК" must NOT auto-populate a large panel. These are
+# the analytes the learner may name; each carries its own reviewed qualitative
+# result phrasing. Nothing here reports a NUMBER, because no reference range or
+# value for this patient has been reviewed.
+chemistry_analytes:
+  creatinine:
+    label_ru: "креатинин"
+    result_ru: "креатинин в пределах референсных значений"
+  urea:
+    label_ru: "мочевина"
+    result_ru: "мочевина в пределах референсных значений"
+  electrolytes:
+    label_ru: "электролиты"
+    result_ru: "натрий и калий в пределах референсных значений"
+  glucose:
+    label_ru: "глюкоза"
+    result_ru: "глюкоза в пределах референсных значений"
+  bilirubin:
+    label_ru: "билирубин"
+    result_ru: "общий и прямой билирубин в пределах референсных значений"
+  alt_ast:
+    label_ru: "АЛТ/АСТ"
+    result_ru: "АЛТ и АСТ в пределах референсных значений"
+  amylase:
+    label_ru: "амилаза"
+    result_ru: "амилаза в пределах референсных значений"
+  total_protein:
+    label_ru: "общий белок"
+    result_ru: "общий белок в пределах референсных значений"
+provenance_chemistry_analytes:
+  id: LAB-CHEMISTRY-ANALYTES-APP004
+  authority_layer: patient_truth
+  jurisdiction: international
+  source: "APP004 Numeric Calibration Review 2026-08-31 (CHEMISTRY); clinical reviewer decision, matrix V07/V08"
+  source_version_or_date: "2026-08-31"
+  evidence_strength: expert_consensus
+  review_status: approved_for_training
+  reviewed_by: ["Botagoz Kaukenova — Clinical Lead"]
+  reviewed_at: "2026-08-31"
+  second_review_required: false
+  second_reviewed_by: null
+  second_reviewed_at: null
+  next_review_due: null
+  notes: >-
+    Qualitative only. No numeric value or reference range is asserted. Clinical
+    Lead decision (APP004 Numeric Calibration Review, CHEMISTRY): all eight
+    analytes are claimed "within reference range" for the base APP-004 patient.
+    This is a base-case reassurance claim with no phenotype/sex/age variant and
+    no downstream numeric consumer (creatinine feeds only the qualitative
+    hospital contrast-CT policy). No independent second review is required for a
+    qualitative all-normal base-case claim of this scope.
+
+provenance:
+  id: CONTENT-TRAJECTORIES-APPENDICITIS
+  authority_layer: patient_truth
+  jurisdiction: international
+  source: "APP004_CLINICAL_REVIEW_MATRIX_v1.0_2026-08-25 §6, §7, §14"
+  source_version_or_date: "2026-08-25"
+  evidence_strength: NEEDS_SOURCE
+  review_status: pending
+  reviewed_by: null
+  reviewed_at: null
+  second_review_required: true
+  second_reviewed_by: null
+  second_reviewed_at: null
+  next_review_due: null
+  notes: "File-level status. No object in this file is authoritative at runtime."

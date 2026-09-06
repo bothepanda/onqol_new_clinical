@@ -1,10 +1,11 @@
-# Examination phrasing.
+# Examination phrasing and history bundles.
 #
-# Ported from the legacy examSlots.js split (migration/legacy-content/
-# appendicitis/examSlots.js): a phenotype declares STATES, this file owns
-# WORDS, so a finding is written once and every patient who has that state
-# reads the same reviewed sentence. A slot the phenotype leaves unspecified is
-# not printed and not silently filled with a plausible negative.
+# A phenotype declares STATES, this file owns WORDS, so a finding is written
+# once and every patient who has that state reads the same reviewed sentence.
+# A slot the phenotype leaves unspecified is not printed and is not silently
+# filled with a plausible negative.
+#
+# Remediated 2026-08-25: matrix P08, P09, P10, PR02.
 schema_version: "1.0"
 localisation_token: "{локализация}"
 
@@ -36,29 +37,36 @@ exam_slots:
     states:
       "точка Мак-Бурнея": "максимальная болезненность в точке Мак-Бурнея"
       "по локализации боли": "максимальная болезненность соответствует заявленной локализации боли"
+      ниже: "максимальная болезненность определяется ниже типичной точки"
 
   - id: guarding
     group: palpation
     title_ru: "защитное напряжение мышц"
     states:
-      нет: "защитного напряжения мышц нет"
+      нет: "непроизвольного защитного напряжения мышц нет"
+      слабое: "определяется слабое локальное защитное напряжение мышц"
       локальное: "определяется локальное защитное напряжение мышц"
+      распространённое: "определяется распространённое защитное напряжение мышц"
 
   - id: rebound
     group: peritoneal
-    title_ru: "симптом Щёткина-Блюмберга"
+    title_ru: "признаки раздражения брюшины"
     states:
-      отрицательный: "симптом Щёткина-Блюмберга отрицательный"
-      сомнительный: "симптом Щёткина-Блюмберга сомнительный"
-      "положительный локально": "симптом Щёткина-Блюмберга положительный локально"
+      отрицательный: "признаков раздражения брюшины нет"
+      сомнительный: "признаки раздражения брюшины сомнительные"
+      "положительный локально": "признаки раздражения брюшины положительные локально"
+      "положительный во всех отделах": "признаки раздражения брюшины положительные во всех отделах"
 
-  - id: rovsing
+  - id: obturator
     group: peritoneal
-    title_ru: "симптом Ровзинга"
+    title_ru: "обтураторный симптом"
     states:
-      положительный: "симптом Ровзинга положительный"
-      отрицательный: "симптом Ровзинга отрицательный"
+      положительный: "обтураторный симптом положительный"
+      отрицательный: "обтураторный симптом отрицательный"
 
+  # Matrix P09: psoas is retained because it is genuinely informative for a
+  # retrocecal appendix. Rovsing / Sitkovsky / Bartomier-Michelson and
+  # percussion tenderness were REMOVED - see `removed_exam_slots` below.
   - id: psoas
     group: peritoneal
     title_ru: "псоас-симптом"
@@ -66,23 +74,34 @@ exam_slots:
       положительный: "псоас-симптом положительный"
       отрицательный: "псоас-симптом отрицательный"
 
-  - id: percussion
-    group: peritoneal
-    title_ru: "перкуторная болезненность"
-    states:
-      есть: "перкуторная болезненность в правой подвздошной области"
-      нет: "перкуторная болезненность не выявлена"
-
   - id: peristalsis
     group: auscultation
     title_ru: "перистальтика"
     states:
       выслушивается: "перистальтика выслушивается, обычной звучности"
+      ослаблена: "перистальтика ослаблена"
 
-# The universal normal-exam layer (Foundation Spec §8, Contract §5.3): a
-# reviewed, coherent "nothing relevant here" response for regions the learner
-# reasonably examines that are not central to the authored appendicitis case.
-# Case-specific findings always take precedence over this layer.
+# Matrix P09 REMOVE / gate NOT A CLINICAL RULE. Recorded so the regression
+# suite can assert these are gone and a future edit cannot restore the ritual
+# sign checklist silently.
+removed_exam_slots:
+  - id: rovsing
+    removed_because: "matrix P09 — no ritual named-sign checklist in APP-004."
+  - id: percussion
+    removed_because: "matrix P09 — no ritual named-sign checklist in APP-004."
+  - id: sitkovsky
+    removed_because: "matrix P09 — never authored; listed so it cannot be added as a required sign."
+  - id: bartomier_michelson
+    removed_because: "matrix P09 — never authored; listed so it cannot be added as a required sign."
+
+# The universal normal-exam layer (matrix P10): a reviewed, coherent
+# "nothing relevant here" response for regions the learner reasonably
+# examines that are not central to the authored case. Case-specific findings
+# always take precedence over this layer.
+#
+# `rectal_ru` used to read "не смоделировано для текущего фенотипа", which is
+# exactly the "not modeled" answer matrix P10 replaces with a reviewed normal
+# finding.
 universal_normal_layer:
   default_ru: "Клинически значимых изменений нет."
   regions:
@@ -90,18 +109,116 @@ universal_normal_layer:
     legs_ru: "Кожные покровы нижних конечностей обычной окраски, отёков нет, пульсация на периферических артериях сохранена."
     neuro_ru: "Сознание ясное, очаговой неврологической симптоматики нет."
     groin_ru: "Паховые области без особенностей, грыжевых выпячиваний нет."
-    rectal_ru: "не смоделировано для текущего фенотипа"
-  review_status: reviewed_internal
+    rectal_ru: "Ректально: тонус сфинктера сохранён, ампула свободна, болезненности и патологических образований не определяется, следов крови на перчатке нет."
+    chest_ru: "В лёгких дыхание везикулярное, хрипов нет; тоны сердца ритмичные."
+  provenance:
+    id: FINDINGS-UNIVERSAL-NORMAL-LAYER
+    authority_layer: patient_truth
+    jurisdiction: international
+    source: "APP004_CLINICAL_REVIEW_MATRIX_v1.0_2026-08-25 P10"
+    source_version_or_date: "2026-08-25"
+    evidence_strength: expert_consensus
+    review_status: approved_for_training
+    reviewed_by: ["Botagoz Kaukenova — Clinical Lead"]
+    reviewed_at: "2026-08-31"
+    second_review_required: false
+    second_reviewed_by: null
+    second_reviewed_at: null
+    next_review_due: null
+    notes: "Approved for the stable uncomplicated APP-004 base patient; case-specific abnormal findings always take precedence."
 
+# ---------------------------------------------------------------------------
+# History
+# ---------------------------------------------------------------------------
+# Returned once for a general "соберу анамнез"-type request. Phenotype-specific
+# detail, the coherent nausea/vomiting state, optional self-treatment, and the
+# sex-conditional block are merged in by the patient module at generation time
+# - `{nausea_vomiting}`, `{self_treatment}` and `{sex_conditional}` render as
+# empty when the generated patient has none, and nothing is invented to fill
+# them.
 history_bundle_ru:
-  # Returned once for a general "соберу анамнез"-type request (Contract §5.2).
-  # Phenotype-specific detail (pain_sites_ru, history_fixed_ru/variants_ru) is
-  # merged in by the patient module at generation time.
   template: >-
     Жалобы на боль в животе {onset_hours} часов назад, начало {onset_description}.
-    {phenotype_history}. Стул и мочеиспускание не нарушены, если не указано иное.
-    Аллергии не отмечает. Хронические заболевания и постоянный приём препаратов
-    отрицает, если не указано иное.
-  review_status: pending
+    {phenotype_history}. {nausea_vomiting}. {self_treatment}
+    Стул и мочеиспускание не нарушены. Аллергии не отмечает. Хронические заболевания
+    и постоянный приём препаратов отрицает. {sex_conditional}
+  # Short answers for focused follow-up questions. These are decompositions of
+  # the same authored history above, not additional patient facts.
+  focused_answers_ru:
+    bowel: "Стул не нарушен."
+    urination: "Мочеиспускание не нарушено."
+    allergies: "Аллергии не отмечает."
+    medications: "Постоянно препараты не принимает."
+    chronic_conditions: "Хронические заболевания отрицает."
+  provenance:
+    id: FINDINGS-HISTORY-BUNDLE
+    authority_layer: patient_truth
+    jurisdiction: international
+    source: "APP004_CLINICAL_REVIEW_MATRIX_v1.0_2026-08-25 P03, P06, P07"
+    source_version_or_date: "2026-08-25"
+    evidence_strength: expert_consensus
+    review_status: approved_for_training
+    reviewed_by: ["Botagoz Kaukenova — Clinical Lead"]
+    reviewed_at: "2026-08-31"
+    second_review_required: false
+    second_reviewed_by: null
+    second_reviewed_at: null
+    next_review_due: null
+    notes: "Qualitative history wording approved for APP-004. Phenotype-specific numeric/variant selection remains separately gated."
 
-review_status: reviewed_internal
+# Matrix PR02 / task §13.2: fasting history is IMPORTANT and must be stored -
+# it is not a hard stop. If the learner never asks, the anesthesiologist
+# obtains it on arrival, and the omission goes to debrief.
+fasting_history:
+  question_prompt_ru: "Когда последний раз ели и пили?"
+  last_solid_food_hours_ago: [4, 10]
+  last_clear_liquid_hours_ago: [1, 4]
+  # Clinical Lead decision (APP004 Numeric Calibration Review 2026-08-31,
+  # FASTING): the two uniform ranges are ACCEPTED as history seeding. The
+  # generator additionally enforces `last_clear_liquid <= last_solid_food` so a
+  # patient can never report drinking longer ago than eating. There is NO
+  # anaesthesia/aspiration threshold and NO automatic operative delay driven by
+  # these values (confirmed: no consumer reads them for a gate).
+  enforce_clear_liquid_not_after_solid_food: true
+  answer_template_ru: "Последний раз ел(а) {solid} часов назад, пил(а) воду {liquid} часов назад."
+  anesthesia_discovery_ru: "Уточнил у пациента сам: последний приём пищи — {solid} часов назад, воды — {liquid} часов назад."
+  provenance:
+    id: FINDINGS-FASTING-HISTORY
+    authority_layer: patient_truth
+    jurisdiction: international
+    source: "APP004 Numeric Calibration Review 2026-08-31 (FASTING); APP004_CLINICAL_REVIEW_MATRIX_v1.0_2026-08-25 PR02, PR03; SRC-ASA-FASTING-2023"
+    source_version_or_date: "2026-08-31"
+    evidence_strength: expert_consensus
+    review_status: approved_for_training
+    reviewed_by: ["Botagoz Kaukenova — Clinical Lead"]
+    reviewed_at: "2026-08-31"
+    second_review_required: true
+    second_reviewed_by: ["Sarina T.T. — General Surgery / Surgical Oncology, NROC"]
+    second_reviewed_at: "2026-09-01"
+    next_review_due: null
+    notes: >-
+      Clinical Lead has ACCEPTED the current 4–10 h / 1–4 h ranges as simulation
+      seeding of a history fact, with the added invariant
+      clear-liquid-hours ≤ solid-food-hours. No anaesthesia threshold and no
+      automatic delay are modelled from these values. See
+      docs/review/APP004_ANESTHESIA_NPO_REVIEW_TABLE.md.
+      Second Clinical Reviewer Decision, 2026-09-01: APPROVED — "the generated
+      values are acceptable as history variables"; must remain non-blocking
+      and must not be interpreted as elective fasting thresholds or automatic
+      delay/cancellation criteria for urgent appendectomy.
+
+provenance:
+  id: CONTENT-FINDINGS-APPENDICITIS
+  authority_layer: patient_truth
+  jurisdiction: international
+  source: "APP004_CLINICAL_REVIEW_MATRIX_v1.0_2026-08-25 §3"
+  source_version_or_date: "2026-08-25"
+  evidence_strength: expert_consensus
+  review_status: pending
+  reviewed_by: null
+  reviewed_at: null
+  second_review_required: false
+  second_reviewed_by: null
+  second_reviewed_at: null
+  next_review_due: null
+  notes: "File-level status."
