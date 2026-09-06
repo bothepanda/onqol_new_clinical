@@ -1,0 +1,1783 @@
+{
+  "export_schema_version": "1.0.0",
+  "generated_at": "2026-08-25T00:00:00.000Z",
+  "session": {
+    "id": "smoke-PBC-REAL-2",
+    "mode": "real",
+    "locale": "ru",
+    "status": "complete",
+    "endpoint": {
+      "type": "PATIENT_TRANSFERRED",
+      "atMinutes": 165,
+      "detail": "other_facility"
+    }
+  },
+  "initial_patient_seed": "PBC-REAL-2",
+  "hospital_profile": {
+    "profileId": "KZ-R2-URBAN",
+    "capabilities": {
+      "laboratory": {
+        "available": true,
+        "etaMinutes": 35
+      },
+      "ultrasound": {
+        "available": true,
+        "etaMinutes": 45
+      },
+      "ct": {
+        "available": false,
+        "etaMinutes": 70,
+        "reason": "resource.ct.down_for_repair"
+      },
+      "mri": {
+        "available": false,
+        "reason": "resource.mri.not_installed"
+      },
+      "operatingRoom": {
+        "available": true,
+        "etaMinutes": 50
+      },
+      "anesthesia": {
+        "available": true,
+        "etaMinutes": 25
+      },
+      "laparoscopy": {
+        "available": true,
+        "etaMinutes": 0,
+        "unitsAvailable": 1
+      },
+      "icuBed": {
+        "available": true,
+        "etaMinutes": 30
+      },
+      "bloodProducts": {
+        "available": false,
+        "reason": "resource.blood.not_authored"
+      }
+    }
+  },
+  "content_versions": {
+    "acute_appendicitis": "982130df62838428"
+  },
+  "current_state": {
+    "session": {
+      "id": "smoke-PBC-REAL-2",
+      "seed": "PBC-REAL-2",
+      "mode": "real",
+      "locale": "ru",
+      "presentationCategory": "acute_abdomen",
+      "contentVersions": {
+        "acute_appendicitis": "982130df62838428"
+      },
+      "status": "complete",
+      "endpoint": {
+        "type": "PATIENT_TRANSFERRED",
+        "atMinutes": 165,
+        "detail": "other_facility"
+      },
+      "patientTruthApproved": false
+    },
+    "clock": {
+      "elapsedMinutes": 165,
+      "startIso": "2026-08-23T02:15:00+05:00",
+      "offset": "+05:00"
+    },
+    "truth": {
+      "diseaseId": "acute_appendicitis",
+      "phenotypeId": "retrocecal",
+      "morphology": "uncomplicated_inflammation",
+      "onsetHours": 11.4,
+      "stage": "untreated",
+      "sourceControlled": false,
+      "operativeTruthRu": "Аппендикс расположен ретроцекально, воспалительно изменён, без перфорации и без гангренозных изменений. Другой явной острой патологии в осмотренных отделах не выявлено.",
+      "complicationRolls": {}
+    },
+    "physiology": {
+      "heartRate": 82,
+      "temperatureC": 37.5,
+      "systolicBp": 126,
+      "respiratoryRate": 21,
+      "wbc": 10.9,
+      "neutrophilPercent": 78,
+      "crp": 68
+    },
+    "symptoms": {
+      "painState": "pre_source_control",
+      "preSourceControlPainScore": 5.4,
+      "postSourceControlPainScore": null,
+      "postSourceControlPainModeled": false,
+      "painSiteRu": "в правой подвздошной области",
+      "nausea": false,
+      "vomitingEpisodes": 0
+    },
+    "demographics": {
+      "age": 22,
+      "sex": "male"
+    },
+    "location": "emergency_department",
+    "monitoring": {
+      "level": "ed_standard",
+      "prescribed": [],
+      "adequacy": "not_applicable"
+    },
+    "investigations": {
+      "ultrasound_abdomen": {
+        "id": "ultrasound_abdomen",
+        "status": "resulted",
+        "orderedAt": 0,
+        "etaMinutes": 90,
+        "availableAt": 90,
+        "preliminaryAt": null,
+        "result": "Аппендикс достоверно не визуализирован; выраженная пневматизация кишечника. Убедительных очаговых изменений в доступных отделах брюшной полости не выявлено. Заключение: исследование неинформативно в отношении аппендикса.",
+        "preliminary": "Аппендикс достоверно не визуализирован; выраженная пневматизация кишечника. Убедительных очаговых изменений в доступных отделах брюшной полости не выявлено. Заключение: исследование неинформативно в отношении аппендикса.",
+        "resultedAt": 90
+      },
+      "cbc": {
+        "id": "cbc",
+        "status": "resulted",
+        "orderedAt": 0,
+        "etaMinutes": 75,
+        "availableAt": 75,
+        "preliminaryAt": null,
+        "result": {
+          "wbc": 10.9,
+          "neutrophilPercent": 78
+        },
+        "preliminary": null,
+        "resultedAt": 75
+      },
+      "crp": {
+        "id": "crp",
+        "status": "resulted",
+        "orderedAt": 0,
+        "etaMinutes": 75,
+        "availableAt": 75,
+        "preliminaryAt": null,
+        "result": {
+          "crp": 68
+        },
+        "preliminary": null,
+        "resultedAt": 75
+      }
+    },
+    "treatments": {
+      "active": [],
+      "administered": []
+    },
+    "infusions": [],
+    "revealed": {
+      "findings": [
+        "exam.abdomen",
+        "history.core",
+        "reassessment",
+        "vitals.reassessment"
+      ],
+      "results": [
+        "ultrasound_abdomen",
+        "cbc",
+        "crp"
+      ],
+      "constraints": [
+        "ct_scanner_down"
+      ]
+    },
+    "observations": {
+      "vitals": [
+        {
+          "atMinutes": 0,
+          "values": {
+            "heartRate": 82,
+            "temperatureC": 37.5,
+            "systolicBp": 126,
+            "respiratoryRate": 21,
+            "wbc": 10.9,
+            "neutrophilPercent": 78,
+            "crp": 68,
+            "painScore": 5.4,
+            "painState": "pre_source_control"
+          }
+        },
+        {
+          "atMinutes": 0,
+          "values": {
+            "heartRate": 82,
+            "temperatureC": 37.5,
+            "systolicBp": 126,
+            "respiratoryRate": 21,
+            "wbc": 10.9,
+            "neutrophilPercent": 78,
+            "crp": 68,
+            "painScore": 5.4,
+            "painState": "pre_source_control"
+          }
+        },
+        {
+          "atMinutes": 120,
+          "values": {
+            "heartRate": 82,
+            "temperatureC": 37.5,
+            "systolicBp": 126,
+            "respiratoryRate": 21,
+            "wbc": 10.9,
+            "neutrophilPercent": 78,
+            "crp": 68,
+            "painScore": 5.4,
+            "painState": "pre_source_control"
+          }
+        }
+      ],
+      "examinations": [
+        {
+          "atMinutes": 0,
+          "region": "abdomen",
+          "findingIds": [
+            "exam.abdomen"
+          ]
+        },
+        {
+          "atMinutes": 120,
+          "region": "reassessment",
+          "findingIds": [
+            "reassessment"
+          ]
+        }
+      ],
+      "history": [
+        {
+          "atMinutes": 0,
+          "bundle": "core_history"
+        }
+      ]
+    },
+    "reasoning": {
+      "stabilityStated": false,
+      "workingDiagnosis": null,
+      "differential": [],
+      "statements": []
+    },
+    "managementPlan": {
+      "intent": null,
+      "committedAt": null
+    },
+    "preop": {
+      "required": [],
+      "completed": [],
+      "omitted": [],
+      "consent": "not_obtained",
+      "ready": false,
+      "fasting": {
+        "lastSolidFoodHoursAgo": 10,
+        "lastClearLiquidHoursAgo": 1.1,
+        "obtained": false
+      }
+    },
+    "operative": {
+      "started": false,
+      "approach": null,
+      "findingsRevealed": [],
+      "decisions": [],
+      "pendingDecision": null,
+      "sourceControl": false,
+      "completed": false
+    },
+    "postop": {
+      "disposition": null,
+      "day": 0,
+      "activeComplications": [],
+      "oralIntake": null,
+      "histopathologySent": false,
+      "dischargeBundleIssued": false
+    },
+    "simulatorLimitations": [
+      {
+        "atMinutes": 0,
+        "kind": "patient_truth",
+        "id": "demographics",
+        "reviewStatus": "reviewed_internal"
+      },
+      {
+        "atMinutes": 0,
+        "kind": "patient_truth",
+        "id": "nausea_vomiting_states",
+        "reviewStatus": "reviewed_internal"
+      },
+      {
+        "atMinutes": 0,
+        "kind": "patient_truth",
+        "id": "reproductive_age_female_history",
+        "reviewStatus": "pending"
+      },
+      {
+        "atMinutes": 0,
+        "kind": "patient_truth",
+        "id": "retrocecal",
+        "reviewStatus": "pending"
+      },
+      {
+        "atMinutes": 0,
+        "kind": "patient_truth",
+        "id": "uncomplicated_inflammation",
+        "reviewStatus": "pending"
+      },
+      {
+        "atMinutes": 0,
+        "kind": "patient_truth",
+        "id": "history_bundle_ru",
+        "reviewStatus": "pending"
+      },
+      {
+        "atMinutes": 0,
+        "kind": "patient_truth",
+        "id": "fasting_history",
+        "reviewStatus": "pending"
+      },
+      {
+        "atMinutes": 0,
+        "kind": "patient_truth",
+        "id": "universal_normal_layer",
+        "reviewStatus": "pending"
+      },
+      {
+        "atMinutes": 0,
+        "kind": "patient_truth",
+        "id": "post_source_control_course",
+        "reviewStatus": "pending"
+      },
+      {
+        "atMinutes": 0,
+        "kind": "patient_truth",
+        "id": "TRJ-STABLE",
+        "reviewStatus": "pending"
+      },
+      {
+        "atMinutes": 0,
+        "kind": "patient_truth",
+        "id": "chemistry_analytes",
+        "reviewStatus": "pending"
+      },
+      {
+        "atMinutes": 120,
+        "kind": "trajectory",
+        "id": "TRJ-STABLE",
+        "reviewStatus": "pending"
+      },
+      {
+        "atMinutes": 165,
+        "kind": "trajectory",
+        "id": "TRJ-STABLE",
+        "reviewStatus": "pending"
+      }
+    ],
+    "hospital": {
+      "profileId": "KZ-R2-URBAN",
+      "profileTitleKey": "hospital.real.urban.title",
+      "capabilities": {
+        "laboratory": {
+          "available": true,
+          "etaMinutes": 35
+        },
+        "ultrasound": {
+          "available": true,
+          "etaMinutes": 45
+        },
+        "ct": {
+          "available": false,
+          "etaMinutes": 70,
+          "reason": "resource.ct.down_for_repair"
+        },
+        "mri": {
+          "available": false,
+          "reason": "resource.mri.not_installed"
+        },
+        "operatingRoom": {
+          "available": true,
+          "etaMinutes": 50
+        },
+        "anesthesia": {
+          "available": true,
+          "etaMinutes": 25
+        },
+        "laparoscopy": {
+          "available": true,
+          "etaMinutes": 0,
+          "unitsAvailable": 1
+        },
+        "icuBed": {
+          "available": true,
+          "etaMinutes": 30
+        },
+        "bloodProducts": {
+          "available": false,
+          "reason": "resource.blood.not_authored"
+        }
+      },
+      "constraints": [
+        {
+          "id": "ct_scanner_down",
+          "capabilityKey": "ct",
+          "reasonKey": "resource.ct.down_for_repair",
+          "textRu": "КТ сейчас недоступна: аппарат на ремонте, срок восстановления неизвестен."
+        }
+      ],
+      "dynamicConstraints": [
+        {
+          "id": "ct_scanner_down",
+          "capabilityKey": "ct",
+          "weight": 1,
+          "reasonKey": "resource.ct.down_for_repair",
+          "textRu": "КТ сейчас недоступна: аппарат на ремонте, срок восстановления неизвестен.",
+          "active": true,
+          "disclosed": false
+        }
+      ],
+      "jurisdiction": "KZ",
+      "radiologyPolicy": {
+        "requiresCurrentCreatinineForContrastCt": false
+      },
+      "transferEtaMinutes": 45,
+      "staff": {
+        "nurse": {
+          "present": true,
+          "called": false,
+          "etaMinutes": 0
+        },
+        "radiologist": {
+          "present": false,
+          "called": false,
+          "etaMinutes": 20
+        },
+        "anesthesiologist": {
+          "present": false,
+          "called": false,
+          "etaMinutes": 20
+        },
+        "seniorSurgeon": {
+          "present": false,
+          "called": false,
+          "etaMinutes": 20
+        },
+        "icuPhysician": {
+          "present": false,
+          "called": false,
+          "etaMinutes": 15
+        }
+      }
+    },
+    "pending": [],
+    "clarification": null,
+    "mentor": {
+      "lastInterventionTurn": null,
+      "openQuestion": null,
+      "scaffolding": 0,
+      "silentTurns": 0,
+      "raisedIssues": []
+    },
+    "turn": 8,
+    "workflow": {
+      "label": "closed"
+    }
+  },
+  "events": [
+    {
+      "seq": 0,
+      "type": "SESSION_STARTED",
+      "atMinutes": 0,
+      "atIso": "2026-08-23T02:15:00+05:00",
+      "payload": {
+        "casePresetId": "APP-004",
+        "presentationCategory": "acute_abdomen"
+      },
+      "cause": {
+        "actor": "system",
+        "commandId": null,
+        "ruleIds": [],
+        "source": "session_bootstrap"
+      }
+    },
+    {
+      "seq": 1,
+      "type": "PATIENT_ARRIVED",
+      "atMinutes": 0,
+      "atIso": "2026-08-23T02:15:00+05:00",
+      "payload": {
+        "location": "emergency_department",
+        "handoffRu": "Приёмный покой. Острый живот. Передача СМП: мужчина, 22 лет. Боль в правой подвздошной области около 11 часов. Т 37.5 °C, ЧСС 82/мин, ЧДД 21/мин, АД сист. 126 мм рт.ст."
+      },
+      "cause": {
+        "actor": "system",
+        "commandId": null,
+        "ruleIds": [],
+        "source": "session_bootstrap"
+      }
+    },
+    {
+      "seq": 2,
+      "type": "SIMULATOR_LIMITATION_NOTED",
+      "atMinutes": 0,
+      "atIso": "2026-08-23T02:15:00+05:00",
+      "payload": {
+        "kind": "patient_truth",
+        "id": "demographics",
+        "reviewStatus": "reviewed_internal",
+        "reason": "not_approved_for_training"
+      },
+      "cause": {
+        "actor": "system",
+        "commandId": null,
+        "ruleIds": [],
+        "source": "governance_gate:patient_generation"
+      }
+    },
+    {
+      "seq": 3,
+      "type": "SIMULATOR_LIMITATION_NOTED",
+      "atMinutes": 0,
+      "atIso": "2026-08-23T02:15:00+05:00",
+      "payload": {
+        "kind": "patient_truth",
+        "id": "nausea_vomiting_states",
+        "reviewStatus": "reviewed_internal",
+        "reason": "not_approved_for_training"
+      },
+      "cause": {
+        "actor": "system",
+        "commandId": null,
+        "ruleIds": [],
+        "source": "governance_gate:patient_generation"
+      }
+    },
+    {
+      "seq": 4,
+      "type": "SIMULATOR_LIMITATION_NOTED",
+      "atMinutes": 0,
+      "atIso": "2026-08-23T02:15:00+05:00",
+      "payload": {
+        "kind": "patient_truth",
+        "id": "reproductive_age_female_history",
+        "reviewStatus": "pending",
+        "reason": "not_approved_for_training"
+      },
+      "cause": {
+        "actor": "system",
+        "commandId": null,
+        "ruleIds": [],
+        "source": "governance_gate:patient_generation"
+      }
+    },
+    {
+      "seq": 5,
+      "type": "SIMULATOR_LIMITATION_NOTED",
+      "atMinutes": 0,
+      "atIso": "2026-08-23T02:15:00+05:00",
+      "payload": {
+        "kind": "patient_truth",
+        "id": "retrocecal",
+        "reviewStatus": "pending",
+        "reason": "not_approved_for_training"
+      },
+      "cause": {
+        "actor": "system",
+        "commandId": null,
+        "ruleIds": [],
+        "source": "governance_gate:patient_generation"
+      }
+    },
+    {
+      "seq": 6,
+      "type": "SIMULATOR_LIMITATION_NOTED",
+      "atMinutes": 0,
+      "atIso": "2026-08-23T02:15:00+05:00",
+      "payload": {
+        "kind": "patient_truth",
+        "id": "uncomplicated_inflammation",
+        "reviewStatus": "pending",
+        "reason": "not_approved_for_training"
+      },
+      "cause": {
+        "actor": "system",
+        "commandId": null,
+        "ruleIds": [],
+        "source": "governance_gate:patient_generation"
+      }
+    },
+    {
+      "seq": 7,
+      "type": "SIMULATOR_LIMITATION_NOTED",
+      "atMinutes": 0,
+      "atIso": "2026-08-23T02:15:00+05:00",
+      "payload": {
+        "kind": "patient_truth",
+        "id": "history_bundle_ru",
+        "reviewStatus": "pending",
+        "reason": "not_approved_for_training"
+      },
+      "cause": {
+        "actor": "system",
+        "commandId": null,
+        "ruleIds": [],
+        "source": "governance_gate:patient_generation"
+      }
+    },
+    {
+      "seq": 8,
+      "type": "SIMULATOR_LIMITATION_NOTED",
+      "atMinutes": 0,
+      "atIso": "2026-08-23T02:15:00+05:00",
+      "payload": {
+        "kind": "patient_truth",
+        "id": "fasting_history",
+        "reviewStatus": "pending",
+        "reason": "not_approved_for_training"
+      },
+      "cause": {
+        "actor": "system",
+        "commandId": null,
+        "ruleIds": [],
+        "source": "governance_gate:patient_generation"
+      }
+    },
+    {
+      "seq": 9,
+      "type": "SIMULATOR_LIMITATION_NOTED",
+      "atMinutes": 0,
+      "atIso": "2026-08-23T02:15:00+05:00",
+      "payload": {
+        "kind": "patient_truth",
+        "id": "universal_normal_layer",
+        "reviewStatus": "pending",
+        "reason": "not_approved_for_training"
+      },
+      "cause": {
+        "actor": "system",
+        "commandId": null,
+        "ruleIds": [],
+        "source": "governance_gate:patient_generation"
+      }
+    },
+    {
+      "seq": 10,
+      "type": "SIMULATOR_LIMITATION_NOTED",
+      "atMinutes": 0,
+      "atIso": "2026-08-23T02:15:00+05:00",
+      "payload": {
+        "kind": "patient_truth",
+        "id": "post_source_control_course",
+        "reviewStatus": "pending",
+        "reason": "not_approved_for_training"
+      },
+      "cause": {
+        "actor": "system",
+        "commandId": null,
+        "ruleIds": [],
+        "source": "governance_gate:patient_generation"
+      }
+    },
+    {
+      "seq": 11,
+      "type": "SIMULATOR_LIMITATION_NOTED",
+      "atMinutes": 0,
+      "atIso": "2026-08-23T02:15:00+05:00",
+      "payload": {
+        "kind": "patient_truth",
+        "id": "TRJ-STABLE",
+        "reviewStatus": "pending",
+        "reason": "not_approved_for_training"
+      },
+      "cause": {
+        "actor": "system",
+        "commandId": null,
+        "ruleIds": [],
+        "source": "governance_gate:patient_generation"
+      }
+    },
+    {
+      "seq": 12,
+      "type": "SIMULATOR_LIMITATION_NOTED",
+      "atMinutes": 0,
+      "atIso": "2026-08-23T02:15:00+05:00",
+      "payload": {
+        "kind": "patient_truth",
+        "id": "chemistry_analytes",
+        "reviewStatus": "pending",
+        "reason": "not_approved_for_training"
+      },
+      "cause": {
+        "actor": "system",
+        "commandId": null,
+        "ruleIds": [],
+        "source": "governance_gate:patient_generation"
+      }
+    },
+    {
+      "seq": 13,
+      "type": "LEARNER_TURN_RECEIVED",
+      "atMinutes": 0,
+      "atIso": "2026-08-23T02:15:00+05:00",
+      "payload": {
+        "rawText": "живот",
+        "intent": "CLINICAL_ACTION",
+        "mentorSignal": null,
+        "interpretedCommands": [
+          {
+            "id": "t0-c0",
+            "type": "EXAMINE",
+            "params": {
+              "region": "abdomen"
+            }
+          }
+        ]
+      },
+      "cause": {
+        "actor": "learner",
+        "commandId": null,
+        "ruleIds": [],
+        "source": "interpreter"
+      }
+    },
+    {
+      "seq": 14,
+      "type": "EXAMINATION_PERFORMED",
+      "atMinutes": 0,
+      "atIso": "2026-08-23T02:15:00+05:00",
+      "payload": {
+        "region": "abdomen",
+        "findingIds": [
+          "exam.abdomen"
+        ]
+      },
+      "cause": {
+        "actor": "learner",
+        "commandId": "t0-c0",
+        "ruleIds": [],
+        "source": null
+      }
+    },
+    {
+      "seq": 15,
+      "type": "COMMAND_ACCEPTED",
+      "atMinutes": 0,
+      "atIso": "2026-08-23T02:15:00+05:00",
+      "payload": {
+        "commandId": "t0-c0",
+        "commandType": "EXAMINE",
+        "outcome": "EXECUTED",
+        "missing": null,
+        "params": {
+          "region": "abdomen"
+        },
+        "reasonKey": null,
+        "capabilityKey": null,
+        "ruleIds": [],
+        "governanceBlocked": []
+      },
+      "cause": {
+        "actor": "learner",
+        "commandId": "t0-c0",
+        "ruleIds": [],
+        "source": "command_pipeline"
+      }
+    },
+    {
+      "seq": 16,
+      "type": "LEARNER_TURN_RECEIVED",
+      "atMinutes": 0,
+      "atIso": "2026-08-23T02:15:00+05:00",
+      "payload": {
+        "rawText": "анамнез",
+        "intent": "CLINICAL_ACTION",
+        "mentorSignal": null,
+        "interpretedCommands": [
+          {
+            "id": "t1-c0",
+            "type": "TAKE_HISTORY",
+            "params": {}
+          }
+        ]
+      },
+      "cause": {
+        "actor": "learner",
+        "commandId": null,
+        "ruleIds": [],
+        "source": "interpreter"
+      }
+    },
+    {
+      "seq": 17,
+      "type": "HISTORY_OBTAINED",
+      "atMinutes": 0,
+      "atIso": "2026-08-23T02:15:00+05:00",
+      "payload": {
+        "bundleId": "core_history",
+        "findingIds": [
+          "history.core"
+        ]
+      },
+      "cause": {
+        "actor": "learner",
+        "commandId": null,
+        "ruleIds": [],
+        "source": null
+      }
+    },
+    {
+      "seq": 18,
+      "type": "COMMAND_ACCEPTED",
+      "atMinutes": 0,
+      "atIso": "2026-08-23T02:15:00+05:00",
+      "payload": {
+        "commandId": "t1-c0",
+        "commandType": "TAKE_HISTORY",
+        "outcome": "EXECUTED",
+        "missing": null,
+        "params": {},
+        "reasonKey": null,
+        "capabilityKey": null,
+        "ruleIds": [],
+        "governanceBlocked": []
+      },
+      "cause": {
+        "actor": "learner",
+        "commandId": "t1-c0",
+        "ruleIds": [],
+        "source": "command_pipeline"
+      }
+    },
+    {
+      "seq": 19,
+      "type": "LEARNER_TURN_RECEIVED",
+      "atMinutes": 0,
+      "atIso": "2026-08-23T02:15:00+05:00",
+      "payload": {
+        "rawText": "КТ ОБП",
+        "intent": "CLINICAL_ACTION",
+        "mentorSignal": null,
+        "interpretedCommands": [
+          {
+            "id": "t2-c0",
+            "type": "ORDER_TEST",
+            "params": {
+              "testId": "ct_abdomen"
+            }
+          }
+        ]
+      },
+      "cause": {
+        "actor": "learner",
+        "commandId": null,
+        "ruleIds": [],
+        "source": "interpreter"
+      }
+    },
+    {
+      "seq": 20,
+      "type": "RESOURCE_CONSTRAINT_REVEALED",
+      "atMinutes": 0,
+      "atIso": "2026-08-23T02:15:00+05:00",
+      "payload": {
+        "constraint": {
+          "id": "ct_scanner_down",
+          "capabilityKey": "ct",
+          "reasonKey": "resource.ct.down_for_repair",
+          "textRu": "КТ сейчас недоступна: аппарат на ремонте, срок восстановления неизвестен."
+        }
+      },
+      "cause": {
+        "actor": "system",
+        "commandId": "t2-c0",
+        "ruleIds": [],
+        "source": "resource_resolution"
+      }
+    },
+    {
+      "seq": 21,
+      "type": "COMMAND_REJECTED",
+      "atMinutes": 0,
+      "atIso": "2026-08-23T02:15:00+05:00",
+      "payload": {
+        "commandId": "t2-c0",
+        "commandType": "ORDER_TEST",
+        "outcome": "UNAVAILABLE_RESOURCE",
+        "missing": null,
+        "params": {
+          "testId": "ct_abdomen"
+        },
+        "reasonKey": "resource.ct.down_for_repair",
+        "capabilityKey": "ct",
+        "ruleIds": [],
+        "governanceBlocked": []
+      },
+      "cause": {
+        "actor": "learner",
+        "commandId": "t2-c0",
+        "ruleIds": [],
+        "source": "command_pipeline"
+      }
+    },
+    {
+      "seq": 22,
+      "type": "LEARNER_TURN_RECEIVED",
+      "atMinutes": 0,
+      "atIso": "2026-08-23T02:15:00+05:00",
+      "payload": {
+        "rawText": "что с пациентом сейчас?",
+        "intent": "REQUEST_CURRENT_STATUS",
+        "mentorSignal": null,
+        "interpretedCommands": [
+          {
+            "id": "t3-c0",
+            "type": "REQUEST_STATUS",
+            "params": {}
+          }
+        ]
+      },
+      "cause": {
+        "actor": "learner",
+        "commandId": null,
+        "ruleIds": [],
+        "source": "interpreter"
+      }
+    },
+    {
+      "seq": 23,
+      "type": "LEARNER_TURN_RECEIVED",
+      "atMinutes": 0,
+      "atIso": "2026-08-23T02:15:00+05:00",
+      "payload": {
+        "rawText": "УЗИ брюшной полости",
+        "intent": "CLINICAL_ACTION",
+        "mentorSignal": null,
+        "interpretedCommands": [
+          {
+            "id": "t4-c0",
+            "type": "ORDER_TEST",
+            "params": {
+              "testId": "ultrasound_abdomen"
+            }
+          }
+        ]
+      },
+      "cause": {
+        "actor": "learner",
+        "commandId": null,
+        "ruleIds": [],
+        "source": "interpreter"
+      }
+    },
+    {
+      "seq": 24,
+      "type": "TEST_ORDERED",
+      "atMinutes": 0,
+      "atIso": "2026-08-23T02:15:00+05:00",
+      "payload": {
+        "investigationId": "ultrasound_abdomen",
+        "testId": "ultrasound_abdomen",
+        "analytes": null,
+        "etaMinutes": 90,
+        "scheduledPending": [
+          {
+            "id": "t4-c0::preliminary",
+            "kind": "test_result",
+            "phase": "preliminary",
+            "investigationId": "ultrasound_abdomen",
+            "testId": "ultrasound_abdomen",
+            "dueAtMinutes": 75,
+            "preliminaryText": "Аппендикс достоверно не визуализирован; выраженная пневматизация кишечника. Убедительных очаговых изменений в доступных отделах брюшной полости не выявлено. Заключение: исследование неинформативно в отношении аппендикса."
+          },
+          {
+            "id": "t4-c0::final",
+            "kind": "test_result",
+            "phase": "final",
+            "investigationId": "ultrasound_abdomen",
+            "testId": "ultrasound_abdomen",
+            "dueAtMinutes": 90,
+            "result": "Аппендикс достоверно не визуализирован; выраженная пневматизация кишечника. Убедительных очаговых изменений в доступных отделах брюшной полости не выявлено. Заключение: исследование неинформативно в отношении аппендикса."
+          }
+        ]
+      },
+      "cause": {
+        "actor": "learner",
+        "commandId": "t4-c0",
+        "ruleIds": [],
+        "source": null
+      }
+    },
+    {
+      "seq": 25,
+      "type": "COMMAND_ACCEPTED",
+      "atMinutes": 0,
+      "atIso": "2026-08-23T02:15:00+05:00",
+      "payload": {
+        "commandId": "t4-c0",
+        "commandType": "ORDER_TEST",
+        "outcome": "EXECUTED",
+        "missing": null,
+        "params": {
+          "testId": "ultrasound_abdomen"
+        },
+        "reasonKey": null,
+        "capabilityKey": null,
+        "ruleIds": [],
+        "governanceBlocked": []
+      },
+      "cause": {
+        "actor": "learner",
+        "commandId": "t4-c0",
+        "ruleIds": [],
+        "source": "command_pipeline"
+      }
+    },
+    {
+      "seq": 26,
+      "type": "LEARNER_TURN_RECEIVED",
+      "atMinutes": 0,
+      "atIso": "2026-08-23T02:15:00+05:00",
+      "payload": {
+        "rawText": "ОАК и СРБ",
+        "intent": "CLINICAL_ACTION",
+        "mentorSignal": null,
+        "interpretedCommands": [
+          {
+            "id": "t5-c0",
+            "type": "ORDER_TEST",
+            "params": {
+              "testId": "cbc"
+            }
+          },
+          {
+            "id": "t5-c1",
+            "type": "ORDER_TEST",
+            "params": {
+              "testId": "crp"
+            }
+          }
+        ]
+      },
+      "cause": {
+        "actor": "learner",
+        "commandId": null,
+        "ruleIds": [],
+        "source": "interpreter"
+      }
+    },
+    {
+      "seq": 27,
+      "type": "TEST_ORDERED",
+      "atMinutes": 0,
+      "atIso": "2026-08-23T02:15:00+05:00",
+      "payload": {
+        "investigationId": "cbc",
+        "testId": "cbc",
+        "analytes": null,
+        "etaMinutes": 75,
+        "scheduledPending": [
+          {
+            "id": "t5-c0::final",
+            "kind": "test_result",
+            "phase": "final",
+            "investigationId": "cbc",
+            "testId": "cbc",
+            "dueAtMinutes": 75,
+            "result": {
+              "wbc": 10.9,
+              "neutrophilPercent": 78
+            }
+          }
+        ]
+      },
+      "cause": {
+        "actor": "learner",
+        "commandId": "t5-c0",
+        "ruleIds": [],
+        "source": null
+      }
+    },
+    {
+      "seq": 28,
+      "type": "TEST_ORDERED",
+      "atMinutes": 0,
+      "atIso": "2026-08-23T02:15:00+05:00",
+      "payload": {
+        "investigationId": "crp",
+        "testId": "crp",
+        "analytes": null,
+        "etaMinutes": 75,
+        "scheduledPending": [
+          {
+            "id": "t5-c1::final",
+            "kind": "test_result",
+            "phase": "final",
+            "investigationId": "crp",
+            "testId": "crp",
+            "dueAtMinutes": 75,
+            "result": {
+              "crp": 68
+            }
+          }
+        ]
+      },
+      "cause": {
+        "actor": "learner",
+        "commandId": "t5-c1",
+        "ruleIds": [],
+        "source": null
+      }
+    },
+    {
+      "seq": 29,
+      "type": "COMMAND_ACCEPTED",
+      "atMinutes": 0,
+      "atIso": "2026-08-23T02:15:00+05:00",
+      "payload": {
+        "commandId": "t5-c0",
+        "commandType": "ORDER_TEST",
+        "outcome": "EXECUTED",
+        "missing": null,
+        "params": {
+          "testId": "cbc"
+        },
+        "reasonKey": null,
+        "capabilityKey": null,
+        "ruleIds": [],
+        "governanceBlocked": []
+      },
+      "cause": {
+        "actor": "learner",
+        "commandId": "t5-c0",
+        "ruleIds": [],
+        "source": "command_pipeline"
+      }
+    },
+    {
+      "seq": 30,
+      "type": "COMMAND_ACCEPTED",
+      "atMinutes": 0,
+      "atIso": "2026-08-23T02:15:00+05:00",
+      "payload": {
+        "commandId": "t5-c1",
+        "commandType": "ORDER_TEST",
+        "outcome": "EXECUTED",
+        "missing": null,
+        "params": {
+          "testId": "crp"
+        },
+        "reasonKey": null,
+        "capabilityKey": null,
+        "ruleIds": [],
+        "governanceBlocked": []
+      },
+      "cause": {
+        "actor": "learner",
+        "commandId": "t5-c1",
+        "ruleIds": [],
+        "source": "command_pipeline"
+      }
+    },
+    {
+      "seq": 31,
+      "type": "LEARNER_TURN_RECEIVED",
+      "atMinutes": 0,
+      "atIso": "2026-08-23T02:15:00+05:00",
+      "payload": {
+        "rawText": "переоценю боль и витальные через 2 часа",
+        "intent": "CLINICAL_ACTION",
+        "mentorSignal": null,
+        "interpretedCommands": [
+          {
+            "id": "t6-c0",
+            "type": "REASSESS",
+            "params": {
+              "targets": [
+                "pain",
+                "vitals"
+              ],
+              "afterMinutes": 120
+            }
+          }
+        ]
+      },
+      "cause": {
+        "actor": "learner",
+        "commandId": null,
+        "ruleIds": [],
+        "source": "interpreter"
+      }
+    },
+    {
+      "seq": 32,
+      "type": "TEST_PRELIMINARY_REPORTED",
+      "atMinutes": 75,
+      "atIso": "2026-08-23T03:30:00+05:00",
+      "payload": {
+        "investigationId": "ultrasound_abdomen",
+        "preliminary": "Аппендикс достоверно не визуализирован; выраженная пневматизация кишечника. Убедительных очаговых изменений в доступных отделах брюшной полости не выявлено. Заключение: исследование неинформативно в отношении аппендикса.",
+        "resolvedPendingId": "t4-c0::preliminary"
+      },
+      "cause": {
+        "actor": "learner",
+        "commandId": null,
+        "ruleIds": [],
+        "source": "stated_wait"
+      }
+    },
+    {
+      "seq": 33,
+      "type": "TEST_RESULTED",
+      "atMinutes": 75,
+      "atIso": "2026-08-23T03:30:00+05:00",
+      "payload": {
+        "investigationId": "cbc",
+        "result": {
+          "wbc": 10.9,
+          "neutrophilPercent": 78
+        },
+        "resolvedPendingId": "t5-c0::final"
+      },
+      "cause": {
+        "actor": "learner",
+        "commandId": null,
+        "ruleIds": [],
+        "source": "stated_wait"
+      }
+    },
+    {
+      "seq": 34,
+      "type": "TEST_RESULTED",
+      "atMinutes": 75,
+      "atIso": "2026-08-23T03:30:00+05:00",
+      "payload": {
+        "investigationId": "crp",
+        "result": {
+          "crp": 68
+        },
+        "resolvedPendingId": "t5-c1::final"
+      },
+      "cause": {
+        "actor": "learner",
+        "commandId": null,
+        "ruleIds": [],
+        "source": "stated_wait"
+      }
+    },
+    {
+      "seq": 35,
+      "type": "TEST_RESULTED",
+      "atMinutes": 90,
+      "atIso": "2026-08-23T03:45:00+05:00",
+      "payload": {
+        "investigationId": "ultrasound_abdomen",
+        "result": "Аппендикс достоверно не визуализирован; выраженная пневматизация кишечника. Убедительных очаговых изменений в доступных отделах брюшной полости не выявлено. Заключение: исследование неинформативно в отношении аппендикса.",
+        "resolvedPendingId": "t4-c0::final"
+      },
+      "cause": {
+        "actor": "learner",
+        "commandId": null,
+        "ruleIds": [],
+        "source": "stated_wait"
+      }
+    },
+    {
+      "seq": 36,
+      "type": "SIMULATOR_LIMITATION_NOTED",
+      "atMinutes": 120,
+      "atIso": "2026-08-23T04:15:00+05:00",
+      "payload": {
+        "kind": "trajectory",
+        "id": "TRJ-STABLE",
+        "reviewStatus": "pending",
+        "reason": "not_approved_for_training"
+      },
+      "cause": {
+        "actor": "system",
+        "commandId": null,
+        "ruleIds": [],
+        "source": "governance_gate"
+      }
+    },
+    {
+      "seq": 37,
+      "type": "TIME_ADVANCED",
+      "atMinutes": 120,
+      "atIso": "2026-08-23T04:15:00+05:00",
+      "payload": {},
+      "cause": {
+        "actor": "learner",
+        "commandId": null,
+        "ruleIds": [],
+        "source": "stated_wait"
+      }
+    },
+    {
+      "seq": 38,
+      "type": "PATIENT_REASSESSED",
+      "atMinutes": 120,
+      "atIso": "2026-08-23T04:15:00+05:00",
+      "payload": {
+        "region": "reassessment",
+        "findingIds": [
+          "reassessment"
+        ],
+        "targets": [
+          "pain",
+          "vitals"
+        ]
+      },
+      "cause": {
+        "actor": "learner",
+        "commandId": "t6-c0",
+        "ruleIds": [],
+        "source": null
+      }
+    },
+    {
+      "seq": 39,
+      "type": "VITALS_OBSERVED",
+      "atMinutes": 120,
+      "atIso": "2026-08-23T04:15:00+05:00",
+      "payload": {
+        "findingIds": [
+          "vitals.reassessment"
+        ]
+      },
+      "cause": {
+        "actor": "learner",
+        "commandId": "t6-c0",
+        "ruleIds": [],
+        "source": null
+      }
+    },
+    {
+      "seq": 40,
+      "type": "COMMAND_ACCEPTED",
+      "atMinutes": 120,
+      "atIso": "2026-08-23T04:15:00+05:00",
+      "payload": {
+        "commandId": "t6-c0",
+        "commandType": "REASSESS",
+        "outcome": "EXECUTED",
+        "missing": null,
+        "params": {
+          "targets": [
+            "pain",
+            "vitals"
+          ],
+          "afterMinutes": 120
+        },
+        "reasonKey": null,
+        "capabilityKey": null,
+        "ruleIds": [],
+        "governanceBlocked": []
+      },
+      "cause": {
+        "actor": "learner",
+        "commandId": "t6-c0",
+        "ruleIds": [],
+        "source": "command_pipeline"
+      }
+    },
+    {
+      "seq": 41,
+      "type": "LEARNER_TURN_RECEIVED",
+      "atMinutes": 120,
+      "atIso": "2026-08-23T04:15:00+05:00",
+      "payload": {
+        "rawText": "перевожу в другой стационар",
+        "intent": "CLINICAL_ACTION",
+        "mentorSignal": null,
+        "interpretedCommands": [
+          {
+            "id": "t7-c0",
+            "type": "TRANSFER",
+            "params": {
+              "destination": "other_facility"
+            }
+          }
+        ]
+      },
+      "cause": {
+        "actor": "learner",
+        "commandId": null,
+        "ruleIds": [],
+        "source": "interpreter"
+      }
+    },
+    {
+      "seq": 42,
+      "type": "TRANSFER_INITIATED",
+      "atMinutes": 120,
+      "atIso": "2026-08-23T04:15:00+05:00",
+      "payload": {
+        "destination": "other_facility",
+        "etaMinutes": 45,
+        "scheduledPending": [
+          {
+            "id": "t7-c0::transfer_arrival",
+            "kind": "transfer_arrival",
+            "destination": "other_facility",
+            "dueAtMinutes": 165
+          }
+        ]
+      },
+      "cause": {
+        "actor": "learner",
+        "commandId": "t7-c0",
+        "ruleIds": [],
+        "source": null
+      }
+    },
+    {
+      "seq": 43,
+      "type": "PATIENT_TRANSFERRED",
+      "atMinutes": 165,
+      "atIso": "2026-08-23T05:00:00+05:00",
+      "payload": {
+        "detail": "other_facility",
+        "resolvedPendingId": "t7-c0::transfer_arrival"
+      },
+      "cause": {
+        "actor": "system",
+        "commandId": null,
+        "ruleIds": [],
+        "source": "interfacility_transport"
+      }
+    },
+    {
+      "seq": 44,
+      "type": "SIMULATOR_LIMITATION_NOTED",
+      "atMinutes": 165,
+      "atIso": "2026-08-23T05:00:00+05:00",
+      "payload": {
+        "kind": "trajectory",
+        "id": "TRJ-STABLE",
+        "reviewStatus": "pending",
+        "reason": "not_approved_for_training"
+      },
+      "cause": {
+        "actor": "system",
+        "commandId": null,
+        "ruleIds": [],
+        "source": "governance_gate"
+      }
+    },
+    {
+      "seq": 45,
+      "type": "TIME_ADVANCED",
+      "atMinutes": 165,
+      "atIso": "2026-08-23T05:00:00+05:00",
+      "payload": {},
+      "cause": {
+        "actor": "learner",
+        "commandId": null,
+        "ruleIds": [],
+        "source": "action_duration"
+      }
+    },
+    {
+      "seq": 46,
+      "type": "COMMAND_ACCEPTED",
+      "atMinutes": 165,
+      "atIso": "2026-08-23T05:00:00+05:00",
+      "payload": {
+        "commandId": "t7-c0",
+        "commandType": "TRANSFER",
+        "outcome": "EXECUTED",
+        "missing": null,
+        "params": {
+          "destination": "other_facility"
+        },
+        "reasonKey": null,
+        "capabilityKey": null,
+        "ruleIds": [],
+        "governanceBlocked": []
+      },
+      "cause": {
+        "actor": "learner",
+        "commandId": "t7-c0",
+        "ruleIds": [],
+        "source": "command_pipeline"
+      }
+    }
+  ],
+  "learner_turns": [
+    {
+      "seq": 13,
+      "atMinutes": 0,
+      "atIso": "2026-08-23T02:15:00+05:00",
+      "rawText": "живот",
+      "intent": "CLINICAL_ACTION",
+      "mentorSignal": null,
+      "interpretedCommands": [
+        {
+          "id": "t0-c0",
+          "type": "EXAMINE",
+          "params": {
+            "region": "abdomen"
+          }
+        }
+      ],
+      "commandOutcomes": [
+        {
+          "commandId": "t0-c0",
+          "commandType": "EXAMINE",
+          "outcome": "EXECUTED",
+          "missing": null,
+          "params": {
+            "region": "abdomen"
+          },
+          "reasonKey": null,
+          "capabilityKey": null,
+          "ruleIds": [],
+          "governanceBlocked": [],
+          "eventType": "COMMAND_ACCEPTED"
+        }
+      ],
+      "mentor": null
+    },
+    {
+      "seq": 16,
+      "atMinutes": 0,
+      "atIso": "2026-08-23T02:15:00+05:00",
+      "rawText": "анамнез",
+      "intent": "CLINICAL_ACTION",
+      "mentorSignal": null,
+      "interpretedCommands": [
+        {
+          "id": "t1-c0",
+          "type": "TAKE_HISTORY",
+          "params": {}
+        }
+      ],
+      "commandOutcomes": [
+        {
+          "commandId": "t1-c0",
+          "commandType": "TAKE_HISTORY",
+          "outcome": "EXECUTED",
+          "missing": null,
+          "params": {},
+          "reasonKey": null,
+          "capabilityKey": null,
+          "ruleIds": [],
+          "governanceBlocked": [],
+          "eventType": "COMMAND_ACCEPTED"
+        }
+      ],
+      "mentor": null
+    },
+    {
+      "seq": 19,
+      "atMinutes": 0,
+      "atIso": "2026-08-23T02:15:00+05:00",
+      "rawText": "КТ ОБП",
+      "intent": "CLINICAL_ACTION",
+      "mentorSignal": null,
+      "interpretedCommands": [
+        {
+          "id": "t2-c0",
+          "type": "ORDER_TEST",
+          "params": {
+            "testId": "ct_abdomen"
+          }
+        }
+      ],
+      "commandOutcomes": [
+        {
+          "commandId": "t2-c0",
+          "commandType": "ORDER_TEST",
+          "outcome": "UNAVAILABLE_RESOURCE",
+          "missing": null,
+          "params": {
+            "testId": "ct_abdomen"
+          },
+          "reasonKey": "resource.ct.down_for_repair",
+          "capabilityKey": "ct",
+          "ruleIds": [],
+          "governanceBlocked": [],
+          "eventType": "COMMAND_REJECTED"
+        }
+      ],
+      "mentor": null
+    },
+    {
+      "seq": 22,
+      "atMinutes": 0,
+      "atIso": "2026-08-23T02:15:00+05:00",
+      "rawText": "что с пациентом сейчас?",
+      "intent": "REQUEST_CURRENT_STATUS",
+      "mentorSignal": null,
+      "interpretedCommands": [
+        {
+          "id": "t3-c0",
+          "type": "REQUEST_STATUS",
+          "params": {}
+        }
+      ],
+      "commandOutcomes": [],
+      "mentor": null
+    },
+    {
+      "seq": 23,
+      "atMinutes": 0,
+      "atIso": "2026-08-23T02:15:00+05:00",
+      "rawText": "УЗИ брюшной полости",
+      "intent": "CLINICAL_ACTION",
+      "mentorSignal": null,
+      "interpretedCommands": [
+        {
+          "id": "t4-c0",
+          "type": "ORDER_TEST",
+          "params": {
+            "testId": "ultrasound_abdomen"
+          }
+        }
+      ],
+      "commandOutcomes": [
+        {
+          "commandId": "t4-c0",
+          "commandType": "ORDER_TEST",
+          "outcome": "EXECUTED",
+          "missing": null,
+          "params": {
+            "testId": "ultrasound_abdomen"
+          },
+          "reasonKey": null,
+          "capabilityKey": null,
+          "ruleIds": [],
+          "governanceBlocked": [],
+          "eventType": "COMMAND_ACCEPTED"
+        }
+      ],
+      "mentor": null
+    },
+    {
+      "seq": 26,
+      "atMinutes": 0,
+      "atIso": "2026-08-23T02:15:00+05:00",
+      "rawText": "ОАК и СРБ",
+      "intent": "CLINICAL_ACTION",
+      "mentorSignal": null,
+      "interpretedCommands": [
+        {
+          "id": "t5-c0",
+          "type": "ORDER_TEST",
+          "params": {
+            "testId": "cbc"
+          }
+        },
+        {
+          "id": "t5-c1",
+          "type": "ORDER_TEST",
+          "params": {
+            "testId": "crp"
+          }
+        }
+      ],
+      "commandOutcomes": [
+        {
+          "commandId": "t5-c0",
+          "commandType": "ORDER_TEST",
+          "outcome": "EXECUTED",
+          "missing": null,
+          "params": {
+            "testId": "cbc"
+          },
+          "reasonKey": null,
+          "capabilityKey": null,
+          "ruleIds": [],
+          "governanceBlocked": [],
+          "eventType": "COMMAND_ACCEPTED"
+        },
+        {
+          "commandId": "t5-c1",
+          "commandType": "ORDER_TEST",
+          "outcome": "EXECUTED",
+          "missing": null,
+          "params": {
+            "testId": "crp"
+          },
+          "reasonKey": null,
+          "capabilityKey": null,
+          "ruleIds": [],
+          "governanceBlocked": [],
+          "eventType": "COMMAND_ACCEPTED"
+        }
+      ],
+      "mentor": null
+    },
+    {
+      "seq": 31,
+      "atMinutes": 0,
+      "atIso": "2026-08-23T02:15:00+05:00",
+      "rawText": "переоценю боль и витальные через 2 часа",
+      "intent": "CLINICAL_ACTION",
+      "mentorSignal": null,
+      "interpretedCommands": [
+        {
+          "id": "t6-c0",
+          "type": "REASSESS",
+          "params": {
+            "targets": [
+              "pain",
+              "vitals"
+            ],
+            "afterMinutes": 120
+          }
+        }
+      ],
+      "commandOutcomes": [
+        {
+          "commandId": "t6-c0",
+          "commandType": "REASSESS",
+          "outcome": "EXECUTED",
+          "missing": null,
+          "params": {
+            "targets": [
+              "pain",
+              "vitals"
+            ],
+            "afterMinutes": 120
+          },
+          "reasonKey": null,
+          "capabilityKey": null,
+          "ruleIds": [],
+          "governanceBlocked": [],
+          "eventType": "COMMAND_ACCEPTED"
+        }
+      ],
+      "mentor": null
+    },
+    {
+      "seq": 41,
+      "atMinutes": 120,
+      "atIso": "2026-08-23T04:15:00+05:00",
+      "rawText": "перевожу в другой стационар",
+      "intent": "CLINICAL_ACTION",
+      "mentorSignal": null,
+      "interpretedCommands": [
+        {
+          "id": "t7-c0",
+          "type": "TRANSFER",
+          "params": {
+            "destination": "other_facility"
+          }
+        }
+      ],
+      "commandOutcomes": [
+        {
+          "commandId": "t7-c0",
+          "commandType": "TRANSFER",
+          "outcome": "EXECUTED",
+          "missing": null,
+          "params": {
+            "destination": "other_facility"
+          },
+          "reasonKey": null,
+          "capabilityKey": null,
+          "ruleIds": [],
+          "governanceBlocked": [],
+          "eventType": "COMMAND_ACCEPTED"
+        }
+      ],
+      "mentor": null
+    }
+  ],
+  "ai_telemetry": []
+}
