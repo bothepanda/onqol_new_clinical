@@ -5,3 +5,4 @@ dist
 *.local
 src/content/generated
 dist-pack
+test-results

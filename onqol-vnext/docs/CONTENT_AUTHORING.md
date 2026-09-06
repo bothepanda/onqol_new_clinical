@@ -50,7 +50,7 @@ Add a `case_presets` entry pointing at the phenotype to make it selectable by `c
 
 ## Adding a second disease (the architecture's own acceptance test)
 
-Per Core Foundation Spec §63/§71: create `src/content/diseases/<new_disease>/` with the same seven required files. If you find yourself wanting to add `if (diseaseId === "...")` anywhere in `src/core/` or `src/ai/renderer/renderEvent.js` to make it work, stop — that's the signal the abstraction is incomplete, not a signal to add the branch. The two legitimate ways to extend the engine for genuinely new mechanics are: (1) a new `core/rules/conditions.js` evaluator, generic across diseases, or (2) a new `core/commands/commandTypes.js` command, likewise generic. Neither should ever hardcode a disease id.
+Per Core Runtime Spec §63/§71: create `src/content/diseases/<new_disease>/` with the same seven required files. If you find yourself wanting to add `if (diseaseId === "...")` anywhere in `src/core/` or `src/ai/renderer/renderEvent.js` to make it work, stop — that's the signal the abstraction is incomplete, not a signal to add the branch. The two legitimate ways to extend the engine for genuinely new mechanics are: (1) a new `core/rules/conditions.js` evaluator, generic across diseases, or (2) a new `core/commands/commandTypes.js` command, likewise generic. Neither should ever hardcode a disease id.
 
 ## Locale status
 

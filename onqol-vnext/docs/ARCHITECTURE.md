@@ -50,13 +50,13 @@ This is what makes replay (`core/replay/exportSession.js`), the JSON export, and
 
 ## Safety model
 
-`core/rules/safetyLevels.js` implements the four-level model (Foundation Spec §57) as data, not as an if/else ladder scattered through handlers. `executeCommand.js` evaluates every reviewed rule against learner-visible state before running a command's handler; a `LEVEL_4_CATASTROPHIC` match blocks execution and returns `SAFETY_STOP` without running the handler at all. Levels 1-3 do not block — they ride along as `firedRules` for the mentor engine to decide whether to `CHALLENGE`.
+`core/rules/safetyLevels.js` implements the four-level model (Core Runtime Spec §57) as data, not as an if/else ladder scattered through handlers. `executeCommand.js` evaluates every reviewed rule against learner-visible state before running a command's handler; a `LEVEL_4_CATASTROPHIC` match blocks execution and returns `SAFETY_STOP` without running the handler at all. Levels 1-3 do not block — they ride along as `firedRules` for the mentor engine to decide whether to `CHALLENGE`.
 
 ## Content is data, not branches
 
 `src/content/diseases/appendicitis/*.yaml` is the entire clinical payload: phenotypes, physiology envelopes, exam-slot wording, reviewed rules (with `source_ids`, `review_status`, `reviewers` — Governance Spec §6), operative decisions, and postoperative complications. `scripts/buildContentIndex.mjs` compiles it into `src/content/generated/*.json` and **fails the build** if a rule is missing provenance or claims `approved_for_training` without recorded reviewers.
 
-`src/core/patient/patientGenerator.js`, `src/core/commands/executeCommand.js`, and `src/ai/renderer/renderEvent.js` read this bundle by shape (`bundle.disease`, `bundle.phenotypes`, `bundle.rules`, ...) and contain **no `if (diseaseId === "appendicitis")` branch anywhere**. That is the second-disease acceptance test from Core Foundation Spec §63/§71: a second disease module should be addable primarily as a new `src/content/diseases/<name>/*.yaml` tree plus (if genuinely new mechanics are needed) new condition evaluators in `core/rules/conditions.js` — not new core branches. This has not yet been exercised with a real second disease; see `docs/KNOWN_GAPS.md`.
+`src/core/patient/patientGenerator.js`, `src/core/commands/executeCommand.js`, and `src/ai/renderer/renderEvent.js` read this bundle by shape (`bundle.disease`, `bundle.phenotypes`, `bundle.rules`, ...) and contain **no `if (diseaseId === "appendicitis")` branch anywhere**. That is the second-disease acceptance test from Core Runtime Spec §63/§71: a second disease module should be addable primarily as a new `src/content/diseases/<name>/*.yaml` tree plus (if genuinely new mechanics are needed) new condition evaluators in `core/rules/conditions.js` — not new core branches. This has not yet been exercised with a real second disease; see `docs/KNOWN_GAPS.md`.
 
 ## AI boundary
 
@@ -80,7 +80,7 @@ This is enforced in three places, all of which fail closed:
 
 The critical distinction, and the reason a withheld item emits an event rather than nothing: a governance gap must be reportable as a **simulator limitation**, never as a learner omission (task brief §21). An unapproved complication is therefore *not* rolled and *not* reported as "cleared" — clearing it would falsely assert that a reviewed probability had been evaluated and come out negative.
 
-What the gate deliberately does **not** cover, per the five-authority split (Foundation Spec §44-46): Hospital/World Engine operational data (resource ETAs, staff arrival, test turnaround, dynamic constraints) and Patient Engine generation content (phenotype library, physiology envelopes). See `docs/IMPLEMENTATION_GAP_AUDIT_2026-08-23.md` for the reasoning and the exact blocker list.
+What the gate deliberately does **not** cover, per the five-authority split (Core Runtime Spec §44-46): Hospital/World Engine operational data (resource ETAs, staff arrival, test turnaround, dynamic constraints) and Patient Engine generation content (phenotype library, physiology envelopes). See `docs/IMPLEMENTATION_GAP_AUDIT_2026-08-23.md` for the reasoning and the exact blocker list.
 
 ## One learner-turn pipeline
 
@@ -90,6 +90,12 @@ What the gate deliberately does **not** cover, per the five-authority split (Fou
 raw text -> interpretTurn -> validateCommand -> executeCommand -> reducer
          -> advanceTime (on a stated wait) -> mentor decision -> events
 ```
+
+With `AI_INTERACTION_V2` enabled, a second non-authoritative branch runs beside
+the first line: learner-visible context -> model schema -> concept/parameter
+validation -> structured comparison -> `ai_telemetry`. It has no connection to
+`validateCommand -> executeCommand`, never emits a domain event, and provider
+failure cannot change the deterministic result.
 
 Both `app/session/useSession.js` and the learner-journey test suite call it, which is the point: the app cannot reach a capability the tests bypass, and the tests cannot exercise one the app has no path to. That was the specific failure this pass existed to fix — the previous build's "end-to-end" test drove `executeCommand` directly and used a `COMPLETE_PREOP_ITEM` command the UI could not produce, so preoperative preparation appeared to work and was in fact unreachable by any learner. That command no longer exists anywhere in the codebase, and `core/architecture.test.js` enforces its absence.
 

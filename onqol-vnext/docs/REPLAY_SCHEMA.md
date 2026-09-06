@@ -50,6 +50,6 @@ This is what makes the export answer the audit questions in Governance Spec §24
 
 ## Known gaps in this version of the schema
 
-- **`ai_telemetry`** is present in the shape but still empty — no live provider call happens in this build, so there is no provider metadata to record. See `docs/KNOWN_GAPS.md` §3.
+- **`ai_telemetry`** may contain Wave 2 shadow interpretation, validation and structured-diff records. These records are deliberately outside `events`: replay reproduces the clinical state without a provider call, while the export can still audit model disagreement and fallback. Sessions with `AI_INTERACTION_V2` disabled keep this array empty.
 - **No JSON Schema file** (`.schema.json`) exists yet to validate exports mechanically outside the `verifyReplay` test helper. Worth adding once the shape has had a second disease exercise it.
 - Raw learner text **is** now included, because the export is the audit artifact Governance Spec §24 requires ("what the learner wrote"). The export is a download the learner initiates, not a server-side store; retention of the downloaded file remains governed by the project's privacy/retention policy, which has not yet been migrated into vNext.

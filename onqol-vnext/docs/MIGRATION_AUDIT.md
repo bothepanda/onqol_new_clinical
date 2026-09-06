@@ -43,7 +43,7 @@ From `onqol-trainer/`:
 - `appendicitis/phenotypes.js`, `appendicitis/examSlots.js`
 - `KZ_RESOURCE_PROFILES_REVIEW.md`, `DOSING_RULES_CLINICAL_REVIEW_v0.2_2026-08-20.md`, `CLINICAL_VALIDATION_MATRIX.md`, `REFERENCE_RESOURCE_PROFILE_PILOT_APPROVAL_2026-08-20.md`
 
-**Re-authored as new clean content** under `onqol-vnext/src/content/diseases/appendicitis/` (`disease.yaml`, `phenotypes.yaml`, `trajectories.yaml`, `findings.yaml`, `rules.yaml`, `operative.yaml`, `complications.yaml`): the `classic` and `retrocecal` (APP-004-pattern) phenotypes, physiology envelopes, exam-slot wording, and the three signed dosing rows (cefazolin/metronidazole prophylaxis) were carried forward with **their original `review_status`, `source_ids`, and reviewer records preserved** — nothing was promoted to a higher review status than the legacy corpus already recorded. See §5.
+**Re-authored as new clean content** under `onqol-vnext/src/content/diseases/appendicitis/` (`disease.yaml`, `phenotypes.yaml`, `trajectories.yaml`, `findings.yaml`, `rules.yaml`, `operative.yaml`, `complications.yaml`): the five V3.5 appendicitis phenotypes (`early_subtle`, `classic`, `pelvic`, `retrocecal`, `late_complicated`), physiology envelopes needed to reconstruct their review fixtures, exam-slot wording, and the three signed dosing rows (cefazolin/metronidazole prophylaxis) were carried forward with **their original review limitations and provenance preserved** — nothing was promoted to a higher review status than the legacy corpus already recorded. APP-001–003 remain `review_pending`, APP-004 `development_only`, and APP-005 `faculty_preview`. See §5 and `docs/APPENDICITIS_VARIANT_MIGRATION_2026-08-28.md`.
 
 **Reused (rebuilt from the visual pattern, not the component code):** the teal/mint palette, mono-uppercase chrome labels, proportional-sans conversation text, white-card-on-pale-background composition, and the right-sidebar concept — extracted into `src/ui/styles/tokens.css` / `shell.css` as new tokens, not `v25-*` classes.
 
@@ -69,7 +69,7 @@ All migrated content retains the review state it had in the legacy corpus. Nothi
 | Content | Migrated as | `review_status` carried forward |
 |---|---|---|
 | Disease card (classification, physiology envelopes, numeric facts, teaching traps) | `content/diseases/appendicitis/disease.yaml` | `reviewed_internal`, `independent_review_status: pending` (unchanged) |
-| `classic`, `retrocecal` phenotypes | `content/diseases/appendicitis/phenotypes.yaml` | `pending` (unchanged) |
+| `early_subtle`, `classic`, `pelvic`, `retrocecal`, `late_complicated` phenotypes | `content/diseases/appendicitis/phenotypes.yaml` | `pending` (unchanged); no learner activation |
 | Exam-slot wording, universal normal layer | `content/diseases/appendicitis/findings.yaml` | `reviewed_internal` for the universal layer; `pending` for phenotype-specific slot content (unchanged) |
 | Cefazolin / metronidazole / appendectomy prophylaxis dosing rules | `content/diseases/appendicitis/rules.yaml` (`RULE-CEFAZOLIN-PROPHYLAXIS-DOSE`) | `reviewed_internal`, reviewers Сарина Т.Т. + Каукенова Б.Н., dated 2026-08-20, `allowed_runtime_effects: [mentor_teaching]`, `score_weight: 0` — identical constraints to the legacy signed subset |
 | KZ hospital resource profiles (R1/R2/R3) | `core/hospital/hospitalProfiles.js` | `reviewStatus: pending_owner_review` (explicitly not upgraded — matches `KZ_RESOURCE_PROFILES_REVIEW.md`'s own `WORKFLOW_ASSUMPTIONS_PENDING_OWNER_REVIEW`) |

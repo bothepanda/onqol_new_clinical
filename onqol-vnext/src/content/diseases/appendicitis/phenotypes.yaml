@@ -1,17 +1,193 @@
 # Phenotype library for acute appendicitis.
 #
-# Ported from the reviewed legacy corpus (migration/legacy-content/
-# appendicitis/phenotypes.js) with content copied verbatim where it was marked
-# authored/reviewed. `clinical_review_status: pending` is copied forward
-# unchanged - vNext does not upgrade a legacy status by moving the file.
+# Remediated 2026-08-25 against APP004_CLINICAL_REVIEW_MATRIX_v1.0_2026-08-25
+# §3 (patient generation and presentation) and the remediation task §5.
 #
-# First vertical slice ships two phenotypes: `classic` (baseline, for
-# regression coverage) and `retrocecal` (the APP-004 concept named in the
-# rebuild task as the preferred migration source - weak anterior peritoneal
-# signs, a real diagnostic-uncertainty teaching point).
+# NOTHING HERE IS `approved_for_training`. Patient generation is Patient Truth
+# under the governance spec (matrix §G1), so every generating object below
+# carries its own provenance block and is reported by
+# `core/patient/patientTruthGovernance.js` as non-approved development
+# content on every session.
 schema_version: "1.0"
 
+# ---------------------------------------------------------------------------
+# Demographics (matrix P01, P02) - moved OUT of core code.
+# ---------------------------------------------------------------------------
+# `core/patient/patientGenerator.js` previously hardcoded `int(18, 75)`, which
+# is exactly the kind of ungoverned patient-truth generation §G1 forbids. The
+# range now lives in content, is gated, and is auditable.
+demographics:
+  age_years: [18, 58] # matrix P01: elderly presentation is a LATER phenotype, not this one
+  sexes: [male, female] # matrix P02
+  provenance:
+    id: DEMOGRAPHICS-APP-BASE-ADULT
+    authority_layer: patient_truth
+    jurisdiction: international
+    source: "Clinical reviewer decision, APP004_CLINICAL_REVIEW_MATRIX_v1.0_2026-08-25 P01/P02"
+    source_version_or_date: "2026-08-25"
+    evidence_strength: expert_consensus
+    review_status: approved_for_training
+    reviewed_by: ["Botagoz Kaukenova — Clinical Lead"]
+    reviewed_at: "2026-08-31"
+    second_review_required: false
+    second_reviewed_by: null
+    second_reviewed_at: null
+    next_review_due: null
+    notes: "APP-004 adult 18–58 pilot scope fixed by Clinical Lead decision F1 on 2026-08-31."
+
+# ---------------------------------------------------------------------------
+# Nausea / vomiting coherence (matrix P06, task §5.5)
+# ---------------------------------------------------------------------------
+# Previously vomiting was drawn as an independent counted symptom, which can
+# produce repeated vomiting with no nausea. These are COMBINED states, so the
+# generator cannot express an incoherent combination at all - the constraint is
+# structural, not a probability the reviewer has to trust.
+nausea_vomiting_states:
+  - id: none
+    nausea: false
+    vomiting_episodes: 0
+    history_ru: "тошноты и рвоты нет"
+  - id: nausea_only
+    nausea: true
+    vomiting_episodes: 0
+    history_ru: "беспокоит тошнота, рвоты не было"
+  - id: nausea_with_single_vomit
+    nausea: true
+    vomiting_episodes: 1
+    history_ru: "была тошнота, рвота однократно"
+  - id: nausea_with_repeat_vomit
+    nausea: true
+    vomiting_episodes: 2
+    history_ru: "была тошнота, рвота дважды"
+provenance_nausea_vomiting:
+  id: SYMPTOM-NAUSEA-VOMITING-COHERENCE
+  authority_layer: patient_truth
+  jurisdiction: international
+  source: "Clinical reviewer decision, matrix P06"
+  source_version_or_date: "2026-08-25"
+  evidence_strength: expert_consensus
+  review_status: approved_for_training
+  reviewed_by: ["Botagoz Kaukenova — Clinical Lead"]
+  reviewed_at: "2026-08-31"
+  second_review_required: false
+  second_reviewed_by: null
+  second_reviewed_at: null
+  next_review_due: null
+  notes: "Only the coherence constraint is approved. Selection frequency remains a separate blocked calibration."
+
+nausea_vomiting_selection_calibration:
+  # Clinical Lead decision (APP004 Numeric Calibration Review 2026-08-31,
+  # NAUSEA/VOMITING): the uniform draw over the four approved coherent states is
+  # ACCEPTED as non-epidemiological simulation sampling. It is deliberately not
+  # a claimed real-world prevalence estimate; it exists only to vary one clause
+  # of the history narrative across seeds.
+  method: uniform_simulation_sampling
+  is_epidemiological_estimate: false
+  provenance:
+    id: CAL-NAUSEA-VOMITING-SELECTION-APP004
+    authority_layer: patient_truth
+    jurisdiction: international
+    source: "APP004 Numeric Calibration Review 2026-08-31 (NAUSEA/VOMITING); coherent states approved as SYMPTOM-NAUSEA-VOMITING-COHERENCE"
+    source_version_or_date: "2026-08-31"
+    evidence_strength: expert_consensus
+    review_status: approved_for_training
+    reviewed_by: ["Botagoz Kaukenova — Clinical Lead"]
+    reviewed_at: "2026-08-31"
+    second_review_required: true
+    second_reviewed_by: ["Sarina T.T. — General Surgery / Surgical Oncology, NROC"]
+    second_reviewed_at: "2026-09-01"
+    next_review_due: null
+    notes: >-
+      Clinical Lead has ACCEPTED the uniform draw as non-epidemiological
+      simulation sampling (not a prevalence claim).
+      Second Clinical Reviewer Decision, 2026-09-01: APPROVED — "the
+      generated symptom mix is clinically plausible for acute appendicitis
+      and acceptable for simulation diversity"; exclusion of
+      vomiting-without-nausea remains understood as a scenario-scope
+      restriction, not a universal clinical rule.
+
+# ---------------------------------------------------------------------------
+# Sex-conditional history (matrix P03, task §11)
+# ---------------------------------------------------------------------------
+# `applies_to_sex` is honoured by the generator; a male patient can never
+# receive an LMP or a pregnancy-possibility line, and no female-specific rule
+# has a male patient to fire against.
+sex_conditional_history:
+  - id: reproductive_age_female_history
+    applies_to_sex: female
+    applies_to_age_years: [18, 55]
+    lines_ru:
+      - "последняя менструация — уточняется у пациентки при сборе анамнеза"
+      - "беременность не исключена, тест не выполнялся"
+      - "патологических выделений и болей внизу живота слева нет"
+    provenance:
+      id: HISTORY-REPRODUCTIVE-AGE-FEMALE
+      authority_layer: patient_truth
+      jurisdiction: international
+      source: "Clinical reviewer decision, matrix P03; cross-specialty item, matrix I11"
+      source_version_or_date: "2026-08-25"
+      evidence_strength: expert_consensus
+      review_status: pending
+      reviewed_by: null
+      reviewed_at: null
+      second_review_required: true
+      second_reviewed_by: null
+      second_reviewed_at: null
+      next_review_due: null
+      notes: "NEEDS_SECOND_REVIEW (radiology/anaesthesia) per matrix I11. Pregnancy status is never invented."
+
 phenotypes:
+  # Migrated from V3.5 content 3.5.7. This is catalogued for internal review,
+  # not promoted: the legacy source itself records `clinical_review_status:
+  # pending`, and the pilot-wide PDF is an unsigned draft.
+  early_subtle:
+    phenotype_id: early_subtle
+    title_ru: "Ранняя маловыраженная презентация"
+    compatible_morphologies: [uncomplicated_inflammation]
+    presentation:
+      hours_from_onset: [3, 8]
+      pain_score: [3, 6]
+      pain_sites_ru:
+        - "в околопупочной области"
+        - "в нижних отделах живота справа"
+      history_fixed_ru:
+        - "чёткого перемещения боли не отмечает"
+        - "аппетита нет"
+      history_variants_ru:
+        - "была тошнота"
+      examination_slots:
+        contour: обычный
+        palpation: мягкий
+        tenderness: "локальная умеренная"
+        guarding: нет
+        peristalsis: выслушивается
+      examination_slot_choices:
+        rebound: [отрицательный, сомнительный]
+    imaging:
+      ultrasound_variants_ru:
+        - "Убедительных УЗ-признаков острого аппендицита не выявлено."
+        - "Аппендикс достоверно не визуализирован, исследование неинформативно."
+      ct_ru: "КТ-признаки острого аппендицита без признаков перфорации, абсцесса или другой локальной осложнённости."
+      operative_truth_ru: "Аппендикс воспалительно изменён, без признаков некроза, перфорации и абсцесса."
+    provenance:
+      id: PHENOTYPE-EARLY-SUBTLE-V35
+      authority_layer: patient_truth
+      jurisdiction: international
+      source: "onqol-trainer/src/clinical/v35/phenotypes.js (content 3.5.7)"
+      source_version_or_date: "3.5.7 / 2026-08-10"
+      evidence_strength: NEEDS_SOURCE
+      review_status: pending
+      reviewed_by: null
+      reviewed_at: null
+      second_review_required: true
+      second_reviewed_by: null
+      second_reviewed_at: null
+      next_review_due: null
+      notes: >-
+        Selectively migrated without status promotion. The legacy CRP time
+        gradient and split wording remain named review gaps; the phenotype is
+        development-only until independent sign-off.
+
   classic:
     phenotype_id: classic
     title_ru: "Классическая презентация"
@@ -24,9 +200,6 @@ phenotypes:
         - "боль началась около пупка и переместилась в правую подвздошную область"
         - "боль усиливается при движении и кашле"
         - "аппетита нет"
-      history_counted_ru:
-        singular_ru: "рвота была однократно"
-        range: [1, 2]
       examination_slots:
         contour: обычный
         palpation: мягкий
@@ -35,42 +208,313 @@ phenotypes:
         guarding: локальное
         rebound: "положительный локально"
         peristalsis: выслушивается
-      examination_slot_choices:
-        rovsing: [положительный, отрицательный]
-        percussion: [есть, нет]
     imaging:
-      ultrasound_variants_ru:
-        - "Визуализируется увеличенный в диаметре несжимаемый аппендикс с признаками воспаления."
-        - "Аппендикс визуализирован не полностью, исследование неинформативно."
-      ct_ru: "КТ-признаки острого аппендицита без признаков перфорации и абсцесса."
+      ultrasound_ru: "Визуализируется увеличенный в диаметре несжимаемый аппендикс с признаками воспаления."
       operative_truth_ru: "Воспалительно изменённый аппендикс без признаков перфорации и абсцесса."
-    clinical_review_status: pending
+    provenance:
+      id: PHENOTYPE-CLASSIC
+      authority_layer: patient_truth
+      jurisdiction: international
+      source: "Legacy reviewed corpus (migration/legacy-content/appendicitis/phenotypes.js)"
+      source_version_or_date: "2026-08-08"
+      evidence_strength: NEEDS_SOURCE
+      review_status: pending
+      reviewed_by: null
+      reviewed_at: null
+      second_review_required: true
+      second_reviewed_by: null
+      second_reviewed_at: null
+      next_review_due: null
+      notes: "Out of scope for the 2026-08-25 APP-004 remediation pass; retained for regression coverage only."
 
+  # V3.5 pelvic presentation. The withdrawn rectal finding was deliberately
+  # not migrated; the source says it was unsupported and removed on 2026-08-19.
+  pelvic:
+    phenotype_id: pelvic
+    title_ru: "Тазовое расположение"
+    compatible_morphologies: [uncomplicated_inflammation]
+    presentation:
+      hours_from_onset: [8, 24]
+      pain_score: [4, 8]
+      pain_sites_ru:
+        - "в надлонной области"
+        - "глубоко внизу живота"
+      history_fixed_ru:
+        - "частые болезненные позывы к дефекации"
+      history_variants_ru:
+        - "учащённое мочеиспускание"
+        - "дискомфорт при мочеиспускании"
+      examination_slots:
+        contour: обычный
+        palpation: мягкий
+        max_point: ниже
+        peristalsis: выслушивается
+      examination_slot_choices:
+        guarding: [нет, слабое]
+        obturator: [положительный, отрицательный]
+    imaging:
+      ultrasound_ru: "Аппендикс достоверно не визуализирован; органы малого таза оценены отдельно."
+      ct_ru: "Аппендикс расположен в малом тазу, увеличен и воспалительно изменён; признаков абсцесса нет."
+      operative_truth_ru: "Аппендикс расположен в малом тазу, воспалительно изменён; в малом тазу небольшое количество реактивного выпота."
+    provenance:
+      id: PHENOTYPE-PELVIC-V35
+      authority_layer: patient_truth
+      jurisdiction: international
+      source: "onqol-trainer/src/clinical/v35/phenotypes.js (content 3.5.7)"
+      source_version_or_date: "3.5.7 / 2026-08-10"
+      evidence_strength: NEEDS_SOURCE
+      review_status: pending
+      reviewed_by: null
+      reviewed_at: null
+      second_review_required: true
+      second_reviewed_by: null
+      second_reviewed_at: null
+      next_review_due: null
+      notes: >-
+        Selectively migrated without the withdrawn DRE finding. Pelvic and
+        reproductive branches still require independent and cross-specialty review.
+
+  # =========================================================================
+  # APP-004
+  # =========================================================================
   retrocecal:
     phenotype_id: retrocecal
     title_ru: "Ретроцекальное расположение"
     compatible_morphologies: [uncomplicated_inflammation]
     key_skill_ru: "Понимать ограничения осмотра и УЗИ, выбирать КТ, наблюдение или безопасный маршрут"
     presentation:
-      hours_from_onset: [10, 30]
+      # Matrix P04 / task §5.3: most uncomplicated patients present within
+      # ~24 h. 3+ day presentations belong to a different severity trajectory
+      # and MUST NOT be generated in this phenotype. APP004 Numeric Calibration
+      # Review 2026-08-31 (RETROCECAL): Clinical Lead APPROVED 6–24 h uniform;
+      # the extended 30–36 h window and its (never-reviewed) share were REMOVED
+      # for the pilot rather than left as disabled pseudo-precision.
+      hours_from_onset: [6, 24]
+      # APP004 Numeric Calibration Review (RETROCECAL): Clinical Lead APPROVED
+      # pain score 4–8 uniform.
       pain_score: [4, 8]
-      pain_sites_ru: ["в правом боку", "в пояснице справа", "в правом подреберье"]
+      # Matrix P05: retrocecal position can be atypical but does NOT forbid
+      # RLQ pain. APP004 Numeric Calibration Review (RETROCECAL): the "less
+      # often" RUQ / right-flank sites and their unreviewed share were REMOVED
+      # for the pilot; the phenotype draws uniformly from this reviewed list.
+      pain_sites_ru:
+        - "в правом боку"
+        - "в пояснице справа"
+        - "в правой подвздошной области"
       history_variants_ru:
         - "усиливается при ходьбе"
         - "усиливается при разгибании правого бедра"
+      # Matrix P07: common, realistic, does not alter the diagnosis.
+      self_treatment_variants_ru:
+        - null # no self-treatment
+        - "накануне принимал(а) обезболивающее без стойкого эффекта"
+        - "накануне принимал(а) спазмолитик без стойкого эффекта"
+      # Matrix P08 / task §5.6. Named appendiceal signs (Rovsing, Sitkovsky,
+      # Bartomier-Michelson) are deliberately ABSENT: matrix P09 removes the
+      # ritual sign checklist. Psoas remains as an optional useful finding for
+      # a retrocecal appendix.
       examination_slots:
         contour: обычный
-        rebound: отрицательный
-        guarding: нет
+        palpation: мягкий
+        tenderness: "локальная умеренная"
         max_point: "по локализации боли"
+        guarding: нет
+        rebound: отрицательный
         peristalsis: выслушивается
       examination_slot_choices:
         psoas: [положительный, отрицательный]
+      # APP004 Numeric Calibration Review 2026-08-31 (RETROCECAL): Clinical Lead
+      # set the psoas positive/negative split to 25/75 (positive is the less
+      # common finding). Parallel array; index-aligned to examination_slot_choices.
+      examination_slot_weights:
+        psoas: [25, 75]
+      # Matrix V06: small nonspecific findings are permitted for a retrocecal
+      # appendix and are NEVER diagnostic of UTI/stone/pyelonephritis by
+      # themselves. Wording is qualitative on purpose - no counts, because no
+      # count has been reviewed.
+      urinalysis_variants_ru:
+        - "Общий анализ мочи без значимых отклонений."
+        - "В общем анализе мочи единичные лейкоциты; нитриты отрицательные, бактериурии нет."
+        - "В общем анализе мочи единичные эритроциты; нитриты отрицательные, бактериурии нет."
+      # APP004 Numeric Calibration Review 2026-08-31 (RETROCECAL): Clinical Lead
+      # set the urinalysis mix to 60/20/20 (no abnormality / single leukocytes /
+      # single erythrocytes). Index-aligned to urinalysis_variants_ru.
+      urinalysis_variants_weights: [60, 20, 20]
     imaging:
-      ultrasound_ru: "Аппендикс достоверно не визуализирован, кишечные газы в большом количестве."
-      ct_ru: "Аппендикс расположен ретроцекально, увеличен и воспалительно изменён."
-      operative_truth_ru: "Аппендикс расположен ретроцекально, воспалительно изменён."
-    clinical_review_status: pending
+      # Matrix I02/I03: nondiagnostic, NOT negative. The renderer is forbidden
+      # to phrase this as "УЗИ отрицательное на аппендицит"
+      # (see ai/renderer/renderEvent.js and its regression test).
+      ultrasound_ru: >-
+        Аппендикс достоверно не визуализирован; выраженная пневматизация кишечника.
+        Убедительных очаговых изменений в доступных отделах брюшной полости не выявлено.
+        Заключение: исследование неинформативно в отношении аппендикса.
+      # APP004 Numeric Calibration Review 2026-08-31 (RETROCECAL): the disabled
+      # partial-visualisation ultrasound variant and its unreviewed share were
+      # REMOVED for the pilot. The ultrasound is a fixed qualitative
+      # "not reliably visualised" narrative.
+      # Matrix I04 / task §9.2: the case begins as an undifferentiated acute
+      # abdomen, so CT is rendered as a FULL abdomen/pelvis report, not an
+      # "appendix-only" test. No appendix diameter appears anywhere: matrix
+      # I05 leaves the numeric range NEEDS SOURCE, and §20 forbids the
+      # renderer inventing one.
+      ct_report_ru:
+        modality_ru: "КТ органов брюшной полости и малого таза с в/в контрастированием"
+        sections:
+          - id: liver
+            text_ru: "Печень обычных размеров и структуры, очаговых образований не выявлено."
+          - id: biliary
+            text_ru: "Желчный пузырь без признаков острого воспаления, стенка не утолщена, конкрементов не выявлено."
+          - id: pancreas
+            text_ru: "Поджелудочная железа обычной формы, парапанкреатическая клетчатка не инфильтрирована."
+          - id: spleen
+            text_ru: "Селезёнка не увеличена, структура однородная."
+          - id: urinary
+            text_ru: "Почки расположены обычно, чашечно-лоханочные системы не расширены, конкрементов и обструкции не выявлено."
+          - id: bowel
+            text_ru: "Петли тонкой и толстой кишки не расширены, признаков непроходимости и утолщения стенок не выявлено."
+          - id: free_air
+            text_ru: "Свободного газа в брюшной полости не выявлено."
+          - id: pelvis
+            text_ru: "Органы малого таза без признаков острой патологии."
+          - id: appendix
+            text_ru: >-
+              Червеобразный отросток расположен ретроцекально, увеличен, стенка утолщена,
+              накапливает контраст; окружающая жировая клетчатка инфильтрирована.
+              Признаков перфорации, абсцесса и свободного газа не выявлено.
+        # Matrix I07: seeded none vs small local/pelvic fluid. Matrix I01/I09:
+        # NO appendicolith and NO incidental findings in base APP-004.
+        free_fluid_variants:
+          - id: none
+            text_ru: "Свободной жидкости в брюшной полости и малом тазу не выявлено."
+          - id: small_local
+            text_ru: "Определяется небольшое количество свободной жидкости в правой подвздошной области."
+          - id: small_pelvic
+            text_ru: "Определяется небольшое количество свободной жидкости в малом тазу."
+        # APP004 Numeric Calibration Review 2026-08-31 (RETROCECAL): Clinical
+        # Lead set the CT free-fluid mix to 70/15/15 (none / small RLQ / small
+        # pelvic). Index-aligned to free_fluid_variants.
+        free_fluid_variants_weights: [70, 15, 15]
+        conclusion_ru: >-
+          Заключение: КТ-картина острого аппендицита при ретроцекальном расположении отростка.
+          Другой острой патологии не выявлено.
+        preliminary_ru: >-
+          Предварительно по телефону: картина острого аппендицита, отросток расположен ретроцекально;
+          признаков перфорации и абсцесса не вижу. Формальное заключение будет позже.
+      # Matrix O07: objective intra-op truth.
+      operative_truth_ru: >-
+        Аппендикс расположен ретроцекально, воспалительно изменён, без перфорации и без гангренозных изменений.
+        Другой явной острой патологии в осмотренных отделах не выявлено.
+    # APP004 Numeric Calibration Review 2026-08-31 (RETROCECAL) — Clinical Lead
+    # decisions applied to the numeric remainder of this phenotype:
+    #   APPROVE   hours_from_onset 6–24 h uniform
+    #   APPROVE   pain_score 4–8 uniform
+    #   REMOVE    hours_from_onset_extended (+ _enabled, _share)
+    #   REMOVE    pain_sites_uncommon_ru (+ _enabled, _share)
+    #   REMOVE    ultrasound_visualized_variant_ru (+ _enabled, _share)
+    #   REVISE    urinalysis_variants mix -> 60/20/20
+    #   REVISE    CT free_fluid mix -> 70/15/15
+    #   REVISE    psoas positive/negative -> 25/75
+    #   APPROVE   self_treatment_variants_ru uniform (unchanged)
+    numeric_calibration_removed_for_pilot:
+      - hours_from_onset_extended
+      - hours_from_onset_extended_enabled
+      - hours_from_onset_extended_share
+      - pain_sites_uncommon_ru
+      - pain_sites_uncommon_enabled
+      - pain_sites_uncommon_share
+      - ultrasound_visualized_variant_ru
+      - ultrasound_visualized_enabled
+      - ultrasound_visualized_share
+    provenance:
+      id: PHENOTYPE-RETROCECAL-APP004
+      authority_layer: patient_truth
+      jurisdiction: international
+      source: "APP004 Numeric Calibration Review 2026-08-31 (RETROCECAL); APP004_CLINICAL_REVIEW_MATRIX_v1.0_2026-08-25 §3, §5 (P01-P10, I01-I09, V06)"
+      source_version_or_date: "2026-08-31"
+      evidence_strength: expert_consensus
+      review_status: approved_for_training
+      reviewed_by: ["Botagoz Kaukenova — Clinical Lead"]
+      reviewed_at: "2026-08-31"
+      second_review_required: true
+      second_reviewed_by: ["Sarina T.T. — General Surgery / Surgical Oncology, NROC"]
+      second_reviewed_at: "2026-09-01"
+      next_review_due: null
+      notes: >-
+        Matrix §G1: patient generation is Patient Truth and cannot be a permanent
+        exception to the runtime gate. Clinical Lead has recorded APPROVE / REMOVE
+        / REVISE for every numeric and variant-frequency item in this phenotype
+        (see comment above and the APP004 Numeric Calibration Review). No appendix
+        diameter is claimed anywhere. The already-approved wording lives in
+        PHENOTYPE-RETROCECAL-APP004-QUALITATIVE and was not reopened here.
+        Second Clinical Reviewer Decision, 2026-09-01: APPROVED — "the 6–24 h
+        history window, pain range, low-frequency positive psoas sign, minor
+        urinalysis abnormalities and limited free-fluid variants are clinically
+        plausible for a narrow resident pilot"; exact percentages remain
+        simulation calibration, not prevalence/sensitivity/specificity.
+
+    qualitative_truth:
+      scope: "retrocecal uncomplicated APP-004 history, examination, imaging and operative wording"
+      provenance:
+        id: PHENOTYPE-RETROCECAL-APP004-QUALITATIVE
+        authority_layer: patient_truth
+        jurisdiction: international
+        source: "APP-004 — Second Clinical Review, 2026-08-31; APP004 Clinical Activation Decisions v1.1"
+        source_version_or_date: "2026-08-31"
+        evidence_strength: expert_consensus_plus_guideline
+        review_status: approved_for_training
+        reviewed_by: ["Botagoz Kaukenova — Clinical Lead"]
+        reviewed_at: "2026-08-31"
+        second_review_required: true
+        second_reviewed_by: ["Sarina T.T. — General Surgery / Surgical Oncology, NROC"]
+        second_reviewed_at: "2026-08-31"
+        next_review_due: null
+        notes: "Qualitative claim only. The enclosing phenotype remains pending because it also generates unreviewed durations, pain, urinalysis and variant frequencies."
+
+  # Preserved only as a faculty/development case. V3.5 already kept APP-005
+  # inactive because the unstable-patient engine and treatment response were
+  # not reviewed.
+  late_complicated:
+    phenotype_id: late_complicated
+    title_ru: "Поздняя осложнённая презентация"
+    compatible_morphologies: [perforation, diffuse_peritonitis, abscess]
+    presentation:
+      hours_from_onset: [24, 72]
+      pain_score: [7, 10]
+      pain_sites_ru: ["по всему животу"]
+      history_fixed_ru:
+        - "многократная рвота"
+        - "выраженная слабость"
+        - "жажда"
+        - "мочи стало меньше"
+      examination_slots:
+        contour: вздут
+        tenderness: разлитая
+        guarding: распространённое
+        rebound: "положительный во всех отделах"
+        peristalsis: ослаблена
+      examination_extra_ru:
+        - "Определяются признаки периферической гипоперфузии."
+    imaging:
+      ultrasound_ru: "Определяется свободная жидкость в брюшной полости; визуализация аппендикса ограничена."
+      ct_ru: "КТ-признаки перфорации аппендикса: свободная жидкость и/или свободный газ, выраженные воспалительные изменения окружающих тканей."
+      operative_truth_ru: "Перфорация аппендикса, гнойный экссудат в брюшной полости, разлитой перитонит."
+    provenance:
+      id: PHENOTYPE-LATE-COMPLICATED-V35
+      authority_layer: patient_truth
+      jurisdiction: international
+      source: "onqol-trainer/src/clinical/v35/phenotypes.js (content 3.5.7)"
+      source_version_or_date: "3.5.7 / 2026-08-10"
+      evidence_strength: NEEDS_SOURCE
+      review_status: pending
+      reviewed_by: null
+      reviewed_at: null
+      second_review_required: true
+      second_reviewed_by: null
+      second_reviewed_at: null
+      next_review_due: null
+      notes: >-
+        Faculty-preview content only. No reviewed septic trajectory, organ
+        dysfunction cluster, resuscitation response or complication model exists.
 
 case_presets:
   - case_preset_id: APP-CLASSIC-01
@@ -79,7 +523,7 @@ case_presets:
     morphology: uncomplicated_inflammation
     trajectory_id: TRJ-STABLE
     default_real_hospital_profile_id: KZ-R2-URBAN
-    runtime_status: learner_active
+    runtime_status: development_only
 
   - case_preset_id: APP-004
     title_ru: "Ретроцекальный аппендицит со слабой передней перитонеальной симптоматикой"
@@ -87,5 +531,80 @@ case_presets:
     morphology: uncomplicated_inflammation
     trajectory_id: TRJ-STABLE
     default_real_hospital_profile_id: KZ-R1-DISTRICT
-    runtime_status: learner_active
+    runtime_status: learner_enabled
+    # Promoted development_only -> learner_enabled 2026-09-06 by
+    # Botagoz Kaukenova (Clinical Lead) for the NU resident pilot. Basis: every
+    # APP-004 patient-truth dependency on the learner_pilot route now carries
+    # review_status: approved_for_training with recorded first + independent
+    # second review, including the focused TRJ-POSTOP-RECOVERY clock-anchor
+    # re-review (docs/review/APP004_POSTOP_CLOCK_ANCHOR_SECOND_REVIEW_DECISION_2026-09-01.md).
+    # inventoryPatientTruth({ sessionPurpose: "learner_pilot" }) => approved, 0 blocked.
+    # Known accepted limitations at promotion: Wave 2.3 model interpreter stays
+    # shadow-only/telemetry; no independent anaesthesiology specialty review
+    # (anaesthesia workflow runs under Clinical-Lead authorisation only).
+    promotion_note_ru: >-
+      Включён для пилота резидентов NU 06.09.2026 (Clinical Lead). Вся patient-truth
+      на маршруте learner_pilot одобрена (первое + независимое второе ревью).
+    excludes_pregnancy: true
+    excludes_major_comorbidity: true
+    excludes_complicated_appendicitis: true
     key_skill_ru: "Понимать ограничения осмотра и УЗИ, выбирать КТ, наблюдение или безопасный маршрут"
+
+  # Selectively migrated V3.5 catalogue. None is learner-selectable until its
+  # exact patient truth and trajectory receive independent approval.
+  - case_preset_id: APP-001
+    title_ru: "Ранний маловыраженный неосложнённый аппендицит"
+    phenotype_id: early_subtle
+    morphology: uncomplicated_inflammation
+    trajectory_id: TRJ-SERIAL-EVOLUTION
+    default_real_hospital_profile_id: KZ-R1-DISTRICT
+    runtime_status: review_pending
+    key_skill_ru: "Не закрывать диагноз преждевременно, построить активное наблюдение и переоценку во времени"
+
+  - case_preset_id: APP-002
+    title_ru: "Классический неосложнённый аппендицит у женщины репродуктивного возраста"
+    phenotype_id: classic
+    morphology: uncomplicated_inflammation
+    trajectory_id: TRJ-STABLE
+    default_real_hospital_profile_id: KZ-R1-DISTRICT
+    runtime_status: review_pending
+    demographics:
+      age_years: [18, 50]
+      sexes: [female]
+      provenance:
+        id: DEMOGRAPHICS-APP002-V35
+        authority_layer: patient_truth
+        jurisdiction: international
+        source: "V3.5 MOD-PREGNANCY-POSSIBLE / PREGNANCY_BRANCH_RULE"
+        source_version_or_date: "3.5.7 / 2026-08-10"
+        evidence_strength: NEEDS_SOURCE
+        review_status: pending
+        reviewed_by: null
+        reviewed_at: null
+        second_review_required: true
+        second_reviewed_by: null
+        second_reviewed_at: null
+        next_review_due: null
+        notes: "Preset-specific demographic constraint; reproductive and ectopic pathways remain review-gated."
+    key_skill_ru: "Учитывать вероятность беременности и опасную гинекологическую альтернативу"
+
+  - case_preset_id: APP-003
+    title_ru: "Неосложнённый тазовый аппендицит"
+    phenotype_id: pelvic
+    morphology: uncomplicated_inflammation
+    trajectory_id: TRJ-SERIAL-EVOLUTION
+    default_real_hospital_profile_id: KZ-R2-URBAN
+    runtime_status: review_pending
+    key_skill_ru: "Не закрепляться на урологическом или гинекологическом объяснении, обновлять дифференциальный ряд"
+
+  - case_preset_id: APP-005
+    title_ru: "Перфорация, распространённый перитонит и сепсис"
+    phenotype_id: late_complicated
+    morphology: diffuse_peritonitis
+    trajectory_id: TRJ-SEPTIC-SHOCK
+    default_real_hospital_profile_id: KZ-R3-TERTIARY
+    runtime_status: faculty_preview
+    inactivity_reason_ru: >-
+      Движок нестабильного пациента и ответы на лечение не утверждены;
+      правильные действия пока не изменяют состояние пациента.
+    key_skill_ru: "Сначала стабильность, параллельная реанимация, контроль источника и планирование ОИТ"

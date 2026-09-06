@@ -1,6 +1,9 @@
 # Known Gaps
 
-This document exists so incomplete functionality is never silently hidden. Rewritten 2026-08-23 after the vertical-slice completion pass; the previous version was honest but too optimistic in several places, and this version corrects it. Every claim below was verified against the code and against a real manual play session on this date.
+This document exists so incomplete functionality is never silently hidden. Rewritten 2026-08-23 after the vertical-slice completion pass, and updated 2026-08-25 after the APP-004 clinical-content remediation pass. Every claim below was verified against the code and against a real play session on the stated date.
+
+> **2026-08-25 update.** The clinical review (`APP004_CLINICAL_REVIEW_MATRIX_v1.0_2026-08-25`) withdrew a substantial amount of previously-authored content — the hourly disease drift, the universal NSAID pain effect, the fixed crystalloid vital-sign delta, the first-slice SSI complication and its monitoring multiplier, site marking, and several discharge criteria. Those items are now **deleted**, not merely gated, and several gaps below therefore have a different cause than they did on 2026-08-23: the content does not exist rather than awaiting promotion. The authoritative current picture is
+> [`review/APP004_CLINICAL_REMEDIATION_REPORT_2026-08-25.md`](./review/APP004_CLINICAL_REMEDIATION_REPORT_2026-08-25.md).
 
 **A "solid" claim in this document may only refer to behavior verified in the learner-facing runtime — not to a mechanism that merely has a unit test.** The previous version violated that rule (it claimed "the full EMS-to-discharge appendicitis journey" was solid when no learner could actually complete preparation without an internal command the UI cannot produce), which is why the rule is now stated explicitly.
 
@@ -20,17 +23,28 @@ As of 2026-08-23 the runtime enforces `review_status === "approved_for_training"
 
 None of this is silent. Each withheld item emits `SIMULATOR_LIMITATION_NOTED`, lands in `state.simulatorLimitations`, and appears in the debrief explicitly labelled as a platform limitation rather than a learner omission.
 
-The full item-by-item blocker list is in [`IMPLEMENTATION_GAP_AUDIT_2026-08-23.md`](./IMPLEMENTATION_GAP_AUDIT_2026-08-23.md) §3. Every one of these mechanisms is built and tested; each begins working with **no code change** the moment its content item is promoted through clinical review.
+The full item-by-item blocker list is in [`IMPLEMENTATION_GAP_AUDIT_2026-08-23.md`](./IMPLEMENTATION_GAP_AUDIT_2026-08-23.md) §3.
+
+**Corrected 2026-08-25:** "each begins working with no code change the moment its content item is promoted" is no longer true of everything on that list, and saying so was part of what made the build look closer to ready than it was. Where clinical review WITHDREW the content (the hourly trajectory drift, the `pain −3` NSAID effect, the 500 mL crystalloid delta, `superficial_ssi`), promotion alone would resurrect nothing: the numbers are gone, and `advanceTime` now requires a reviewed `natural_course_model` / `response_envelope` in addition to an approved status. Those items need new authored content, not a status change. Items whose content still exists and is merely `pending` — the clinical rules, the discharge criteria — do still start working on promotion alone.
 
 ## 2. Patient-generation content is in use without being approved
 
-`physiology_envelopes` (`disease.yaml`), both phenotypes (`phenotypes.yaml`), and `history_bundle_ru` (`findings.yaml`) are `pending` / `clinical_review_status: pending` and are nevertheless used to generate the patient. This is a deliberate, documented judgment call, not an oversight: these are Patient Engine generation content (Foundation Spec §45), not Clinical Rule Layer content (§47), and gating them would mean no patient can be generated at all. It was already true before this pass. It is called out here rather than buried — a stricter future reading of the governance spec may well want these gated too.
+Still true, but the JUSTIFICATION was rejected. The 2026-08-23 version of this section argued that phenotype/physiology/history content sits in the Patient Engine rather than the Clinical Rule Layer, so gating it would mean no patient at all. The clinical review (matrix §G1) rejected that: patient generation is explicitly Patient Truth and cannot be a permanent exception.
 
-## 3. Interpreter: deterministic, no live LLM
+What changed on 2026-08-25:
 
-`src/ai/interpreter/interpretTurn.js` is a deterministic vocabulary-driven interpreter, substantially broadened in this pass (preoperative actions, disposition, monitoring, transfer/discharge, content-driven operative decisions, whole-word and stem matching, negation handling). It still does not tolerate arbitrary typos or genuinely novel phrasing outside its vocabulary.
+- `core/patient/patientTruthGovernance.js` inventories **every** content object that generates a patient fact (11 of them for APP-004) and reports each one's review status;
+- every non-approved object emits `SIMULATOR_LIMITATION_NOTED { kind: "patient_truth" }` at minute 0 of every session;
+- `session.patientTruthApproved` is `false`, travels in the export, and the debrief says in plain Russian that this is a development build not intended for a resident pilot;
+- `scripts/buildContentIndex.mjs` fails the build if a generating object is missing a provenance field.
 
-The provider-neutral seam exists (`src/ai/providerClient.js`, `server/aiGateway.mjs`), but **the live LLM interpreter path is not wired through the app and is unverified** — no provider credentials were available in this environment. Task brief §4.3 asks that this not be marked complete unless actually wired; it is not, and it is not marked complete.
+The exception still exists — a development build needs a patient. It is no longer invisible, and it can no longer be represented as pilot-ready. Item-by-item: [`review/APP004_PATIENT_TRUTH_INVENTORY_2026-08-25.md`](./review/APP004_PATIENT_TRUTH_INVENTORY_2026-08-25.md).
+
+## 3. Interpreter: deterministic authority, model shadow only
+
+`src/ai/interpreter/interpretTurn.js` remains the public entrypoint and delegates all authoritative work to the deterministic vocabulary interpreter. The 2026-08-28 Wave 2 path can additionally call a model in shadow mode when `AI_INTERACTION_V2` is enabled, but model output is schema/concept/invention-validated, stored only as AI telemetry and never executed or folded into reasoning/domain state.
+
+The app-to-gateway shadow path is wired, but **no live-provider measurement was available in this environment**. The 56-case report uses labeled offline outputs to prove schemas, telemetry and isolation; it is not evidence of live model quality. Wave 3 remains NO-GO until a real provider replay shows acceptable command agreement and zero high-risk invention.
 
 **A class of bug worth knowing about, because it bit three separate times in this pass:** `\w` and `\b` in a non-unicode JavaScript regex are defined against `[A-Za-z0-9_]` and therefore **do not match Cyrillic**. Such a pattern fails by silently never matching — not by erroring. It previously killed the "и" conjunction splitter, then the medication route matcher (`в/м` stated by the learner came back as "please specify the route"), then the anesthesia-review patterns. All are fixed and commented; if you write a new Russian pattern, use an explicit `[а-яё]` class.
 
@@ -46,7 +60,7 @@ Still true: the mentor and renderer are template-driven, so the same situation p
 
 `EVENT.DETERIORATION_DETECTED` exists, the reducer handles it, the renderer renders it, and `crossesInterruptingEvent` classifies it — but **nothing in this build ever produces one.** There is no watcher on physiology drift or on an inadequate disposition that raises an acute deterioration event.
 
-Contract §7.4 / §19 ("deterioration interrupts the current conversation") is therefore still not demonstrable. This is unchanged from the previous build and remains the largest *functional* gap relative to the Product Behavior Contract, distinct from the governance gap above. It is also partly downstream of it: with no approved trajectory, there is no drift to cross a threshold in the first place.
+Contract §7.4 / §19 ("deterioration interrupts the current conversation") is therefore still not demonstrable. This is unchanged from the previous build and remains the largest *functional* gap relative to the Core Runtime Spec, distinct from the governance gap above. It is also partly downstream of it: with no approved trajectory, there is no drift to cross a threshold in the first place.
 
 ## 6. Monitoring adequacy is derived but its consequences are not modeled
 
@@ -103,4 +117,4 @@ Each of these was exercised by typing Russian into the real UI in a browser on 2
 - a causal export containing what the learner said, what the interpreter read, what executed, what was refused, and what governance withheld;
 - a debrief generated from event history that separates simulator limitation from learner omission and carries no numeric score.
 
-**111 tests pass**, of which the learner-journey suite drives everything through free text only.
+**241 tests pass** as of 2026-08-28, including the audience/release gate, migrated-provenance checks, Wave 1 reasoning-state coverage, the reported learner-session regression and the five-variant appendicitis migration checks; the learner-journey suites drive the runtime through free text only.
