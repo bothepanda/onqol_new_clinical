@@ -1,0 +1,66 @@
+# Recognition vocabulary only. These identifiers describe claims a learner may
+# make; they are not patient truth, evidence, rules, expected answers or scores.
+reasoning_concept_ids:
+  - acute_appendicitis
+  - ectopic_pregnancy
+  - ovarian_torsion
+  - pelvic_inflammatory_disease
+  - renal_colic
+  - gastroenteritis
+  - acute_prostatitis
+  - prostatic_abscess
+
+reasoning_concept_synonyms_ru:
+  аппендицит: acute_appendicitis
+  апендицит: acute_appendicitis
+  острый аппендицит: acute_appendicitis
+  внематочная беременность: ectopic_pregnancy
+  перекрут яичника: ovarian_torsion
+  воспалительное заболевание органов малого таза: pelvic_inflammatory_disease
+  взомт: pelvic_inflammatory_disease
+  почечная колика: renal_colic
+  почечной коликой: renal_colic
+  гастроэнтерит: gastroenteritis
+  острый простатит: acute_prostatitis
+  абсцесс простаты: prostatic_abscess
+
+fluid_ids:
+  - crystalloid
+
+examination_regions:
+  - abdomen
+  - general
+  - cardiorespiratory
+  - extremities
+
+patient_question_topics:
+  - pain
+  - onset
+  - nausea_vomiting
+  - urinary
+  - gynecologic
+  - allergies
+  - medications
+  - fasting
+
+staff_roles:
+  - surgeon
+  - anesthesiologist
+  - gynecologist
+
+destinations:
+  - observation
+  - surgical_ward
+  - icu
+  - other_facility
+  - home
+
+management_intents:
+  - operative
+  - nonoperative
+  - observation
+
+routes:
+  - iv
+  - im
+  - oral
