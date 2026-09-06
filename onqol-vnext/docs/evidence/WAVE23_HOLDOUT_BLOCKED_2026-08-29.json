@@ -1,0 +1,19 @@
+{
+  "evaluationVersion": "wave23-holdout-2026-08-29.1",
+  "suite": "holdout",
+  "status": "blocked_before_calls",
+  "reason": "provider_credit_balance_exhausted_during_development",
+  "decision": "holdout_intentionally_not_exposed_to_provider",
+  "authority": "none",
+  "wave3": "blocked",
+  "corpusId": "wave23-untouched-holdout-2026-08-29.1",
+  "fixtureCount": 80,
+  "canonicalFingerprint": "9cfc937a9f0a5ddaaacdf02fc24b96e2a797f8c14a64c1b11669c682f3a80a2f",
+  "scheduledCandidates": ["MODEL_A", "MODEL_B", "MODEL_C"],
+  "scheduledCallsPerCandidate": 480,
+  "completedCalls": 0,
+  "rows": [],
+  "retryCount": 0,
+  "goldOrDeterministicSubstitutions": 0,
+  "resumeRule": "Restore provider credit, verify the existing freeze manifest, then run the frozen holdout once with no prompt/schema/config changes."
+}

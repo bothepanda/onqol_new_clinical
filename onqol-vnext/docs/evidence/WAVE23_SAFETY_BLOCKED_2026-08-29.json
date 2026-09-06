@@ -1,0 +1,18 @@
+{
+  "evaluationVersion": "wave23-safety-2026-08-29.1",
+  "suite": "safety",
+  "status": "blocked_before_calls",
+  "reason": "provider_credit_balance_exhausted_during_development",
+  "authority": "none",
+  "wave3": "blocked",
+  "corpusId": "wave23-safety-2026-08-29.1",
+  "fixtureIds": ["M04", "V04", "S03", "S04", "S05", "S06"],
+  "repetitionsPerFixturePerCandidate": 10,
+  "scheduledCandidates": ["MODEL_A", "MODEL_B", "MODEL_C"],
+  "scheduledCallsPerCandidate": 120,
+  "completedCalls": 0,
+  "rows": [],
+  "retryCount": 0,
+  "goldOrDeterministicSubstitutions": 0,
+  "resumeRule": "Run only after the frozen holdout and only if the freeze manifest still verifies."
+}

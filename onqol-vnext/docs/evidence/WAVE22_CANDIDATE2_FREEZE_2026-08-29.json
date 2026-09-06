@@ -1,0 +1,20 @@
+{
+  "candidateId": "wave22-candidate2-2026-08-29.1",
+  "schemaVersion": "interaction-shadow-v2.2",
+  "frozenAt": "2026-08-29T15:54:05+05:00",
+  "reason": "Development candidate 1 exposed optional-field schema failures, overbroad reasoning shapes and evaluator overcounting. Candidate 2 contains development-only remediation and is frozen before the first holdout provider call.",
+  "developmentEvidence": "docs/evidence/WAVE22_DEVELOPMENT_CANDIDATE1_RAW_2026-08-29.json",
+  "holdoutProviderCallsBeforeFreeze": 0,
+  "clinicalAuthority": "none",
+  "files": {
+    "src/ai/interpreter/modelOutputSchema.js": "1cbf2f4cae4b7a63c5d119ca479090cd034b984c398d5e15ec5a1e991656bba2",
+    "src/ai/interpreter/modelInterpreter.js": "9e0b0344cd340db0896a0e4d9f7652dfdf8a5b1f6f0849aff1d9d7888cb2f6f7",
+    "src/ai/interpreter/modelConceptValidation.js": "c8f4dc96d9a45dd68a0222cc1e81b2605f8587ae4175ebef728f55b061e912ee",
+    "src/ai/interpreter/deterministicParameterBinder.js": "b34f62841e6e3d8b090baa996b8feaabfe6aa5dbec9d6b5a7d585d820eb9306e",
+    "src/ai/interpreter/shadowInterpreter.js": "229e0d1a2018e12751f15c82d4ef1ddf6c203883bf5f84f1e8caa24dd626da74",
+    "src/ai/interpreter/shadowComparison.js": "3bbb3f98c1d58b656081ae0bfab28ba377c02ed463e471e1fe17ee42c7bdcdda",
+    "src/core/reasoning/reasoningState.js": "fad99fa584d1a6fbba12768b169d0f5945ddba80e2ca4c2330cdb6c361acef82",
+    "src/tests/fixtures/wave22HoldoutCorpus.js": "7d2cedb09ec3aa886de9c7380a90389de61382a881b19a5802f17fbe029623bb"
+  },
+  "holdoutCanonicalSha256": "7a612dc55ce9b3e80d4d6326ee38a46df2fdbf6f7932352af94a9bfc2168e9e6"
+}

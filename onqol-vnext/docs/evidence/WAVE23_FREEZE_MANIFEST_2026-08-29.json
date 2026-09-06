@@ -1,0 +1,69 @@
+{
+  "manifestVersion": "wave23-freeze-2026-08-29.1",
+  "frozenAt": "2026-08-29T16:53:05.239Z",
+  "authority": "none",
+  "wave3": "blocked",
+  "rule": "No prompt, schema, validator, binder, model configuration, or holdout change after first holdout inspection.",
+  "files": {
+    "src/ai/interpreter/semanticTaskSchemas.js": "6118a54285e2f45e9253fb002812fb4ac087f462fda5674784a0186dcaa1dad7",
+    "src/ai/interpreter/splitSemanticInterpreter.js": "608add0d2da17cc7e750fddbf7201b36b592b6dd1edbc00558a220b9171fefe4",
+    "src/ai/interpreter/modelConceptValidation.js": "c8f4dc96d9a45dd68a0222cc1e81b2605f8587ae4175ebef728f55b061e912ee",
+    "src/ai/interpreter/deterministicParameterBinder.js": "b34f62841e6e3d8b090baa996b8feaabfe6aa5dbec9d6b5a7d585d820eb9306e",
+    "src/tests/wave23EvaluationRunner.js": "9d6977aab5cf54ddb44f96d5167ea2b8094a576f7d26f3cb6f7d9f391132bee3",
+    "src/tests/fixtures/wave23HoldoutCorpus.js": "b4a4324e40977cb4dd8b16800570f00c3ac5523f23f106d40b922b1d80f65f0f",
+    "scripts/wave23Config.mjs": "9725acae06f1f5aeaf76f2af0bef6189cef41b665989300e90b3966ca04dd55d"
+  },
+  "modelConfigurations": [
+    {
+      "id": "MODEL_A",
+      "provider": "openai",
+      "endpointMode": "responses",
+      "model": "gpt-5.6-luna",
+      "reasoningEffort": "low",
+      "temperature": null,
+      "serviceTier": "default",
+      "pricing": {
+        "inputPerMillionUsd": 0.2,
+        "outputPerMillionUsd": 1.2
+      }
+    },
+    {
+      "id": "MODEL_B",
+      "provider": "openai",
+      "endpointMode": "responses",
+      "model": "gpt-5.6-terra",
+      "reasoningEffort": "low",
+      "temperature": null,
+      "serviceTier": "default",
+      "pricing": {
+        "inputPerMillionUsd": 2,
+        "outputPerMillionUsd": 12
+      }
+    },
+    {
+      "id": "MODEL_C",
+      "provider": "openai",
+      "endpointMode": "responses",
+      "model": "gpt-5.6-sol",
+      "reasoningEffort": "low",
+      "temperature": null,
+      "serviceTier": "default",
+      "pricing": {
+        "inputPerMillionUsd": 4,
+        "outputPerMillionUsd": 20
+      }
+    }
+  ],
+  "modelConfigurationFingerprint": "6d6b56d0b15de50138e187eb357b5e0060ba5092ac44890ad727e0056df548b5",
+  "development": {
+    "corpusId": "wave23-development-2026-08-29.1",
+    "fixtureCount": 120,
+    "canonicalFingerprint": "f0102a44d44b79673463269ed2ff791c7919b6a1601214384e48b067c5c5588d"
+  },
+  "holdout": {
+    "corpusId": "wave23-untouched-holdout-2026-08-29.1",
+    "fixtureCount": 80,
+    "frozenBeforeFinalCandidateTuning": true,
+    "canonicalFingerprint": "9cfc937a9f0a5ddaaacdf02fc24b96e2a797f8c14a64c1b11669c682f3a80a2f"
+  }
+}
