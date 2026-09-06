@@ -74,7 +74,12 @@ export function useSession() {
       mode,
       realProfileId,
       casePresetId: CASE_PRESET_ID,
-      sessionPurpose: "internal_development",
+      // Default build stays internal_development (development route, patient
+      // truth not approved -> debrief carries the "не для пилота" note). The
+      // NU resident-pilot build sets VITE_ONQOL_PILOT=true so APP-004 runs on
+      // the learner_pilot route, where every patient-truth dependency is
+      // approved_for_training and the session-audience gate opens.
+      sessionPurpose: import.meta.env.VITE_ONQOL_PILOT === "true" ? "learner_pilot" : "internal_development",
       interactionFlags: { [AI_INTERACTION_V2]: import.meta.env.VITE_AI_INTERACTION_V2 === "true" },
       bundle,
       locale,
