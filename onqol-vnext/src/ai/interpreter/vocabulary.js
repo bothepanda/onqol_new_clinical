@@ -28,6 +28,20 @@ export const TEST_SYNONYMS = Object.freeze({
   "узи": "ultrasound_abdomen",
   "узи живота": "ultrasound_abdomen",
   "узи брюшной полости": "ultrasound_abdomen",
+  "узи обп": "ultrasound_abdomen",
+  // Pelvic / transvaginal ultrasound is a DIFFERENT study and is NOT in the
+  // supported investigation set (trajectories.yaml#investigation_timing). It is
+  // resolved to its own id so a qualified request ("узи малого таза", "узи ОМТ")
+  // never silently collapses onto the abdominal study - executeCommand then
+  // returns UNSUPPORTED_CONTENT and the learner is told so, honestly (Core
+  // Runtime Spec §50, wave §7/§20-E). Adding real pelvic-US content is a
+  // separate clinical-review item.
+  "узи малого таза": "pelvic_ultrasound",
+  "узи омт": "pelvic_ultrasound",
+  "омт": "pelvic_ultrasound",
+  "узи органов малого таза": "pelvic_ultrasound",
+  "трансвагинальное узи": "pelvic_ultrasound",
+  "тваги": "pelvic_ultrasound",
   "кт": "ct_abdomen",
   "кт обп": "ct_abdomen",
   "кт живота": "ct_abdomen",
@@ -98,7 +112,10 @@ export const APPROACH_SYNONYMS = Object.freeze({
  */
 export const DRUG_SYNONYMS = Object.freeze({
   "кетопрофен": "ketoprofen",
+  "кетотоп": "ketoprofen",   // common RU brand / resident slang for ketoprofen
+  "кетонал": "ketoprofen",   // common RU brand for ketoprofen
   "кеторолак": "ketorolac",
+  "кетанов": "ketorolac",    // common RU brand for ketorolac
   "парацетамол": "paracetamol",
   "ибупрофен": "ibuprofen",
   "трамадол": "tramadol",

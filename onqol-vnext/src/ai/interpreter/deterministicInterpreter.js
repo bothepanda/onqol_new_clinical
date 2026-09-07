@@ -424,8 +424,14 @@ function interpretFragment(fragment, idPrefix, index, turnContext) {
     return results;
   }
 
-  const testId = findSynonym(normalized, TEST_SYNONYMS);
-  if (testId) {
+  // A single fragment may name SEVERAL investigations with no comma or "и"
+  // between them - "оак оам узи обп", "узи обп + узи омт". `collectTestIds` finds
+  // every distinct test the fragment names (longest phrase first, matched
+  // spans not reused, so "узи органов малого таза" does not also count as bare "узи"),
+  // and each becomes its own ORDER_TEST. `mergeDuplicateTestOrders` dedups
+  // across the whole turn afterwards (wave §8/§20-C,D).
+  const testIds = collectTestIds(normalized);
+  for (const [position, testId] of testIds.entries()) {
     const params = { testId };
     // Matrix V07: "БХАК: креатинин, электролиты" carries its own analyte list;
     // bare "БХАК" does not, and the lab asks. The interpreter never fills the
@@ -434,8 +440,9 @@ function interpretFragment(fragment, idPrefix, index, turnContext) {
       const analytes = extractChemistryAnalytes(normalized);
       if (analytes.length) params.analytes = analytes;
     }
-    results.push(command(idPrefix, index, COMMAND.ORDER_TEST, params, fragment));
+    results.push(command(idPrefix, position === 0 ? index : `${index}t${position}`, COMMAND.ORDER_TEST, params, fragment));
   }
+  const testId = testIds[0];
 
   // A bare analyte name ("креатинин") with no "БХАК" in front of it is still a
   // biochemistry order for that analyte. If the same fragment also says "СРБ",
@@ -477,6 +484,17 @@ function interpretFragment(fragment, idPrefix, index, turnContext) {
 
   if (/на операцию|оперировать буду|показана операция|идем оперировать|беру в операционную/.test(normalized)) {
     results.push(command(idPrefix, index, COMMAND.COMMIT_MANAGEMENT_PLAN, { intent: "operative" }, fragment));
+    return results;
+  }
+
+  // A clinically-actionable analgesia intent with no drug named - "обезболить",
+  // "дать анальгетик", "снять боль". The learner clearly asked for analgesia;
+  // drug, dose and route are simply absent, so this is an ORDER_MEDICATION that
+  // validateCommand turns into a CLARIFY and a hospital character asks which
+  // drug. The interpreter never picks the analgesic (wave §10/§20-F).
+  if (/обезбол|снять боль|купир[а-яё]* бол|анальгез|анальгетик|аналгез|аналгет/.test(normalized)
+      && !matchesAny(normalized, PREOP_PATTERNS.REQUEST_ANESTHESIA_REVIEW)) {
+    results.push(command(idPrefix, index, COMMAND.ORDER_MEDICATION, { intent: "analgesia" }, fragment));
     return results;
   }
 
@@ -879,6 +897,51 @@ function findSynonym(normalized, table) {
   return undefined;
 }
 
+/**
+ * Every distinct investigation a fragment names, in order of first mention.
+ *
+ * Longest phrases are claimed first and their character span is marked used,
+ * so "узи органов малого таза" is claimed as pelvic ultrasound and the "узи" inside it
+ * is NOT independently counted as an abdominal study. This is what lets one
+ * space- or "+"-separated fragment ("оак оам узи обп", "узи обп + узи омт") produce
+ * several independent orders instead of only the first match.
+ */
+function collectTestIds(normalized) {
+  const entries = Object.entries(TEST_SYNONYMS).sort((a, b) => b[0].length - a[0].length);
+  const claimed = []; // [start, end) spans already consumed by a longer phrase
+  const hits = []; // { testId, start }
+  for (const [phrase, testId] of entries) {
+    for (const start of wholeWordOccurrences(normalized, phrase)) {
+      const end = start + phrase.length;
+      if (claimed.some(([s, e]) => start < e && end > s)) continue;
+      claimed.push([start, end]);
+      hits.push({ testId, start });
+    }
+  }
+  const seen = new Set();
+  return hits
+    .sort((a, b) => a.start - b.start)
+    .map((hit) => hit.testId)
+    .filter((testId) => (seen.has(testId) ? false : seen.add(testId)));
+}
+
+/** Start indices of every whole-word occurrence of `phrase` in `text`. */
+function wholeWordOccurrences(text, phrase) {
+  const allowInflection = phrase.length >= STEM_MATCH_MIN_LENGTH;
+  const starts = [];
+  let index = text.indexOf(phrase);
+  while (index !== -1) {
+    const before = index === 0 ? "" : text[index - 1];
+    const afterIndex = index + phrase.length;
+    const after = afterIndex >= text.length ? "" : text[afterIndex];
+    const boundedLeft = before === "" || !WORD_CHAR.test(before);
+    const boundedRight = after === "" || !WORD_CHAR.test(after) || (allowInflection && CYRILLIC_LETTER.test(after));
+    if (boundedLeft && boundedRight) starts.push(index);
+    index = text.indexOf(phrase, index + 1);
+  }
+  return starts;
+}
+
 const WORD_CHAR = /[a-zа-яё0-9]/;
 const CYRILLIC_LETTER = /[а-яё]/;
 
@@ -925,8 +988,11 @@ function splitFragments(text) {
   // never matches - discovered via a determinism check while writing this
   // file's tests. Whitespace-bounded matching is what "и" as a standalone
   // conjunction actually needs.
+  // "+" and " плюс " are compound-turn separators too: "узи обп + узи омт",
+  // "цефазолин 2 г + метронидазол 500 мг". "+" never occurs inside a dose or
+  // number phrase, so splitting on it is unconditional like "," and ";".
   return text
-    .split(/[,;]|(?:^|\s)и(?=\s)/i)
+    .split(/[,;+]|(?:^|\s)и(?=\s)|(?:^|\s)плюс(?=\s)/i)
     .map((fragment) => fragment.trim())
     .filter(Boolean);
 }

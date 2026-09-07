@@ -5,7 +5,7 @@ import { createSession } from "./createSession.js";
 import { submitLearnerTurn } from "./submitLearnerTurn.js";
 import { withShared } from "../content/loadBundle.js";
 import { renderEvent } from "../../ai/renderer/renderEvent.js";
-import { renderNoPendingWork, renderUnrecognizedFragments } from "../../ai/renderer/renderStatus.js";
+import { renderNoPendingWork } from "../../ai/renderer/renderStatus.js";
 import diseaseBundle from "../../content/generated/appendicitis.json" with { type: "json" };
 import sharedBundle from "../../content/generated/shared.json" with { type: "json" };
 
@@ -45,19 +45,32 @@ test("reported session: a focused vomiting question is answered from generated p
   assert.equal(rendered.textRu, turn.session.patient.presentation.nauseaVomitingRu);
 });
 
-test("reported session: mixed tests keep chemistry and report the unsupported fragment", () => {
+test("reported session: mixed tests decompose; pelvic US is recognised but reported unsupported", () => {
+  // Wave §8/§20-D: a space/"и"-joined list decomposes into independent orders,
+  // and "омт" (pelvic ultrasound) resolves to its own concept - NOT silently
+  // onto the abdominal study, and NOT dropped as an unmatched fragment. It is
+  // an investigation the current content does not support, so it surfaces
+  // through the honest UNSUPPORTED_CONTENT path at execution.
   const turn = say(
     newSession(),
     "оак, оам, узи обп и омт, алт аст билирубин креатинин мочевина срб",
   );
   const ordered = turn.interpreted.commands.map((command) => command.params.testId);
-  assert.deepEqual(ordered, ["cbc", "urinalysis", "ultrasound_abdomen", "crp", "chemistry"]);
+  assert.deepEqual(ordered, [
+    "cbc",
+    "urinalysis",
+    "ultrasound_abdomen",
+    "pelvic_ultrasound",
+    "crp",
+    "chemistry",
+  ]);
   assert.deepEqual(
     [...turn.interpreted.commands.at(-1).params.analytes].sort(),
     ["alt_ast", "bilirubin", "creatinine", "urea"],
   );
-  assert.deepEqual(turn.interpreted.unmatchedFragments, ["омт"]);
-  assert.match(renderUnrecognizedFragments(turn.interpreted.unmatchedFragments).textRu, /ОМТ|омт/);
+  assert.deepEqual(turn.interpreted.unmatchedFragments, []);
+  const pelvic = turn.outcomes.find((result) => result.command?.params?.testId === "pelvic_ultrasound");
+  assert.equal(pelvic.outcome, "UNSUPPORTED_CONTENT");
 });
 
 test("reported session: «получить резульатты» advances to the next due result", () => {
