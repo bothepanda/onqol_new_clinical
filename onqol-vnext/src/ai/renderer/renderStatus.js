@@ -181,7 +181,10 @@ export function renderOrderValidationFailure(result) {
  */
 export function renderAlreadyPending(result) {
   const label = TEST_LABEL_RU[result.testId] ?? result.testId ?? "Исследование";
-  return { speakerRu: "Лаборатория/Диагностика", textRu: `${label}: уже заказано, результат ожидается.` };
+  const textRu = result.phase === "resulted"
+    ? `${label}: результат уже получен. Для повторного назначения укажите «повторить» или «в динамике».`
+    : `${label}: уже заказано, результат ожидается.`;
+  return { speakerRu: "Лаборатория/Диагностика", textRu };
 }
 
 export function renderNoPendingWork() {

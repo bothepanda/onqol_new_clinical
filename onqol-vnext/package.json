@@ -27,6 +27,7 @@
     "wave23:bakeoff": "node scripts/runWave23Bakeoff.mjs --suite all",
     "test": "npm run content:build && node --test \"src/**/*.test.js\" \"scripts/**/*.test.js\"",
     "test:e2e": "playwright test",
+    "hybrid:smoke": "node scripts/smokeHybridInterpreter.mjs",
     "pack:safe": "node scripts/packSafe.mjs",
     "verify": "npm run content:check && npm test && npm run wave2:corpus && npm run lint && npm run build"
   },

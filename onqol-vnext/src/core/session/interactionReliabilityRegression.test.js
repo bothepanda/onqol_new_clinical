@@ -135,6 +135,22 @@ test("§20-J a repeat order while the first is still pending does not create a s
   assert.equal(rejected.type, "COMMAND_ACCEPTED");
 });
 
+test("§13 an EXPLICIT repeat re-orders even an already-resulted test; a bare re-order does not", () => {
+  let s = newSession();
+  s = say(s, "оак").session;
+  s = say(s, "переоценю боль через 90 минут").session; // cbc resulted by now
+  assert.equal(s.state.investigations.cbc.status, "resulted");
+
+  const bare = say(s, "оак");
+  assert.equal(outcomes(bare)[0], "ALREADY_PENDING");
+  assert.equal(bare.outcomes[0].phase, "resulted");
+
+  const explicit = say(s, "ОАК в динамике");
+  assert.equal(explicit.interpreted.commands[0].params.repeat, true);
+  assert.equal(outcomes(explicit)[0], "EXECUTED");
+  assert.equal(explicit.session.state.investigations.cbc.status, "ordered", "a new order is placed");
+});
+
 test("§20-K the clinical clock advances through ordinary history/examination work", () => {
   let s = newSession();
   assert.equal(s.state.clock.elapsedMinutes, 0);

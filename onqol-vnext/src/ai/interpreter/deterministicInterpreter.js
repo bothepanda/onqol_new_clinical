@@ -431,8 +431,15 @@ function interpretFragment(fragment, idPrefix, index, turnContext) {
   // and each becomes its own ORDER_TEST. `mergeDuplicateTestOrders` dedups
   // across the whole turn afterwards (wave §8/§20-C,D).
   const testIds = collectTestIds(normalized);
+  // An EXPLICIT repeat/serial request ("повторить ОАК", "УЗИ в динамике",
+  // "контроль СРБ") is allowed to re-order a test even when one is already
+  // pending or resulted (wave §13). A bare re-order is not.
+  // NB Cyrillic \b does not work in a non-unicode JS regex - "контроль" is
+  // written as a stem, not "контроль\b".
+  const repeatRequested = /повтор|еще раз|в динамике|в динамику|динамическ|контрол|пересдат|повторно/.test(normalized);
   for (const [position, testId] of testIds.entries()) {
     const params = { testId };
+    if (repeatRequested) params.repeat = true;
     // Matrix V07: "БХАК: креатинин, электролиты" carries its own analyte list;
     // bare "БХАК" does not, and the lab asks. The interpreter never fills the
     // list in - an empty list stays empty and becomes a CLARIFY.

@@ -41,13 +41,15 @@ test("Journey C: reload предлагает resume и сохраняет вре
   await start(page, "Эталонные условия", "e2e-persist");
   await say(page, "опрошу пациента");
   await say(page, "переоценю витальные через час");
-  await expect(page.getByText(/В кейсе: 01:00/)).toBeVisible();
+  // core history (10 min, approved simulation calibration) + a 60-minute
+  // stated reassessment = 01:10.
+  await expect(page.getByText(/В кейсе: 01:10/)).toBeVisible();
   await page.reload();
   await page.getByRole("button", { name: "Продолжить кейс" }).click();
-  await expect(page.getByText(/В кейсе: 01:00/)).toBeVisible();
+  await expect(page.getByText(/В кейсе: 01:10/)).toBeVisible();
   await expect(page.getByText("опрошу пациента", { exact: true })).toBeVisible();
   await say(page, "что с пациентом сейчас?");
-  await expect(page.getByText(/Прошло 60 мин/)).toBeVisible();
+  await expect(page.getByText(/Прошло 70 мин/)).toBeVisible();
 });
 
 test("Journey D: реальное ограничение скрыто до столкновения и показано как факт больницы", async ({ page }) => {
