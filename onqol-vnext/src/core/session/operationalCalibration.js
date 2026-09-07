@@ -17,21 +17,24 @@
 
 /**
  * The calibration entry whose scope matches this session, or null.
+ *
+ * Scoping is by CASE PRESET only. `session.purpose` is deliberately never
+ * consulted (§8.2): patient-time physics is a property of the content, and
+ * internal_development / faculty_preview / learner_pilot / production must all
+ * pace an APP-004 case identically.
+ *
  * @param {object} params
  * @param {object} params.bundle  merged content bundle (`bundle.shared.simulation`)
- * @param {object} params.session `state.session` (needs `casePresetId`, `purpose`)
+ * @param {object} params.session `state.session` (needs `casePresetId`)
  */
 export function resolveOperationalCalibration({ bundle, session }) {
   const entries = bundle?.shared?.simulation?.simulation_calibration ?? [];
   if (!Array.isArray(entries) || entries.length === 0) return null;
   const presetId = session?.casePresetId ?? null;
-  const purpose = session?.purpose ?? null;
   for (const entry of entries) {
     const presets = entry?.scope?.case_preset_ids ?? [];
-    const purposes = entry?.scope?.session_purposes ?? [];
     const presetOk = presets.length === 0 || (presetId != null && presets.includes(presetId));
-    const purposeOk = purposes.length === 0 || (purpose != null && purposes.includes(purpose));
-    if (presetOk && purposeOk) return entry;
+    if (presetOk) return entry;
   }
   return null;
 }
@@ -57,13 +60,20 @@ export function actionDurationMinutes({ calibration, result }) {
 }
 
 /**
- * One turn's clinical-time cost. Concurrent actions in a turn share one
- * interval (Core Runtime Spec §7.2), so the turn consumes the MAX of its
- * actions' calibrated durations — not the sum.
+ * One turn's learner-performed clinical-time cost (§8.3).
+ *
+ * Learner actions in a single turn are performed by ONE actor and are
+ * therefore SEQUENTIAL/ADDITIVE - "опрос и осмотр живота" costs 10 + 5 = 15,
+ * not max(10, 5). Actions that only initiate an independent hospital process
+ * (ORDER_TEST, ORDER_MEDICATION, CALL_STAFF, ...) are 0 in the calibration, so
+ * they add nothing here; their turnaround / ETA runs concurrently against the
+ * clock through `advanceTime` once time later advances.
+ *
+ * Multiple commands in one turn do NOT imply they happened in parallel.
  */
 export function turnConsumesMinutes({ calibration, results }) {
   if (!calibration || !Array.isArray(results) || results.length === 0) return 0;
-  return Math.max(0, ...results.map((result) => actionDurationMinutes({ calibration, result })));
+  return results.reduce((total, result) => total + actionDurationMinutes({ calibration, result }), 0);
 }
 
 function isTimeConsumingOutcome(outcome) {

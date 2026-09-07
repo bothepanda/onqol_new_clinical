@@ -18,7 +18,7 @@
       "deterministic"
     ]
   },
-  "finalElapsedMinutes": 130,
+  "finalElapsedMinutes": 135,
   "checks": [
     {
       "name": "no unexplained dropped learner turns",
@@ -48,7 +48,7 @@
     {
       "name": "the clinical clock moved",
       "pass": true,
-      "detail": "130 min"
+      "detail": "135 min"
     },
     {
       "name": "result lifecycle is coherent (something ordered has resulted after time passed)",
@@ -74,7 +74,7 @@
   "transcript": [
     {
       "text": "опрос и осмотр живота",
-      "elapsedMinutes": 10,
+      "elapsedMinutes": 15,
       "interpreterMode": "deterministic",
       "commands": [
         "TAKE_HISTORY",
@@ -88,7 +88,7 @@
     },
     {
       "text": "оак оам срб и узи обп",
-      "elapsedMinutes": 10,
+      "elapsedMinutes": 15,
       "interpreterMode": "deterministic",
       "commands": [
         "ORDER_TEST",
@@ -106,7 +106,7 @@
     },
     {
       "text": "кт обп",
-      "elapsedMinutes": 10,
+      "elapsedMinutes": 15,
       "interpreterMode": "deterministic",
       "commands": [
         "ORDER_TEST"
@@ -118,7 +118,7 @@
     },
     {
       "text": "кетопрофен",
-      "elapsedMinutes": 10,
+      "elapsedMinutes": 15,
       "interpreterMode": "deterministic",
       "commands": [
         "ORDER_MEDICATION"
@@ -130,7 +130,7 @@
     },
     {
       "text": "100 мг в/в",
-      "elapsedMinutes": 10,
+      "elapsedMinutes": 15,
       "interpreterMode": "deterministic",
       "commands": [
         "ORDER_MEDICATION"
@@ -142,7 +142,7 @@
     },
     {
       "text": "обезбол",
-      "elapsedMinutes": 10,
+      "elapsedMinutes": 15,
       "interpreterMode": "deterministic",
       "commands": [
         "ORDER_MEDICATION"
@@ -154,7 +154,7 @@
     },
     {
       "text": "парацетамол 1 г внутрь",
-      "elapsedMinutes": 10,
+      "elapsedMinutes": 15,
       "interpreterMode": "deterministic",
       "commands": [
         "ORDER_MEDICATION"
@@ -166,7 +166,7 @@
     },
     {
       "text": "переоценю боль и живот через 2 часа",
-      "elapsedMinutes": 130,
+      "elapsedMinutes": 135,
       "interpreterMode": "deterministic",
       "commands": [
         "REASSESS"
@@ -178,7 +178,7 @@
     },
     {
       "text": "узи обп",
-      "elapsedMinutes": 130,
+      "elapsedMinutes": 135,
       "interpreterMode": "deterministic",
       "commands": [
         "ORDER_TEST"
@@ -190,7 +190,7 @@
     },
     {
       "text": "что с пациентом сейчас?",
-      "elapsedMinutes": 130,
+      "elapsedMinutes": 135,
       "interpreterMode": "deterministic",
       "commands": [
         "REQUEST_STATUS"
@@ -283,7 +283,7 @@
         "patientTruthApproved": true
       },
       "clock": {
-        "elapsedMinutes": 130,
+        "elapsedMinutes": 135,
         "startIso": "2026-09-07T08:00:00+05:00",
         "offset": "+05:00"
       },
@@ -333,60 +333,60 @@
         "cbc": {
           "id": "cbc",
           "status": "resulted",
-          "orderedAt": 10,
+          "orderedAt": 15,
           "etaMinutes": 70,
-          "availableAt": 80,
+          "availableAt": 85,
           "preliminaryAt": null,
           "result": {
             "wbc": 15.8,
             "neutrophilPercent": 87
           },
           "preliminary": null,
-          "resultedAt": 80
+          "resultedAt": 85
         },
         "urinalysis": {
           "id": "urinalysis",
           "status": "resulted",
-          "orderedAt": 10,
+          "orderedAt": 15,
           "etaMinutes": 60,
-          "availableAt": 70,
+          "availableAt": 75,
           "preliminaryAt": null,
           "result": {
             "note": "Общий анализ мочи без значимых отклонений."
           },
           "preliminary": null,
-          "resultedAt": 70
+          "resultedAt": 75
         },
         "crp": {
           "id": "crp",
           "status": "resulted",
-          "orderedAt": 10,
+          "orderedAt": 15,
           "etaMinutes": 70,
-          "availableAt": 80,
+          "availableAt": 85,
           "preliminaryAt": null,
           "result": {
             "crp": 69
           },
           "preliminary": null,
-          "resultedAt": 80
+          "resultedAt": 85
         },
         "ultrasound_abdomen": {
           "id": "ultrasound_abdomen",
           "status": "resulted",
-          "orderedAt": 10,
+          "orderedAt": 15,
           "etaMinutes": 85,
-          "availableAt": 95,
+          "availableAt": 100,
           "preliminaryAt": null,
           "result": "Аппендикс достоверно не визуализирован; выраженная пневматизация кишечника. Убедительных очаговых изменений в доступных отделах брюшной полости не выявлено. Заключение: исследование неинформативно в отношении аппендикса.",
           "preliminary": "Аппендикс достоверно не визуализирован; выраженная пневматизация кишечника. Убедительных очаговых изменений в доступных отделах брюшной полости не выявлено. Заключение: исследование неинформативно в отношении аппендикса.",
-          "resultedAt": 95
+          "resultedAt": 100
         },
         "ct_abdomen": {
           "id": "ct_abdomen",
           "status": "preliminary",
-          "orderedAt": 10,
+          "orderedAt": 15,
           "etaMinutes": 130,
-          "availableAt": 140,
+          "availableAt": 145,
           "preliminaryAt": null,
           "result": null,
           "preliminary": "Предварительно по телефону: картина острого аппендицита, отросток расположен ретроцекально; признаков перфорации и абсцесса не вижу. Формальное заключение будет позже."
@@ -444,7 +444,7 @@
             }
           },
           {
-            "atMinutes": 130,
+            "atMinutes": 135,
             "values": {
               "heartRate": 99,
               "temperatureC": 37.8,
@@ -467,7 +467,7 @@
             ]
           },
           {
-            "atMinutes": 130,
+            "atMinutes": 135,
             "region": "reassessment",
             "findingIds": [
               "reassessment"
@@ -609,7 +609,7 @@
           "phase": "final",
           "investigationId": "ct_abdomen",
           "testId": "ct_abdomen",
-          "dueAtMinutes": 140,
+          "dueAtMinutes": 145,
           "result": {
             "kind": "structured_report",
             "modalityRu": "КТ органов брюшной полости и малого таза с в/в контрастированием",
@@ -753,8 +753,8 @@
       {
         "seq": 5,
         "type": "TIME_ADVANCED",
-        "atMinutes": 10,
-        "atIso": "2026-09-07T08:10:00+05:00",
+        "atMinutes": 15,
+        "atIso": "2026-09-07T08:15:00+05:00",
         "payload": {},
         "cause": {
           "actor": "learner",
@@ -766,8 +766,8 @@
       {
         "seq": 6,
         "type": "COMMAND_ACCEPTED",
-        "atMinutes": 10,
-        "atIso": "2026-09-07T08:10:00+05:00",
+        "atMinutes": 15,
+        "atIso": "2026-09-07T08:15:00+05:00",
         "payload": {
           "commandId": "t0-c0",
           "commandType": "TAKE_HISTORY",
@@ -791,8 +791,8 @@
       {
         "seq": 7,
         "type": "COMMAND_ACCEPTED",
-        "atMinutes": 10,
-        "atIso": "2026-09-07T08:10:00+05:00",
+        "atMinutes": 15,
+        "atIso": "2026-09-07T08:15:00+05:00",
         "payload": {
           "commandId": "t0-c1",
           "commandType": "EXAMINE",
@@ -818,8 +818,8 @@
       {
         "seq": 8,
         "type": "LEARNER_TURN_RECEIVED",
-        "atMinutes": 10,
-        "atIso": "2026-09-07T08:10:00+05:00",
+        "atMinutes": 15,
+        "atIso": "2026-09-07T08:15:00+05:00",
         "payload": {
           "rawText": "оак оам срб и узи обп",
           "intent": "CLINICAL_ACTION",
@@ -867,8 +867,8 @@
       {
         "seq": 9,
         "type": "TEST_ORDERED",
-        "atMinutes": 10,
-        "atIso": "2026-09-07T08:10:00+05:00",
+        "atMinutes": 15,
+        "atIso": "2026-09-07T08:15:00+05:00",
         "payload": {
           "investigationId": "cbc",
           "testId": "cbc",
@@ -881,7 +881,7 @@
               "phase": "final",
               "investigationId": "cbc",
               "testId": "cbc",
-              "dueAtMinutes": 80,
+              "dueAtMinutes": 85,
               "result": {
                 "wbc": 15.8,
                 "neutrophilPercent": 87
@@ -899,8 +899,8 @@
       {
         "seq": 10,
         "type": "TEST_ORDERED",
-        "atMinutes": 10,
-        "atIso": "2026-09-07T08:10:00+05:00",
+        "atMinutes": 15,
+        "atIso": "2026-09-07T08:15:00+05:00",
         "payload": {
           "investigationId": "urinalysis",
           "testId": "urinalysis",
@@ -913,7 +913,7 @@
               "phase": "final",
               "investigationId": "urinalysis",
               "testId": "urinalysis",
-              "dueAtMinutes": 70,
+              "dueAtMinutes": 75,
               "result": {
                 "note": "Общий анализ мочи без значимых отклонений."
               }
@@ -930,8 +930,8 @@
       {
         "seq": 11,
         "type": "TEST_ORDERED",
-        "atMinutes": 10,
-        "atIso": "2026-09-07T08:10:00+05:00",
+        "atMinutes": 15,
+        "atIso": "2026-09-07T08:15:00+05:00",
         "payload": {
           "investigationId": "crp",
           "testId": "crp",
@@ -944,7 +944,7 @@
               "phase": "final",
               "investigationId": "crp",
               "testId": "crp",
-              "dueAtMinutes": 80,
+              "dueAtMinutes": 85,
               "result": {
                 "crp": 69
               }
@@ -961,8 +961,8 @@
       {
         "seq": 12,
         "type": "TEST_ORDERED",
-        "atMinutes": 10,
-        "atIso": "2026-09-07T08:10:00+05:00",
+        "atMinutes": 15,
+        "atIso": "2026-09-07T08:15:00+05:00",
         "payload": {
           "investigationId": "ultrasound_abdomen",
           "testId": "ultrasound_abdomen",
@@ -975,7 +975,7 @@
               "phase": "preliminary",
               "investigationId": "ultrasound_abdomen",
               "testId": "ultrasound_abdomen",
-              "dueAtMinutes": 80,
+              "dueAtMinutes": 85,
               "preliminaryText": "Аппендикс достоверно не визуализирован; выраженная пневматизация кишечника. Убедительных очаговых изменений в доступных отделах брюшной полости не выявлено. Заключение: исследование неинформативно в отношении аппендикса."
             },
             {
@@ -984,7 +984,7 @@
               "phase": "final",
               "investigationId": "ultrasound_abdomen",
               "testId": "ultrasound_abdomen",
-              "dueAtMinutes": 95,
+              "dueAtMinutes": 100,
               "result": "Аппендикс достоверно не визуализирован; выраженная пневматизация кишечника. Убедительных очаговых изменений в доступных отделах брюшной полости не выявлено. Заключение: исследование неинформативно в отношении аппендикса."
             }
           ]
@@ -999,8 +999,8 @@
       {
         "seq": 13,
         "type": "COMMAND_ACCEPTED",
-        "atMinutes": 10,
-        "atIso": "2026-09-07T08:10:00+05:00",
+        "atMinutes": 15,
+        "atIso": "2026-09-07T08:15:00+05:00",
         "payload": {
           "commandId": "t1-c0",
           "commandType": "ORDER_TEST",
@@ -1026,8 +1026,8 @@
       {
         "seq": 14,
         "type": "COMMAND_ACCEPTED",
-        "atMinutes": 10,
-        "atIso": "2026-09-07T08:10:00+05:00",
+        "atMinutes": 15,
+        "atIso": "2026-09-07T08:15:00+05:00",
         "payload": {
           "commandId": "t1-c0t1",
           "commandType": "ORDER_TEST",
@@ -1053,8 +1053,8 @@
       {
         "seq": 15,
         "type": "COMMAND_ACCEPTED",
-        "atMinutes": 10,
-        "atIso": "2026-09-07T08:10:00+05:00",
+        "atMinutes": 15,
+        "atIso": "2026-09-07T08:15:00+05:00",
         "payload": {
           "commandId": "t1-c0t2",
           "commandType": "ORDER_TEST",
@@ -1080,8 +1080,8 @@
       {
         "seq": 16,
         "type": "COMMAND_ACCEPTED",
-        "atMinutes": 10,
-        "atIso": "2026-09-07T08:10:00+05:00",
+        "atMinutes": 15,
+        "atIso": "2026-09-07T08:15:00+05:00",
         "payload": {
           "commandId": "t1-c1",
           "commandType": "ORDER_TEST",
@@ -1107,8 +1107,8 @@
       {
         "seq": 17,
         "type": "LEARNER_TURN_RECEIVED",
-        "atMinutes": 10,
-        "atIso": "2026-09-07T08:10:00+05:00",
+        "atMinutes": 15,
+        "atIso": "2026-09-07T08:15:00+05:00",
         "payload": {
           "rawText": "кт обп",
           "intent": "CLINICAL_ACTION",
@@ -1135,8 +1135,8 @@
       {
         "seq": 18,
         "type": "TEST_ORDERED",
-        "atMinutes": 10,
-        "atIso": "2026-09-07T08:10:00+05:00",
+        "atMinutes": 15,
+        "atIso": "2026-09-07T08:15:00+05:00",
         "payload": {
           "investigationId": "ct_abdomen",
           "testId": "ct_abdomen",
@@ -1149,7 +1149,7 @@
               "phase": "preliminary",
               "investigationId": "ct_abdomen",
               "testId": "ct_abdomen",
-              "dueAtMinutes": 115,
+              "dueAtMinutes": 120,
               "preliminaryText": "Предварительно по телефону: картина острого аппендицита, отросток расположен ретроцекально; признаков перфорации и абсцесса не вижу. Формальное заключение будет позже."
             },
             {
@@ -1158,7 +1158,7 @@
               "phase": "final",
               "investigationId": "ct_abdomen",
               "testId": "ct_abdomen",
-              "dueAtMinutes": 140,
+              "dueAtMinutes": 145,
               "result": {
                 "kind": "structured_report",
                 "modalityRu": "КТ органов брюшной полости и малого таза с в/в контрастированием",
@@ -1189,8 +1189,8 @@
       {
         "seq": 19,
         "type": "COMMAND_ACCEPTED",
-        "atMinutes": 10,
-        "atIso": "2026-09-07T08:10:00+05:00",
+        "atMinutes": 15,
+        "atIso": "2026-09-07T08:15:00+05:00",
         "payload": {
           "commandId": "t2-c0",
           "commandType": "ORDER_TEST",
@@ -1216,8 +1216,8 @@
       {
         "seq": 20,
         "type": "LEARNER_TURN_RECEIVED",
-        "atMinutes": 10,
-        "atIso": "2026-09-07T08:10:00+05:00",
+        "atMinutes": 15,
+        "atIso": "2026-09-07T08:15:00+05:00",
         "payload": {
           "rawText": "кетопрофен",
           "intent": "CLINICAL_ACTION",
@@ -1244,8 +1244,8 @@
       {
         "seq": 21,
         "type": "CLARIFICATION_REQUESTED",
-        "atMinutes": 10,
-        "atIso": "2026-09-07T08:10:00+05:00",
+        "atMinutes": 15,
+        "atIso": "2026-09-07T08:15:00+05:00",
         "payload": {
           "commandId": "t3-c0",
           "commandType": "ORDER_MEDICATION",
@@ -1274,8 +1274,8 @@
       {
         "seq": 22,
         "type": "LEARNER_TURN_RECEIVED",
-        "atMinutes": 10,
-        "atIso": "2026-09-07T08:10:00+05:00",
+        "atMinutes": 15,
+        "atIso": "2026-09-07T08:15:00+05:00",
         "payload": {
           "rawText": "100 мг в/в",
           "intent": "CLINICAL_ACTION",
@@ -1305,8 +1305,8 @@
       {
         "seq": 23,
         "type": "COMMAND_REJECTED",
-        "atMinutes": 10,
-        "atIso": "2026-09-07T08:10:00+05:00",
+        "atMinutes": 15,
+        "atIso": "2026-09-07T08:15:00+05:00",
         "payload": {
           "commandId": "t4-c0",
           "commandType": "ORDER_MEDICATION",
@@ -1335,8 +1335,8 @@
       {
         "seq": 24,
         "type": "LEARNER_TURN_RECEIVED",
-        "atMinutes": 10,
-        "atIso": "2026-09-07T08:10:00+05:00",
+        "atMinutes": 15,
+        "atIso": "2026-09-07T08:15:00+05:00",
         "payload": {
           "rawText": "обезбол",
           "intent": "CLINICAL_ACTION",
@@ -1363,8 +1363,8 @@
       {
         "seq": 25,
         "type": "CLARIFICATION_REQUESTED",
-        "atMinutes": 10,
-        "atIso": "2026-09-07T08:10:00+05:00",
+        "atMinutes": 15,
+        "atIso": "2026-09-07T08:15:00+05:00",
         "payload": {
           "commandId": "t5-c0",
           "commandType": "ORDER_MEDICATION",
@@ -1394,8 +1394,8 @@
       {
         "seq": 26,
         "type": "LEARNER_TURN_RECEIVED",
-        "atMinutes": 10,
-        "atIso": "2026-09-07T08:10:00+05:00",
+        "atMinutes": 15,
+        "atIso": "2026-09-07T08:15:00+05:00",
         "payload": {
           "rawText": "парацетамол 1 г внутрь",
           "intent": "CLINICAL_ACTION",
@@ -1424,8 +1424,8 @@
       {
         "seq": 27,
         "type": "CLARIFICATION_REQUESTED",
-        "atMinutes": 10,
-        "atIso": "2026-09-07T08:10:00+05:00",
+        "atMinutes": 15,
+        "atIso": "2026-09-07T08:15:00+05:00",
         "payload": {
           "commandId": "t6-c0",
           "commandType": "ORDER_MEDICATION",
@@ -1455,8 +1455,8 @@
       {
         "seq": 28,
         "type": "LEARNER_TURN_RECEIVED",
-        "atMinutes": 10,
-        "atIso": "2026-09-07T08:10:00+05:00",
+        "atMinutes": 15,
+        "atIso": "2026-09-07T08:15:00+05:00",
         "payload": {
           "rawText": "переоценю боль и живот через 2 часа",
           "intent": "CLINICAL_ACTION",
@@ -1487,8 +1487,8 @@
       {
         "seq": 29,
         "type": "TEST_RESULTED",
-        "atMinutes": 70,
-        "atIso": "2026-09-07T09:10:00+05:00",
+        "atMinutes": 75,
+        "atIso": "2026-09-07T09:15:00+05:00",
         "payload": {
           "investigationId": "urinalysis",
           "result": {
@@ -1506,8 +1506,8 @@
       {
         "seq": 30,
         "type": "TEST_RESULTED",
-        "atMinutes": 80,
-        "atIso": "2026-09-07T09:20:00+05:00",
+        "atMinutes": 85,
+        "atIso": "2026-09-07T09:25:00+05:00",
         "payload": {
           "investigationId": "cbc",
           "result": {
@@ -1526,8 +1526,8 @@
       {
         "seq": 31,
         "type": "TEST_RESULTED",
-        "atMinutes": 80,
-        "atIso": "2026-09-07T09:20:00+05:00",
+        "atMinutes": 85,
+        "atIso": "2026-09-07T09:25:00+05:00",
         "payload": {
           "investigationId": "crp",
           "result": {
@@ -1545,8 +1545,8 @@
       {
         "seq": 32,
         "type": "TEST_PRELIMINARY_REPORTED",
-        "atMinutes": 80,
-        "atIso": "2026-09-07T09:20:00+05:00",
+        "atMinutes": 85,
+        "atIso": "2026-09-07T09:25:00+05:00",
         "payload": {
           "investigationId": "ultrasound_abdomen",
           "preliminary": "Аппендикс достоверно не визуализирован; выраженная пневматизация кишечника. Убедительных очаговых изменений в доступных отделах брюшной полости не выявлено. Заключение: исследование неинформативно в отношении аппендикса.",
@@ -1562,8 +1562,8 @@
       {
         "seq": 33,
         "type": "TEST_RESULTED",
-        "atMinutes": 95,
-        "atIso": "2026-09-07T09:35:00+05:00",
+        "atMinutes": 100,
+        "atIso": "2026-09-07T09:40:00+05:00",
         "payload": {
           "investigationId": "ultrasound_abdomen",
           "result": "Аппендикс достоверно не визуализирован; выраженная пневматизация кишечника. Убедительных очаговых изменений в доступных отделах брюшной полости не выявлено. Заключение: исследование неинформативно в отношении аппендикса.",
@@ -1579,8 +1579,8 @@
       {
         "seq": 34,
         "type": "TEST_PRELIMINARY_REPORTED",
-        "atMinutes": 115,
-        "atIso": "2026-09-07T09:55:00+05:00",
+        "atMinutes": 120,
+        "atIso": "2026-09-07T10:00:00+05:00",
         "payload": {
           "investigationId": "ct_abdomen",
           "preliminary": "Предварительно по телефону: картина острого аппендицита, отросток расположен ретроцекально; признаков перфорации и абсцесса не вижу. Формальное заключение будет позже.",
@@ -1596,8 +1596,8 @@
       {
         "seq": 35,
         "type": "TIME_ADVANCED",
-        "atMinutes": 130,
-        "atIso": "2026-09-07T10:10:00+05:00",
+        "atMinutes": 135,
+        "atIso": "2026-09-07T10:15:00+05:00",
         "payload": {},
         "cause": {
           "actor": "learner",
@@ -1609,8 +1609,8 @@
       {
         "seq": 36,
         "type": "PATIENT_REASSESSED",
-        "atMinutes": 130,
-        "atIso": "2026-09-07T10:10:00+05:00",
+        "atMinutes": 135,
+        "atIso": "2026-09-07T10:15:00+05:00",
         "payload": {
           "region": "reassessment",
           "findingIds": [
@@ -1631,8 +1631,8 @@
       {
         "seq": 37,
         "type": "VITALS_OBSERVED",
-        "atMinutes": 130,
-        "atIso": "2026-09-07T10:10:00+05:00",
+        "atMinutes": 135,
+        "atIso": "2026-09-07T10:15:00+05:00",
         "payload": {
           "findingIds": [
             "vitals.reassessment"
@@ -1648,8 +1648,8 @@
       {
         "seq": 38,
         "type": "COMMAND_ACCEPTED",
-        "atMinutes": 130,
-        "atIso": "2026-09-07T10:10:00+05:00",
+        "atMinutes": 135,
+        "atIso": "2026-09-07T10:15:00+05:00",
         "payload": {
           "commandId": "t7-c0",
           "commandType": "REASSESS",
@@ -1679,8 +1679,8 @@
       {
         "seq": 39,
         "type": "LEARNER_TURN_RECEIVED",
-        "atMinutes": 130,
-        "atIso": "2026-09-07T10:10:00+05:00",
+        "atMinutes": 135,
+        "atIso": "2026-09-07T10:15:00+05:00",
         "payload": {
           "rawText": "узи обп",
           "intent": "CLINICAL_ACTION",
@@ -1707,8 +1707,8 @@
       {
         "seq": 40,
         "type": "COMMAND_ACCEPTED",
-        "atMinutes": 130,
-        "atIso": "2026-09-07T10:10:00+05:00",
+        "atMinutes": 135,
+        "atIso": "2026-09-07T10:15:00+05:00",
         "payload": {
           "commandId": "t8-c0",
           "commandType": "ORDER_TEST",
@@ -1734,8 +1734,8 @@
       {
         "seq": 41,
         "type": "LEARNER_TURN_RECEIVED",
-        "atMinutes": 130,
-        "atIso": "2026-09-07T10:10:00+05:00",
+        "atMinutes": 135,
+        "atIso": "2026-09-07T10:15:00+05:00",
         "payload": {
           "rawText": "что с пациентом сейчас?",
           "intent": "REQUEST_CURRENT_STATUS",
@@ -1817,8 +1817,8 @@
       },
       {
         "seq": 8,
-        "atMinutes": 10,
-        "atIso": "2026-09-07T08:10:00+05:00",
+        "atMinutes": 15,
+        "atIso": "2026-09-07T08:15:00+05:00",
         "rawText": "оак оам срб и узи обп",
         "intent": "CLINICAL_ACTION",
         "mentorSignal": null,
@@ -1923,8 +1923,8 @@
       },
       {
         "seq": 17,
-        "atMinutes": 10,
-        "atIso": "2026-09-07T08:10:00+05:00",
+        "atMinutes": 15,
+        "atIso": "2026-09-07T08:15:00+05:00",
         "rawText": "кт обп",
         "intent": "CLINICAL_ACTION",
         "mentorSignal": null,
@@ -1960,8 +1960,8 @@
       },
       {
         "seq": 20,
-        "atMinutes": 10,
-        "atIso": "2026-09-07T08:10:00+05:00",
+        "atMinutes": 15,
+        "atIso": "2026-09-07T08:15:00+05:00",
         "rawText": "кетопрофен",
         "intent": "CLINICAL_ACTION",
         "mentorSignal": null,
@@ -2000,8 +2000,8 @@
       },
       {
         "seq": 22,
-        "atMinutes": 10,
-        "atIso": "2026-09-07T08:10:00+05:00",
+        "atMinutes": 15,
+        "atIso": "2026-09-07T08:15:00+05:00",
         "rawText": "100 мг в/в",
         "intent": "CLINICAL_ACTION",
         "mentorSignal": null,
@@ -2043,8 +2043,8 @@
       },
       {
         "seq": 24,
-        "atMinutes": 10,
-        "atIso": "2026-09-07T08:10:00+05:00",
+        "atMinutes": 15,
+        "atIso": "2026-09-07T08:15:00+05:00",
         "rawText": "обезбол",
         "intent": "CLINICAL_ACTION",
         "mentorSignal": null,
@@ -2084,8 +2084,8 @@
       },
       {
         "seq": 26,
-        "atMinutes": 10,
-        "atIso": "2026-09-07T08:10:00+05:00",
+        "atMinutes": 15,
+        "atIso": "2026-09-07T08:15:00+05:00",
         "rawText": "парацетамол 1 г внутрь",
         "intent": "CLINICAL_ACTION",
         "mentorSignal": null,
@@ -2127,8 +2127,8 @@
       },
       {
         "seq": 28,
-        "atMinutes": 10,
-        "atIso": "2026-09-07T08:10:00+05:00",
+        "atMinutes": 15,
+        "atIso": "2026-09-07T08:15:00+05:00",
         "rawText": "переоценю боль и живот через 2 часа",
         "intent": "CLINICAL_ACTION",
         "mentorSignal": null,
@@ -2172,8 +2172,8 @@
       },
       {
         "seq": 39,
-        "atMinutes": 130,
-        "atIso": "2026-09-07T10:10:00+05:00",
+        "atMinutes": 135,
+        "atIso": "2026-09-07T10:15:00+05:00",
         "rawText": "узи обп",
         "intent": "CLINICAL_ACTION",
         "mentorSignal": null,
@@ -2209,8 +2209,8 @@
       },
       {
         "seq": 41,
-        "atMinutes": 130,
-        "atIso": "2026-09-07T10:10:00+05:00",
+        "atMinutes": 135,
+        "atIso": "2026-09-07T10:15:00+05:00",
         "rawText": "что с пациентом сейчас?",
         "intent": "REQUEST_CURRENT_STATUS",
         "mentorSignal": null,

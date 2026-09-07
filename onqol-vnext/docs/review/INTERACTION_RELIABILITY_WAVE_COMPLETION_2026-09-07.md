@@ -132,7 +132,7 @@ interpretation is already in `LEARNER_TURN_RECEIVED`.
 | command | result |
 |---|---|
 | `npm run content:check` | OK (…,simulation) |
-| `npm test` | **362 / 362**, 0 fail (was 316; +38 §20/§21/§22/§13, +7 hybrid, +1 e2e-affected) |
+| `npm test` | **367 / 367**, 0 fail (was 316; +43 §8/§13/§20/§21/§22, +7 hybrid, +1 e2e-affected) |
 | `npm run lint` | clean |
 | `npm run build` | OK |
 | `npm run wave2:corpus` | OK (52 fixtures) |
@@ -152,7 +152,8 @@ One `learner_pilot` APP-004 session, deterministic interpreter, natural Russian
 (`docs/evidence/INTERACTION_WAVE_ACCEPTANCE_2026-09-07.json`):
 
 - interpreter mode recorded: `["deterministic"]`, per turn.
-- simulated time advanced to **130 min** through history + examination + a 2-hour reassessment.
+- simulated time advanced to **135 min** through history + examination (additive, §8.3) + a
+  2-hour reassessment.
 - several investigations from one message; an abbreviation; a slang term; an incomplete
   medication order answered by a short contextual reply (`100 мг в/в` merged into the pending
   order); a later explicit repeat.
@@ -165,41 +166,52 @@ One `learner_pilot` APP-004 session, deterministic interpreter, natural Russian
 
 ---
 
-## 8. Remaining risks / known gaps
+## 8. Product-owner decisions (2026-09-07) — applied
 
-1. **Hybrid semantic path unverified against a real model.** Built, unit-tested, and
-   fail-closed-verified against a live (failing) provider, but the "the model actually
-   improves interpretation" claim is not demonstrated — no API credits. Hybrid mode is
-   **off by default** (`VITE_ONQOL_INTERPRETER` unset ⇒ deterministic).
-2. **Deterministic coverage is still bounded to the authored vocabulary.** Paraphrase
-   outside it now degrades to an honest "не распознано" / clarification instead of a silent
-   wrong action, but it is not *understood*. Closing that is exactly what Stage 2 is for.
-3. **`pelvic_ultrasound` is recognised but unsupported content.** Adding a real pelvic-US
-   study is a separate clinical-review item, out of scope here.
-4. **Operational durations are APP-004-only.** Any other disease keeps a 0-minute action
-   cost until it receives its own reviewed `simulation_calibration` entry (by design).
-5. **`internal_development` runs the same durations as `learner_pilot`** for APP-004 (scope
-   includes both) so dev and pilot pace identically; `faculty_preview` too. Narrow the
-   scope to `learner_pilot` only if that is not wanted.
-6. **Concurrent actions in one turn share one interval (MAX, not SUM).** "‹pilot turn A›" =
-   10 min, not 15. Consistent with Core Runtime Spec §7.2; flag if a different model is wanted.
+| # | Decision | Implementation |
+|---|---|---|
+| 8.1 | **APPROVE** — calibration stays scoped to APP-004; not generalised to other modules without separate review. | `calibration.yaml` `scope.case_preset_ids: [APP-004]`; `resolveOperationalCalibration` returns `null` (⇒ every duration 0) for any other preset. |
+| 8.2 | **MODIFY** — timing is a property of APP-004 **content/version**, not of `session_purpose`. `internal_development` must pace identically to `learner_pilot`. No patient-time physics per audience mode. | `session_purposes` removed from the calibration scope; `resolveOperationalCalibration` no longer reads `session.purpose` (locked by a test that greps the function body). `calibrated_for_content_version: "6114d872168d4ebb"` recorded. Verified: `internal_development` and `learner_pilot` both give 15 min for "опрос и осмотр живота". |
+| 8.3 | **DO NOT APPROVE** a generic "parallel = MAX" rule. Use concurrency semantics. | `turnConsumesMinutes` is now **SUM** of the learner-performed action durations in the turn (one actor, sequential). ORDER_TEST / ORDER_MEDICATION / CALL_STAFF are 0 — they only *initiate* independent hospital processes, whose turnaround / ETA then runs **concurrently** against the clock via `advanceTime`. Multiple commands in one turn are not treated as parallel. Regression tests: `§8.3 additive` (history 10 + exam 5 = 15), `§8.3 orders add nothing`, `§8.3 concurrent pending processes`, `§8.2 purpose-independent`, `§8.2 resolver never reads purpose`. |
 
 ---
 
-## 9. Final status
+## 9. Remaining risks / known gaps
 
-**Stage 1 (deterministic interaction repair): `GO_FOR_LEARNER_PILOT`.**
+1. **Hybrid semantic path unverified against a real model.** Built, unit-tested, and
+   fail-closed-verified against a live (failing) provider, but the "the model actually
+   improves interpretation" claim is not demonstrated — the supplied key had no credits.
+   Hybrid mode is **off by default** (`VITE_ONQOL_INTERPRETER` unset ⇒ deterministic).
+2. **Deterministic coverage is still bounded to the authored vocabulary.** Paraphrase
+   outside it now degrades to an honest "не распознано" / clarification instead of a silent
+   wrong action, but it is not *understood*. Closing that is Stage 2.
+3. **`pelvic_ultrasound` is recognised but unsupported content.** Adding a real pelvic-US
+   study is a separate clinical-review item, out of scope here.
+4. **Operational durations are APP-004-only, by design** (§8.1).
+5. **Consultant-call vocabulary is thin** — "позови хирурга" (imperative) is not parsed;
+   "вызов анестезиолога" is. Pre-existing; not in this wave's scope.
+
+---
+
+## 10. Final status
+
+**Stage 1 (deterministic interaction repair): accepted as the safe deterministic fallback.**
 Every documented failure in the reported session is closed and covered by a regression test;
-failures now degrade safely to clarification rather than silent wrong action; the clock,
-pending-result delivery, duplicate-order handling, order-validation explainability and
-`revealed.results` semantics are fixed; the §25 acceptance session passes 10/10; 362/362
-tests, 4/4 e2e, clean lint/build/pack.
+failures degrade safely to clarification rather than silent wrong action; the clock,
+pending-result delivery, duplicate-order handling, order-validation explainability,
+`revealed.results` semantics and the §8 concurrency model are in place; the §25 acceptance
+session passes 10/10; **367 / 367** tests, 4/4 e2e, clean lint/build/pack.
 
-**Stage 2 (hybrid LLM interpreter): `NO_GO` until a funded provider run passes §24 live
-smoke and a §25 acceptance on the hybrid path.** The code is in place and fail-closed; it
-must stay disabled (`VITE_ONQOL_INTERPRETER` unset) in the pilot build until then.
+**The interaction wave is NOT `GO_FOR_LEARNER_PILOT` for an expanded resident pilot.**
+Semantic free-text interaction is a core product behaviour and has not been demonstrated
+live. Stage 2 remains required.
 
-The broad goal "ON QOL reliably understands natural Russian" is **not** met by Stage 1 alone
-— it is met for the documented failure modes and made *safe* everywhere else. Whether that
-is sufficient to widen the resident pilot now, or whether to hold for Stage 2, is a
-product-owner call.
+**Next gate — after a rotated, funded API key is available:**
+1. `npm run hybrid:smoke`
+2. the full semantic-interpreter regression corpus
+3. one fresh hybrid acceptance session
+4. inspect the exported structured interpretations and event history
+
+Stage 2 becomes `GO_FOR_LEARNER_PILOT` only if the live model **demonstrably improves**
+natural-Russian clinical-language interpretation **without inventing omitted actions or
+parameters**.

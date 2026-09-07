@@ -13,13 +13,21 @@
 
 simulation_calibration:
   - id: SIMCAL-APP004-OPERATIONAL-DURATIONS-V1
+    # Timing is a property of the APP-004 CONTENT, not of the audience. Every
+    # session running this case preset uses it, regardless of session_purpose
+    # (internal_development, faculty_preview, learner_pilot, production) — there
+    # is no different patient-time physics per audience mode (Clinical-Lead
+    # decision 2026-09-07, §8.2).
     scope:
       case_preset_ids: [APP-004]
-      session_purposes: [learner_pilot, internal_development, faculty_preview]
-    # Minutes of simulated clinical time each learner action consumes AFTER it
-    # executes. Concurrent actions in one turn share one interval (Core Runtime
-    # Spec §7.2) — the turn consumes the MAX of its actions' durations, not the
-    # sum.
+    calibrated_for_content_version: "6114d872168d4ebb"  # src/content/generated/appendicitis.json#__contentVersion at approval
+    # Minutes of simulated clinical time a learner-performed action consumes
+    # AFTER it executes. Learner actions performed in one turn by the same actor
+    # are SEQUENTIAL/ADDITIVE (history 10 + abdominal exam 5 = 15). They do NOT
+    # "share one interval". Ordering an investigation, entering a treatment order
+    # or calling a consultant costs 0 here — those only INITIATE independent
+    # hospital processes, whose turnaround / ETA then runs concurrently against
+    # the same clinical clock via advanceTime (§8.3).
     action_durations_minutes:
       TAKE_HISTORY: 10          # core history
       ASK_PATIENT: 1            # focused follow-up history question
@@ -57,6 +65,9 @@ simulation_calibration:
       next_review_due: null
       notes: >-
         Operational pacing only — not patient truth, not a clinical rule, not a
-        treatment effect. Do NOT reuse these numbers for another disease or
-        module without a separate review. Same category as
+        treatment effect. Scoped to the APP-004 case preset and its content
+        version; do NOT reuse these numbers for another disease or module
+        without a separate review. Not scoped by session_purpose: the same
+        calibrated timing applies to internal_development, faculty_preview,
+        learner_pilot and production alike. Same category as
         trajectories.yaml#investigation_timing and hospitalProfiles staff ETAs.

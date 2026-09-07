@@ -13,6 +13,7 @@
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 import { createSession } from "./createSession.js";
 import { submitLearnerTurn } from "./submitLearnerTurn.js";
@@ -169,6 +170,60 @@ test("§20-L a pending result is delivered when simulated time naturally reaches
   s = say(s, "переоценю боль через 90 минут").session;
   assert.equal(s.state.investigations.cbc.status, "resulted");
   assert.ok(s.state.revealed.results.includes("cbc"), "result is now disclosed, not before");
+});
+
+// ===========================================================================
+// §8 — concurrency semantics (Clinical-Lead decision 2026-09-07)
+// ===========================================================================
+
+test("§8.3 learner actions in one turn are SEQUENTIAL/ADDITIVE, not max", () => {
+  let s = newSession();
+  const before = s.state.clock.elapsedMinutes;
+  s = say(s, "опрос и осмотр живота").session;
+  assert.equal(s.state.clock.elapsedMinutes - before, 15, "core history 10 + abdominal exam 5 = 15, not max(10,5)");
+});
+
+test("§8.3 ordering CBC + ultrasound + calling a consultant in one turn adds no clock time", () => {
+  let s = newSession();
+  const before = s.state.clock.elapsedMinutes;
+  const turn = say(s, "оак, узи обп, вызов анестезиолога");
+  s = turn.session;
+  assert.equal(s.state.clock.elapsedMinutes - before, 0, "initiating independent processes costs no learner time");
+  assert.ok(turn.interpreted.commands.some((c) => c.type === "ORDER_TEST" && c.params.testId === "cbc"));
+  assert.ok(turn.interpreted.commands.some((c) => c.type === "ORDER_TEST" && c.params.testId === "ultrasound_abdomen"));
+  assert.ok(turn.interpreted.commands.some((c) => c.type === "CALL_STAFF" || c.type === "REQUEST_ANESTHESIA_REVIEW"));
+});
+
+test("§8.3 independent pending processes then run CONCURRENTLY against the clock, not summed", () => {
+  let s = newSession();
+  s = say(s, "оак и узи обп").session; // cbc eta ~40-70, ultrasound eta ~45 - overlapping windows
+  // one 2-hour wait clears BOTH; their turnarounds overlapped, they were not queued back-to-back
+  s = say(s, "переоценю боль через 2 часа").session;
+  assert.equal(s.state.investigations.cbc.status, "resulted");
+  assert.equal(s.state.investigations.ultrasound_abdomen.status, "resulted");
+  // 120 min of wait was enough for both; if they had been summed (~110+ min
+  // back-to-back plus the wait's own start) the clock maths would differ, but
+  // the point is both landed within the single stated interval.
+  assert.ok(s.state.clock.elapsedMinutes <= 121, `clock at ${s.state.clock.elapsedMinutes}, both results already in`);
+});
+
+test("§8.2 calibrated timing is identical for internal_development and learner_pilot (not coupled to purpose)", () => {
+  const measure = (purpose) => {
+    let s = createSession({
+      sessionId: "sc", seed: "sc1", mode: "reference", casePresetId: "APP-004",
+      sessionPurpose: purpose, bundle, locale: "ru", startIso: "2026-09-07T08:00:00+05:00",
+    });
+    s = submitLearnerTurn({ session: s, text: "опрос и осмотр живота" }).session;
+    return s.state.clock.elapsedMinutes;
+  };
+  assert.equal(measure("internal_development"), measure("learner_pilot"));
+  assert.equal(measure("internal_development"), 15);
+});
+
+test("§8.2 resolveOperationalCalibration never reads session.purpose", () => {
+  const src = readFileSync(new URL("./operationalCalibration.js", import.meta.url), "utf8");
+  const body = src.slice(src.indexOf("export function resolveOperationalCalibration"));
+  assert.equal(/\.purpose\b/.test(body.slice(0, body.indexOf("\n}"))), false, "the resolver must not branch on session.purpose");
 });
 
 // ===========================================================================

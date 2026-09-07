@@ -152,15 +152,19 @@ export function submitLearnerTurn({ session, text, shadowProvider, interpreted: 
   // Rendered AFTER the command's own output, not before it (unlike
   // `timeEvents`, which precede the action that waited for them).
   let afterEvents = [];
-  // Two sources of "this turn takes clinical time", combined by MAX because
-  // concurrent actions share one interval (Contract §7.2):
-  //  - a command handler that returns its own `consumesMinutes` (TRANSPORT);
-  //  - the operational simulation calibration (history / examination / focused
-  //    questions), a versioned scoped content artifact - NOT a hard-coded
-  //    constant. `src/content/shared/simulation/calibration.yaml`.
-  // Ordering an investigation is deliberately 0: a pending result is delivered
-  // when simulated time NATURALLY reaches its dueAtMinutes through history,
-  // examination, treatment, a stated wait, transport or reassessment.
+  // How much clinical time this turn's LEARNER-PERFORMED actions consume:
+  //  - `calibratedMinutes` - the operational simulation calibration
+  //    (`src/content/shared/simulation/calibration.yaml`, a versioned scoped
+  //    content artifact, NOT a hard-coded constant): history / examination /
+  //    focused questions, SUMMED because one actor performs them in sequence
+  //    (§8.3). Ordering / prescribing / calling a consultant are 0 here.
+  //  - `handlerMinutes` - a command that models an independent process whose
+  //    duration IS the passage of time (interfacility TRANSPORT). Combined by
+  //    MAX with the calibrated sum: these do not realistically co-occur in one
+  //    turn, and neither should be double-counted against the other.
+  // Independent pending processes (investigation turnaround, consultant ETA,
+  // transport ETA) run concurrently against the clock through `advanceTime`
+  // once time later advances - they are never added together here.
   const calibration = resolveOperationalCalibration({
     bundle: working.bundle,
     session: working.state.session,
