@@ -29,11 +29,15 @@ import { createNullProviderClient } from "../../ai/providerClient.js";
  * so the export can answer "what did the learner say, what did the system
  * think it meant, what did it execute, and what did it refuse".
  */
-export function submitLearnerTurn({ session, text, shadowProvider }) {
+export function submitLearnerTurn({ session, text, shadowProvider, interpreted: interpretedOverride }) {
   const atIso = (state) => hospitalIso(session.clockRoot, state.clock.elapsedMinutes);
   const turnContext = buildTurnContext(session);
 
-  const interpreted = interpretTurn({
+  // The hybrid path is async, so `useSession` resolves the interpretation
+  // first and passes it in. Everything else - tests, replay - uses the
+  // synchronous deterministic interpreter directly. Either way the structured
+  // result is recorded in LEARNER_TURN_RECEIVED, so replay never re-interprets.
+  const interpreted = interpretedOverride ?? interpretTurn({
     text,
     turnContext,
     bundle: session.bundle,
@@ -224,8 +228,11 @@ export function submitLearnerTurn({ session, text, shadowProvider }) {
  * stands (task brief §4.2). Deliberately narrow: enough to disambiguate the
  * same words at different points in the case, and nothing that would let the
  * interpreter reach hidden patient truth.
+ *
+ * Exported so the async hybrid interpreter in `useSession` can build the same
+ * context this function passes to the synchronous deterministic path.
  */
-function buildTurnContext(session) {
+export function buildTurnContext(session) {
   const { state, bundle } = session;
   const pendingDecisionId = state.operative.pendingDecision;
   const pendingDecision = pendingDecisionId ? bundle.operative.decisions[pendingDecisionId] : null;

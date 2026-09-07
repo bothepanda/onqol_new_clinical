@@ -24,8 +24,10 @@ import { withShared } from "../../core/content/loadBundle.js";
 import { seededStartIso } from "./seededStart.js";
 import diseaseBundle from "../../content/generated/appendicitis.json";
 import sharedBundle from "../../content/generated/shared.json";
-import { AI_INTERACTION_V2 } from "../../ai/interaction/featureFlags.js";
+import { AI_INTERACTION_V2, resolveInterpreterMode, INTERPRETER_MODE } from "../../ai/interaction/featureFlags.js";
 import { createGatewayProviderClient } from "../../ai/providerClient.js";
+import { interpretHybrid } from "../../ai/interpreter/hybridInterpreter.js";
+import { buildTurnContext } from "../../core/session/submitLearnerTurn.js";
 import {
   clearPersistedSession,
   createPersistedSession,
@@ -36,6 +38,10 @@ import {
 const bundle = withShared(diseaseBundle, sharedBundle);
 const CASE_PRESET_ID = "APP-004";
 const shadowProvider = createGatewayProviderClient();
+// Wave §17: the app runs the hybrid interpreter only when explicitly built for
+// it (VITE_ONQOL_INTERPRETER=hybrid). Default stays deterministic-only.
+const INTERPRETER_MODE_ACTIVE = resolveInterpreterMode(import.meta.env.VITE_ONQOL_INTERPRETER);
+const interpreterProvider = createGatewayProviderClient({ endpoint: "/api/ai/interpreter" });
 
 function nowIso() {
   return new Date().toISOString();
@@ -107,13 +113,27 @@ export function useSession() {
   }, []);
 
   const submitTurn = useCallback(
-    (text) => {
+    async (text) => {
       if (!session) return;
       setBusy(true);
       setMessages((prev) => [...prev, { id: `${Date.now()}-learner`, role: "learner", speakerRu: null, textRu: text }]);
 
       const learnerVisibleBefore = buildLearnerVisibleState(session.state);
-      const turn = submitLearnerTurn({ session, text, shadowProvider });
+      // Hybrid interpretation is async (it may call the provider gateway); it
+      // is resolved here and handed to the otherwise-synchronous turn pipeline.
+      // Any provider problem inside interpretHybrid falls back to the
+      // deterministic reading before this line returns (fail closed).
+      const interpreted = INTERPRETER_MODE_ACTIVE === INTERPRETER_MODE.HYBRID
+        ? await interpretHybrid({
+            text,
+            turnContext: buildTurnContext(session),
+            bundle: session.bundle,
+            idPrefix: `t${session.state.turn}`,
+            provider: interpreterProvider,
+            locale: session.state.session.locale,
+          })
+        : undefined;
+      const turn = submitLearnerTurn({ session, text, shadowProvider, interpreted });
       const rendered = [];
 
       // Events produced by time passing during a stated wait are narrated in
