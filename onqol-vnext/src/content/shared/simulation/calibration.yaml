@@ -1,0 +1,62 @@
+# Operational simulation calibration — how long a step takes in the simulated
+# department. This is Hospital/World operational data (Governance Spec: resource
+# ETAs, staff arrival times, investigation turnaround are operational facts, not
+# clinical claims and NOT covered by the approved_for_training clinical gate).
+# It is versioned and carries an explicit Clinical-Lead approval anyway, scoped
+# to one case preset + session purpose, so it is auditable and cannot silently
+# leak into another disease or module.
+#
+# Consumed by src/core/session/submitLearnerTurn.js via
+# src/core/session/operationalCalibration.js. When no scoped entry matches, every
+# duration is 0 (the pre-2026-09-07 behaviour) — other diseases are unaffected
+# until they receive their own reviewed calibration.
+
+simulation_calibration:
+  - id: SIMCAL-APP004-OPERATIONAL-DURATIONS-V1
+    scope:
+      case_preset_ids: [APP-004]
+      session_purposes: [learner_pilot, internal_development, faculty_preview]
+    # Minutes of simulated clinical time each learner action consumes AFTER it
+    # executes. Concurrent actions in one turn share one interval (Core Runtime
+    # Spec §7.2) — the turn consumes the MAX of its actions' durations, not the
+    # sum.
+    action_durations_minutes:
+      TAKE_HISTORY: 10          # core history
+      ASK_PATIENT: 1            # focused follow-up history question
+      ASK_FASTING_HISTORY: 1
+      EXAMINE:
+        abdomen: 5              # complete abdominal examination
+        default: 3             # any other focused body region
+      ORDER_TEST: 0             # ordering does not itself advance the clock
+      ORDER_MEDICATION: 0
+      GIVE_ANTIBIOTIC_PROPHYLAXIS: 0
+      ORDER_INFUSION: 0
+      CALL_STAFF: 0            # then the specialist's own etaMinutes applies
+      REQUEST_ANESTHESIA_REVIEW: 0
+    result_delivery:
+      # Ordering an investigation must NOT fast-forward the clock to its own
+      # dueAtMinutes. A pending result is delivered when simulated clinical time
+      # naturally reaches dueAtMinutes through history, examination, treatment,
+      # a stated wait, transport, reassessment or other time-consuming events.
+      advance_clock_to_due_on_order: false
+    provenance:
+      id: SIMCAL-APP004-OPERATIONAL-DURATIONS-V1
+      authority_layer: hospital_world_operational
+      jurisdiction: international
+      source: >-
+        ON QOL Clinical Lead — approved operational simulation durations for the
+        APP-004 learner pilot, 2026-09-07 (interaction reliability remediation wave).
+      source_version_or_date: "2026-09-07"
+      evidence_strength: operational_design_decision
+      review_status: approved_for_training
+      reviewed_by: ["Botagoz Kaukenova — Clinical Lead"]
+      reviewed_at: "2026-09-07"
+      second_review_required: false
+      second_reviewed_by: null
+      second_reviewed_at: null
+      next_review_due: null
+      notes: >-
+        Operational pacing only — not patient truth, not a clinical rule, not a
+        treatment effect. Do NOT reuse these numbers for another disease or
+        module without a separate review. Same category as
+        trajectories.yaml#investigation_timing and hospitalProfiles staff ETAs.

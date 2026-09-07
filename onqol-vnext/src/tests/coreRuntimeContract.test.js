@@ -307,9 +307,10 @@ test("PBC-6 a status request neither restarts the examination nor consumes clini
   const session = saying(newSession("pbc-status-2"), ["живот", "ОАК"]);
   const examsBefore = session.state.observations.examinations.length;
   const eventsBefore = session.events.length;
+  const clockBefore = session.state.clock.elapsedMinutes;
 
   const asked = learnerVisibleText(session, "что с пациентом сейчас?");
-  assert.equal(asked.session.state.clock.elapsedMinutes, 0, "a pure read does not move the clock");
+  assert.equal(asked.session.state.clock.elapsedMinutes, clockBefore, "a pure read does not move the clock");
   assert.equal(asked.session.state.observations.examinations.length, examsBefore, "no re-examination");
   // Only the turn-received bookkeeping event; no domain event at all.
   assert.equal(asked.session.events.length, eventsBefore + 1);
@@ -472,9 +473,11 @@ test("PBC-10 a reassessment with no stated target is clarified BEFORE any time p
 });
 
 test("PBC-10 a stated reassessment advances time and reports the named parameters", () => {
-  const waited = learnerVisibleText(saying(newSession("pbc-reassess-2"), ["живот"]), "переоценю боль и живот через 30 минут");
+  const base = saying(newSession("pbc-reassess-2"), ["живот"]);
+  const clockBefore = base.state.clock.elapsedMinutes;
+  const waited = learnerVisibleText(base, "переоценю боль и живот через 30 минут");
   assert.deepEqual(outcomesOf(waited.turn), ["EXECUTED"]);
-  assert.equal(waited.session.state.clock.elapsedMinutes, 30);
+  assert.equal(waited.session.state.clock.elapsedMinutes - clockBefore, 30, "the stated 30-minute interval is what elapses");
   assert.match(waited.text, /при пальпации/, "an abdominal reassessment re-examines the abdomen");
   assert.equal(/Клинически значимых изменений нет/.test(waited.text), false, "not the generic normal layer");
 });

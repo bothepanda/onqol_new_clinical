@@ -36,6 +36,7 @@ export function createInitialState({ session, patient, hospital, clock }) {
       locale: session.locale,
       jurisdictionContext: session.jurisdictionContext ?? null,
       purpose: session.purpose,
+      casePresetId: session.casePresetId ?? null,
       interactionFlags: { ...(session.interactionFlags ?? {}) },
       presetRuntimeStatus: session.presetRuntimeStatus ?? null,
       productionReleaseAllowed: session.productionReleaseAllowed === true,

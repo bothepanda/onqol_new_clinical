@@ -4,6 +4,7 @@ import { EVENT } from "../events/eventTypes.js";
 import { validateCommand } from "../commands/commandTypes.js";
 import { hospitalIso } from "../time/clock.js";
 import { applyCommands, applyTimeAdvance } from "./applyTurn.js";
+import { resolveOperationalCalibration, turnConsumesMinutes } from "./operationalCalibration.js";
 import { interpretTurn } from "../../ai/interpreter/interpretTurn.js";
 import { decideMentorResponse } from "../../ai/mentor/mentorEngine.js";
 import { isInteractionV2Enabled } from "../../ai/interaction/featureFlags.js";
@@ -144,7 +145,22 @@ export function submitLearnerTurn({ session, text, shadowProvider }) {
   // Rendered AFTER the command's own output, not before it (unlike
   // `timeEvents`, which precede the action that waited for them).
   let afterEvents = [];
-  const consumesMinutes = Math.max(0, ...results.map((result) => result.consumesMinutes ?? 0));
+  // Two sources of "this turn takes clinical time", combined by MAX because
+  // concurrent actions share one interval (Contract §7.2):
+  //  - a command handler that returns its own `consumesMinutes` (TRANSPORT);
+  //  - the operational simulation calibration (history / examination / focused
+  //    questions), a versioned scoped content artifact - NOT a hard-coded
+  //    constant. `src/content/shared/simulation/calibration.yaml`.
+  // Ordering an investigation is deliberately 0: a pending result is delivered
+  // when simulated time NATURALLY reaches its dueAtMinutes through history,
+  // examination, treatment, a stated wait, transport or reassessment.
+  const calibration = resolveOperationalCalibration({
+    bundle: working.bundle,
+    session: working.state.session,
+  });
+  const handlerMinutes = Math.max(0, ...results.map((result) => result.consumesMinutes ?? 0));
+  const calibratedMinutes = turnConsumesMinutes({ calibration, results });
+  const consumesMinutes = Math.max(handlerMinutes, calibratedMinutes);
   if (consumesMinutes > 0) {
     const advanced = applyTimeAdvance({
       session: working,

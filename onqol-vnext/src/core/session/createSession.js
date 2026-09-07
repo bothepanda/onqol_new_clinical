@@ -76,6 +76,7 @@ export function createSession({ sessionId, seed, mode, realProfileId, casePreset
       locale,
       jurisdictionContext,
       purpose: sessionPurpose,
+      casePresetId,
       interactionFlags: resolveInteractionFlags(interactionFlags),
       presetRuntimeStatus: preset.runtime_status,
       productionReleaseAllowed: bundle.disease?.release_gate?.production_allowed === true,

@@ -73,6 +73,7 @@ test("replaying the exported event log from the seed reproduces the exported sta
         mode: session.state.session.mode,
         locale: session.state.session.locale,
         purpose: session.state.session.purpose,
+        casePresetId: session.state.session.casePresetId,
         jurisdictionContext: session.state.session.jurisdictionContext,
         interactionFlags: session.state.session.interactionFlags,
         presetRuntimeStatus: session.state.session.presetRuntimeStatus,
