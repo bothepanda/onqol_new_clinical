@@ -160,6 +160,18 @@ const HANDLERS = {
     const timing = bundle.trajectories.investigation_timing[command.params.testId];
     if (!timing) return { outcome: "UNSUPPORTED_CONTENT", capabilityKey: `test:${command.params.testId}` };
 
+    // Wave §13: the same investigation already ordered and not yet resulted,
+    // and the learner did not explicitly ask for a repeat -> do not create a
+    // second pending copy. This is an operational note, not a learner error
+    // (it is folded as COMMAND_ACCEPTED, never COMMAND_REJECTED). A genuine
+    // recheck after the first has resulted is not blocked, and an explicit
+    // `params.repeat === true` always goes through.
+    const existing = state.investigations[command.params.testId];
+    const stillPending = existing && ["ordered", "in_progress", "preliminary"].includes(existing.status);
+    if (stillPending && command.params.repeat !== true) {
+      return { outcome: "ALREADY_PENDING", command, testId: command.params.testId };
+    }
+
     // Matrix V07 / task §8: an investigation may declare a parameter the order
     // is incomplete without. "БХАК" is the case that matters - it used to
     // auto-populate a whole chemistry panel nobody asked for. The requirement

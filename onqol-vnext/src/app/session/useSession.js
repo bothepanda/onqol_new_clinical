@@ -8,6 +8,7 @@ import {
   renderClarification,
   renderUnsupported,
   renderOrderValidationFailure,
+  renderAlreadyPending,
   renderUnavailableResource,
   renderPreopNotReady,
   renderDischargeNotReady,
@@ -128,6 +129,7 @@ export function useSession() {
           rendered.push(toMessage("env", renderClarification(result.missing, { promptRu: result.clarifyPromptRu, by: result.clarifyBy })));
         else if (result.outcome === "UNSUPPORTED_CONTENT") rendered.push(toMessage("env", renderUnsupported()));
         else if (result.outcome === "ORDER_VALIDATION_FAILED") rendered.push(toMessage("env", renderOrderValidationFailure(result)));
+        else if (result.outcome === "ALREADY_PENDING") rendered.push(toMessage("env", renderAlreadyPending(result)));
         else if (result.outcome === "NO_PENDING_WORK") rendered.push(toMessage("env", renderNoPendingWork()));
         else if (result.outcome === "UNAVAILABLE_RESOURCE") rendered.push(toMessage("env", renderUnavailableResource(result.reasonKey)));
         else if (result.outcome === "PREOP_NOT_READY") rendered.push(toMessage("env", renderPreopNotReady(result.missingItems, bundle)));

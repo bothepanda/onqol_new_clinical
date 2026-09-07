@@ -37,8 +37,19 @@ export function exportSession({ session, generatedAtIso }) {
     // and the interpreter's reading of it, and the per-command trail events
     // carry what the system then did with each command (task brief P0-8).
     learner_turns: buildLearnerTurns(session.events),
+    // Wave §17: which interpreter actually ran, so a reader never has to guess
+    // from `interactionFlags`. `modes` is every distinct mode seen across the
+    // session's turns; `byTurn` is the per-turn record.
+    interpreter: summarizeInterpreter(session.events),
     ai_telemetry: session.aiTelemetry ?? [],
   };
+}
+
+function summarizeInterpreter(events) {
+  const byTurn = events
+    .filter((event) => event.type === "LEARNER_TURN_RECEIVED")
+    .map((event) => event.payload.interpreterMode ?? "deterministic");
+  return { modes: [...new Set(byTurn)], byTurn };
 }
 
 /**

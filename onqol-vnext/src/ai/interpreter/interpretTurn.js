@@ -7,7 +7,10 @@ import { interpretDeterministically } from "./deterministicInterpreter.js";
  * telemetry-only authority.
  */
 export function interpretTurn(input) {
-  return interpretDeterministically(input);
+  const result = interpretDeterministically(input);
+  // Wave §17: the session record must say which interpreter actually ran each
+  // turn. Until the hybrid semantic path is wired, every turn is deterministic.
+  return { mode: "deterministic", ...result };
 }
 
 export { interpretDeterministically };

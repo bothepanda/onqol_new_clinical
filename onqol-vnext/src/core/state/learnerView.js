@@ -48,10 +48,17 @@ export function buildLearnerVisibleState(state) {
     // and still get the full detail; only this projection is narrowed.
     simulatorLimitations: [...new Set(state.simulatorLimitations.map((entry) => entry.kind))],
     revealedFindings: [...state.revealed.findings],
+    // Only investigations whose result (preliminary or final) the learner has
+    // actually been shown - `state.revealed.results` is now populated solely by
+    // TEST_PRELIMINARY_REPORTED / TEST_RESULTED (wave §16).
     revealedResults: state.revealed.results
       .map((id) => state.investigations[id])
       .filter(Boolean)
       .map((inv) => ({ id: inv.id, status: inv.status, preliminary: inv.preliminary, result: inv.result })),
+    // Every investigation the learner has ordered, status only - no result or
+    // preliminary content (that stays gated by `revealed.results`). The learner
+    // ordered these and knows they are running; status is not hidden truth.
+    orderedInvestigations: Object.values(state.investigations).map((inv) => ({ id: inv.id, status: inv.status })),
     revealedConstraints: [...state.hospital.constraints].filter((c) =>
       state.revealed.constraints.includes(c.id),
     ),

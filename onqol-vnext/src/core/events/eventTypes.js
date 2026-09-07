@@ -117,14 +117,13 @@ export const DISCLOSING_EVENTS = Object.freeze([
   EVENT.VITALS_OBSERVED,
   EVENT.PATIENT_QUESTION_ANSWERED,
   EVENT.FASTING_HISTORY_OBTAINED,
-  // Ordering an investigation discloses that it is running. The learner
-  // obviously knows what they just ordered, and Contract §6's own worked
-  // example of a status snapshot ends "CT formal report is pending" - which
-  // the snapshot could never say while an ordered-but-unresulted test was
-  // absent from `revealed.results`. It discloses the ORDER, never the result:
-  // TEST_ORDERED carries no `findingIds`, and the value stays hidden until
-  // TEST_PRELIMINARY_REPORTED or TEST_RESULTED lands.
-  EVENT.TEST_ORDERED,
+  // TEST_ORDERED is deliberately NOT here (wave §16). `revealed.results` means
+  // "a result the learner has actually seen"; an ordered-but-unresulted test
+  // has no result and must not sit in it. The fact that an order is pending is
+  // carried by `state.investigations[id].status` and surfaced to the learner
+  // via `learnerView.orderedInvestigations` - so the status snapshot can still
+  // say "CT formal report is pending" (Contract §6) without the semantic
+  // contradiction of an id in `revealed.results` whose `result` is null.
   EVENT.TEST_PRELIMINARY_REPORTED,
   EVENT.TEST_RESULTED,
   EVENT.OPERATIVE_FINDING_REVEALED,

@@ -59,6 +59,9 @@ export function submitLearnerTurn({ session, text, shadowProvider }) {
     payload: {
       rawText: text,
       intent: interpreted.intent,
+      // Wave §17: which interpreter produced this reading - "deterministic" or
+      // (Stage 2) "hybrid" / "hybrid_fallback_deterministic".
+      interpreterMode: interpreted.mode ?? "deterministic",
       mentorSignal: interpreted.mentorSignal ?? null,
       unmatchedFragments: interpreted.unmatchedFragments ?? [],
       interpretedCommands: interpreted.commands.map((c) => ({ id: c.id, type: c.type, params: c.params })),
@@ -185,7 +188,14 @@ export function submitLearnerTurn({ session, text, shadowProvider }) {
         // What the learner ALREADY supplied, so the answer to the
         // clarification can be merged into it rather than replacing it (PBC-8).
         params: result.command?.params ?? null,
-        reasonKey: result.reasonKey ?? null,
+        // Wave §12: every clinical / order-validation failure must land in the
+        // record as a deterministic, explainable category - never
+        // `ORDER_VALIDATION_FAILED` with reasonKey null, ruleIds [] and no text.
+        // `validateMedicationOrder` names its reason `code` and carries a
+        // learner-facing `textRu` + `classification`; thread all three.
+        reasonKey: result.reasonKey ?? result.code ?? null,
+        reasonTextRu: result.textRu ?? null,
+        classification: result.classification ?? null,
         capabilityKey: result.capabilityKey ?? null,
         ruleIds: result.firedRules?.map((rule) => rule.id) ?? [],
         governanceBlocked: result.governanceBlocked ?? [],
@@ -259,7 +269,8 @@ function recordMentorIntervention(session, mentor, atIso) {
 }
 
 function trailEventTypeFor(outcome) {
-  if (outcome === "EXECUTED" || outcome === "NO_PENDING_WORK") return EVENT.COMMAND_ACCEPTED;
+  // ALREADY_PENDING is an operational no-op, not a learner error (wave §13).
+  if (["EXECUTED", "NO_PENDING_WORK", "ALREADY_PENDING"].includes(outcome)) return EVENT.COMMAND_ACCEPTED;
   if (outcome === "CLARIFY") return EVENT.CLARIFICATION_REQUESTED;
   return EVENT.COMMAND_REJECTED;
 }

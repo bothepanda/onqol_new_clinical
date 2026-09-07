@@ -71,6 +71,16 @@ function componentDoseMatches(component, item) {
   return component.dose_mg_per_kg != null && item.doseMgPerKg === component.dose_mg_per_kg;
 }
 
+/**
+ * Every failure this function can return is a CONFORMANCE boundary — the order
+ * is outside the reviewed pilot regimen (unknown route, dose not in the
+ * approved set/range, not yet reviewed, cumulative pilot maximum, minimum
+ * interval). Wave §12 / activation §11: that is an order-validation boundary,
+ * NOT an instantaneous toxicity threshold, and it must not be recorded as
+ * `reviewed_unsafe`. A genuine reviewed contraindication (allergy, NSAID in a
+ * reviewed major contraindication) is classified where that rule lives, not
+ * here.
+ */
 function failure(code, textRu) {
-  return { ok: false, classification: "reviewed_unsafe", code, textRu };
+  return { ok: false, classification: "order_outside_pilot_schema", code, textRu };
 }

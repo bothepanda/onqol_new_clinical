@@ -29,7 +29,7 @@ export function renderStatusSnapshot(learnerVisible) {
   // pending", so pending work belongs in the snapshot - named the way the
   // learner ordered it, not by internal id. The previous line printed
   // `r.id`, which would have read "Ожидают результата: cbc, ct_abdomen".
-  const pendingRu = learnerVisible.revealedResults
+  const pendingRu = (learnerVisible.orderedInvestigations ?? [])
     .filter((r) => r.status === "ordered" || r.status === "in_progress")
     .map((r) => TEST_LABEL_RU[r.id] ?? r.id)
     .join(", ");
@@ -172,6 +172,16 @@ export function renderOrderValidationFailure(result) {
     speakerRu: "Медсестра",
     textRu: result.textRu ?? "Назначение не соответствует одобренной пилотной схеме; уточни препарат, дозу и путь введения.",
   };
+}
+
+/**
+ * The same investigation was already ordered and its result is still pending
+ * (wave §13). An operational note from the lab/diagnostics, not a rejection -
+ * the learner is not penalised and no second pending copy is created.
+ */
+export function renderAlreadyPending(result) {
+  const label = TEST_LABEL_RU[result.testId] ?? result.testId ?? "Исследование";
+  return { speakerRu: "Лаборатория/Диагностика", textRu: `${label}: уже заказано, результат ожидается.` };
 }
 
 export function renderNoPendingWork() {

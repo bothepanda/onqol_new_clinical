@@ -27,6 +27,7 @@ function snapshotFor(learnerVisiblePatch) {
     painState: "post_source_control",
     postopPainStage: null,
     revealedResults: [],
+    orderedInvestigations: [],
   };
   return renderStatusSnapshot({ ...base, ...learnerVisiblePatch });
 }
