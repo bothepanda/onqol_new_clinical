@@ -32,7 +32,7 @@ const PARAMETER_SCHEMAS = Object.freeze({
   [COMMAND.DISPOSITION]: ["destination"], [COMMAND.TRANSFER]: ["destination"],
 });
 
-const HIGH_RISK_ACTIONS = new Set([
+export const HIGH_RISK_ACTIONS = new Set([
   COMMAND.ORDER_PROCEDURE,
   COMMAND.START_PROCEDURE,
   COMMAND.OPERATIVE_DECISION,
@@ -198,6 +198,24 @@ function validateLexicalGrounding(item, errors) {
   if (item.params.targets && item.params.targets.some((id) => !containsAny(evidence, aliasesFor(MONITORING_TARGETS, id)))) {
     errors.push("params.targets_not_grounded");
   }
+}
+
+/**
+ * Which param carries the concept a failed lexical-grounding check was about,
+ * restricted to non-high-risk order types (Core Runtime Spec §48 CLARIFY
+ * only ever asks for a value the learner already implied it would give -
+ * DISPOSITION/TRANSFER/OPERATIVE_DECISION/etc. stay out of this entirely).
+ */
+export function identifyingParamKey(item) {
+  if (HIGH_RISK_ACTIONS.has(item.type)) return null;
+  const { params } = item;
+  if (params.testId) return "testId";
+  if (params.drugId) return "drugId";
+  if (params.fluidId) return "fluidId";
+  if (params.region) return "region";
+  if (params.topic) return "topic";
+  if (params.role) return "role";
+  return null;
 }
 
 function conceptAnchors(item) {

@@ -1,7 +1,7 @@
 import { createCommand, validateCommand } from "../../core/commands/commandTypes.js";
 import { stage2ActionFormat, normalizeStage2Output, stage2SafeContext } from "./stage2ActionSchema.js";
 import { bindModelCommands } from "./deterministicParameterBinder.js";
-import { buildModelAllowlist, detectParameterInventions, validateModelConcepts } from "./modelConceptValidation.js";
+import { buildModelAllowlist, detectParameterInventions, identifyingParamKey, validateModelConcepts } from "./modelConceptValidation.js";
 import {
   ACTION_RESPONSE_FORMAT,
   MENTOR_RESPONSE_FORMAT,
@@ -270,7 +270,7 @@ function validateActionTask({ output, text, turnContext, allowlist }) {
     const command = createCommand({ id: `wave23-shadow-${item.index}`, type: item.command.type, params: item.command.params, sourceText: item.command.evidence });
     return { index: item.index, ...validateCommand(command) };
   });
-  const errors = [...concepts.errors];
+  const rawErrors = [...concepts.errors];
   for (const validation of commandValidation) {
     if (validation.outcome !== "CLARIFY") continue;
     const detail = concepts.actionValidation[validation.index];
@@ -278,10 +278,35 @@ function validateActionTask({ output, text, turnContext, allowlist }) {
       detail.eligibleForBinding = false;
       if (!detail.errors.includes("missing_required_parameter")) detail.errors.push("missing_required_parameter");
     }
-    errors.push(`clinicalActions[${validation.index}].missing_required_parameter`);
+    rawErrors.push(`clinicalActions[${validation.index}].missing_required_parameter`);
   }
   const proposedCommands = bindingDiagnostics.map((item) => item.command);
   const acceptedCommands = proposedCommands.filter((_, index) => concepts.actionValidation[index]?.eligibleForBinding && commandValidation[index]?.outcome === "SUFFICIENT");
+
+  // A proposal whose only problem is that its identifying concept (which test,
+  // which drug, which region...) is not grounded in the learner's own words is
+  // not evidence of invention - it is the same "recognised but incomplete
+  // order" shape `validateCommand` already turns into a CLARIFY for a missing
+  // required parameter (Contract §10). Strip the ungrounded identifier and let
+  // the existing structural-completeness path ask for it, instead of silently
+  // discarding the whole turn. High-risk action types never qualify (see
+  // `identifyingParamKey`), and anything with a *different* kind of error
+  // (an invented id, unverifiable evidence, an injection) is still rejected.
+  const ambiguousCommands = [];
+  proposedCommands.forEach((command, index) => {
+    const detail = concepts.actionValidation[index];
+    if (!detail || detail.eligibleForBinding) return;
+    if (!detail.errors.includes("lexical_anchor_missing")) return;
+    if (detail.errors.some((error) => error !== "lexical_anchor_missing" && error !== "missing_required_parameter")) return;
+    const key = identifyingParamKey(command);
+    if (!key || command.params[key] == null) return;
+    const params = Object.fromEntries(Object.entries(command.params).filter(([paramKey]) => paramKey !== key));
+    ambiguousCommands.push({ index, type: command.type, params, evidence: command.evidence, evidenceSpans: command.evidenceSpans });
+  });
+  const ambiguousIndexes = new Set(ambiguousCommands.map((item) => item.index));
+  const errors = ambiguousIndexes.size
+    ? rawErrors.filter((error) => !isAmbiguousResolvedError(error, ambiguousIndexes))
+    : rawErrors;
   const afterBinder = detectParameterInventions({
     output: {
       ...legacyShape,
@@ -299,8 +324,14 @@ function validateActionTask({ output, text, turnContext, allowlist }) {
     commandValidation,
     proposedCommands,
     acceptedCommands,
+    ambiguousCommands,
     inventions: { ...concepts.inventions, beforeBinder: concepts.inventions, afterBinder },
   };
+}
+
+function isAmbiguousResolvedError(error, ambiguousIndexes) {
+  const match = /^clinicalActions\[(\d+)\]\.(lexical_anchor_missing|missing_required_parameter)$/.exec(error);
+  return Boolean(match) && ambiguousIndexes.has(Number(match[1]));
 }
 
 function validateReasoningTask({ output, text, allowlist }) {

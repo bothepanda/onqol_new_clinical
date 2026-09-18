@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import diseaseBundle from "../../content/generated/appendicitis.json" with { type: "json" };
 import sharedBundle from "../../content/generated/shared.json" with { type: "json" };
 import { withShared } from "../../core/content/loadBundle.js";
-import { buildSemanticTaskRequest, routeSemanticTasks, runSplitSemanticShadow } from "./splitSemanticInterpreter.js";
+import { buildSemanticTaskRequest, interpretSemanticTask, routeSemanticTasks, runSplitSemanticShadow } from "./splitSemanticInterpreter.js";
 import {
   ACTION_RESPONSE_FORMAT,
   MENTOR_RESPONSE_FORMAT,
@@ -142,4 +142,40 @@ test("one task failure does not corrupt another task output", async () => {
   assert.equal(result.acceptedCommands.length, 1);
   assert.equal(result.clinicalAuthority, "none");
   assert.equal(result.executedSource, "deterministic");
+});
+
+test("a proposal whose only problem is an ungrounded identifying concept is turned into a CLARIFY-eligible command, not dropped", async () => {
+  const text = "надо бы кровь на воспаление глянуть";
+  const result = await interpretSemanticTask({
+    task: SEMANTIC_TASK.ACTION,
+    provider: provider({
+      [SEMANTIC_TASK.ACTION]: {
+        clinicalActions: [{ type: "ORDER_TEST", params: { testId: "crp" }, evidenceSpans: [text], statedParameters: [] }],
+        patientQuestions: [], ambiguities: [], unresolvedFragments: [], meta,
+      },
+    }),
+    text, locale: "ru", turnContext: {}, bundle,
+  });
+  assert.equal(result.status, "valid", "an ungrounded-only identifier must not fail the whole turn");
+  assert.equal(result.acceptedCommands.length, 0, "the model's specific guess is never silently accepted");
+  assert.equal(result.ambiguousCommands.length, 1);
+  assert.equal(result.ambiguousCommands[0].type, "ORDER_TEST");
+  assert.equal("testId" in result.ambiguousCommands[0].params, false, "the ungrounded concept is stripped, not guessed");
+});
+
+test("a high-risk action with an ungrounded target is still rejected outright, never turned into a clarification", async () => {
+  const text = "переведите в отделение";
+  const result = await interpretSemanticTask({
+    task: SEMANTIC_TASK.ACTION,
+    provider: provider({
+      [SEMANTIC_TASK.ACTION]: {
+        clinicalActions: [{ type: "TRANSFER", params: { destination: "icu" }, evidenceSpans: [text], statedParameters: [] }],
+        patientQuestions: [], ambiguities: [], unresolvedFragments: [], meta,
+      },
+    }),
+    text, locale: "ru", turnContext: {}, bundle,
+  });
+  assert.equal(result.ambiguousCommands.length, 0, "high-risk action types never get the ambiguity pass-through");
+  assert.equal(result.status, "concept_validation_failure");
+  assert.equal(result.acceptedCommands.length, 0);
 });

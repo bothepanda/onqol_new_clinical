@@ -66,7 +66,14 @@ export async function interpretHybrid({
   }
 
   const accepted = semantic.acceptedCommands ?? [];
-  if (accepted.length === 0) {
+  // A command whose only problem was an ungrounded identifying concept (see
+  // `identifyingParamKey`) arrives here with that concept already stripped.
+  // It is merged in exactly like any accepted command; `validateCommand`
+  // downstream (`executeCommand.js`) then reads it as an ordinary incomplete
+  // order and asks the learner which one they meant - the same CLARIFY path
+  // used for any other missing required parameter, never a model guess.
+  const ambiguous = semantic.ambiguousCommands ?? [];
+  if (accepted.length === 0 && ambiguous.length === 0) {
     // The model resolved nothing new - keep the deterministic reading, so its
     // own unresolved fragments still surface to the learner as clarifications.
     return {
@@ -77,7 +84,7 @@ export async function interpretHybrid({
   }
 
   const mergeRejected = [];
-  const added = mergeSemanticCommands({ deterministic, accepted, idPrefix, rejected: mergeRejected });
+  const added = mergeSemanticCommands({ deterministic, accepted: [...accepted, ...ambiguous], idPrefix, rejected: mergeRejected });
   const commands = [...deterministic.commands, ...added];
   const covered = coveredSpans(added);
   const unmatchedFragments = (deterministic.unmatchedFragments ?? []).filter(
@@ -97,7 +104,7 @@ export async function interpretHybrid({
     rawText: text.trim(),
     mentorSignal: deterministic.mentorSignal ?? null,
     answeredMentorQuestion: deterministic.answeredMentorQuestion ?? false,
-    semanticTelemetry: telemetryOf(semantic, { added: added.length, addedCommands: added,
+    semanticTelemetry: telemetryOf(semantic, { added: added.length, addedCommands: added, ambiguousProposed: ambiguous.length,
       rejected: [...(semantic.actionValidation ?? []).filter((item) => !item.eligibleForBinding), ...mergeRejected] }),
   };
 }

@@ -97,3 +97,21 @@ test("valid-but-empty semantic result keeps the deterministic reading and its un
   assert.equal(result.mode, "hybrid");
   assert.ok((result.unmatchedFragments ?? []).length > 0, "the fragment still surfaces to the learner");
 });
+
+test("a proposal ungrounded only in its identifying concept is merged in stripped, so the learner is asked to clarify instead of the turn silently doing nothing", async () => {
+  const text = "надо бы кровь на воспаление глянуть";
+  const result = await interpretHybrid(base(text, {
+    runSemantic: async () => ({
+      status: "valid",
+      elapsedMs: 30,
+      acceptedCommands: [],
+      ambiguousCommands: [{ type: "ORDER_TEST", params: {}, evidence: text, evidenceSpans: [text] }],
+    }),
+  }));
+  assert.equal(result.mode, "hybrid");
+  const order = result.commands.find((c) => c.type === "ORDER_TEST" && c.sourceText === text);
+  assert.ok(order, "the recognised-but-unspecified order reaches the command pipeline");
+  assert.equal(order.params.testId, undefined, "no specific test is guessed");
+  const { validateCommand } = await import("../../core/commands/commandTypes.js");
+  assert.deepEqual(validateCommand(order), { outcome: "CLARIFY", missing: ["testId"] });
+});
