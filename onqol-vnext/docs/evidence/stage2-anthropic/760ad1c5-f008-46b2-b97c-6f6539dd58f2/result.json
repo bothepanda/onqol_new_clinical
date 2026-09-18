@@ -1,0 +1,58 @@
+{
+  "results": [
+    {
+      "text": "оам и общий анализ крови",
+      "mode": "hybrid_fallback_deterministic",
+      "intent": "CLINICAL_ACTION",
+      "commands": [
+        {
+          "id": "cmd-c0",
+          "type": "ORDER_TEST",
+          "params": {
+            "testId": "urinalysis"
+          },
+          "sourceText": "оам"
+        }
+      ],
+      "rawText": "оам и общий анализ крови",
+      "unmatchedFragments": [
+        "общий анализ крови"
+      ],
+      "answeredMentorQuestion": false,
+      "semanticTelemetry": {
+        "status": "fallback",
+        "errorCode": "provider_error",
+        "model": null,
+        "costUsd": null,
+        "clinicalAuthority": "none",
+        "elapsedMs": 763,
+        "providerMeta": null,
+        "conceptErrors": [],
+        "schemaErrors": [],
+        "proposed": 0,
+        "proposedCommands": [],
+        "rejected": [],
+        "added": 0,
+        "semanticStatus": "provider_transport_error"
+      }
+    }
+  ],
+  "raw": [
+    {
+      "seq": 1,
+      "receivedAt": "2026-09-08T17:31:39.743Z",
+      "status": 400,
+      "rawBody": "{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Schemas contains too many parameters with union types (22 parameters with type arrays or anyOf). This causes exponential compilation cost. Reduce the number of nullable or union-typed parameters (limit: 16 parameters with unions).\"},\"request_id\":\"req_011CerNUQwhMyS1bLq1yaQKc\"}",
+      "requestId": null,
+      "payload": {
+        "type": "error",
+        "error": {
+          "type": "invalid_request_error",
+          "message": "Schemas contains too many parameters with union types (22 parameters with type arrays or anyOf). This causes exponential compilation cost. Reduce the number of nullable or union-typed parameters (limit: 16 parameters with unions)."
+        },
+        "request_id": "req_011CerNUQwhMyS1bLq1yaQKc"
+      },
+      "journalFile": "docs/evidence/stage2-anthropic/760ad1c5-f008-46b2-b97c-6f6539dd58f2/a9c4a9bf-0ee2-4a90-b40b-535c35684032.jsonl"
+    }
+  ]
+}

@@ -1,0 +1,81 @@
+{
+  "generatedAt": "2026-09-08T07:01:01.240Z",
+  "status": "PROVIDER_UNAVAILABLE",
+  "preflight": {
+    "status": "PASS",
+    "httpStatus": 200,
+    "modelAvailable": true,
+    "errorCode": null,
+    "config": {
+      "model": "gpt-5-mini",
+      "endpointMode": "chat_completions",
+      "endpoint": "https://api.openai.com/v1/chat/completions",
+      "reasoningEffort": "minimal",
+      "pricing": {
+        "inputPerMillionUsd": 0.25,
+        "outputPerMillionUsd": 2
+      },
+      "maxCompletionTokens": 2048,
+      "sessionMaxCalls": 40,
+      "sessionMaxUsd": 0.25,
+      "pilotMaxUsd": 5
+    },
+    "keyRotationVerified": false
+  },
+  "providerAnswered": false,
+  "validSchema": false,
+  "injectionSafe": null,
+  "results": [
+    {
+      "text": "оак и гляньте желчный на ультразвуке",
+      "mode": "hybrid_fallback_deterministic",
+      "intent": "CLINICAL_ACTION",
+      "commands": [
+        {
+          "id": "cmd-c0",
+          "type": "ORDER_TEST",
+          "params": {
+            "testId": "cbc"
+          },
+          "sourceText": "оак"
+        }
+      ],
+      "rawText": "оак и гляньте желчный на ультразвуке",
+      "unmatchedFragments": [
+        "гляньте желчный на ультразвуке"
+      ],
+      "answeredMentorQuestion": false,
+      "semanticTelemetry": {
+        "status": "fallback",
+        "errorCode": "provider_quota",
+        "model": null,
+        "costUsd": null,
+        "clinicalAuthority": "none",
+        "elapsedMs": 4565,
+        "providerMeta": null,
+        "conceptErrors": [],
+        "schemaErrors": [],
+        "proposed": 0,
+        "proposedCommands": [],
+        "rejected": [],
+        "added": 0,
+        "semanticStatus": "provider_transport_error"
+      },
+      "fallbackPreserved": true
+    }
+  ],
+  "rawProviderResponses": [
+    {
+      "status": 429,
+      "payload": {
+        "error": {
+          "message": "You have no credits remaining. Add credits to continue using the API at https://platform.openai.com/settings/organization/billing/.",
+          "type": "insufficient_quota",
+          "param": null,
+          "code": "credit_balance_exhausted"
+        }
+      },
+      "requestId": "req_814d6e636d2d435c914710d731cc4c71"
+    }
+  ]
+}

@@ -56,6 +56,7 @@ export default function App() {
               ) : (
                 <>
                   <ChatShell messages={messages} />
+                  {busy && <div role="status" aria-live="polite" className="onqol-turn-status">{locale === "kk" ? "Өңделуде…" : "Обрабатывается…"}</div>}
                   <Composer locale={locale} disabled={busy} onSubmit={submitTurn} />
                 </>
               )}

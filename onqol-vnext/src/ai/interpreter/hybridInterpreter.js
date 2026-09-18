@@ -21,6 +21,7 @@ import { createCommand } from "../../core/commands/commandTypes.js";
 import { interpretDeterministically } from "./deterministicInterpreter.js";
 import { interpretSemanticTask } from "./splitSemanticInterpreter.js";
 import { SEMANTIC_TASK } from "./semanticTaskSchemas.js";
+import { INTERPRETER_BUDGET } from "../modelConfig.js";
 
 /** Words that make a "nothing matched" turn look like an attempted action. */
 const ACTIONABLE_HINT = /назнач|закаж|заказ|сделай|сделать|дай|дать|введ|вводи|бер[уи]|начина|провед|осмотр|анализ|исследов|препарат|мг|мл|в\/в|в\/м|п\/к/i;
@@ -32,29 +33,33 @@ export async function interpretHybrid({
   idPrefix = "cmd",
   provider = null,
   locale = "ru",
-  timeoutBudgetMs = 20_000,
+  timeoutBudgetMs = INTERPRETER_BUDGET.hybridMs,
   // Injectable for tests; production always uses the real semantic task.
   runSemantic = interpretSemanticTask,
 }) {
+  const started = Date.now();
   const deterministic = interpretDeterministically({ text, turnContext, idPrefix, bundle });
 
   if (!shouldEscalate(deterministic, text) || !provider?.isConfigured) {
-    return { mode: "deterministic", ...deterministic };
+    return { mode: "deterministic", ...deterministic, semanticTelemetry: telemetryOf({ status: "not_called" }, {
+      errorCode: !provider?.isConfigured ? "no_provider_configured" : null, added: 0, costUsd: 0, elapsedMs: Date.now() - started,
+    }) };
   }
 
   let semantic;
   try {
     semantic = await withTimeout(
-      runSemantic({ task: SEMANTIC_TASK.ACTION, provider, text, locale, turnContext, bundle }),
+      runSemantic({ task: SEMANTIC_TASK.ACTION, provider, text, locale, turnContext, bundle, strictAction: true }),
       timeoutBudgetMs,
     );
   } catch (error) {
-    return failClosed(deterministic, { errorCode: error?.message ?? "semantic_call_threw" });
+    return failClosed(deterministic, { errorCode: error?.message ?? "semantic_call_threw", elapsedMs: Date.now() - started });
   }
 
   if (!semantic || semantic.status !== "valid") {
     return failClosed(deterministic, {
-      errorCode: semantic?.status ?? "semantic_unavailable",
+      ...telemetryOf(semantic ?? {}, { added: 0 }),
+      errorCode: semantic?.errorCode ?? semantic?.status ?? "semantic_unavailable",
       semanticStatus: semantic?.status ?? null,
       elapsedMs: semantic?.elapsedMs ?? null,
     });
@@ -71,7 +76,8 @@ export async function interpretHybrid({
     };
   }
 
-  const added = mergeSemanticCommands({ deterministic, accepted, idPrefix });
+  const mergeRejected = [];
+  const added = mergeSemanticCommands({ deterministic, accepted, idPrefix, rejected: mergeRejected });
   const commands = [...deterministic.commands, ...added];
   const covered = coveredSpans(added);
   const unmatchedFragments = (deterministic.unmatchedFragments ?? []).filter(
@@ -91,7 +97,8 @@ export async function interpretHybrid({
     rawText: text.trim(),
     mentorSignal: deterministic.mentorSignal ?? null,
     answeredMentorQuestion: deterministic.answeredMentorQuestion ?? false,
-    semanticTelemetry: telemetryOf(semantic, { added: added.length }),
+    semanticTelemetry: telemetryOf(semantic, { added: added.length, addedCommands: added,
+      rejected: [...(semantic.actionValidation ?? []).filter((item) => !item.eligibleForBinding), ...mergeRejected] }),
   };
 }
 
@@ -107,7 +114,7 @@ function failClosed(deterministic, diagnostics) {
   return {
     mode: "hybrid_fallback_deterministic",
     ...deterministic,
-    semanticTelemetry: { status: "fallback", clinicalAuthority: "none", ...diagnostics },
+    semanticTelemetry: { ...telemetryOf({}, { added: 0 }), ...diagnostics, status: "fallback", clinicalAuthority: "none" },
   };
 }
 
@@ -117,7 +124,7 @@ function failClosed(deterministic, diagnostics) {
  * carrying the same primary concept, so the model cannot silently override a
  * deterministic reading.
  */
-function mergeSemanticCommands({ deterministic, accepted, idPrefix }) {
+function mergeSemanticCommands({ deterministic, accepted, idPrefix, rejected }) {
   const deterministicKeys = new Set(deterministic.commands.map(primaryKey));
   const out = [];
   accepted.forEach((candidate, index) => {
@@ -127,8 +134,10 @@ function mergeSemanticCommands({ deterministic, accepted, idPrefix }) {
       params: candidate.params ?? {},
       sourceText: candidate.evidence ?? (candidate.evidenceSpans ?? []).join(" "),
     });
-    if (deterministicKeys.has(primaryKey(command))) return;
-    if (out.some((existing) => primaryKey(existing) === primaryKey(command))) return;
+    if (deterministicKeys.has(primaryKey(command)) || out.some((existing) => primaryKey(existing) === primaryKey(command))) {
+      rejected.push({ index, type: candidate.type, reason: "duplicate_primary_concept" });
+      return;
+    }
     out.push(command);
   });
   return out;
@@ -150,12 +159,17 @@ function coveredSpans(commands) {
 function telemetryOf(semantic, extra) {
   return {
     status: semantic.status,
+    errorCode: semantic.errorCode ?? null,
+    model: semantic.providerMeta?.model ?? null,
+    costUsd: semantic.providerMeta?.costUsd ?? null,
     clinicalAuthority: "none",
     elapsedMs: semantic.elapsedMs ?? null,
     providerMeta: semantic.providerMeta ?? null,
     conceptErrors: semantic.conceptErrors ?? [],
     schemaErrors: semantic.schemaErrors ?? [],
     proposed: (semantic.proposedCommands ?? []).length,
+    proposedCommands: semantic.proposedCommands ?? [],
+    rejected: (semantic.actionValidation ?? []).filter((item) => !item.eligibleForBinding),
     ...extra,
   };
 }

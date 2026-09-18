@@ -18,6 +18,9 @@ export default defineConfig(({ mode }) => {
         configureServer(server) {
           server.middlewares.use(gateway);
         },
+        configurePreviewServer(server) {
+          server.middlewares.use(gateway);
+        },
       },
     ],
     build: {

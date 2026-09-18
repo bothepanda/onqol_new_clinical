@@ -1,0 +1,10 @@
+{
+  "status": "PASS",
+  "pageStatus": 200,
+  "apiStatus": 501,
+  "apiBody": {
+    "error": "no_provider_configured"
+  },
+  "externalProviderCalls": 0,
+  "generatedAt": "2026-09-08T18:12:44.471Z"
+}

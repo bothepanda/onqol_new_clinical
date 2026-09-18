@@ -140,12 +140,13 @@ const rebuilt = reduceEvents(
 );
 check("event-log replay reproduces state without re-interpreting", JSON.stringify(rebuilt) === JSON.stringify(exported.current_state));
 
-const outPath = path.join(root, "docs/evidence/INTERACTION_WAVE_ACCEPTANCE_2026-09-07.json");
+const evidenceDate = new Date().toISOString().slice(0, 10);
+const outPath = path.join(root, `docs/evidence/INTERACTION_WAVE_ACCEPTANCE_${evidenceDate}.json`);
 const allPass = checks.every((c) => c.pass);
 mkdirSync(path.dirname(outPath), { recursive: true });
 writeFileSync(outPath, `${JSON.stringify({
   status: allPass ? "PASS" : "FAIL",
-  generatedAt: "2026-09-07",
+  generatedAt: evidenceDate,
   interpreter: exported.interpreter,
   finalElapsedMinutes: session.state.clock.elapsedMinutes,
   checks,

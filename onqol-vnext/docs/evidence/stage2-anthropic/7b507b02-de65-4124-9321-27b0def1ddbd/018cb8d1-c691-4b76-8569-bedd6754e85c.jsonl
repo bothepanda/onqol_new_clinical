@@ -1,0 +1,1 @@
+{"seq":1,"receivedAt":"2026-09-08T17:32:26.011Z","status":400,"rawBody":"{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.\"},\"request_id\":\"req_011CerNXp64dxGuA6PMpNq1b\"}","requestId":null}

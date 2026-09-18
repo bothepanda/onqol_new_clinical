@@ -1,0 +1,53 @@
+{
+  "generatedAt": "2026-09-08T07:09:23.976Z",
+  "status": "PASS",
+  "result": {
+    "mode": "hybrid_fallback_deterministic",
+    "intent": "CLINICAL_ACTION",
+    "commands": [
+      {
+        "id": "cmd-c0",
+        "type": "ORDER_TEST",
+        "params": {
+          "testId": "cbc"
+        },
+        "sourceText": "оак"
+      }
+    ],
+    "rawText": "оак и ультразвук живота",
+    "unmatchedFragments": [
+      "ультразвук живота"
+    ],
+    "answeredMentorQuestion": false,
+    "semanticTelemetry": {
+      "status": "fallback",
+      "errorCode": "provider_auth",
+      "model": null,
+      "costUsd": null,
+      "clinicalAuthority": "none",
+      "elapsedMs": 1263,
+      "providerMeta": null,
+      "conceptErrors": [],
+      "schemaErrors": [],
+      "proposed": 0,
+      "proposedCommands": [],
+      "rejected": [],
+      "added": 0,
+      "semanticStatus": "provider_transport_error"
+    }
+  },
+  "rawProviderResponses": [
+    {
+      "status": 401,
+      "payload": {
+        "error": {
+          "message": "Incorrect API key provided: stage2-i****************alid. You can find your API key at https://platform.openai.com/account/api-keys.",
+          "type": "invalid_request_error",
+          "param": null,
+          "code": "invalid_api_key"
+        }
+      },
+      "requestId": "req_bd4973d901994fae8c52193a9b9dcea8"
+    }
+  ]
+}

@@ -178,6 +178,8 @@ One `learner_pilot` APP-004 session, deterministic interpreter, natural Russian
 
 ## 9. Remaining risks / known gaps
 
+**Stage 2 follow-up, 2026-09-08:** gateway hosting, strict ACTION transport, timeout handling, per-turn export telemetry and mock browser coverage are implemented. A real request reached the provider but returned 429 `credit_balance_exhausted`; a deliberately invalid key returned 401 with preserved fallback. No successful live interpretation, corpus improvement or fresh successful hybrid pilot session is demonstrated. The 200-record candidate corpus is draft, has only 9 real pilot utterances and cannot satisfy the required 60. Stage 2 remains NO-GO; see [full report](./STAGE2_HYBRID_INTERPRETER_REPORT_2026-09-08.md). The original Stage 1 assessment below is historical.
+
 1. **Hybrid semantic path unverified against a real model.** Built, unit-tested, and
    fail-closed-verified against a live (failing) provider, but the "the model actually
    improves interpretation" claim is not demonstrated — the supplied key had no credits.

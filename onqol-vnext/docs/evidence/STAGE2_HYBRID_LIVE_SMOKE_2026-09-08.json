@@ -1,0 +1,23 @@
+{
+  "status": "NOT_CONFIGURED",
+  "preflight": {
+    "status": "NOT_CONFIGURED",
+    "config": {
+      "model": "gpt-5-mini",
+      "endpointMode": "chat_completions",
+      "endpoint": "https://api.openai.com/v1/chat/completions",
+      "reasoningEffort": "minimal",
+      "pricing": {
+        "inputPerMillionUsd": 0.25,
+        "outputPerMillionUsd": 2
+      },
+      "maxCompletionTokens": 2048,
+      "sessionMaxCalls": 40,
+      "sessionMaxUsd": 0.25,
+      "pilotMaxUsd": 5
+    }
+  },
+  "providerAnswered": false,
+  "results": [],
+  "generatedAt": "2026-09-08T18:05:33.614Z"
+}

@@ -1,4 +1,5 @@
 import { createCommand, validateCommand } from "../../core/commands/commandTypes.js";
+import { stage2ActionFormat, normalizeStage2Output, stage2SafeContext } from "./stage2ActionSchema.js";
 import { bindModelCommands } from "./deterministicParameterBinder.js";
 import { buildModelAllowlist, detectParameterInventions, validateModelConcepts } from "./modelConceptValidation.js";
 import {
@@ -25,8 +26,12 @@ export function buildSemanticTaskRequest({ task, text, locale, turnContext = {},
   throw new Error(`unknown_semantic_task:${task}`);
 }
 
-export async function interpretSemanticTask({ task, provider, text, locale, turnContext = {}, bundle }) {
+export async function interpretSemanticTask({ task, provider, text, locale, turnContext = {}, bundle, strictAction = false }) {
   const request = buildSemanticTaskRequest({ task, text, locale, turnContext, bundle });
+  if (strictAction && task === SEMANTIC_TASK.ACTION) {
+    request.responseFormat = stage2ActionFormat(request.allowlist);
+    stage2SafeContext(request);
+  }
   const startedAt = Date.now();
   let completion;
   try {
@@ -65,7 +70,15 @@ export async function interpretSemanticTask({ task, provider, text, locale, turn
       elapsedMs: Date.now() - startedAt, errorCode: errorCode(error), request, providerEvidence, rawOutput: raw,
     });
   }
-  const schema = validateTaskOutput(task, parsed);
+  let schema;
+  try {
+    schema = validateTaskOutput(task, strictAction ? normalizeStage2Output(parsed) : parsed);
+  } catch {
+    return failure(task, "schema_validation_failure", {
+      elapsedMs: Date.now() - startedAt, request, providerEvidence, rawOutput: raw, parsedOutput: parsed,
+      schemaErrors: ["malformed_structure"],
+    });
+  }
   if (!schema.ok) {
     return failure(task, "schema_validation_failure", {
       elapsedMs: Date.now() - startedAt, request, providerEvidence, rawOutput: raw, parsedOutput: parsed, schemaErrors: schema.errors,

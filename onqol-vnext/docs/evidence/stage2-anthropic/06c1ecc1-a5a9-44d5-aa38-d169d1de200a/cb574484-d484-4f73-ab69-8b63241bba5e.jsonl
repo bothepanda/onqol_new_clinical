@@ -1,0 +1,1 @@
+{"seq":1,"receivedAt":"2026-09-08T17:30:42.332Z","status":400,"rawBody":"{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"output_config.format.schema: For 'number' type, properties maximum, minimum are not supported\"},\"request_id\":\"req_011CerNQAUC1QpTFSKMjkPmW\"}","requestId":null}

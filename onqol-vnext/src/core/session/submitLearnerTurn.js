@@ -66,6 +66,7 @@ export function submitLearnerTurn({ session, text, shadowProvider, interpreted: 
       // Wave §17: which interpreter produced this reading - "deterministic" or
       // (Stage 2) "hybrid" / "hybrid_fallback_deterministic".
       interpreterMode: interpreted.mode ?? "deterministic",
+      semanticTelemetry: interpreted.semanticTelemetry ?? null,
       mentorSignal: interpreted.mentorSignal ?? null,
       unmatchedFragments: interpreted.unmatchedFragments ?? [],
       interpretedCommands: interpreted.commands.map((c) => ({ id: c.id, type: c.type, params: c.params })),

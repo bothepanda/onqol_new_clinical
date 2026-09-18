@@ -1,0 +1,58 @@
+{
+  "results": [
+    {
+      "text": "оам и общий анализ крови",
+      "mode": "hybrid_fallback_deterministic",
+      "intent": "CLINICAL_ACTION",
+      "commands": [
+        {
+          "id": "cmd-c0",
+          "type": "ORDER_TEST",
+          "params": {
+            "testId": "urinalysis"
+          },
+          "sourceText": "оам"
+        }
+      ],
+      "rawText": "оам и общий анализ крови",
+      "unmatchedFragments": [
+        "общий анализ крови"
+      ],
+      "answeredMentorQuestion": false,
+      "semanticTelemetry": {
+        "status": "fallback",
+        "errorCode": "provider_error",
+        "model": null,
+        "costUsd": null,
+        "clinicalAuthority": "none",
+        "elapsedMs": 998,
+        "providerMeta": null,
+        "conceptErrors": [],
+        "schemaErrors": [],
+        "proposed": 0,
+        "proposedCommands": [],
+        "rejected": [],
+        "added": 0,
+        "semanticStatus": "provider_transport_error"
+      }
+    }
+  ],
+  "raw": [
+    {
+      "seq": 1,
+      "receivedAt": "2026-09-08T17:32:26.011Z",
+      "status": 400,
+      "rawBody": "{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools.\"},\"request_id\":\"req_011CerNXp64dxGuA6PMpNq1b\"}",
+      "requestId": null,
+      "payload": {
+        "type": "error",
+        "error": {
+          "type": "invalid_request_error",
+          "message": "The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools."
+        },
+        "request_id": "req_011CerNXp64dxGuA6PMpNq1b"
+      },
+      "journalFile": "docs/evidence/stage2-anthropic/7b507b02-de65-4124-9321-27b0def1ddbd/018cb8d1-c691-4b76-8569-bedd6754e85c.jsonl"
+    }
+  ]
+}

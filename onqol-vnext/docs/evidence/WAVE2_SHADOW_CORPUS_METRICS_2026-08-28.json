@@ -1048,6 +1048,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_ACTION",
           "commands": [
             {
@@ -1154,6 +1155,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_ACTION",
           "commands": [
             {
@@ -1260,6 +1262,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_REASONING",
           "commands": [],
           "rawText": "расспрошу подробно",
@@ -1362,6 +1365,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_ACTION",
           "commands": [
             {
@@ -1490,6 +1494,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_ACTION",
           "commands": [
             {
@@ -1604,6 +1609,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_REASONING",
           "commands": [],
           "rawText": "пальпирую живот",
@@ -1703,6 +1709,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_REASONING",
           "commands": [],
           "rawText": "живот пасматреть",
@@ -1805,6 +1812,7 @@
           ]
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_ACTION",
           "commands": [
             {
@@ -1918,6 +1926,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_ACTION",
           "commands": [
             {
@@ -2034,6 +2043,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_ACTION",
           "commands": [
             {
@@ -2148,6 +2158,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_ACTION",
           "commands": [
             {
@@ -2262,6 +2273,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_ACTION",
           "commands": [
             {
@@ -2376,6 +2388,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_ACTION",
           "commands": [
             {
@@ -2490,6 +2503,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_ACTION",
           "commands": [
             {
@@ -2604,6 +2618,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_ACTION",
           "commands": [
             {
@@ -2723,6 +2738,7 @@
           ]
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_ACTION",
           "commands": [
             {
@@ -2839,6 +2855,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_ACTION",
           "commands": [
             {
@@ -2977,6 +2994,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_ACTION",
           "commands": [
             {
@@ -3138,6 +3156,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_ACTION",
           "commands": [
             {
@@ -3279,6 +3298,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_ACTION",
           "commands": [
             {
@@ -3459,6 +3479,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_ACTION",
           "commands": [
             {
@@ -3631,6 +3652,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_ACTION",
           "commands": [
             {
@@ -3769,6 +3791,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_ACTION",
           "commands": [
             {
@@ -3916,6 +3939,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_ACTION",
           "commands": [
             {
@@ -4045,6 +4069,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_ACTION",
           "commands": [
             {
@@ -4171,6 +4196,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_ACTION",
           "commands": [
             {
@@ -4316,6 +4342,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "MENTOR_ANSWER",
           "commands": [],
           "mentorSignal": "STUCK",
@@ -4422,6 +4449,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_ACTION",
           "commands": [
             {
@@ -4548,6 +4576,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_ACTION",
           "commands": [
             {
@@ -4678,6 +4707,7 @@
           ]
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_ACTION",
           "commands": [
             {
@@ -4801,6 +4831,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_ACTION",
           "commands": [
             {
@@ -4926,6 +4957,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_ACTION",
           "commands": [
             {
@@ -5049,6 +5081,7 @@
           ]
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_ACTION",
           "commands": [
             {
@@ -5153,6 +5186,7 @@
           ]
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_REASONING",
           "commands": [],
           "rawText": "сделайте что-нибудь",
@@ -5241,6 +5275,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_REASONING",
           "commands": [],
           "rawText": "МРТ живота",
@@ -5329,6 +5364,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_REASONING",
           "commands": [],
           "rawText": "поставьте центральную линию",
@@ -5412,6 +5448,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "MENTOR_ANSWER",
           "commands": [],
           "mentorSignal": "STUCK",
@@ -5495,6 +5532,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_REASONING",
           "commands": [],
           "rawText": "думаю, это аппендицит",
@@ -5580,6 +5618,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_REASONING",
           "commands": [],
           "rawText": "внематочная пока в дифференциале",
@@ -5663,6 +5702,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_REASONING",
           "commands": [],
           "rawText": "внематочную считаю менее вероятной",
@@ -5748,6 +5788,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_REASONING",
           "commands": [],
           "rawText": "я исключил внематочную",
@@ -5833,6 +5874,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_REASONING",
           "commands": [
             {
@@ -5949,6 +5991,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_ACTION",
           "commands": [
             {
@@ -6047,6 +6090,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_REASONING",
           "commands": [],
           "rawText": "от наблюдения отказываюсь",
@@ -6132,6 +6176,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_REASONING",
           "commands": [],
           "rawText": "рабочий диагноз не уверен",
@@ -6224,6 +6269,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_REASONING",
           "commands": [],
           "rawText": "где именно болит?",
@@ -6325,6 +6371,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_REASONING",
           "commands": [],
           "rawText": "когда началась боль?",
@@ -6426,6 +6473,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_REASONING",
           "commands": [],
           "rawText": "тошнило или рвало?",
@@ -6525,6 +6573,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_ACTION",
           "commands": [
             {
@@ -6628,6 +6677,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_REASONING",
           "commands": [],
           "rawText": "сначала оценю стабильность",
@@ -6714,6 +6764,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_REASONING",
           "commands": [
             {
@@ -6844,6 +6895,7 @@
           "ambiguities": []
         },
         "rawDeterministicOutput": {
+          "mode": "deterministic",
           "intent": "CLINICAL_REASONING",
           "commands": [],
           "rawText": "check the abdomen and CBC",

@@ -1,0 +1,58 @@
+{
+  "results": [
+    {
+      "text": "оам и общий анализ крови",
+      "mode": "hybrid_fallback_deterministic",
+      "intent": "CLINICAL_ACTION",
+      "commands": [
+        {
+          "id": "cmd-c0",
+          "type": "ORDER_TEST",
+          "params": {
+            "testId": "urinalysis"
+          },
+          "sourceText": "оам"
+        }
+      ],
+      "rawText": "оам и общий анализ крови",
+      "unmatchedFragments": [
+        "общий анализ крови"
+      ],
+      "answeredMentorQuestion": false,
+      "semanticTelemetry": {
+        "status": "fallback",
+        "errorCode": "provider_error",
+        "model": null,
+        "costUsd": null,
+        "clinicalAuthority": "none",
+        "elapsedMs": 1052,
+        "providerMeta": null,
+        "conceptErrors": [],
+        "schemaErrors": [],
+        "proposed": 0,
+        "proposedCommands": [],
+        "rejected": [],
+        "added": 0,
+        "semanticStatus": "provider_transport_error"
+      }
+    }
+  ],
+  "raw": [
+    {
+      "seq": 1,
+      "receivedAt": "2026-09-08T17:30:42.332Z",
+      "status": 400,
+      "rawBody": "{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"output_config.format.schema: For 'number' type, properties maximum, minimum are not supported\"},\"request_id\":\"req_011CerNQAUC1QpTFSKMjkPmW\"}",
+      "requestId": null,
+      "payload": {
+        "type": "error",
+        "error": {
+          "type": "invalid_request_error",
+          "message": "output_config.format.schema: For 'number' type, properties maximum, minimum are not supported"
+        },
+        "request_id": "req_011CerNQAUC1QpTFSKMjkPmW"
+      },
+      "journalFile": "docs/evidence/stage2-anthropic/06c1ecc1-a5a9-44d5-aa38-d169d1de200a/cb574484-d484-4f73-ab69-8b63241bba5e.jsonl"
+    }
+  ]
+}

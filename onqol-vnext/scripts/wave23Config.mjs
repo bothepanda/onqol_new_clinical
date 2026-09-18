@@ -1,10 +1,7 @@
 import process from "node:process";
+import { MODEL_CATALOG, WAVE23_HISTORICAL_MODELS } from "../src/ai/modelConfig.js";
 
-const OFFICIAL_STANDARD_PRICING_2026_08_29 = Object.freeze({
-  "gpt-5.6-luna": Object.freeze({ inputPerMillionUsd: 0.20, outputPerMillionUsd: 1.20 }),
-  "gpt-5.6-terra": Object.freeze({ inputPerMillionUsd: 2.00, outputPerMillionUsd: 12.00 }),
-  "gpt-5.6-sol": Object.freeze({ inputPerMillionUsd: 4.00, outputPerMillionUsd: 20.00 }),
-});
+const OFFICIAL_STANDARD_PRICING_2026_08_29 = MODEL_CATALOG;
 
 export function wave23ModelConfigurations(env = process.env) {
   if (env.ONQOL_WAVE23_CONFIG_JSON) {
@@ -12,18 +9,17 @@ export function wave23ModelConfigurations(env = process.env) {
     if (!Array.isArray(parsed) || parsed.length < 3) throw new Error("ONQOL_WAVE23_CONFIG_JSON must contain at least three model configurations");
     return parsed.map(validateConfiguration);
   }
-  return [
-    defaultConfig("MODEL_A", env.ONQOL_WAVE23_MODEL_A ?? "gpt-5.6-luna", env.ONQOL_WAVE23_EFFORT_A ?? "low", env),
-    defaultConfig("MODEL_B", env.ONQOL_WAVE23_MODEL_B ?? "gpt-5.6-terra", env.ONQOL_WAVE23_EFFORT_B ?? "low", env),
-    defaultConfig("MODEL_C", env.ONQOL_WAVE23_MODEL_C ?? "gpt-5.6-sol", env.ONQOL_WAVE23_EFFORT_C ?? "low", env),
-  ];
+  return WAVE23_HISTORICAL_MODELS.map((config) => defaultConfig(config.id,
+    env[`ONQOL_WAVE23_${config.id}`] ?? config.model,
+    env[`ONQOL_WAVE23_EFFORT_${config.id.at(-1)}`] ?? config.reasoningEffort,
+    { ...env, ONQOL_WAVE23_ENDPOINT_MODE: env.ONQOL_WAVE23_ENDPOINT_MODE ?? config.endpointMode }));
 }
 
 function defaultConfig(id, model, reasoningEffort, env) {
   return validateConfiguration({
     id,
     provider: "openai",
-    endpointMode: env.ONQOL_WAVE23_ENDPOINT_MODE ?? "responses",
+    endpointMode: env.ONQOL_WAVE23_ENDPOINT_MODE,
     model,
     reasoningEffort,
     temperature: null,

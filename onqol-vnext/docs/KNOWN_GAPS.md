@@ -40,7 +40,11 @@ What changed on 2026-08-25:
 
 The exception still exists — a development build needs a patient. It is no longer invisible, and it can no longer be represented as pilot-ready. Item-by-item: [`review/APP004_PATIENT_TRUTH_INVENTORY_2026-08-25.md`](./review/APP004_PATIENT_TRUTH_INVENTORY_2026-08-25.md).
 
-## 3. Interpreter: deterministic authority, model shadow only
+## 3. Interpreter: opt-in ACTION hybrid, live acceptance blocked
+
+**2026-09-08 Stage 2 update:** the hybrid path adds validated ACTION commands and records per-turn diagnostics in the event/export; default remains deterministic. Gateway, browser and hybrid budgets are 6/7/8 seconds. A Node host serves both the built UI and gateway, with session/pilot reservation limits; unavailable gateway and timeouts are explicit in telemetry and console. Desktop/mobile mock e2e passes. The live model list returned 200, but completion returned 429 `credit_balance_exhausted`; no live corpus metric or successful fresh hybrid session is claimed. The 200-record draft corpus has only 9 real pilot turns (51 missing) and no independent gold review. REASONING and MENTOR_ANSWER remain deterministic. See [Stage 2 report](./review/STAGE2_HYBRID_INTERPRETER_REPORT_2026-09-08.md) for the itemized NO-GO gates and remaining measurement/deployment work.
+
+The following paragraphs describe the historical Wave 2 shadow path, not a successful Stage 2 rollout.
 
 `src/ai/interpreter/interpretTurn.js` remains the public entrypoint and delegates all authoritative work to the deterministic vocabulary interpreter. The 2026-08-28 Wave 2 path can additionally call a model in shadow mode when `AI_INTERACTION_V2` is enabled, but model output is schema/concept/invention-validated, stored only as AI telemetry and never executed or folded into reasoning/domain state.
 

@@ -1,0 +1,7 @@
+{
+  "generatedAt": "2026-09-08T07:14:32.967Z",
+  "status": "BLOCKED_BEFORE_CALLS",
+  "reason": "Live strict-schema smoke has no valid response",
+  "providerAnswered": false,
+  "export": null
+}

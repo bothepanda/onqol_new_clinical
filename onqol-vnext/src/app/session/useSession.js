@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { createSession } from "../../core/session/createSession.js";
 import { submitLearnerTurn } from "../../core/session/submitLearnerTurn.js";
 import { buildLearnerVisibleState } from "../../core/state/learnerView.js";
@@ -41,7 +41,6 @@ const shadowProvider = createGatewayProviderClient();
 // Wave §17: the app runs the hybrid interpreter only when explicitly built for
 // it (VITE_ONQOL_INTERPRETER=hybrid). Default stays deterministic-only.
 const INTERPRETER_MODE_ACTIVE = resolveInterpreterMode(import.meta.env.VITE_ONQOL_INTERPRETER);
-const interpreterProvider = createGatewayProviderClient({ endpoint: "/api/ai/interpreter" });
 
 function nowIso() {
   return new Date().toISOString();
@@ -67,6 +66,7 @@ export function useSession() {
   const [session, setSession] = useState(null);
   const [messages, setMessages] = useState([]);
   const [busy, setBusy] = useState(false);
+  const submitting = useRef(false);
   const [debrief, setDebrief] = useState(null);
   const [resumeCandidate, setResumeCandidate] = useState(() =>
     loadPersistedSession(globalThis.localStorage, bundle),
@@ -114,8 +114,10 @@ export function useSession() {
 
   const submitTurn = useCallback(
     async (text) => {
-      if (!session) return;
+      if (!session || submitting.current) return;
+      submitting.current = true;
       setBusy(true);
+      try {
       setMessages((prev) => [...prev, { id: `${Date.now()}-learner`, role: "learner", speakerRu: null, textRu: text }]);
 
       const learnerVisibleBefore = buildLearnerVisibleState(session.state);
@@ -129,7 +131,9 @@ export function useSession() {
             turnContext: buildTurnContext(session),
             bundle: session.bundle,
             idPrefix: `t${session.state.turn}`,
-            provider: interpreterProvider,
+            provider: createGatewayProviderClient({ sessionId: session.sessionId,
+              onUnavailable: ({ code }) => { console.error("onqol_hybrid_unavailable", { code }); },
+            }),
             locale: session.state.session.locale,
           })
         : undefined;
@@ -199,7 +203,10 @@ export function useSession() {
       if (turn.session.state.session.status === "complete") {
         setDebrief(buildDebrief({ session: turn.session, bundle }));
       }
-      setBusy(false);
+      } finally {
+        submitting.current = false;
+        setBusy(false);
+      }
     },
     [messages, session],
   );

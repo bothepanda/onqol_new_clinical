@@ -1,0 +1,85 @@
+{
+  "status": "PROVIDER_UNAVAILABLE",
+  "preflight": {
+    "status": "PASS",
+    "httpStatus": 200,
+    "modelAvailable": true,
+    "errorCode": null,
+    "config": {
+      "model": "gpt-5-mini",
+      "endpointMode": "chat_completions",
+      "endpoint": "https://api.openai.com/v1/chat/completions",
+      "reasoningEffort": "minimal",
+      "pricing": {
+        "inputPerMillionUsd": 0.25,
+        "outputPerMillionUsd": 2
+      },
+      "maxCompletionTokens": 2048,
+      "sessionMaxCalls": 40,
+      "sessionMaxUsd": 0.25,
+      "pilotMaxUsd": 5
+    },
+    "keyRotationVerified": false
+  },
+  "providerAnswered": false,
+  "validSchema": false,
+  "injectionSafe": null,
+  "results": [
+    {
+      "text": "оам и общий анализ крови",
+      "mode": "hybrid_fallback_deterministic",
+      "intent": "CLINICAL_ACTION",
+      "commands": [
+        {
+          "id": "cmd-c0",
+          "type": "ORDER_TEST",
+          "params": {
+            "testId": "urinalysis"
+          },
+          "sourceText": "оам"
+        }
+      ],
+      "rawText": "оам и общий анализ крови",
+      "unmatchedFragments": [
+        "общий анализ крови"
+      ],
+      "answeredMentorQuestion": false,
+      "semanticTelemetry": {
+        "status": "fallback",
+        "errorCode": "provider_quota",
+        "model": null,
+        "costUsd": null,
+        "clinicalAuthority": "none",
+        "elapsedMs": 3343,
+        "providerMeta": null,
+        "conceptErrors": [],
+        "schemaErrors": [],
+        "proposed": 0,
+        "proposedCommands": [],
+        "rejected": [],
+        "added": 0,
+        "semanticStatus": "provider_transport_error"
+      },
+      "fallbackPreserved": true
+    }
+  ],
+  "rawProviderResponses": [
+    {
+      "seq": 1,
+      "receivedAt": "2026-09-08T16:17:50.948Z",
+      "status": 429,
+      "rawBody": "{\n    \"error\": {\n        \"message\": \"You have no credits remaining. Add credits to continue using the API at https://platform.openai.com/settings/organization/billing/.\",\n        \"type\": \"insufficient_quota\",\n        \"param\": null,\n        \"code\": \"credit_balance_exhausted\"\n    }\n}\n",
+      "requestId": "req_c43d483756c9468f98a68bfa55f118a4",
+      "payload": {
+        "error": {
+          "message": "You have no credits remaining. Add credits to continue using the API at https://platform.openai.com/settings/organization/billing/.",
+          "type": "insufficient_quota",
+          "param": null,
+          "code": "credit_balance_exhausted"
+        }
+      },
+      "journalFile": "docs/evidence/stage2-provider-journal/fae31a77-d3e2-4184-9e37-b7aa7e56dd6e.jsonl"
+    }
+  ],
+  "generatedAt": "2026-09-08T16:17:50.980Z"
+}

@@ -49,7 +49,9 @@ function summarizeInterpreter(events) {
   const byTurn = events
     .filter((event) => event.type === "LEARNER_TURN_RECEIVED")
     .map((event) => event.payload.interpreterMode ?? "deterministic");
-  return { modes: [...new Set(byTurn)], byTurn };
+  const telemetryByTurn = events.filter((event) => event.type === "LEARNER_TURN_RECEIVED")
+    .map((event) => ({ seq: event.seq, mode: event.payload.interpreterMode ?? "deterministic", ...event.payload.semanticTelemetry }));
+  return { modes: [...new Set(byTurn)], byTurn, telemetryByTurn };
 }
 
 /**
