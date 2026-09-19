@@ -1,0 +1,63 @@
+{
+  "status": "CANDIDATE_FROZEN_NOT_ACCEPTANCE_ELIGIBLE",
+  "model": {
+    "model": "gpt-5-mini",
+    "endpointMode": "chat_completions",
+    "endpoint": "https://api.openai.com/v1/chat/completions",
+    "reasoningEffort": "minimal",
+    "pricing": {
+      "inputPerMillionUsd": 0.25,
+      "outputPerMillionUsd": 2
+    },
+    "maxCompletionTokens": 2048,
+    "sessionMaxCalls": 40,
+    "sessionMaxUsd": 0.25,
+    "pilotMaxUsd": 5
+  },
+  "sourceHashes": {
+    "src/ai/interpreter/hybridInterpreter.js": "7b78d1f007542dca4c00b3d90dc8b85b9c83b88948ae8abb8d867d958750e916",
+    "src/ai/interpreter/splitSemanticInterpreter.js": "53cb20236622c28badf33f8a6fbd782ec41290a5bf8b0513c1c23223bfe3f992",
+    "src/ai/interpreter/stage2ActionSchema.js": "aac58af21a345838f026eb9d161ec591b2828e91a7c39208d0bf8b168efda2cc",
+    "src/ai/interpreter/semanticTaskSchemas.js": "6118a54285e2f45e9253fb002812fb4ac087f462fda5674784a0186dcaa1dad7",
+    "src/ai/interpreter/modelConceptValidation.js": "79f9127371267dfabe43df7688a579812afc9ca4b1b1f29de2df197d5daeae41",
+    "src/ai/interpreter/deterministicParameterBinder.js": "b34f62841e6e3d8b090baa996b8feaabfe6aa5dbec9d6b5a7d585d820eb9306e",
+    "src/ai/interpreter/deterministicInterpreter.js": "89954e8b26b09d9d440f19489f1a4f52677b5566f7316b71ab7fb26ac1fdf1c0",
+    "src/ai/interpreter/vocabulary.js": "736b3c435363e3afda207c9495c4f5513d81f4ae844b4b2de10bd11e4e3d6428",
+    "src/ai/modelConfig.js": "bd76b1c347e3d2ee30366bd3a5c8a551d8b8d8a0af02a993bfc48ed03d8fbdc6",
+    "src/ai/providerClient.js": "5f58b0b3c81fdcd15f104bd0089298d3c65dd1faee701cd8cfe18d02ac31f2d9",
+    "server/aiGateway.mjs": "73f702b9c87daeb967aceaaca62d006473d463ef6224db2c1677ea90511acd86",
+    "server/budgetStore.mjs": "cb462b5a12a8e8b546a2590e8e3c3c91985a15bc809d94c27cffe5e95ff869aa",
+    "scripts/stage2Corpus.mjs": "e72ffdf9e53bebd300dce59e7ec50acd0d3e57cba331b4ee93a809887353d920",
+    "scripts/stage2Metrics.mjs": "11ecb6f8fe3882d5427e0ed57ee93f599fb200aaa45686856a219ace7b4417bc",
+    "scripts/runStage2Corpus.mjs": "29218ce7a0d05a21b82cad0e64d5fafbc4854deb08030d424a701df21f612953",
+    "scripts/stage2Runtime.mjs": "d19f4f1e598f3c08dbd6077d94709f5b59348f746c2367c7ee4e9e46d94e4109",
+    "scripts/stage2Journal.mjs": "22f02abed6519f8d69ef01e3de9c755739e6af39959d6b91180dde5e30d37e2a",
+    "scripts/stage2Evaluation.mjs": "5d1c81af5affd7487419a915a6ef8d755965fc6b0e5ca008e13e1c6508130b9b",
+    "src/core/session/submitLearnerTurn.js": "59fa2191f7282cedecd86b0459b33d7dc38c658673d0d3dd29199b1707cf3e26",
+    "src/core/replay/exportSession.js": "e7316023cac1895b594419e5210ad9691a690b0b977bb6472840e085d93556af"
+  },
+  "promptHash": "53cb20236622c28badf33f8a6fbd782ec41290a5bf8b0513c1c23223bfe3f992",
+  "contentHash": "639efec612f42204a085923d7d142e0a933335368f415093c1ff8b2746267973",
+  "sharedContentHash": "c914d819ea6ed92ee307ef6cb176f491e8659465c4b936b06ca8b8f85bf1f19b",
+  "corpusHash": "e6a95e444499e9b8d3dd11d59186f5cf799ca2f0444d437b35d15515f1b07ec6",
+  "splitHashes": {
+    "DEVELOPMENT": "d16f052c4f998e057c7b4cce13ea19a37ac64b1830331e4f05273a7b38760c8f",
+    "HOLDOUT": "3427c6999e91821f8ad88a598700a17f04a4a9cb79b046a2005b522cedebf13e"
+  },
+  "total": 200,
+  "composition": {
+    "real_pilot": 9,
+    "paraphrase": 111,
+    "ellipsis": 30,
+    "slang": 20,
+    "negative": 20,
+    "injection": 10
+  },
+  "independentGoldReview": false,
+  "realPilotRequired": 60,
+  "realPilotAvailable": 9,
+  "missingRealPilotTurns": 51,
+  "holdoutConsumed": false,
+  "grouping": "Surface variants grouped; one pilot session never split across partitions.",
+  "generatedAt": "2026-09-19T04:32:52.494Z"
+}

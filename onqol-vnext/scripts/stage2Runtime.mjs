@@ -10,7 +10,7 @@ import { fileBudgetStore } from "../server/budgetStore.mjs";
 import { createStage2Journal, createJournaledFetch } from "./stage2Journal.mjs";
 
 export const root = fileURLToPath(new URL("../", import.meta.url));
-export const date = "2026-09-08";
+export const date = "2026-09-19-r2";
 export function loadStage2Env() {
   if (existsSync(path.join(root, ".env.local"))) process.loadEnvFile(path.join(root, ".env.local"));
 }

@@ -110,6 +110,7 @@ export async function interpretHybrid({
 }
 
 function shouldEscalate(deterministic, text) {
+  if (deterministic.explanationRequest) return false;
   if ((deterministic.unmatchedFragments ?? []).length > 0) return true;
   if (deterministic.commands.length === 0 && deterministic.intent === "CLINICAL_REASONING") {
     return ACTIONABLE_HINT.test(text);

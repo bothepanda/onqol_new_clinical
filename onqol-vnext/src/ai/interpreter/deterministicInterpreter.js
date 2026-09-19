@@ -52,6 +52,15 @@ export function interpretDeterministically({ text, turnContext = {}, idPrefix = 
     return { intent: "MENTOR_ANSWER", commands: [], mentorSignal: "STUCK", rawText: raw };
   }
 
+  // A question ABOUT an investigation or drug ("Почему здесь нужна КТ?",
+  // "объясни смысл СРБ") names the concept without ordering it. Reading it as
+  // an order put an unrequested CT/CRP on the patient. It is routed to the
+  // mentor path with no commands, and `explanationRequest` tells the hybrid
+  // layer not to hand it to the model as an unresolved action either.
+  if (isExplanationRequest(normalized)) {
+    return { intent: "CLINICAL_REASONING", commands: [], rawText: raw, unmatchedFragments: [], explanationRequest: true };
+  }
+
   // An operative decision is pending: the learner's words are most likely an
   // answer to "what do you do?", matched against the CONTENT's phrasings for
   // that specific decision. Checked before the mentor-question branch because
@@ -124,7 +133,7 @@ export function interpretDeterministically({ text, turnContext = {}, idPrefix = 
   const fragments = splitFragments(raw);
   const fragmentResults = fragments.map((fragment, index) => interpretFragment(fragment, idPrefix, index, turnContext));
   const commands = mergeDuplicateTestOrders(compactCommands(reasoningCommand, ...fragmentResults.flat()));
-  const unmatchedFragments = fragments.filter((fragment, index) => fragmentResults[index].length === 0 && !isReasoningText(normalize(fragment)));
+  const unmatchedFragments = fragments.filter((fragment, index) => fragmentResults[index].length === 0 && !isReasoningText(normalize(fragment)) && !isAddressOrCourtesy(normalize(fragment)));
 
   // An open STAFF clarification is answered by the answer (Contract §8.2,
   // §10, PBC-8).
@@ -311,6 +320,12 @@ function isNegatedConcept(normalized, start) {
   return /(?:не|исключаю|исключить|нет данных за)\s*$/.test(prefix);
 }
 
+// A bare form of address or courtesy ("Коллеги,", "Пожалуйста") carries no
+// clinical content, so it is neither a command nor an "unrecognised" fragment.
+function isAddressOrCourtesy(normalized) {
+  return /^(?:(?:уважаемые |дорогие )?коллеги|пожалуйста|будьте добры|прошу|доктор|сестра|медсестра|спасибо|итак|так)[\s!.,]*$/.test(normalized);
+}
+
 function isReasoningText(normalized) {
   return /рабоч[а-яё]* диагноз|думаю|наиболее вероят|дифференц|гемодинамическ|пересмотр[а-яё]* тактик|при ухудш|если станет хуже/.test(normalized);
 }
@@ -461,7 +476,9 @@ function interpretFragment(fragment, idPrefix, index, turnContext) {
   if (results.length) return results;
 
   const staffRole = findSynonym(normalized, STAFF_SYNONYMS);
-  if (staffRole || /позв(и|ать)|вызов|вызыва/.test(normalized)) {
+  // "позови/позовите/позвать": the stems are позов- and позва-, not позв-.
+  // "нужна консультация хирурга" is a request for the consultant as well.
+  if (staffRole || /позов|позва|вызов|вызыва|нужн[а-яе]* консультаци|консультаци[яю] (?:хирург|анестезиолог|гинеколог)/.test(normalized)) {
     results.push(command(idPrefix, index, COMMAND.CALL_STAFF, staffRole ? { role: staffRole } : {}, fragment));
     return results;
   }
@@ -987,6 +1004,15 @@ function matchesAny(text, patterns) {
 
 function normalize(text) {
   return text.trim().toLowerCase().replace(/ё/g, "е").replace(/\s+/g, " ");
+}
+
+// No `\b`/`\w`: they never match Cyrillic. Whitespace/start anchors only.
+const EXPLANATION_OPENERS = /^(?:(?:наставник|коллеги|пожалуйста)[,\s]+)*(?:это вопрос[:,\s]+)?(?:почему|зачем|для чего|отчего|что такое|что значит|объясни|объясните|поясни|поясните|расскажи|расскажите|в чем смысл|какой смысл|в чем разница)(?:\s|$|,)/;
+// Imperative/first-person forms only: "назначают" in a question is not an order.
+const ORDER_VERB = /закажи|закажу|назначь|назначу|назначаю(?![а-яе])|сделай|сделаю|введи|вводи|проведи|поставь|выполни|возьми|отправь|дай(?:те)?\s/;
+
+function isExplanationRequest(normalized) {
+  return EXPLANATION_OPENERS.test(normalized) && !ORDER_VERB.test(normalized);
 }
 
 function splitFragments(text) {

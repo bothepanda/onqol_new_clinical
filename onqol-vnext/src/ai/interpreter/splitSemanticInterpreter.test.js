@@ -179,3 +179,51 @@ test("a high-risk action with an ungrounded target is still rejected outright, n
   assert.equal(result.status, "concept_validation_failure");
   assert.equal(result.acceptedCommands.length, 0);
 });
+
+test("a hallucinated action whose TYPE is not in the learner's words is dropped, never turned into a clarification", async () => {
+  const text = "Коллеги, проверьте клеточный состав крови";
+  const result = await interpretSemanticTask({
+    task: SEMANTIC_TASK.ACTION,
+    provider: provider({
+      [SEMANTIC_TASK.ACTION]: {
+        clinicalActions: [{ type: "CALL_STAFF", params: { role: "surgeon" }, evidenceSpans: [text], statedParameters: [] }],
+        patientQuestions: [], ambiguities: [], unresolvedFragments: [], meta,
+      },
+    }),
+    text, locale: "ru", turnContext: {}, bundle,
+  });
+  assert.equal(result.ambiguousCommands.length, 0);
+  assert.equal(result.acceptedCommands.length, 0);
+});
+
+test("named-test paraphrases ground; category words do not", async () => {
+  const ask = async (text, testId) => interpretSemanticTask({
+    task: SEMANTIC_TASK.ACTION,
+    provider: provider({ [SEMANTIC_TASK.ACTION]: {
+      clinicalActions: [{ type: "ORDER_TEST", params: { testId, analytes: [testId] }, evidenceSpans: [text], statedParameters: [] }],
+      patientQuestions: [], ambiguities: [], unresolvedFragments: [], meta } }),
+    text, locale: "ru", turnContext: {}, bundle, strictAction: true,
+  });
+  const named = await ask("сделайте ультразвуковое исследование живота", "ultrasound_abdomen");
+  assert.equal(named.status, "valid");
+  assert.equal(named.acceptedCommands.length, 1, "explicitly named test is accepted, not re-asked");
+  const pelvic = await ask("сделайте ультразвуковое исследование малого таза", "ultrasound_abdomen");
+  assert.equal(pelvic.acceptedCommands.length, 0, "pelvic ultrasound never grounds an abdominal one");
+  const category = await ask("надо бы кровь на воспаление глянуть", "crp");
+  assert.equal(category.acceptedCommands.length, 0);
+  assert.equal(category.ambiguousCommands.length, 1, "a category word stays a clarification");
+});
+
+test("imaging grounds by modality + region in any word order; a pelvic qualifier never grounds the abdominal study", async () => {
+  const ask = async (text, testId) => interpretSemanticTask({
+    task: SEMANTIC_TASK.ACTION,
+    provider: provider({ [SEMANTIC_TASK.ACTION]: {
+      clinicalActions: [{ type: "ORDER_TEST", params: { testId }, evidenceSpans: [text], statedParameters: [] }],
+      patientQuestions: [], ambiguities: [], unresolvedFragments: [], meta } }),
+    text, locale: "ru", turnContext: {}, bundle, strictAction: true,
+  });
+  assert.equal((await ask("посмотрите брюшную полость ультразвуком", "ultrasound_abdomen")).acceptedCommands.length, 1);
+  assert.equal((await ask("отправьте на томографию брюшной полости", "ct_abdomen")).acceptedCommands.length, 1);
+  assert.equal((await ask("узи малого таза", "ultrasound_abdomen")).acceptedCommands.length, 0);
+  assert.equal((await ask("сонография малого таза", "ultrasound_abdomen")).acceptedCommands.length, 0);
+});

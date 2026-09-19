@@ -94,3 +94,33 @@ test('reassessment targets joined by "и" stay one REASSESS command, not scatter
   assert.deepEqual(commands[0].params.targets, ["pain", "vitals"]);
   assert.equal(commands[0].params.afterMinutes, 60);
 });
+
+// Stage 2 dev-corpus findings (2026-09-19): 9 of 9 wrong executed commands came from this layer.
+
+test("a question ABOUT a test or drug is never an order for it", () => {
+  for (const text of ["Почему здесь нужна КТ?", "Наставник, объясни смысл СРБ", "Это вопрос: зачем назначают антибиотики?", "зачем нужен СРБ"]) {
+    const result = interpretTurn({ text });
+    assert.deepEqual(result.commands, [], text);
+    assert.equal(result.explanationRequest, true, text);
+  }
+});
+
+test("an explanation request that also contains an imperative order still executes the order", () => {
+  const { commands } = interpretTurn({ text: "объясни зачем КТ и закажи КТ" });
+  assert.deepEqual(commands.map((c) => c.params.testId), ["ct_abdomen"]);
+});
+
+test("calling a consultant is recognised in imperative and nominal forms (позов- stem, not позв-)", () => {
+  for (const text of ["позовите дежурного хирурга", "нужна консультация хирурга", "Коллеги, позовите анестезиолога"]) {
+    const { commands } = interpretTurn({ text });
+    assert.ok(commands.some((c) => c.type === "CALL_STAFF"), text);
+  }
+});
+
+test("a bare form of address or courtesy is not an unrecognised fragment", () => {
+  const polite = interpretTurn({ text: "Коллеги, назначьте КТ" });
+  assert.deepEqual(polite.unmatchedFragments, []);
+  assert.equal(polite.commands[0].params.testId, "ct_abdomen");
+  const real = interpretTurn({ text: "Коллеги, сделайте что-то непонятное" });
+  assert.ok(real.unmatchedFragments.some((f) => /непонятн/.test(f)), "genuinely unmatched content still surfaces");
+});

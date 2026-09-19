@@ -1,7 +1,7 @@
 import { createCommand, validateCommand } from "../../core/commands/commandTypes.js";
 import { stage2ActionFormat, normalizeStage2Output, stage2SafeContext } from "./stage2ActionSchema.js";
 import { bindModelCommands } from "./deterministicParameterBinder.js";
-import { buildModelAllowlist, detectParameterInventions, identifyingParamKey, validateModelConcepts } from "./modelConceptValidation.js";
+import { actionTypeGrounded, buildModelAllowlist, detectParameterInventions, identifyingParamKey, validateModelConcepts } from "./modelConceptValidation.js";
 import {
   ACTION_RESPONSE_FORMAT,
   MENTOR_RESPONSE_FORMAT,
@@ -299,7 +299,7 @@ function validateActionTask({ output, text, turnContext, allowlist }) {
     if (!detail.errors.includes("lexical_anchor_missing")) return;
     if (detail.errors.some((error) => error !== "lexical_anchor_missing" && error !== "missing_required_parameter")) return;
     const key = identifyingParamKey(command);
-    if (!key || command.params[key] == null) return;
+    if (!key || command.params[key] == null || !actionTypeGrounded(command)) return;
     const params = Object.fromEntries(Object.entries(command.params).filter(([paramKey]) => paramKey !== key));
     ambiguousCommands.push({ index, type: command.type, params, evidence: command.evidence, evidenceSpans: command.evidenceSpans });
   });

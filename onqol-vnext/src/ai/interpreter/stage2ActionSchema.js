@@ -33,7 +33,11 @@ export function normalizeStage2Output(output) {
   if (!output || typeof output !== "object" || !Array.isArray(output.clinicalActions)) return output;
   return { ...output, clinicalActions: output.clinicalActions.map((action) => {
     if (!action?.params || typeof action.params !== "object" || Array.isArray(action.params)) return action;
-    return { ...action, params: Object.fromEntries(Object.entries(action.params).filter(([, value]) => value !== null)) };
+    // `analytes` only means something for chemistry. The model echoes the test
+    // name into it for other tests ("cbc" -> analytes ["cbc"]); that carries no
+    // information, and rejecting the turn over it discarded correct orders.
+    const drop = typeof action.params.testId === "string" && action.params.testId !== "chemistry" ? "analytes" : null;
+    return { ...action, params: Object.fromEntries(Object.entries(action.params).filter(([key, value]) => value !== null && key !== drop)) };
   }) };
 }
 

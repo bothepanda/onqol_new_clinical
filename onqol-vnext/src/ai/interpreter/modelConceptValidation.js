@@ -71,7 +71,7 @@ const TYPE_ANCHORS = Object.freeze({
   [COMMAND.EXAMINE]: ["осмотр", "осматр", "пальп", "пощуп", "қара"],
   [COMMAND.REQUEST_STATUS]: ["что с пациент", "как пациент", "текущее состояние", "витальн"],
   [COMMAND.WAIT]: ["жду", "подожд", "ожида", "wait"],
-  [COMMAND.ORDER_TEST]: ["анализ", "оак", "бхак", "срб", "оам", "хгч", "узи", "кт"],
+  [COMMAND.ORDER_TEST]: ["анализ", "оак", "бхак", "срб", "оам", "хгч", "узи", "кт", "кров", "мочу", "исследов", "обследов", "проверь", "проверить", "глянуть", "посмотреть", "сдать", "возьм", "нужен", "нужна", "нужно", "закаж", "назнач"],
   [COMMAND.ORDER_MEDICATION]: ["назнач", "ввести", "дать", "обезбол"],
   [COMMAND.ORDER_INFUSION]: ["инфуз", "прокап", "раствор", "физраствор", "кристаллоид"],
   [COMMAND.ORDER_PROCEDURE]: ["процедур", "установ", "постав"],
@@ -191,7 +191,8 @@ function validateEvidenceSpans(item, rawText, errors) {
 function validateLexicalGrounding(item, errors) {
   const evidence = normalize(item.evidenceSpans.join(" "));
   const anchors = conceptAnchors(item);
-  if (!anchors.length || !containsAny(evidence, anchors)) errors.push("lexical_anchor_missing");
+  const anchored = anchors.length > 0 && containsAny(evidence, anchors) && !imagingExcluded(item.params.testId, evidence);
+  if (!anchored && !imagingGrounded(item.params.testId, evidence)) errors.push("lexical_anchor_missing");
   if (item.params.analytes && item.params.analytes.some((id) => !containsAny(evidence, aliasesFor(CHEMISTRY_ANALYTE_SYNONYMS, id)))) {
     errors.push("params.analytes_not_grounded");
   }
@@ -206,6 +207,12 @@ function validateLexicalGrounding(item, errors) {
  * only ever asks for a value the learner already implied it would give -
  * DISPOSITION/TRANSFER/OPERATIVE_DECISION/etc. stay out of this entirely).
  */
+/** The kind of action itself (not which one) must be evident in the learner's words. */
+export function actionTypeGrounded(item) {
+  const evidence = normalize((item.evidenceSpans ?? []).join(" ") || item.evidence || "");
+  return containsAny(evidence, TYPE_ANCHORS[item.type] ?? []);
+}
+
 export function identifyingParamKey(item) {
   if (HIGH_RISK_ACTIONS.has(item.type)) return null;
   const { params } = item;
@@ -246,13 +253,36 @@ function regionAnchors(id) {
 }
 
 function testAnchors(id) {
+  // Anchors ground a model-proposed test in words the learner actually used.
+  // They cover ways of NAMING the test, never category words ("воспаление",
+  // "визуализация"), which are genuinely ambiguous and must stay a CLARIFY.
+  // Imaging anchors carry their region so "ультразвук малого таза" can never
+  // ground an ABDOMINAL ultrasound.
   const extra = {
-    cbc: ["общий анализ крови", "general blood count"],
-    crp: ["c-reactive", "c reactive"],
-    urinalysis: ["анализ мочи", "моча"],
+    cbc: ["общий анализ крови", "general blood count", "клеточный состав крови", "гемограмм"],
+    crp: ["c-reactive", "c reactive", "реактивный белок", "реактивного белка"],
+    urinalysis: ["анализ мочи", "моча", "мочу", "мочи"],
     betahcg: ["бета хгч", "beta hcg"],
   };
   return [...aliasesFor(TEST_SYNONYMS, id), ...(extra[id] ?? [])];
+}
+
+// Imaging is named by modality + region in any word order ("брюшную полость
+// ультразвуком"). A pelvic qualifier disqualifies the ABDOMINAL study, so
+// "сонография малого таза" can never ground it.
+const IMAGING_GROUNDING = Object.freeze({
+  ultrasound_abdomen: { modality: ["ультразвук", "сонограф", "узи"], region: ["живот", "брюшн", "обп"], exclude: ["таз", "омт"] },
+  ct_abdomen: { modality: ["томограф", "компьютерн", "мскт"], region: ["живот", "брюшн", "обп"], exclude: [] },
+});
+
+function imagingExcluded(testId, evidence) {
+  const rule = IMAGING_GROUNDING[testId];
+  return Boolean(rule) && containsAny(evidence, rule.exclude);
+}
+
+function imagingGrounded(testId, evidence) {
+  const rule = IMAGING_GROUNDING[testId];
+  return Boolean(rule) && containsAny(evidence, rule.modality) && containsAny(evidence, rule.region) && !containsAny(evidence, rule.exclude);
 }
 
 function roleAnchors(id) {
