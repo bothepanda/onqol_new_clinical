@@ -124,3 +124,10 @@ test("a bare form of address or courtesy is not an unrecognised fragment", () =>
   const real = interpretTurn({ text: "Коллеги, сделайте что-то непонятное" });
   assert.ok(real.unmatchedFragments.some((f) => /непонятн/.test(f)), "genuinely unmatched content still surfaces");
 });
+
+test("a surgeon is one role: plain and 'старший' phrasings both resolve to `surgeon`", () => {
+  for (const text of ["позовите хирурга", "нужна консультация хирурга", "позови старшего хирурга"]) {
+    const call = interpretTurn({ text }).commands.find((c) => c.type === "CALL_STAFF");
+    assert.equal(call.params.role, "surgeon", text);
+  }
+});

@@ -458,7 +458,7 @@ function staffLabelRu(role) {
     nurse: "Медсестра",
     radiologist: "Рентгенолог",
     anesthesiologist: "Анестезиолог",
-    seniorSurgeon: "Старший хирург",
+    surgeon: "Хирург",
     icuPhysician: "Реаниматолог",
   };
   return labels[role] ?? role;

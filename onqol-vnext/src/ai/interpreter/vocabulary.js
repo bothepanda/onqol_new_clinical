@@ -160,8 +160,9 @@ export const CHEMISTRY_ANALYTE_SYNONYMS = Object.freeze({
 });
 
 export const STAFF_SYNONYMS = Object.freeze({
-  "старший хирург": "seniorSurgeon",
-  "старшего": "seniorSurgeon",
+  "старший хирург": "surgeon",
+  "старшего": "surgeon",
+  "хирург": "surgeon",
   "анестезиолог": "anesthesiologist",
   "реаниматолог": "icuPhysician",
   "рентгенолог": "radiologist",

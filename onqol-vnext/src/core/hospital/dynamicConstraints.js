@@ -46,7 +46,7 @@ const CANDIDATES = Object.freeze([
   },
   {
     id: "senior_surgeon_delayed",
-    staffRole: "seniorSurgeon",
+    staffRole: "surgeon",
     weight: 1,
     addedEtaMinutes: 40,
     reasonKey: "resource.senior_surgeon.delayed",
