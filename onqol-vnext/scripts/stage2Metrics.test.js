@@ -32,3 +32,12 @@ test("Stage2 GO requires every prespecified gate, not only precision", () => {
   for (const key of Object.keys(checks)) assert.equal(stage2Gate(metrics, { ...checks, [key]: false }).verdict, "NO-GO");
   assert.equal(stage2Gate({ ...metrics, improvementPercentagePoints: 19.99 }, checks).verdict, "NO-GO");
 });
+
+test("Stage2 precision ignores bookkeeping (STATE_REASONING) exactly as the paraphrase metric does", () => {
+  const order = { type: "ORDER_TEST", params: { testId: "cbc" } };
+  const note = { type: "STATE_REASONING", params: { consultation: {} } };
+  const metrics = stage2Metrics([{ text: "x", category: "paraphrase", gold: { commands: [order], disposition: "commands" },
+    deterministic: { commands: [] }, hybrid: { commands: [order, note] }, executedCommands: [order, note], elapsedMs: 1, costUsd: 0 }]);
+  assert.equal(metrics.executedCommandPrecision, 1);
+  assert.equal(metrics.executedCommandCount, 1);
+});

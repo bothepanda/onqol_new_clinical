@@ -22,7 +22,7 @@ function resolved(result, gold) {
 export function stage2Metrics(rows) {
   const paraphrases = rows.filter((r) => r.category === "paraphrase");
   const rate = (kind) => paraphrases.length ? paraphrases.filter((r) => resolved(r[kind], r.gold)).length / paraphrases.length : null;
-  const executed = rows.flatMap((r) => (r.executedCommands ?? []).map((command) => ({ command, gold: r.gold })));
+  const executed = rows.flatMap((r) => actions(r.executedCommands).map((command) => ({ command, gold: r.gold })));
   const correct = executed.filter(({ command, gold }) => gold.commands.some((g) => matchesGold(command, g))).length;
   const delays = rows.map((r) => r.elapsedMs).filter(Number.isFinite).sort((a, b) => a - b);
   return {
