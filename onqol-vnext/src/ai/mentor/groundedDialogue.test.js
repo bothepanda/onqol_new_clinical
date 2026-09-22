@@ -86,6 +86,37 @@ test("a question misplaced in sentences is removed before verification instead o
   const verifierInput = JSON.parse(provider.requests[1].messages[1].content);
   assert.equal(verifierInput.candidate.sentences.length, 1);
 });
+test("maxRegenerations defaults to 0: a rejected candidate falls back on the first attempt, no repair call", async () => {
+  const draft = good(); draft.sentences[0].text = "Введите 2 г.";
+  const provider = mock([draft]);
+  const result = await runGroundedDialogue({ context, library, provider });
+  assert.equal(result.audit.errorCode, "candidate_rejected");
+  assert.equal(provider.requests.length, 1);
+  assert.equal(result.audit.regenerations, 0);
+});
+test("bounded regeneration: one repair attempt, told the violation type only, then accepted", async () => {
+  const bad = good(); bad.sentences[0].text = "Введите 2 г.";
+  const fixed = good();
+  const provider = mock([bad, fixed, verdict()]);
+  const result = await runGroundedDialogue({ context, library, provider, maxRegenerations: 1 });
+  assert.equal(result.audit.status, "accepted");
+  assert.equal(result.audit.regenerations, 1);
+  assert.equal(provider.requests.length, 3);
+  const repairInput = JSON.parse(provider.requests[1].messages[1].content);
+  assert.match(repairInput.repairHint, /формат|схем/);
+  assert.doesNotMatch(repairInput.repairHint, /supported|patientGrounded|noNewManagement/);
+});
+test("bounded regeneration: verifier rejects both attempts, falls back after exactly one repair (no infinite loop)", async () => {
+  const draft = good(); draft.sentences[0].text = "Операция обязательна немедленно.";
+  const rejected = { ...verdict(), supported: false, reasons: ["unsupported_management"] };
+  const provider = mock([draft, rejected, draft, rejected]);
+  const result = await runGroundedDialogue({ context, library, provider, maxRegenerations: 1 });
+  assert.equal(result.text, FALLBACK);
+  assert.equal(result.audit.errorCode, "grounding_rejected");
+  assert.equal(provider.requests.length, 4);
+  const repairInput = JSON.parse(provider.requests[2].messages[1].content);
+  assert.match(repairInput.repairHint, /обоснованности/);
+});
 test("provider, malformed JSON, verifier error and timeout retain typed fallback", async () => {
   for (const outputs of [[new Error("offline")], ["not json"], [good(), new Error("offline")]]) {
     const r = await runGroundedDialogue({ context, library, provider: mock(outputs) });

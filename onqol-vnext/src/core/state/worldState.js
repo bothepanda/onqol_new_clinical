@@ -172,6 +172,17 @@ export function createInitialState({ session, patient, hospital, clock }) {
       scaffolding: 0,
       silentTurns: 0,
       raisedIssues: [],
+
+      // ---- Stateful Grounded Mentor Wave A (additive; stay at these
+      // initial values, and are never read, when STATEFUL_GROUNDED_MENTOR_V1
+      // is off - see docs/STATEFUL_GROUNDED_MENTOR_WAVE_A.md) -------------
+      // Unlike `openQuestion`, this survives LEARNER_TURN_RECEIVED - it is
+      // only replaced or cleared by MENTOR_INTERVENED, so a short answer two
+      // or more turns later can still resolve against the same issue.
+      pendingMentorQuestion: null, // { issueId, askedTurn, learnerQuote, expectedAnswerDomains, scaffoldingLevel }
+      probingStreak: 0, // consecutive non-SUFFICIENT adequacy verdicts on the current pending issue
+      recentMentorQuestions: [], // last 3 { issueId, text }, most recent last - so a new question can be checked against it
+      deferredMentorIssues: [], // issueIds pushed to the debrief instead of re-probed this case
     },
 
     turn: 0,
@@ -586,18 +597,38 @@ export function applyEvent(state, event) {
       };
       break;
 
-    case EVENT.MENTOR_INTERVENED:
+    case EVENT.MENTOR_INTERVENED: {
+      // `spoke` (Stateful Grounded Mentor Wave A) is absent on every
+      // pre-wave event, which the `!== false` check treats as true -
+      // identical to the unconditional `state.turn`/`0` this case always
+      // wrote before. It is only ever `false` for a memory-only update on a
+      // turn the mentor stayed silent (see submitLearnerTurn.js), and exists
+      // so that update doesn't get misread as an actual intervention.
+      const spoke = event.payload.spoke !== false;
       next.mentor = {
         ...state.mentor,
-        lastInterventionTurn: state.turn,
+        lastInterventionTurn: spoke ? state.turn : state.mentor.lastInterventionTurn,
         openQuestion: event.payload.openQuestion ?? null,
         scaffolding: event.payload.scaffolding ?? state.mentor.scaffolding,
-        silentTurns: 0,
+        silentTurns: spoke ? 0 : state.mentor.silentTurns,
         raisedIssues: event.payload.issueId
           ? unique([...state.mentor.raisedIssues, event.payload.issueId])
           : state.mentor.raisedIssues,
+        // Stateful Grounded Mentor Wave A fields: only present in the payload
+        // when `mentorMemory.js` computed them (STATEFUL_GROUNDED_MENTOR_V1
+        // on for this session - see submitLearnerTurn.js). Absent means "flag
+        // off, or this decision didn't change working memory" - keep the
+        // prior value, so a flag-off session's `state.mentor` never grows
+        // these fields beyond their initial null/0/[] defaults.
+        pendingMentorQuestion: "pendingMentorQuestion" in event.payload
+          ? event.payload.pendingMentorQuestion
+          : state.mentor.pendingMentorQuestion,
+        probingStreak: event.payload.probingStreak ?? state.mentor.probingStreak,
+        recentMentorQuestions: event.payload.recentMentorQuestions ?? state.mentor.recentMentorQuestions,
+        deferredMentorIssues: event.payload.deferredMentorIssues ?? state.mentor.deferredMentorIssues,
       };
       break;
+    }
 
     case EVENT.PATIENT_DISCHARGED:
     case EVENT.PATIENT_TRANSFERRED:

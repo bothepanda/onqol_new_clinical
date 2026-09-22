@@ -29,6 +29,50 @@ test("mentor gateway owns prompts/cards, strips injected fields and reserves bot
   assert.equal(r.body.audit.librarySha256.length, 64);
   assert.equal(r.headers['Cache-Control'], "private, no-store");
 });
+function invokeStateful(middleware, body, origin) {
+  return new Promise((resolve, reject) => {
+    const req = Readable.from([JSON.stringify(body)]); req.method = "POST"; req.url = "/api/mentor/stateful-response"; req.headers = { origin }; req.socket = { remoteAddress: "ci" };
+    const headers = {};
+    middleware(req, { statusCode: 200, setHeader(k, v) { headers[k] = v; }, end(raw) { resolve({ status: this.statusCode, body: JSON.parse(raw), headers }); } }, () => reject(new Error("unhandled")));
+  });
+}
+test("stateful-response route is off by default, and scopes the library to the given issue when on", async () => {
+  const requests = [];
+  const offMiddleware = createMentorGateway({ env: { OPENAI_API_KEY: "test-only" }, budgetStore: store() });
+  assert.equal((await invokeStateful(offMiddleware, { sessionId: "s", context, issueId: "open_approach_rationale" })).status, 404);
+
+  const draftForK05 = { mode: "TEACH", sentences: [{ text: "Альтернативы выбирают с учётом анамнеза и состояния пациента.", kind: "clinical", cardIds: ["K05"], factIds: [] }], question: null };
+  const onMiddleware = createMentorGateway({
+    env: { STATEFUL_GROUNDED_MENTOR_V1: "true", OPENAI_API_KEY: "test-only" },
+    budgetStore: store(),
+    fetchImpl: async (_url, options) => {
+      const request = JSON.parse(options.body); requests.push(request);
+      return { ok: true, status: 200, json: async () => ({ model: "mock", choices: [{ message: { content: JSON.stringify(requests.length === 1 ? draftForK05 : verdict) } }], usage: { prompt_tokens: 100, completion_tokens: 50 } }) };
+    },
+  });
+  const openApproachContext = { ...context, text: "Почему открытый доступ?" };
+  const result = await invokeStateful(onMiddleware, { sessionId: "s", context: openApproachContext, issueId: "open_approach_rationale", deterministicFallbackText: "Почему выбираешь открытый доступ?" });
+  assert.equal(result.body.audit.status, "accepted");
+  const parsed = JSON.parse(requests[0].messages[1].content);
+  assert.deepEqual(parsed.cards.map((c) => c.id), ["K05"]);
+});
+test("stateful-response falls back to the deterministic text, not the generic message, when grounding is rejected twice", async () => {
+  const rejected = { ...verdict, supported: false, reasons: ["unsupported_management"] };
+  const bad = { mode: "TEACH", sentences: [{ text: "Операция обязательна немедленно.", kind: "clinical", cardIds: ["K05"], factIds: [] }], question: null };
+  let call = 0;
+  const middleware = createMentorGateway({
+    env: { STATEFUL_GROUNDED_MENTOR_V1: "true", OPENAI_API_KEY: "test-only" },
+    budgetStore: store(),
+    fetchImpl: async () => {
+      call += 1;
+      const content = call % 2 === 1 ? bad : rejected;
+      return { ok: true, status: 200, json: async () => ({ model: "mock", choices: [{ message: { content: JSON.stringify(content) } }], usage: { prompt_tokens: 10, completion_tokens: 10 } }) };
+    },
+  });
+  const result = await invokeStateful(middleware, { sessionId: "s", context, issueId: "open_approach_rationale", deterministicFallbackText: "Почему выбираешь открытый доступ?" });
+  assert.equal(result.body.text, "Почему выбираешь открытый доступ?");
+  assert.equal(result.body.audit.errorCode, "grounding_rejected");
+});
 test("disabled route, wrong origin, missing key and unsupported scope do not reach provider", async () => {
   let calls = 0;
   const make = (env) => createMentorGateway({ env, budgetStore: store(), fetchImpl: async () => { calls++; throw new Error("unexpected"); }, logger: { error() {} } });

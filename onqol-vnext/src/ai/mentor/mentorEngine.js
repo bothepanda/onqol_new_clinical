@@ -62,11 +62,20 @@ export function decideMentorResponse({ state, turnResult, mentorSignal }) {
 
   if (mentorSignal === "STUCK") {
     const nextLevel = Math.min(4, (state.mentor.scaffolding ?? 0) + 1);
+    // `state.mentor.openQuestion` is cleared on every LEARNER_TURN_RECEIVED
+    // (worldState.js), so by the turn AFTER the one that opened it, it is
+    // already null - "не знаю" one full turn later would otherwise read as a
+    // fresh "generic" issue instead of a continuation. `pendingMentorQuestion`
+    // (Stateful Grounded Mentor Wave A) survives across turns for exactly
+    // this; it is null whenever STATEFUL_GROUNDED_MENTOR_V1 is off, so this
+    // falls through to the original `openQuestion` read (and then "generic")
+    // unchanged for a flag-off session (ТЗ §8).
+    const issueId = state.mentor.pendingMentorQuestion?.issueId ?? state.mentor.openQuestion?.issueId ?? "generic";
     return {
       mode: MENTOR_MODE.TEACH,
       textRu: SCAFFOLD_PROMPTS_RU[nextLevel] ?? SCAFFOLD_PROMPTS_RU[4],
       scaffolding: nextLevel,
-      openQuestion: { issueId: state.mentor.openQuestion?.issueId ?? "generic", expects: ["reasoning"], scaffolding: nextLevel },
+      openQuestion: { issueId, expects: ["reasoning"], scaffolding: nextLevel },
     };
   }
 

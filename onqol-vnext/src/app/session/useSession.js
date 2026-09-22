@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { createSession } from "../../core/session/createSession.js";
-import { submitLearnerTurn } from "../../core/session/submitLearnerTurn.js";
+import { submitLearnerTurn, recordGroundedMentorResponse } from "../../core/session/submitLearnerTurn.js";
+import { hospitalIso } from "../../core/time/clock.js";
 import { buildLearnerVisibleState } from "../../core/state/learnerView.js";
 import { renderEvent } from "../../ai/renderer/renderEvent.js";
 import {
@@ -25,7 +26,8 @@ import { withShared } from "../../core/content/loadBundle.js";
 import { seededStartIso } from "./seededStart.js";
 import diseaseBundle from "../../content/generated/appendicitis.json";
 import sharedBundle from "../../content/generated/shared.json";
-import { AI_INTERACTION_V2, resolveInterpreterMode, INTERPRETER_MODE } from "../../ai/interaction/featureFlags.js";
+import { AI_INTERACTION_V2, STATEFUL_GROUNDED_MENTOR_V1, resolveInterpreterMode, INTERPRETER_MODE, isStatefulGroundedMentorEnabled } from "../../ai/interaction/featureFlags.js";
+import { renderMentorResponse } from "./renderMentorResponse.js";
 import { createGatewayProviderClient } from "../../ai/providerClient.js";
 import { interpretHybrid } from "../../ai/interpreter/hybridInterpreter.js";
 import { interpretSemanticFirst } from "../../ai/interpreter/semanticFirstInterpreter.js";
@@ -93,7 +95,10 @@ export function useSession() {
       // the learner_pilot route, where every patient-truth dependency is
       // approved_for_training and the session-audience gate opens.
       sessionPurpose: import.meta.env.VITE_ONQOL_PILOT === "true" ? "learner_pilot" : "internal_development",
-      interactionFlags: { [AI_INTERACTION_V2]: import.meta.env.VITE_AI_INTERACTION_V2 === "true" },
+      interactionFlags: {
+        [AI_INTERACTION_V2]: import.meta.env.VITE_AI_INTERACTION_V2 === "true",
+        [STATEFUL_GROUNDED_MENTOR_V1]: import.meta.env.VITE_STATEFUL_GROUNDED_MENTOR_V1 === "true",
+      },
       bundle,
       locale,
       startIso: seededStartIso(seed),
@@ -158,6 +163,25 @@ export function useSession() {
         return;
       }
       const turn = submitLearnerTurn({ session, text, shadowProvider, interpreted });
+      // Stateful Grounded Mentor Wave A: `submitLearnerTurn` already recorded
+      // the deterministic `turn.mentor.textRu` in the event log above - this
+      // only decides what to SHOW, and only when the session opted in via
+      // STATEFUL_GROUNDED_MENTOR_V1 (a session-level flag, independent of the
+      // older MENTOR_EXPERIMENT/`route.discuss` channel below, which this
+      // leaves untouched).
+      let mentorTextRu = turn.mentor?.textRu ?? null;
+      let sessionAfterMentorRender = turn.session;
+      if (!route?.discuss && isStatefulGroundedMentorEnabled(session.state.session) && turn.mentor?.textRu) {
+        const grounded = await renderMentorResponse({ session: turn.session, mentor: turn.mentor, messages, text });
+        if (grounded) {
+          mentorTextRu = grounded.text;
+          sessionAfterMentorRender = recordGroundedMentorResponse(
+            turn.session,
+            { mode: turn.mentor.mode, ...grounded.audit },
+            hospitalIso(turn.session.clockRoot, turn.session.state.clock.elapsedMinutes),
+          );
+        }
+      }
       const rendered = [];
       if (interpreted?.interpretationNotice) rendered.push(toMessage("env", { speakerRu: "Система", textRu: interpreted.interpretationNotice }));
 
@@ -205,11 +229,11 @@ export function useSession() {
         rendered.push(toMessage("env", renderUnrecognizedFragments(turn.interpreted.unmatchedFragments)));
       }
 
-      if (!route?.discuss && turn.mentor?.textRu) {
-        rendered.push({ id: `${Date.now()}-mentor`, role: "mentor", speakerRu: "Наставник", textRu: turn.mentor.textRu });
+      if (!route?.discuss && mentorTextRu) {
+        rendered.push({ id: `${Date.now()}-mentor`, role: "mentor", speakerRu: "Наставник", textRu: mentorTextRu });
       }
 
-      let completedSession = turn.session;
+      let completedSession = sessionAfterMentorRender;
       if (route?.discuss && turn.session.state.session.status !== "complete" && !turn.outcomes.some((x) => x.outcome === "SAFETY_STOP")) {
         // Teach only after execution results have been rendered; an order is not a result.
         const result = await requestMentorDialogue({ session: turn.session, messages: [...messages, ...rendered.filter(Boolean)], text });

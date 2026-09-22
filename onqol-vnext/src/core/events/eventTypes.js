@@ -92,6 +92,13 @@ export const EVENT = Object.freeze({
   // Teaching
   MENTOR_INTERVENED: "MENTOR_INTERVENED",
   SAFETY_RULE_FIRED: "SAFETY_RULE_FIRED",
+  // Non-authoritative: which learner-facing string a grounded LLM renderer
+  // produced for a given MENTOR_INTERVENED decision, and whether it was
+  // accepted, repaired-then-accepted, or fell back. Never read by the reducer
+  // to change `state.mentor` or any other domain field - see
+  // Stateful Grounded Mentor Wave A doc. Mirrors LEARNER_TURN_RECEIVED's
+  // non-authoritative `semanticTelemetry` field.
+  MENTOR_GROUNDED_RESPONSE_RENDERED: "MENTOR_GROUNDED_RESPONSE_RENDERED",
 
   // Governance / audit trail (task brief P0-5, P0-8)
   SIMULATOR_LIMITATION_NOTED: "SIMULATOR_LIMITATION_NOTED",

@@ -7,9 +7,11 @@ import { applyCommands, applyTimeAdvance } from "./applyTurn.js";
 import { resolveOperationalCalibration, turnConsumesMinutes } from "./operationalCalibration.js";
 import { interpretTurn } from "../../ai/interpreter/interpretTurn.js";
 import { decideMentorResponse } from "../../ai/mentor/mentorEngine.js";
-import { isInteractionV2Enabled } from "../../ai/interaction/featureFlags.js";
+import { isInteractionV2Enabled, isStatefulGroundedMentorEnabled } from "../../ai/interaction/featureFlags.js";
 import { runSplitSemanticShadow } from "../../ai/interpreter/splitSemanticInterpreter.js";
 import { createNullProviderClient } from "../../ai/providerClient.js";
+import { classifyAdequacy } from "../../ai/mentor/mentorAdequacy.js";
+import { advanceMentorMemory } from "../../ai/mentor/mentorMemory.js";
 
 /**
  * One complete learner turn: raw text in, `{ session, outcomes, mentor }` out.
@@ -97,10 +99,13 @@ export function submitLearnerTurn({ session, text, shadowProvider, interpreted: 
   }
 
   if (interpreted.intent === "MENTOR_ANSWER" || interpreted.commands.length === 0) {
-    const mentor = decideMentorResponse({
-      state: working.state,
-      turnResult: { outcome: "EXECUTED" },
-      mentorSignal: interpreted.mentorSignal,
+    const turnResultForMentor = { outcome: "EXECUTED" };
+    const mentor = enrichMentorWithMemory({
+      session: working,
+      mentor: decideMentorResponse({ state: working.state, turnResult: turnResultForMentor, mentorSignal: interpreted.mentorSignal }),
+      interpreted,
+      turnResult: turnResultForMentor,
+      text,
     });
     working = recordMentorIntervention(working, mentor, atIso);
     return { session: working, interpreted, outcomes: [], mentor, shadowTelemetryPromise };
@@ -228,10 +233,13 @@ export function submitLearnerTurn({ session, text, shadowProvider, interpreted: 
     events: appendEvents(working.events, trailEvents),
   };
 
-  const mentor = decideMentorResponse({
-    state: working.state,
-    turnResult: results.at(-1),
-    mentorSignal: interpreted.mentorSignal,
+  const turnResultForMentor = results.at(-1);
+  const mentor = enrichMentorWithMemory({
+    session: working,
+    mentor: decideMentorResponse({ state: working.state, turnResult: turnResultForMentor, mentorSignal: interpreted.mentorSignal }),
+    interpreted,
+    turnResult: turnResultForMentor,
+    text,
   });
   working = recordMentorIntervention(working, mentor, atIso);
 
@@ -267,7 +275,15 @@ export function buildTurnContext(session) {
  * against the question the mentor actually asked.
  */
 function recordMentorIntervention(session, mentor, atIso) {
-  if (!mentor?.textRu) return session;
+  // `memoryChanged` (Stateful Grounded Mentor Wave A, only set when
+  // STATEFUL_GROUNDED_MENTOR_V1 is on - see `enrichMentorWithMemory` below)
+  // lets a SILENT turn (mentor.textRu null) still persist closing a pending
+  // question when the learner's action was sufficient - otherwise a stale
+  // `pendingMentorQuestion` from an earlier turn would outlive the answer
+  // that resolved it. `payload.spoke` tells the reducer whether to treat
+  // this as an actual intervention (advance `lastInterventionTurn`, reset
+  // `silentTurns`) or a memory-only update.
+  if (!mentor?.textRu && !mentor?.memoryChanged) return session;
   const event = createEvent({
     type: EVENT.MENTOR_INTERVENED,
     atMinutes: session.state.clock.elapsedMinutes,
@@ -280,6 +296,12 @@ function recordMentorIntervention(session, mentor, atIso) {
       expectedAnswerDomains: mentor.openQuestion?.expects ?? [],
       source: mentor.ruleId ? "approved_rule" : "scaffolding_ladder",
       allowedRuleIds: mentor.ruleId ? [mentor.ruleId] : [],
+      spoke: Boolean(mentor.textRu),
+      ...(mentor.pendingMentorQuestion !== undefined ? { pendingMentorQuestion: mentor.pendingMentorQuestion } : {}),
+      ...(mentor.probingStreak !== undefined ? { probingStreak: mentor.probingStreak } : {}),
+      ...(mentor.recentMentorQuestions !== undefined ? { recentMentorQuestions: mentor.recentMentorQuestions } : {}),
+      ...(mentor.deferredMentorIssues !== undefined ? { deferredMentorIssues: mentor.deferredMentorIssues } : {}),
+      ...(mentor.adequacy !== undefined ? { adequacy: mentor.adequacy } : {}),
     },
     cause: { actor: "system", source: "mentor", ruleIds: mentor.ruleId ? [mentor.ruleId] : [] },
   });
@@ -288,6 +310,67 @@ function recordMentorIntervention(session, mentor, atIso) {
     state: reduceEvents(session.state, [event]),
     events: appendEvents(session.events, [event]),
   };
+}
+
+/**
+ * Stateful Grounded Mentor Wave A. Records what the grounded renderer
+ * actually showed the learner (accepted / fell back, which cards, whether it
+ * took a repair pass) as a NON-authoritative event - see the
+ * MENTOR_GROUNDED_RESPONSE_RENDERED comment in eventTypes.js. Called from
+ * `useSession.js` (never from inside `submitLearnerTurn` itself: rendering is
+ * async, this function is a separate, explicit step after the turn that
+ * already recorded the deterministic decision).
+ */
+export function recordGroundedMentorResponse(session, { mode, status, errorCode, cardIds, sourceIds, regenerations, reasons }, atIso) {
+  const event = createEvent({
+    type: EVENT.MENTOR_GROUNDED_RESPONSE_RENDERED,
+    atMinutes: session.state.clock.elapsedMinutes,
+    atIso,
+    payload: {
+      mode: mode ?? null,
+      status: status ?? "fallback",
+      errorCode: errorCode ?? null,
+      cardIds: cardIds ?? [],
+      sourceIds: sourceIds ?? [],
+      regenerations: regenerations ?? 0,
+      // Short categorical violation codes only - see groundedDialogue.js's
+      // attemptVerify comment. Never clinical content, never the verifier's
+      // free-text reasoning.
+      reasons: reasons ?? [],
+    },
+    cause: { actor: "system", source: "grounded_mentor" },
+  });
+  return {
+    ...session,
+    state: reduceEvents(session.state, [event]),
+    events: appendEvents(session.events, [event]),
+  };
+}
+
+/**
+ * Stateful Grounded Mentor Wave A (docs/STATEFUL_GROUNDED_MENTOR_WAVE_A.md).
+ * No-op, returning `mentor` unchanged, unless the session opted into
+ * STATEFUL_GROUNDED_MENTOR_V1 - this is what keeps a flag-off session's
+ * `state.mentor` and MENTOR_INTERVENED payloads byte-identical to before
+ * this wave. `decideMentorResponse` itself is never modified.
+ */
+function enrichMentorWithMemory({ session, mentor, interpreted, turnResult, text }) {
+  if (!isStatefulGroundedMentorEnabled(session.state.session)) return mentor;
+  const priorMentorState = session.state.mentor;
+  const adequacy = classifyAdequacy({
+    mentorCandidate: mentor,
+    interpreted,
+    turnResult,
+    pendingMentorQuestion: priorMentorState.pendingMentorQuestion,
+    text,
+  });
+  const memory = advanceMentorMemory({ mentorCandidate: mentor, adequacy, priorMentorState, turn: session.state.turn, text });
+  const memoryChanged =
+    (memory.pendingMentorQuestion?.issueId ?? null) !== (priorMentorState.pendingMentorQuestion?.issueId ?? null) ||
+    (memory.pendingMentorQuestion?.scaffoldingLevel ?? null) !== (priorMentorState.pendingMentorQuestion?.scaffoldingLevel ?? null) ||
+    memory.probingStreak !== priorMentorState.probingStreak ||
+    memory.deferredMentorIssues.length !== priorMentorState.deferredMentorIssues.length;
+  return { ...mentor, adequacy, ...memory, memoryChanged };
 }
 
 function trailEventTypeFor(outcome) {

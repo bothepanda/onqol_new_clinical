@@ -79,7 +79,17 @@ export function buildLearnerVisibleState(state) {
     reasoning: { ...state.reasoning },
     staff: { ...state.hospital.staff },
     turn: state.turn,
-    mentor: { openQuestion: state.mentor.openQuestion, scaffolding: state.mentor.scaffolding },
+    mentor: {
+      openQuestion: state.mentor.openQuestion,
+      scaffolding: state.mentor.scaffolding,
+      // Stateful Grounded Mentor Wave A: teaching bookkeeping, never patient
+      // truth, so safe in the same envelope - this is what `mentorBrief.js`
+      // reads to avoid re-asking a question or to know the probing streak.
+      pendingMentorQuestion: state.mentor.pendingMentorQuestion,
+      probingStreak: state.mentor.probingStreak,
+      recentMentorQuestions: state.mentor.recentMentorQuestions,
+      deferredMentorIssues: state.mentor.deferredMentorIssues,
+    },
   });
 }
 

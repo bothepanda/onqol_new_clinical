@@ -60,11 +60,15 @@ The app-to-gateway shadow path is wired, but **no live-provider measurement was 
 
 A related trap, also now fixed: naive substring synonym matching read `"аппендэктомию"` as containing `"кт"` and ordered a CT scan the learner never requested. Synonym matching is now whole-word, with stem matching only for entries of five characters or more.
 
-## 4. Mentor: deterministic decisions, no phrasing variation
+## 4. Mentor: deterministic decisions, provider-backed phrasing behind a flag
 
 All four scaffolding rungs are now genuinely distinct (levels 3 and 4 previously fell back to level 2's cue). Mentor decisions now persist as `MENTOR_INTERVENED` events and the open-question contract is honored and cleared correctly.
 
-Still true: the mentor and renderer are template-driven, so the same situation produces byte-identical text every time. The natural variation the legacy runs had is absent. This is architecturally correct (the model must not own clinical truth) but a provider-backed *phrasing-only* pass on already-decided structured facts does not exist yet.
+As of the Stateful Grounded Mentor Wave A (`docs/STATEFUL_GROUNDED_MENTOR_WAVE_A.md`), the provider-backed phrasing-only pass this section used to say didn't exist now does, behind `STATEFUL_GROUNDED_MENTOR_V1` (default off): `src/ai/mentor/mentorEngine.js` still owns every decision (mode, issue, safety, scaffolding level) exactly as before, and `src/ai/mentor/statefulGroundedMentor.js` turns that decision into learner-anchored wording through a propose-then-independently-verify pipeline (`groundedDialogue.js`) constrained to a small, per-issue slice of the approved appendicitis card library, with one bounded regeneration on a rejected draft before falling back to the deterministic engine's own reviewed sentence — never the invented kind. With the flag off (still the default), the mentor and renderer remain exactly template-driven as described below, byte-identical to before this wave.
+
+Still true with the flag off, and true everywhere the flag is on but the grounded pass falls back: the mentor and renderer are template-driven, so the same situation produces byte-identical text every time.
+
+Open, deliberately deferred to a later wave (see that doc's "Explicitly deferred" section): grounding still checks a claim against the approved card it CITES, not full independent semantic verification that the citation itself is the right one for every possible phrasing (the same caveat the donor architecture's own README states about its reference-trace mechanism - this build's two-pass verifier is stricter than that, but "stricter" is not "proven exhaustive"); the issue → card retrieval table is hand-authored for one disease slice, not a general retriever; and only Wave A's own behavioral fixtures (`statefulGroundedMentor.behavioral.test.js`) exercise the stateful working-memory dynamics end to end - they are synthetic, not drawn from any real session transcript.
 
 ## 5. Deterioration still never fires
 
