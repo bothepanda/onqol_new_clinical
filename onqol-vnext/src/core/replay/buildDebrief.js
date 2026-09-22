@@ -281,6 +281,8 @@ function buildResourceLimitations(events) {
 /**
  * The category that must never be presented as learner failure (task §21).
  */
+const NOT_MODELED_LABEL_RU = Object.freeze({ pelvic_ultrasound: "УЗИ органов малого таза" });
+
 function buildSimulatorLimitations(state) {
   const grouped = new Map();
   for (const entry of state.simulatorLimitations) {
@@ -288,14 +290,25 @@ function buildSimulatorLimitations(state) {
     if (!grouped.has(key)) grouped.set(key, { ...entry, occurrences: 0 });
     grouped.get(key).occurrences += 1;
   }
-  return [...grouped.values()].map((entry) => ({
-    kind: entry.kind,
-    id: entry.id,
-    reviewStatus: entry.reviewStatus,
-    occurrences: entry.occurrences,
-    noteRu:
-      "Этот элемент клинического контента ещё не прошёл независимое клиническое рецензирование, поэтому не влиял на симуляцию. Это ограничение платформы, а не пропуск обучающегося.",
-  }));
+  return [...grouped.values()].map((entry) => (entry.reason === "not_modeled"
+    ? {
+        kind: entry.kind,
+        id: entry.id,
+        reviewStatus: entry.reviewStatus,
+        reason: entry.reason,
+        occurrences: entry.occurrences,
+        pointRu: `${NOT_MODELED_LABEL_RU[entry.id] ?? entry.id}: в этой версии симуляции результат не моделируется.`,
+        noteRu:
+          "Назначение распознано, но в текущей версии симуляции для него нет утверждённого результата, поэтому оно ничего не изменило. Это ограничение платформы, а не ошибка или пропуск обучающегося.",
+      }
+    : {
+        kind: entry.kind,
+        id: entry.id,
+        reviewStatus: entry.reviewStatus,
+        occurrences: entry.occurrences,
+        noteRu:
+          "Этот элемент клинического контента ещё не прошёл независимое клиническое рецензирование, поэтому не влиял на симуляцию. Это ограничение платформы, а не пропуск обучающегося.",
+      }));
 }
 
 /**
@@ -308,7 +321,9 @@ function buildSimulatorLimitations(state) {
  * learner never opens.
  */
 export function buildContentGovernance(state) {
-  const kinds = new Set(state.simulatorLimitations.map((entry) => entry.kind));
+  // Only content withheld for missing approval is a governance matter. An
+  // investigation the platform simply does not model is reported separately.
+  const kinds = new Set(state.simulatorLimitations.filter((entry) => entry.reason !== "not_modeled").map((entry) => entry.kind));
   return {
     patientTruthApproved: state.session.patientTruthApproved === true,
     pilotReady: isLearnerFacingSessionApproved(state.session),

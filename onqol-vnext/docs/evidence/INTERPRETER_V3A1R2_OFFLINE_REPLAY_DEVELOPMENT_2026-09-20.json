@@ -1,0 +1,451 @@
+{
+  "suite": "DEVELOPMENT",
+  "kind": "OFFLINE_REPLAY_OF_RECORDED_MODEL_RESPONSES",
+  "status": "DIAGNOSTIC_ONLY_NO_LIVE_CALLS",
+  "evidenceUse": "development_diagnostic_only_not_generalization_evidence; the recorded responses come from the pre-v3A.1 prompt/allowlist",
+  "verdict": "NO-GO",
+  "holdout": {
+    "untouched": true,
+    "rows": 50,
+    "hash": "3427c6999e91821f8ad88a598700a17f04a4a9cb79b046a2005b522cedebf13e",
+    "equalsStage2FrozenHash": true
+  },
+  "recordedRun": {
+    "file": "docs/evidence/INTERPRETER_V3_CORPUS_DEVELOPMENT_2026-09-20-run1.json",
+    "candidate": "2026-09-20-run1",
+    "promotionPolicyVersion": "v3a-2026-09-19",
+    "consultedTurns": 139
+  },
+  "currentCandidate": {
+    "promotionPolicyVersion": "v3a1-2026-09-20",
+    "commitmentPolicyVersion": "commitment-2026-09-20-r2",
+    "sourceHash": "54c4b4fdb8bb11f78a89affe9b601a680442c9b29dc791a13dae05e86148d5f8"
+  },
+  "replay": {
+    "rows": 183,
+    "rowsWithRecordedResponseUsed": 137,
+    "notReplayable": [
+      "v3-001"
+    ],
+    "networkCalls": 0
+  },
+  "before": {
+    "deterministicOnly": {
+      "exactFinalCommandSetAccuracy": 0.4918032786885246,
+      "exactSetAccuracyByGroup": 0.5212765957446809,
+      "commandPrecision": 0.9473684210526315,
+      "commandRecall": 0.42483660130718953,
+      "falseExecutionCount": 2,
+      "falseExecutionRate": 0.04081632653061224,
+      "inappropriateClarificationCount": 7,
+      "inappropriateClarificationRate": 0.04487179487179487,
+      "parameterInventionCount": 0,
+      "highRiskFalseExecutionCount": 0,
+      "patientQuestionAccuracy": 0.07692307692307693,
+      "resolutionCounts": {}
+    },
+    "v3": {
+      "exactFinalCommandSetAccuracy": 0.8743169398907104,
+      "exactSetAccuracyByGroup": 0.851063829787234,
+      "commandPrecision": 0.9761904761904762,
+      "commandRecall": 0.8888888888888888,
+      "falseExecutionCount": 3,
+      "falseExecutionRate": 0.02608695652173913,
+      "inappropriateClarificationCount": 11,
+      "inappropriateClarificationRate": 0.07051282051282051,
+      "parameterInventionCount": 0,
+      "highRiskFalseExecutionCount": 0,
+      "patientQuestionAccuracy": 0.6923076923076923,
+      "resolutionCounts": {
+        "semantic_added": 65,
+        "deterministic_fast_path": 40,
+        "semantic_override": 5,
+        "clarification": 15,
+        "deterministic_preserved": 29
+      }
+    }
+  },
+  "after": {
+    "deterministicOnly": {
+      "exactFinalCommandSetAccuracy": 0.5136612021857924,
+      "exactSetAccuracyByGroup": 0.5531914893617021,
+      "commandPrecision": 0.9821428571428571,
+      "commandRecall": 0.43790849673202614,
+      "falseExecutionCount": 0,
+      "falseExecutionRate": 0,
+      "inappropriateClarificationCount": 0,
+      "inappropriateClarificationRate": 0,
+      "parameterInventionCount": 0,
+      "highRiskFalseExecutionCount": 0,
+      "patientQuestionAccuracy": 0.07692307692307693,
+      "resolutionCounts": {}
+    },
+    "v3": {
+      "exactFinalCommandSetAccuracy": 0.8907103825136612,
+      "exactSetAccuracyByGroup": 0.8829787234042553,
+      "commandPrecision": 1,
+      "commandRecall": 0.8954248366013072,
+      "falseExecutionCount": 0,
+      "falseExecutionRate": 0,
+      "inappropriateClarificationCount": 10,
+      "inappropriateClarificationRate": 0.0641025641025641,
+      "parameterInventionCount": 0,
+      "highRiskFalseExecutionCount": 0,
+      "patientQuestionAccuracy": 0.6923076923076923,
+      "resolutionCounts": {
+        "semantic_added": 68,
+        "deterministic_fast_path": 39,
+        "clarification": 16,
+        "deterministic_preserved": 28
+      }
+    }
+  },
+  "changes": {
+    "fixed": [
+      "stage2-180",
+      "v3-020",
+      "v3-033"
+    ],
+    "regressed": []
+  },
+  "falseExecutionsNow": [],
+  "residualFailures": [
+    {
+      "id": "stage2-055",
+      "text": "исследуйте малый таз ультразвуком",
+      "category": "paraphrase",
+      "gold": [
+        "ORDER_TEST:pelvic_ultrasound"
+      ],
+      "goldDisposition": "commands",
+      "executed": [],
+      "final": [
+        "ORDER_TEST:"
+      ],
+      "withheld": [],
+      "clarified": true,
+      "unresolved": []
+    },
+    {
+      "id": "stage2-056",
+      "text": "Коллеги, исследуйте малый таз ультразвуком",
+      "category": "paraphrase",
+      "gold": [
+        "ORDER_TEST:pelvic_ultrasound"
+      ],
+      "goldDisposition": "commands",
+      "executed": [],
+      "final": [
+        "ORDER_TEST:"
+      ],
+      "withheld": [],
+      "clarified": true,
+      "unresolved": []
+    },
+    {
+      "id": "stage2-057",
+      "text": "Пожалуйста, исследуйте малый таз ультразвуком",
+      "category": "paraphrase",
+      "gold": [
+        "ORDER_TEST:pelvic_ultrasound"
+      ],
+      "goldDisposition": "commands",
+      "executed": [],
+      "final": [
+        "ORDER_TEST:"
+      ],
+      "withheld": [],
+      "clarified": true,
+      "unresolved": []
+    },
+    {
+      "id": "stage2-058",
+      "text": "нужна сонография малого таза",
+      "category": "paraphrase",
+      "gold": [
+        "ORDER_TEST:pelvic_ultrasound"
+      ],
+      "goldDisposition": "commands",
+      "executed": [],
+      "final": [
+        "ORDER_TEST:"
+      ],
+      "withheld": [],
+      "clarified": true,
+      "unresolved": []
+    },
+    {
+      "id": "stage2-059",
+      "text": "Коллеги, нужна сонография малого таза",
+      "category": "paraphrase",
+      "gold": [
+        "ORDER_TEST:pelvic_ultrasound"
+      ],
+      "goldDisposition": "commands",
+      "executed": [],
+      "final": [
+        "ORDER_TEST:"
+      ],
+      "withheld": [],
+      "clarified": true,
+      "unresolved": []
+    },
+    {
+      "id": "stage2-060",
+      "text": "Пожалуйста, нужна сонография малого таза",
+      "category": "paraphrase",
+      "gold": [
+        "ORDER_TEST:pelvic_ultrasound"
+      ],
+      "goldDisposition": "commands",
+      "executed": [],
+      "final": [
+        "ORDER_TEST:"
+      ],
+      "withheld": [],
+      "clarified": true,
+      "unresolved": []
+    },
+    {
+      "id": "stage2-061",
+      "text": "сделайте ультразвуковое исследование малого таза",
+      "category": "paraphrase",
+      "gold": [
+        "ORDER_TEST:pelvic_ultrasound"
+      ],
+      "goldDisposition": "commands",
+      "executed": [],
+      "final": [
+        "ORDER_TEST:"
+      ],
+      "withheld": [],
+      "clarified": true,
+      "unresolved": []
+    },
+    {
+      "id": "stage2-062",
+      "text": "Коллеги, сделайте ультразвуковое исследование малого таза",
+      "category": "paraphrase",
+      "gold": [
+        "ORDER_TEST:pelvic_ultrasound"
+      ],
+      "goldDisposition": "commands",
+      "executed": [],
+      "final": [
+        "ORDER_TEST:"
+      ],
+      "withheld": [],
+      "clarified": true,
+      "unresolved": []
+    },
+    {
+      "id": "stage2-063",
+      "text": "Пожалуйста, сделайте ультразвуковое исследование малого таза",
+      "category": "paraphrase",
+      "gold": [
+        "ORDER_TEST:pelvic_ultrasound"
+      ],
+      "goldDisposition": "commands",
+      "executed": [],
+      "final": [
+        "ORDER_TEST:"
+      ],
+      "withheld": [],
+      "clarified": true,
+      "unresolved": []
+    },
+    {
+      "id": "stage2-094",
+      "text": "уточню, когда последний раз ел",
+      "category": "paraphrase",
+      "gold": [
+        "ASK_FASTING_HISTORY:"
+      ],
+      "goldDisposition": "commands",
+      "executed": [
+        "ASK_FASTING_HISTORY:"
+      ],
+      "final": [
+        "ASK_FASTING_HISTORY:"
+      ],
+      "withheld": [],
+      "clarified": false,
+      "unresolved": [
+        "уточню"
+      ]
+    },
+    {
+      "id": "stage2-095",
+      "text": "Коллеги, уточню, когда последний раз ел",
+      "category": "paraphrase",
+      "gold": [
+        "ASK_FASTING_HISTORY:"
+      ],
+      "goldDisposition": "commands",
+      "executed": [
+        "ASK_FASTING_HISTORY:"
+      ],
+      "final": [
+        "ASK_FASTING_HISTORY:"
+      ],
+      "withheld": [],
+      "clarified": false,
+      "unresolved": [
+        "уточню"
+      ]
+    },
+    {
+      "id": "stage2-096",
+      "text": "Пожалуйста, уточню, когда последний раз ел",
+      "category": "paraphrase",
+      "gold": [
+        "ASK_FASTING_HISTORY:"
+      ],
+      "goldDisposition": "commands",
+      "executed": [
+        "ASK_FASTING_HISTORY:"
+      ],
+      "final": [
+        "ASK_FASTING_HISTORY:"
+      ],
+      "withheld": [],
+      "clarified": false,
+      "unresolved": [
+        "уточню"
+      ]
+    },
+    {
+      "id": "stage2-101",
+      "text": "Коллеги, ничего не давать через рот",
+      "category": "paraphrase",
+      "gold": [
+        "SET_NPO:"
+      ],
+      "goldDisposition": "commands",
+      "executed": [],
+      "final": [],
+      "withheld": [],
+      "clarified": false,
+      "unresolved": [
+        "ничего не давать через рот"
+      ]
+    },
+    {
+      "id": "stage2-160",
+      "text": "кетопрофн 100 мг в/м",
+      "category": "slang",
+      "gold": [
+        "ORDER_MEDICATION:ketoprofen"
+      ],
+      "goldDisposition": "commands",
+      "executed": [],
+      "final": [],
+      "withheld": [],
+      "clarified": false,
+      "unresolved": [
+        "кетопрофн 100 мг в/м"
+      ]
+    },
+    {
+      "id": "stage2-164",
+      "text": "ктшку обп",
+      "category": "slang",
+      "gold": [
+        "ORDER_TEST:ct_abdomen"
+      ],
+      "goldDisposition": "commands",
+      "executed": [],
+      "final": [],
+      "withheld": [],
+      "clarified": false,
+      "unresolved": [
+        "ктшку обп"
+      ]
+    },
+    {
+      "id": "stage2-168",
+      "text": "нпо",
+      "category": "slang",
+      "gold": [
+        "SET_NPO:"
+      ],
+      "goldDisposition": "commands",
+      "executed": [],
+      "final": [],
+      "withheld": [],
+      "clarified": false,
+      "unresolved": [
+        "нпо"
+      ]
+    },
+    {
+      "id": "v3-001",
+      "text": "осмотрите живот ультразвуком",
+      "category": "v3_correction",
+      "gold": [
+        "ORDER_TEST:ultrasound_abdomen"
+      ],
+      "goldDisposition": "commands",
+      "executed": [],
+      "final": [],
+      "withheld": [],
+      "clarified": false,
+      "unresolved": [
+        "осмотрите живот ультразвуком"
+      ]
+    },
+    {
+      "id": "v3-002",
+      "text": "ультразвуком осмотрите брюшную полость",
+      "category": "v3_correction",
+      "gold": [
+        "ORDER_TEST:ultrasound_abdomen"
+      ],
+      "goldDisposition": "commands",
+      "executed": [],
+      "final": [
+        "ORDER_TEST:"
+      ],
+      "withheld": [],
+      "clarified": true,
+      "unresolved": []
+    },
+    {
+      "id": "v3-009",
+      "text": "скажите, аллергия на препараты бывает?",
+      "category": "v3_patient_question",
+      "gold": [
+        "ASK_PATIENT:allergies"
+      ],
+      "goldDisposition": "commands",
+      "executed": [
+        "ASK_PATIENT:allergies"
+      ],
+      "final": [
+        "ASK_PATIENT:allergies"
+      ],
+      "withheld": [],
+      "clarified": false,
+      "unresolved": [
+        "скажите"
+      ]
+    },
+    {
+      "id": "v3-019",
+      "text": "хочу увидеть воспалительные показатели",
+      "category": "v3_category",
+      "gold": [
+        "ORDER_TEST:"
+      ],
+      "goldDisposition": "clarify",
+      "executed": [],
+      "final": [],
+      "withheld": [],
+      "clarified": false,
+      "unresolved": [
+        "хочу увидеть воспалительные показатели"
+      ]
+    }
+  ],
+  "generatedAt": "2026-09-20T12:00:29.876Z"
+}

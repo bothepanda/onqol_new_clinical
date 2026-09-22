@@ -1,0 +1,106 @@
+{
+  "schema": "onqol-legacy-real-language-manifest-v1",
+  "corpus": "legacy_real_language_development",
+  "version": "v1.1",
+  "status": "FROZEN_DEVELOPMENT_ARTIFACT",
+  "evidenceUse": "development_only: usable for interpreter remediation; NOT holdout; NOT generalization evidence",
+  "frozenAt": "2026-09-20T16:35:50.248Z",
+  "corpusHash": "1004137eab7e4a0aba557244b57357490985ddc4839e520c0abaffa854cc60cd",
+  "counts": {
+    "turns": 93,
+    "sessions": 11,
+    "byScope": {
+      "IN_SCOPE": 69,
+      "OUT_OF_CURRENT_SCOPE": 24
+    },
+    "byChannel": {
+      "compound": 42,
+      "clinical_action": 21,
+      "clinical_reasoning": 11,
+      "conversation_management": 12,
+      "mentor_answer": 7
+    },
+    "byCommitment": {
+      "COMMITTED": 41,
+      "MIXED": 22,
+      "FUTURE_PLAN": 6,
+      "NOT_APPLICABLE": 18,
+      "INTERROGATIVE": 2,
+      "TENTATIVE": 3,
+      "DECLINED": 1
+    },
+    "byDisposition": {
+      "commands": 21,
+      "clarify": 16,
+      "unresolved": 13,
+      "commands_partial": 18,
+      "no_action": 25
+    },
+    "byAmbiguity": {
+      "underspecified": 15,
+      "lexical": 28,
+      "genuine": 10,
+      "none": 40
+    },
+    "byConfidence": {
+      "medium": 44,
+      "high": 37,
+      "low": 12
+    }
+  },
+  "annotation": {
+    "status": "draft_linguistic",
+    "annotator": "model-drafted; human review pending",
+    "clinicianAdjudicated": 0
+  },
+  "privacy": "raw learner words, alias map and salt live under private/legacy-real-language/ (gitignored); this manifest carries no words",
+  "amendments": [
+    {
+      "toVersion": "v1.1",
+      "turnId": "lrd-e1c493-t06",
+      "previousTurnHash": "989a2e9e723490416d0e1ffb8f6061b685a00bee4a69aa835ae00e19f45f8aac",
+      "newTurnHash": "1877265525236f5c67c70d89efd61290edc1b8f92fb196fe7204fcfd30140033",
+      "previousCorpusHash": "60406a6db13ac312849525f0e2fc2c656208dbb8240827bf487577d9f8b76c13",
+      "reason": "A first-person perfective-future consult intention was labelled not-to-commit while the same construction in another turn was labelled committed. Inconsistent labelling by the annotator; the two-way reading is now `optional`.",
+      "madeAfterBaselineWasMeasured": true,
+      "madeToMoveAMetric": false
+    },
+    {
+      "toVersion": "v1.1",
+      "turnId": "lrd-324b0a-t05",
+      "previousTurnHash": "e8f7061279f6ecd2f41048dde8e6e75d9ee342a9fc753fe43709edc392f02ed8",
+      "newTurnHash": "1e6ad8a6c533e71b37a1588cb73410f03c12a67468fa775430de95c6798e4490",
+      "previousCorpusHash": "60406a6db13ac312849525f0e2fc2c656208dbb8240827bf487577d9f8b76c13",
+      "reason": "The turn states monitoring of urine output in a fluid-order clause; the v1 label omitted that target although the label note already mentioned it.",
+      "madeAfterBaselineWasMeasured": true,
+      "madeToMoveAMetric": false
+    },
+    {
+      "toVersion": "v1.1",
+      "turnId": "lrd-d728c6-t01",
+      "previousTurnHash": "6b3a4e27a25c0b4dbe5af7834d384ba50379f0895b7b9ba1e55cbf234b2a519a",
+      "newTurnHash": "c8700b30503490ca9f1549e1d16583d8a398dd3f1203f6b076d2def2b9370773",
+      "previousCorpusHash": "60406a6db13ac312849525f0e2fc2c656208dbb8240827bf487577d9f8b76c13",
+      "reason": "A neurological-status examination is an EXAMINE command (EXAMINE executes for any region, like the rectal exam v1 already counted as modeled). v1 labelled it unmodeled: inconsistent.",
+      "madeAfterBaselineWasMeasured": true,
+      "madeToMoveAMetric": false
+    },
+    {
+      "toVersion": "v1.1",
+      "turnId": "lrd-93c2ad-t01",
+      "previousTurnHash": "5728170e9303a7aaf6e69a37c2aac91371b2bdeec3c48b2660d4e1e6fe4aaf3a",
+      "newTurnHash": "439a28992617b9dd436388767a4c6929acbc9c2e3c3c9ee3283347b7a5b0c6b7",
+      "previousCorpusHash": "60406a6db13ac312849525f0e2fc2c656208dbb8240827bf487577d9f8b76c13",
+      "reason": "Same inconsistency as the neurological-status examination in another turn: it is an EXAMINE region, not an unmodeled fragment.",
+      "madeAfterBaselineWasMeasured": true,
+      "madeToMoveAMetric": false
+    }
+  ],
+  "previousVersions": [
+    {
+      "version": "v1",
+      "corpusHash": "60406a6db13ac312849525f0e2fc2c656208dbb8240827bf487577d9f8b76c13",
+      "frozenAt": "2026-09-20T16:14:32.245Z"
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 import { COMMAND } from "../../core/commands/commandTypes.js";
+import { containsNormalized } from "./textMatch.js";
 
 export const HIGH_RISK_PARAMETER_KEYS = Object.freeze([
   "dose",
@@ -73,11 +74,15 @@ function bindExplicitParameters(type, text) {
       unboundExpressions.push({ kind: "weight_based_volume", expression: weightBased[0] });
     } else {
       const volume = /(\d+(?:[.,]\d+)?)\s*(?:мл|ml)(?=$|\s|[.,;])/i.exec(text);
+      // Litres are volume too («2 л», «около 1 л»): a unit conversion of a number the learner wrote, never a guess.
+      // «л/мин» (an oxygen flow) is not a volume: the unit must end the token.
+      const litres = volume ? null : /(\d+(?:[.,]\d+)?)\s*(?:л|l)(?=$|\s|[.,;])/i.exec(text);
       if (volume) params.volumeMl = number(volume[1]);
+      else if (litres) params.volumeMl = Math.round(number(litres[1]) * 1000);
     }
     const duration = extractDurationMinutes(text, { requiresTemporalCue: true });
     if (duration != null) params.durationMinutes = duration;
-    if (/\bболюс(?:ом)?\b/i.test(text)) params.bolus = true;
+    if (/(?:^|[^\p{L}\p{N}])болюс(?:ом)?(?=$|[^\p{L}\p{N}])/iu.test(text)) params.bolus = true;
   }
 
   if (type === COMMAND.PRESCRIBE_MONITORING) {
@@ -105,9 +110,9 @@ function extractDose(text) {
 }
 
 function extractRoute(text) {
-  if (/(?:^|\s)(?:в\s*\/\s*в|iv)(?:$|\s)/i.test(text) || /внутривен/i.test(text)) return "iv";
-  if (/(?:^|\s)(?:в\s*\/\s*м|im)(?:$|\s)/i.test(text) || /внутримыш/i.test(text)) return "im";
-  if (/(?:^|\s)(?:po)(?:$|\s)/i.test(text) || /внутрь|перорал/i.test(text)) return "oral";
+  if (/(?:^|\s)(?:в\s*\/\s*в|iv)(?:$|\s|[.,;!?])/i.test(text) || /внутривен/i.test(text)) return "iv";
+  if (/(?:^|\s)(?:в\s*\/\s*м|im)(?:$|\s|[.,;!?])/i.test(text) || /внутримыш/i.test(text)) return "im";
+  if (/(?:^|\s)(?:po)(?:$|\s|[.,;!?])/i.test(text) || /внутрь|перорал/i.test(text)) return "oral";
   return null;
 }
 
@@ -128,8 +133,7 @@ function verbatimEvidence(evidence, rawText) {
   const raw = String(rawText ?? "");
   const span = String(evidence ?? "").trim();
   if (!span) return null;
-  const index = normalize(raw).indexOf(normalize(span));
-  return index >= 0 ? span : null;
+  return normalize(raw).includes(normalize(span)) || containsNormalized(raw, span) ? span : null;
 }
 
 function normalize(value) {

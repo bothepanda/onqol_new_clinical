@@ -20,8 +20,13 @@ import { interpreterModelConfig, INTERPRETER_BUDGET, completionCost } from "../s
 
 const DEFAULT_TIMEOUT_MS = INTERPRETER_BUDGET.gatewayMs;
 
-export function createAiGateway({ env = process.env, fetchImpl = globalThis.fetch, logger = console, budgetStore = null } = {}) {
-  const config = interpreterModelConfig(env);
+/**
+ * `limits` may only LOWER a configured cap (a separate, smaller ledger for one
+ * evaluation); it can never raise the production defaults.
+ */
+export function createAiGateway({ env = process.env, fetchImpl = globalThis.fetch, logger = console, budgetStore = null, limits = {}, timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
+  const base = interpreterModelConfig(env);
+  const config = { ...base, pilotMaxUsd: Math.min(base.pilotMaxUsd, limits.pilotMaxUsd ?? base.pilotMaxUsd) };
   const apiKey = config.provider === "anthropic" ? env.ANTHROPIC_API_KEY : env.OPENAI_API_KEY;
   const budget = budgetStore?.load() ?? { sessions: {}, pilotReservedUsd: 0 };
   const allowedOrigin = env.ONQOL_ALLOWED_ORIGIN ?? null;
@@ -53,7 +58,7 @@ export function createAiGateway({ env = process.env, fetchImpl = globalThis.fetc
       return;
     }
 
-    handleRequest(req, res, { apiKey, config, fetchImpl, reserve, timeoutMs: DEFAULT_TIMEOUT_MS }).catch((error) => {
+    handleRequest(req, res, { apiKey, config, fetchImpl, reserve, timeoutMs }).catch((error) => {
       const code = error.name === "AbortError" ? "provider_timeout" : error.code ?? "provider_error";
       logger.error("onqol_gateway", { code, upstreamStatus: error.upstreamStatus ?? null });
       res.statusCode = code === "provider_timeout" ? 504 : ["provider_quota", "rate_limited"].includes(code) ? 429 : code === "provider_auth" ? 401 : 502;

@@ -1,0 +1,97 @@
+{
+  "schema": "onqol-v3-holdout-manifest-v1",
+  "status": "FROZEN_NOT_RUN",
+  "generatedOn": "2026-09-20",
+  "scope": "synthetic author-written rows only; no resident language and no participant",
+  "fingerprint": {
+    "recipe": "sha256(JSON.stringify(rows)) over the raw holdout rows in corpus order",
+    "rows": 41,
+    "hash": "24b3409ea23f123e97a78f257436909712f438007d7244475439c9752532d1d0"
+  },
+  "supersedes": {
+    "hash": "3427c6999e91821f8ad88a598700a17f04a4a9cb79b046a2005b522cedebf13e",
+    "rows": 50,
+    "sourceManifests": [
+      "STAGE2_FREEZE_MANIFEST_2026-09-08.json",
+      "STAGE2_FREEZE_MANIFEST_2026-09-19.json",
+      "STAGE2_FREEZE_MANIFEST_2026-09-19-r2.json"
+    ],
+    "why": "9 of its 50 rows were built from a raw resident session export; removed under the data-governance ruling (raw resident language never lives in the tracked repository)"
+  },
+  "retiredRowIds": [
+    "stage2-001",
+    "stage2-002",
+    "stage2-003",
+    "stage2-004",
+    "stage2-005",
+    "stage2-006",
+    "stage2-007",
+    "stage2-008",
+    "stage2-009"
+  ],
+  "splitRule": "sha256(group) mod 4 === 0 (unchanged); a group is never split",
+  "groups": 25,
+  "rowIds": [
+    "stage2-064",
+    "stage2-065",
+    "stage2-066",
+    "stage2-070",
+    "stage2-071",
+    "stage2-072",
+    "stage2-091",
+    "stage2-092",
+    "stage2-093",
+    "stage2-097",
+    "stage2-098",
+    "stage2-099",
+    "stage2-118",
+    "stage2-119",
+    "stage2-120",
+    "stage2-130",
+    "stage2-131",
+    "stage2-132",
+    "stage2-139",
+    "stage2-140",
+    "stage2-141",
+    "stage2-142",
+    "stage2-143",
+    "stage2-144",
+    "stage2-153",
+    "stage2-157",
+    "stage2-158",
+    "stage2-163",
+    "stage2-170",
+    "stage2-172",
+    "stage2-173",
+    "stage2-182",
+    "stage2-183",
+    "stage2-185",
+    "stage2-188",
+    "stage2-189",
+    "stage2-190",
+    "stage2-191",
+    "stage2-194",
+    "stage2-195",
+    "stage2-197"
+  ],
+  "byCategory": {
+    "ellipsis": 9,
+    "injection": 4,
+    "negative": 8,
+    "paraphrase": 15,
+    "slang": 5
+  },
+  "byProvenance": {
+    "synthetic": 41
+  },
+  "consumed": false,
+  "runs": [],
+  "frozen": {
+    "at": "2026-09-20T15:51:16.666Z",
+    "fingerprintSha256": "24b3409ea23f123e97a78f257436909712f438007d7244475439c9752532d1d0",
+    "rows": 41,
+    "sealSha256": "008d23ee590bd2146841469dc1754680dcaa64a53646a124beee9d1c68146421",
+    "run": false
+  },
+  "note": "Fingerprint frozen, holdout NOT run. Any change to the holdout rows, or to this file, makes it a new holdout with a new fingerprint. The interpreter candidate is a separate freeze."
+}

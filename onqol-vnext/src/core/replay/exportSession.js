@@ -42,6 +42,7 @@ export function exportSession({ session, generatedAtIso }) {
     // session's turns; `byTurn` is the per-turn record.
     interpreter: summarizeInterpreter(session.events),
     ai_telemetry: session.aiTelemetry ?? [],
+    ...(session.mentorDialogue?.length ? { mentor_dialogue: session.mentorDialogue } : {}),
   };
 }
 
@@ -86,6 +87,8 @@ function buildLearnerTurns(events) {
         mentorSignal: event.payload.mentorSignal,
         unmatchedFragments: event.payload.unmatchedFragments ?? [],
         interpretedCommands: event.payload.interpretedCommands,
+        withheldCommands: event.payload.withheldCommands ?? [],
+        ...(event.payload.commandSequence ? { commandSequence: event.payload.commandSequence } : {}),
         commandOutcomes: [],
         mentor: null,
       };

@@ -570,7 +570,7 @@ export function applyEvent(state, event) {
     case EVENT.SIMULATOR_LIMITATION_NOTED:
       next.simulatorLimitations = [
         ...state.simulatorLimitations,
-        { atMinutes: event.atMinutes, kind: event.payload.kind, id: event.payload.id, reviewStatus: event.payload.reviewStatus },
+        { atMinutes: event.atMinutes, kind: event.payload.kind, id: event.payload.id, reviewStatus: event.payload.reviewStatus, reason: event.payload.reason ?? "not_approved_for_training" },
       ];
       break;
 

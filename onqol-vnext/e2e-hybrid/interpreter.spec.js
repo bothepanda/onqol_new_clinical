@@ -34,9 +34,16 @@ for (const scenario of ["valid", "concept_rejection", "missing_gateway", "timeou
     const chunks = []; for await (const chunk of stream) chunks.push(chunk);
     const exported = JSON.parse(Buffer.concat(chunks).toString());
     const telemetry = exported.interpreter.telemetryByTurn.at(-1);
-    expect(telemetry.mode).toBe(scenario === "valid" ? "hybrid" : "hybrid_fallback_deterministic");
+    expect(telemetry.mode).toBe(["valid", "concept_rejection"].includes(scenario) ? "hybrid" : "hybrid_fallback_deterministic");
     if (scenario === "valid") { expect(telemetry.model).toBe("ci-mock"); expect(telemetry.added).toBe(1); }
-    else expect(telemetry.errorCode).toBe(scenario === "timeout" ? "provider_timeout" : scenario === "concept_rejection" ? "concept_validation_failure" : "gateway_unavailable");
+    else if (scenario === "concept_rejection") {
+      // v3: a rejected candidate is a candidate-level decision, not a failed task. The provider answered, the turn is
+      // hybrid, the model's contradicted concept never becomes a command, and the deterministic reading is intact.
+      expect(telemetry.errorCode).toBeNull();
+      expect(telemetry.added).toBe(0);
+      expect(telemetry.candidateDecisions[0]).toMatchObject({ type: "ORDER_TEST", validation: "REJECT" });
+      expect(telemetry.candidateDecisions[0].reasonCodes).toContain("evidence_names_other_concept");
+    } else expect(telemetry.errorCode).toBe(scenario === "timeout" ? "provider_timeout" : "gateway_unavailable");
     expect(exported.learner_turns).toHaveLength(1);
     await page.screenshot({ path: testInfo.outputPath(`${scenario}.png`), fullPage: true });
   });

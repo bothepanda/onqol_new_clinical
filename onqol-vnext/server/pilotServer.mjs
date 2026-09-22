@@ -6,13 +6,15 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { createAiGateway } from "./aiGateway.mjs";
 import { fileBudgetStore } from "./budgetStore.mjs";
+import { createMentorGateway } from "./mentorGateway.mjs";
 
 export function createPilotServer({ env = process.env, fetchImpl } = {}) {
   const root = fileURLToPath(new URL("../dist/", import.meta.url));
   const gateway = createAiGateway({ env, fetchImpl, budgetStore: fileBudgetStore(fileURLToPath(new URL("../.onqol-stage2-budget.json", import.meta.url))) });
-  return createServer((req, res) => gateway(req, res, () => {
+  const mentorGateway = createMentorGateway({ env, fetchImpl });
+  return createServer((req, res) => mentorGateway(req, res, () => gateway(req, res, () => {
     void serve(req, res).catch(() => { res.statusCode = 404; res.end("Not found"); });
-  }));
+  })));
   async function serve(req, res) {
     if (!["GET", "HEAD"].includes(req.method)) { res.statusCode = 405; res.end(); return; }
     const pathname = decodeURIComponent(new URL(req.url, "http://localhost").pathname);

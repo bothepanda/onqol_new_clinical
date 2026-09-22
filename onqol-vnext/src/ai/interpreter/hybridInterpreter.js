@@ -1,30 +1,40 @@
 /**
- * Hybrid language interpreter (wave §4-§7, §18-§19).
+ * Hybrid language interpreter (interpreter v3: semantic arbitration).
  *
  *   raw learner text
- *     -> deterministic fast path (always runs, always authoritative for what it
- *        resolves)
- *     -> IF the deterministic pass left something unresolved AND a provider is
- *        configured: one semantic ACTION extraction, schema- and
- *        concept-validated, parameters rebound ONLY from the learner's verbatim
- *        evidence (splitSemanticInterpreter.interpretSemanticTask)
- *     -> MERGE the validated semantic commands in - they are ADDED, never
- *        substituted for a deterministic command, and each still goes through
- *        validateCommand / executeCommand like any other command.
+ *     -> deterministic pass (always runs): fast path, literal parameter binder
+ *        and provider-failure fallback
+ *     -> semanticConsultationPolicy: a narrow deterministic-only fast path for
+ *        canonical forms; everything else is eligible for a semantic second
+ *        opinion, even when the deterministic pass produced commands
+ *     -> ONE semantic ACTION extraction, schema-validated; then every proposed
+ *        item (clinicalActions AND patientQuestions) is validated on its own
+ *        (actionCandidateValidation.js) - a rejected candidate never
+ *        invalidates an unrelated valid one
+ *     -> candidateArbitration: dedupe, keep non-overlapping commands, and
+ *        resolve overlapping disagreement under the promotion policy. A
+ *        validated semantic reading may CORRECT a deterministic one only in
+ *        promoted classes; a protected-class disagreement becomes a
+ *        clarification, never a model-selected execution.
  *
- * The model never mutates state and never executes. On any provider failure,
- * timeout, invalid structure, or empty result the turn falls back to the
- * deterministic reading unchanged (fail closed - §18). Replay never calls this:
- * the structured interpretation is recorded in the event log (§19).
+ * The model never mutates state, never executes, and never supplies a dose,
+ * route, volume, rate, duration or timing: those are bound from the learner's
+ * literal text only. Every command still goes through validateCommand /
+ * executeCommand like any other. On any provider, transport or schema failure
+ * the turn falls back to the deterministic reading unchanged (fail closed).
+ * Replay never calls this: the final structured interpretation and this
+ * turn's telemetry are recorded in the event log.
  */
-import { createCommand } from "../../core/commands/commandTypes.js";
+import { COMMAND } from "../../core/commands/commandTypes.js";
 import { interpretDeterministically } from "./deterministicInterpreter.js";
-import { interpretSemanticTask } from "./splitSemanticInterpreter.js";
+import { VALIDATION_MODE, interpretSemanticTask } from "./splitSemanticInterpreter.js";
 import { SEMANTIC_TASK } from "./semanticTaskSchemas.js";
 import { INTERPRETER_BUDGET } from "../modelConfig.js";
+import { RESOLUTION, arbitrate } from "./candidateArbitration.js";
+import { DEFAULT_PROMOTION_POLICY } from "./promotionPolicy.js";
+import { decideSemanticConsultation } from "./semanticConsultationPolicy.js";
 
-/** Words that make a "nothing matched" turn look like an attempted action. */
-const ACTIONABLE_HINT = /назнач|закаж|заказ|сделай|сделать|дай|дать|введ|вводи|бер[уи]|начина|провед|осмотр|анализ|исследов|препарат|мг|мл|в\/в|в\/м|п\/к/i;
+const BOOKKEEPING = new Set([COMMAND.STATE_REASONING, COMMAND.ANSWER_MENTOR]);
 
 export async function interpretHybrid({
   text,
@@ -34,26 +44,50 @@ export async function interpretHybrid({
   provider = null,
   locale = "ru",
   timeoutBudgetMs = INTERPRETER_BUDGET.hybridMs,
+  policy = DEFAULT_PROMOTION_POLICY,
   // Injectable for tests; production always uses the real semantic task.
   runSemantic = interpretSemanticTask,
 }) {
   const started = Date.now();
   const deterministic = interpretDeterministically({ text, turnContext, idPrefix, bundle });
+  const consultation = decideSemanticConsultation({ deterministic, text, turnContext });
+  const deterministicCandidates = summarize(deterministic.commands);
 
-  if (!shouldEscalate(deterministic, text) || !provider?.isConfigured) {
-    return { mode: "deterministic", ...deterministic, semanticTelemetry: telemetryOf({ status: "not_called" }, {
-      errorCode: !provider?.isConfigured ? "no_provider_configured" : null, added: 0, costUsd: 0, elapsedMs: Date.now() - started,
-    }) };
+  if (!consultation.consult || !provider?.isConfigured) {
+    const resolutions = deterministic.commands.filter(isAction).map((command) => ({
+      commandId: command.id, type: command.type, resolution: RESOLUTION.DETERMINISTIC_FAST_PATH, origins: ["deterministic"],
+    }));
+    return {
+      mode: "deterministic",
+      ...deterministic,
+      semanticTelemetry: {
+        ...telemetryOf({ status: "not_called" }, {
+          errorCode: !provider?.isConfigured ? "no_provider_configured" : null, added: 0, costUsd: 0, elapsedMs: Date.now() - started,
+        }),
+        called: false,
+        consultation,
+        promotionPolicyVersion: policy.version,
+        deterministicCandidates,
+        arbitration: { policyVersion: policy.version, resolutions, conflictCount: 0, changed: false },
+        finalCommands: finalSummary(deterministic.commands, resolutions),
+        withheldCommands: deterministic.withheldCommands ?? [],
+      },
+    };
   }
 
   let semantic;
   try {
     semantic = await withTimeout(
-      runSemantic({ task: SEMANTIC_TASK.ACTION, provider, text, locale, turnContext, bundle, strictAction: true }),
+      runSemantic({
+        // Only the clauses whose deterministic reading is not final are sent (semanticConsultationPolicy.js). Their words are
+        // verbatim substrings of the turn, so evidence still verifies; arbitration below reads the WHOLE turn.
+        task: SEMANTIC_TASK.ACTION, provider, text: consultation.focus?.text ?? text, locale, turnContext, bundle, strictAction: true,
+        validationMode: VALIDATION_MODE.CANDIDATE_ARBITRATED, policy,
+      }),
       timeoutBudgetMs,
     );
   } catch (error) {
-    return failClosed(deterministic, { errorCode: error?.message ?? "semantic_call_threw", elapsedMs: Date.now() - started });
+    return failClosed(deterministic, { errorCode: error?.message ?? "semantic_call_threw", elapsedMs: Date.now() - started }, { consultation, deterministicCandidates });
   }
 
   if (!semantic || semantic.status !== "valid") {
@@ -62,106 +96,101 @@ export async function interpretHybrid({
       errorCode: semantic?.errorCode ?? semantic?.status ?? "semantic_unavailable",
       semanticStatus: semantic?.status ?? null,
       elapsedMs: semantic?.elapsedMs ?? null,
-    });
+    }, { consultation, deterministicCandidates });
   }
 
-  const accepted = semantic.acceptedCommands ?? [];
-  // A command whose only problem was an ungrounded identifying concept (see
-  // `identifyingParamKey`) arrives here with that concept already stripped.
-  // It is merged in exactly like any accepted command; `validateCommand`
-  // downstream (`executeCommand.js`) then reads it as an ordinary incomplete
-  // order and asks the learner which one they meant - the same CLARIFY path
-  // used for any other missing required parameter, never a model guess.
-  const ambiguous = semantic.ambiguousCommands ?? [];
-  if (accepted.length === 0 && ambiguous.length === 0) {
-    // The model resolved nothing new - keep the deterministic reading, so its
-    // own unresolved fragments still surface to the learner as clarifications.
-    return {
-      mode: "hybrid",
-      ...deterministic,
-      semanticTelemetry: telemetryOf(semantic, { added: 0 }),
-    };
-  }
-
-  const mergeRejected = [];
-  const added = mergeSemanticCommands({ deterministic, accepted: [...accepted, ...ambiguous], idPrefix, rejected: mergeRejected });
-  const commands = [...deterministic.commands, ...added];
-  const covered = coveredSpans(added);
-  const unmatchedFragments = (deterministic.unmatchedFragments ?? []).filter(
-    (fragment) => !covered.some((span) => fragment.includes(span) || span.includes(fragment)),
-  );
-  const onlyReasoning = commands.length > 0 && commands.every((c) => c.type === "STATE_REASONING");
+  const candidates = candidateResultsOf(semantic);
+  const arbitration = arbitrate({ deterministic, candidates, rawText: text, idPrefix, policy, consulted: true });
+  const commands = arbitration.finalCommands;
+  const changed = arbitration.semanticCommands.length > 0 || arbitration.conflicts.some((conflict) => conflict.resolution !== RESOLUTION.DETERMINISTIC_PRESERVED);
+  const rejected = rejectedOf(arbitration.candidateDecisions);
+  const withheldCommands = [...(deterministic.withheldCommands ?? []), ...arbitration.withheldCommands];
 
   return {
     mode: "hybrid",
-    intent: commands.length === 0
-      ? deterministic.intent
-      : onlyReasoning
-        ? "CLINICAL_REASONING"
-        : "CLINICAL_ACTION",
+    ...deterministic,
+    intent: changed ? intentOf(commands) : deterministic.intent,
     commands,
-    unmatchedFragments,
+    unmatchedFragments: arbitration.unmatchedFragments,
+    ...(withheldCommands.length ? { withheldCommands } : {}),
+    // Arbitration saw the semantic additions too; its sequence replaces the deterministic pass's.
+    commandSequence: arbitration.commandSequence ?? undefined,
     rawText: text.trim(),
     mentorSignal: deterministic.mentorSignal ?? null,
     answeredMentorQuestion: deterministic.answeredMentorQuestion ?? false,
-    semanticTelemetry: telemetryOf(semantic, { added: added.length, addedCommands: added, ambiguousProposed: ambiguous.length,
-      rejected: [...(semantic.actionValidation ?? []).filter((item) => !item.eligibleForBinding), ...mergeRejected] }),
-  };
-}
-
-function shouldEscalate(deterministic, text) {
-  if (deterministic.explanationRequest) return false;
-  if ((deterministic.unmatchedFragments ?? []).length > 0) return true;
-  if (deterministic.commands.length === 0 && deterministic.intent === "CLINICAL_REASONING") {
-    return ACTIONABLE_HINT.test(text);
-  }
-  return false;
-}
-
-function failClosed(deterministic, diagnostics) {
-  return {
-    mode: "hybrid_fallback_deterministic",
-    ...deterministic,
-    semanticTelemetry: { ...telemetryOf({}, { added: 0 }), ...diagnostics, status: "fallback", clinicalAuthority: "none" },
+    semanticTelemetry: {
+      ...telemetryOf(semantic, {
+        added: arbitration.semanticCommands.length,
+        addedCommands: arbitration.semanticCommands,
+        ambiguousProposed: candidates.filter((candidate) => candidate.decision === "CLARIFY").length,
+        rejected,
+      }),
+      called: true,
+      consultation,
+      promotionPolicyVersion: arbitration.policyVersion,
+      deterministicCandidates,
+      candidateDecisions: arbitration.candidateDecisions,
+      conflicts: arbitration.conflicts,
+      arbitration: { policyVersion: arbitration.policyVersion, resolutions: arbitration.resolutions, conflictCount: arbitration.conflicts.length, changed },
+      finalCommands: finalSummary(commands, arbitration.resolutions),
+      withheldCommands,
+      totalElapsedMs: Date.now() - started,
+    },
   };
 }
 
 /**
- * Semantic commands are ADDED, not substituted. A semantic command is dropped
- * when the deterministic pass already produced a command of the same type
- * carrying the same primary concept, so the model cannot silently override a
- * deterministic reading.
+ * Candidate-level results come from candidate-arbitrated validation. An injected
+ * runner that predates them (returning only accepted / ambiguous commands) is
+ * adapted so its commands still pass through the same arbitration.
  */
-function mergeSemanticCommands({ deterministic, accepted, idPrefix, rejected }) {
-  const deterministicKeys = new Set(deterministic.commands.map(primaryKey));
+function candidateResultsOf(semantic) {
+  if (Array.isArray(semantic.candidateResults)) return semantic.candidateResults;
+  const adapt = (command, index, decision) => {
+    const spans = command.evidenceSpans ?? (command.evidence ? [command.evidence] : []);
+    return {
+      index, source: "clinicalAction", candidate: { type: command.type, params: command.params ?? {}, evidenceSpans: spans },
+      decision, reasonCodes: ["injected_result"], evidenceSpans: spans, grounding: "lexical",
+      validatedCommand: { type: command.type, params: command.params ?? {}, evidence: command.evidence ?? spans.join(" "), evidenceSpans: spans },
+    };
+  };
+  const accepted = (semantic.acceptedCommands ?? []).map((command, index) => adapt(command, index, "ACCEPT"));
+  const offset = accepted.length;
+  return [...accepted, ...(semantic.ambiguousCommands ?? []).map((command, index) => adapt(command, offset + index, "CLARIFY"))];
+}
+
+function intentOf(commands) {
+  const actions = commands.filter(isAction);
+  if (commands.length === 0) return "CLINICAL_REASONING";
+  if (actions.length === 0) return "CLINICAL_REASONING";
+  // A pure status read has no clinical effect and must not move the clock.
+  if (actions.every((command) => command.type === COMMAND.REQUEST_STATUS)) return "REQUEST_CURRENT_STATUS";
+  return "CLINICAL_ACTION";
+}
+
+/** Rejections and drops, in one list, for reconstruction and for older telemetry readers. */
+function rejectedOf(decisions) {
   const out = [];
-  accepted.forEach((candidate, index) => {
-    const command = createCommand({
-      id: `${idPrefix}-s${index}`,
-      type: candidate.type,
-      params: candidate.params ?? {},
-      sourceText: candidate.evidence ?? (candidate.evidenceSpans ?? []).join(" "),
-    });
-    if (deterministicKeys.has(primaryKey(command)) || out.some((existing) => primaryKey(existing) === primaryKey(command))) {
-      rejected.push({ index, type: candidate.type, reason: "duplicate_primary_concept" });
-      return;
+  for (const decision of decisions) {
+    if (decision.validation === "REJECT") {
+      out.push({ index: decision.index, source: decision.source, type: decision.type, reason: decision.reasonCodes[0] ?? "rejected", reasonCodes: decision.reasonCodes, stage: "validation" });
+    } else if (decision.arbitration?.resolution === RESOLUTION.DEDUPLICATED) {
+      out.push({ index: decision.index, source: decision.source, type: decision.type, reason: "duplicate_primary_concept", stage: "arbitration" });
+    } else if (decision.arbitration?.reason) {
+      out.push({ index: decision.index, source: decision.source, type: decision.type, reason: decision.arbitration.reason, stage: "arbitration" });
     }
-    out.push(command);
-  });
+  }
   return out;
 }
 
-function primaryKey(command) {
-  const p = command.params ?? {};
-  const concept = p.testId ?? p.drugId ?? p.region ?? p.role ?? p.destination ?? p.topic ?? "";
-  return `${command.type}:${concept}`;
-}
-
-function coveredSpans(commands) {
-  return commands
-    .map((command) => command.sourceText ?? "")
-    .map((span) => span.trim().toLowerCase())
-    .filter(Boolean);
+function failClosed(deterministic, diagnostics, extra = {}) {
+  return {
+    mode: "hybrid_fallback_deterministic",
+    ...deterministic,
+    semanticTelemetry: {
+      ...telemetryOf({}, { added: 0 }), ...diagnostics, ...extra, called: true, status: "fallback", clinicalAuthority: "none",
+    },
+  };
 }
 
 function telemetryOf(semantic, extra) {
@@ -173,14 +202,27 @@ function telemetryOf(semantic, extra) {
     clinicalAuthority: "none",
     elapsedMs: semantic.elapsedMs ?? null,
     providerMeta: semantic.providerMeta ?? null,
-    conceptErrors: semantic.conceptErrors ?? [],
+    conceptErrors: semantic.errors ?? semantic.conceptErrors ?? [],
     schemaErrors: semantic.schemaErrors ?? [],
     proposed: (semantic.proposedCommands ?? []).length,
     proposedCommands: semantic.proposedCommands ?? [],
-    rejected: (semantic.actionValidation ?? []).filter((item) => !item.eligibleForBinding),
+    rejected: [],
     ...extra,
   };
 }
+
+function summarize(commands) {
+  return (commands ?? []).filter(isAction).map((command) => ({ id: command.id, type: command.type, params: command.params, sourceText: command.sourceText }));
+}
+
+function finalSummary(commands, resolutions) {
+  const byId = new Map(resolutions.map((item) => [item.commandId, item]));
+  return (commands ?? []).filter(isAction).map((command) => ({
+    id: command.id, type: command.type, params: command.params, resolution: byId.get(command.id)?.resolution ?? null, origins: byId.get(command.id)?.origins ?? [],
+  }));
+}
+
+function isAction(command) { return !BOOKKEEPING.has(command.type); }
 
 function withTimeout(promise, ms) {
   let timer;

@@ -15,6 +15,7 @@ export default function App() {
   const {
     session, messages, busy, debrief, resumeCandidate, startSession, resumeSession,
     discardPersistedSession, submitTurn, downloadExport, learnerVisible,
+    mentorEnabled,
   } = useSession();
 
   const handleSelectMode = (choice) => startSession({ ...choice, locale });
@@ -57,7 +58,7 @@ export default function App() {
                 <>
                   <ChatShell messages={messages} />
                   {busy && <div role="status" aria-live="polite" className="onqol-turn-status">{locale === "kk" ? "Өңделуде…" : "Обрабатывается…"}</div>}
-                  <Composer locale={locale} disabled={busy} onSubmit={submitTurn} />
+                  <Composer locale={locale} disabled={busy} onSubmit={submitTurn} mentorEnabled={mentorEnabled} />
                 </>
               )}
             </div>

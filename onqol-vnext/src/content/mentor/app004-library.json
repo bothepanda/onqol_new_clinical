@@ -1,0 +1,162 @@
+{
+  "id": "APP004-MENTOR-2026-09-21",
+  "version": "0.2",
+  "scope": {
+    "casePresetId": "APP-004",
+    "sessionPurpose": "internal_development",
+    "locale": "ru"
+  },
+  "approval": "Explicit owner approval in task 01a0c31b-fae3-7fa3-9dfa-5776a1fd380c; K01–K06 background explanations, K12 pedagogy only. No management or safety authority.",
+  "sources": [
+    {
+      "source_id": "CAM14",
+      "title": "Current Surgical Therapy",
+      "publication_year": 2023,
+      "edition": 14,
+      "isbn": "978-0-323-79683-5",
+      "sha256": "dbe450444389159a0a6f4f074629c5d7b3fbe0d5b3427b70f1b4a6ee48caa944",
+      "artifact_id": "sha256:dbe450444389159a0a6f4f074629c5d7b3fbe0d5b3427b70f1b4a6ee48caa944",
+      "url": "https://www.us.elsevierhealth.com/current-surgical-therapy-9780323796859.html"
+    },
+    {
+      "source_id": "DV3",
+      "title": "Surgery: A Case-Based Clinical Review",
+      "publication_year": 2026,
+      "edition": 3,
+      "isbn": "978-3-032-09799-6",
+      "sha256": "1302b51345911bdd71879ebe27a27dcb6382b80b5139e35a22b1fbae4a8b8daa",
+      "artifact_id": "sha256:1302b51345911bdd71879ebe27a27dcb6382b80b5139e35a22b1fbae4a8b8daa",
+      "url": "https://doi.org/10.1007/978-3-032-09799-6_23"
+    },
+    {
+      "source_id": "OX3",
+      "title": "Oxford Cases in Medicine and Surgery",
+      "publication_year": 2025,
+      "edition": 3,
+      "isbn": "978-0-19-889453-7",
+      "sha256": "bef65f28c81537c4043320cd8c1f80ec21bac077a99d0977f8cdc1f2795708d6",
+      "artifact_id": "sha256:bef65f28c81537c4043320cd8c1f80ec21bac077a99d0977f8cdc1f2795708d6",
+      "url": "https://academic.oup.com/book/59916"
+    }
+  ],
+  "cards": [
+    {
+      "id": "K01",
+      "title": "Миграция боли",
+      "kind": "background_reference",
+      "statement": "переход от плохо локализованной околопупочной боли к локальной боли справа внизу можно объяснять различием висцеральной и соматической иннервации при вовлечении париетальной брюшины.",
+      "source_locator": "Источник: DV3, PDF 334 / печатная 338, Pathophysiology; CAM14, PDF 325 / 281, Pathology. Роль: `background_reference`.",
+      "constraints": "Условие использования: резидент спрашивает о механизме или обсуждает уже раскрытую миграцию. Ограничение: это объяснение типичного механизма, не обязательная последовательность для каждого пациента и не таймер ухудшения.",
+      "review_status": "approved_for_training",
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead / product owner"
+      ],
+      "reviewed_at": "2026-09-21",
+      "sourceIds": [
+        "CAM14",
+        "DV3"
+      ]
+    },
+    {
+      "id": "K02",
+      "title": "Вариабельность клинической картины",
+      "kind": "background_reference",
+      "statement": "расположение отростка может влиять на картину осмотра; отсутствие одного классического признака само по себе не завершает диагностику.",
+      "source_locator": "Источник: CAM14, PDF 325–326 / 281–282, Clinical Presentation и таблица 2; OX3, PDF 646. Роль: `background_reference`.",
+      "constraints": "Условие: спор о значении найденного или отсутствующего признака. Ограничение: не раскрывать положение отростка до разрешённого события; не превращать именованные симптомы в обязательный чек-лист; не переносить проценты из таблиц в вероятность диагноза данного пациента.",
+      "review_status": "approved_for_training",
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead / product owner"
+      ],
+      "reviewed_at": "2026-09-21",
+      "sourceIds": [
+        "CAM14",
+        "OX3"
+      ]
+    },
+    {
+      "id": "K03",
+      "title": "Маркеры воспаления",
+      "kind": "background_reference",
+      "statement": "лейкоциты и CRP обсуждаются в контексте анамнеза и осмотра; повышение неспецифично для аппендицита.",
+      "source_locator": "Источник: CAM14, PDF 326 / 282, Laboratory Examination; OX3, PDF 642, Blood tests. Роль: `background_reference`.",
+      "constraints": "Условие: результат уже получен либо резидент спрашивает о цели анализа. Ограничение: не утверждать, что нормальный анализ исключает заболевание; не добавлять пороги или результаты за пациента.",
+      "review_status": "approved_for_training",
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead / product owner"
+      ],
+      "reviewed_at": "2026-09-21",
+      "sourceIds": [
+        "CAM14",
+        "OX3"
+      ]
+    },
+    {
+      "id": "K04",
+      "title": "Лейкоциты в моче",
+      "kind": "background_reference",
+      "statement": "стерильная пиурия может сопровождать раздражение мочевых путей воспалённым отростком; одни лейкоциты не доказывают инфекцию мочевых путей.",
+      "source_locator": "Источник: DV3, PDF 335 / 339, WBCs in the Urine; CAM14, PDF 326 / 282. Роль: `background_reference`.",
+      "constraints": "Условие: резидент интерпретирует реально раскрытый анализ или задаёт общий вопрос. Ограничение: нельзя объявлять мочу стерильной без соответствующих данных; нельзя исключать сопутствующую инфекцию.",
+      "review_status": "approved_for_training",
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead / product owner"
+      ],
+      "reviewed_at": "2026-09-21",
+      "sourceIds": [
+        "CAM14",
+        "DV3"
+      ]
+    },
+    {
+      "id": "K05",
+      "title": "Дифференциальное мышление",
+      "kind": "background_reference",
+      "statement": "при правосторонней нижней абдоминальной боли альтернативы выбирают с учётом анамнеза, осмотра и характеристик пациента; возможны кишечные, мочевые и, в соответствующем контексте, гинекологические причины.",
+      "source_locator": "Источник: DV3, PDF 331–332 / 335–336, таблицы 23.1–23.2; OX3, PDF 646–648. Роль: `background_reference`.",
+      "constraints": "Условие: резидент преждевременно закрывает диагностический поиск или просит помощь. Ограничение: не требовать всех диагнозов из таблицы и не оценивать полноту по числу названий. Неподдерживаемое обследование — ограничение симулятора, не ошибка резидента.",
+      "review_status": "approved_for_training",
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead / product owner"
+      ],
+      "reviewed_at": "2026-09-21",
+      "sourceIds": [
+        "DV3",
+        "OX3"
+      ]
+    },
+    {
+      "id": "K06",
+      "title": "Неинформативное УЗИ",
+      "kind": "background_reference",
+      "statement": "отрицательное или неубедительное УЗИ не следует автоматически считать исключением аппендицита; дальнейшее рассуждение зависит от сохраняющейся клинической вероятности.",
+      "source_locator": "Источник: OX3, PDF 644, Imaging; DV3, PDF 335 / 339, Imaging. Роль: `background_reference`.",
+      "constraints": "Условие: именно такой результат раскрыт движком. Ограничение: различать «отросток не визуализирован» и описанный нормальный отросток; карточка не назначает КТ и не задаёт обязательный маршрут. См. D01.",
+      "review_status": "approved_for_training",
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead / product owner"
+      ],
+      "reviewed_at": "2026-09-21",
+      "sourceIds": [
+        "DV3",
+        "OX3"
+      ]
+    },
+    {
+      "id": "K12",
+      "title": "Исследование должно отвечать на вопрос",
+      "kind": "pedagogical",
+      "statement": "просить связать исследование с диагностической неопределённостью и следующим решением, вместо перечисления всех возможных тестов.",
+      "source_locator": "Основание для педагогического дизайна: OX3, PDF 641–645, переход от дифференциального ряда к обследованию. Роль: педагогическая адаптация; это не дословное правило книги и не клиническая рекомендация.",
+      "constraints": "Граница: отсутствие объяснения в одной реплике не доказывает отсутствие знаний. Максимум один фокусированный вопрос, с учётом уже сказанного. Медицинское объяснение ценности конкретного теста требует K03/K06/K07 либо отдельного утверждённого правила.",
+      "review_status": "approved_for_training",
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead / product owner"
+      ],
+      "reviewed_at": "2026-09-21",
+      "sourceIds": [
+        "OX3"
+      ]
+    }
+  ]
+}

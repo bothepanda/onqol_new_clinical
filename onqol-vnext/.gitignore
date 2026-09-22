@@ -7,3 +7,15 @@ src/content/generated
 dist-pack
 test-results
 .onqol-stage2-budget.json*
+.onqol-interpreter-v3-budget.json*
+.onqol-*-budget.json*
+
+# Data governance (owner ruling 2026-09-20): raw resident exports and sealed system
+# outputs never enter Git. Only de-identified / adjudicated evaluation data, hashes
+# and manifests may. See scripts/evidenceGovernance.mjs.
+private/
+docs/evidence/resident-turns/RESIDENT_TURN_LEDGER.json
+docs/evidence/resident-turns/RESIDENT_TURN_SYSTEM_READINGS.json
+resident-exports/
+BLIND_PACKET_*.json
+BLIND_REVIEW_FILLED*.json

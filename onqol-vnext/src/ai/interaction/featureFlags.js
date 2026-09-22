@@ -19,7 +19,10 @@ export function isInteractionV2Enabled(value) {
 /**
  * Which interpreter the learner-facing app runs (wave §17).
  *
- * `deterministic` (default) - the vocabulary interpreter only.
+ * `semantic_first` (internal development default) - full free-language
+ *   interpretation, literal binding and execution in code; no dictionary
+ *   execution fallback for free text. Not promoted to the resident pilot.
+ * `deterministic` - the vocabulary interpreter only (explicit rollback).
  * `hybrid` - deterministic fast path plus a schema/concept-validated semantic
  *   pass for what the fast path cannot resolve; still deterministic authority
  *   for execution, still fail-closed on any provider problem.
@@ -28,8 +31,10 @@ export function isInteractionV2Enabled(value) {
  * split-semantic SHADOW telemetry and never changed which interpreter ran.
  * The two are independent on purpose.
  */
-export const INTERPRETER_MODE = Object.freeze({ DETERMINISTIC: "deterministic", HYBRID: "hybrid" });
+export const INTERPRETER_MODE = Object.freeze({ DETERMINISTIC: "deterministic", HYBRID: "hybrid", SEMANTIC_FIRST: "semantic_first" });
 
-export function resolveInterpreterMode(rawValue) {
-  return rawValue === INTERPRETER_MODE.HYBRID ? INTERPRETER_MODE.HYBRID : INTERPRETER_MODE.DETERMINISTIC;
+export function resolveInterpreterMode(rawValue, { purpose = "internal_development" } = {}) {
+  if (rawValue === INTERPRETER_MODE.HYBRID) return INTERPRETER_MODE.HYBRID;
+  if (purpose === "internal_development" && (!rawValue || rawValue === INTERPRETER_MODE.SEMANTIC_FIRST)) return INTERPRETER_MODE.SEMANTIC_FIRST;
+  return INTERPRETER_MODE.DETERMINISTIC;
 }

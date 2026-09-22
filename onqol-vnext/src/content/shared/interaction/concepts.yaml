@@ -24,6 +24,16 @@ reasoning_concept_synonyms_ru:
   острый простатит: acute_prostatitis
   абсцесс простаты: prostatic_abscess
 
+# Investigations the platform RECOGNISES but has no approved modeled result for
+# in the case set (case allowlist = `investigation_timing` keys; anything listed
+# here that a case does model is simply supported there). Ordering one is a
+# recognised SIMULATOR LIMITATION: reported as such, never as a learner error,
+# and never answered with a guessed alternative study. Adding a modeled result is
+# a separate clinical-review item; it needs no interpreter change.
+recognized_unmodeled_tests:
+  - id: pelvic_ultrasound
+    label_ru: "УЗИ органов малого таза"
+
 fluid_ids:
   - crystalloid
 
@@ -47,6 +57,10 @@ staff_roles:
   - surgeon
   - anesthesiologist
   - gynecologist
+  # The hospital profiles carry these two as callable roles and the deterministic lexicon already resolves them
+  # (vocabulary.js STAFF_SYNONYMS); the semantic allowlist did not know them, so the model could only mis-name them.
+  - icuPhysician
+  - radiologist
 
 destinations:
   - observation

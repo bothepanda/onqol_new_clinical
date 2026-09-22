@@ -1,0 +1,665 @@
+{
+  "schema": "onqol-legacy-real-language-run-evidence-v1",
+  "corpus": "legacy_real_language_development",
+  "corpusHash": "1004137eab7e4a0aba557244b57357490985ddc4839e520c0abaffa854cc60cd",
+  "scope": "IN_SCOPE",
+  "evidenceUse": "development_only_not_holdout_not_generalization",
+  "holdout": {
+    "touched": false
+  },
+  "status": "REPLAY_OF_RECORDED_MODEL_RESPONSES",
+  "candidate": {
+    "tag": "wave4",
+    "mode": "replay",
+    "scope": "IN_SCOPE",
+    "promotionPolicyVersion": "v3a1-2026-09-20-legacy-wave2",
+    "commitmentPolicyVersion": "commitment-2026-09-20-r3-legacy-wave1",
+    "sourceHashes": {
+      "src/ai/interpreter/actionCandidateValidation.js": "803fb617b573a9b078a10d74010cfcb0a8166e01c609cf49602a4e33ea7ad8bf",
+      "src/ai/interpreter/candidateArbitration.js": "84252ad74d4af0f3b901f135bb88b599ee3e372dd2f81519c1095bd7a1459eeb",
+      "src/ai/interpreter/commitmentPolicy.js": "346c97b4336ecb293ebc00da015975e450bb58e21fcf4e443a6c4f4efefc1230",
+      "src/ai/interpreter/conceptGrounding.js": "8af6777b72667920520201f6f7a11a23edde459d11728e5cbd196a1dbd12812d",
+      "src/ai/interpreter/deterministicInterpreter.js": "aef00208f17c3a22626d72e3303cf1c95e385c06b584540067d180cb3aabc4d4",
+      "src/ai/interpreter/deterministicParameterBinder.js": "12640014954bb2679f608c208db882a5a3765b5844e25b4a5403cd938bd9a653",
+      "src/ai/interpreter/hybridInterpreter.js": "676d88647ed9b1d0a61f5fd15fdf6cd3d57bb99867d3e7497b5c51001a7582ad",
+      "src/ai/interpreter/interpretTurn.js": "700a38639c33b4d08b4c4ee13167064fdfc6bc279f01da9d0f56d53f215c11bd",
+      "src/ai/interpreter/modelConceptValidation.js": "e63fdf4d0c8a891f0adb1e66ac275bf0a51b116b79a6ba1a482bb3df1cba5647",
+      "src/ai/interpreter/modelInterpreter.js": "9e0b0344cd340db0896a0e4d9f7652dfdf8a5b1f6f0849aff1d9d7888cb2f6f7",
+      "src/ai/interpreter/modelOutputSchema.js": "1cbf2f4cae4b7a63c5d119ca479090cd034b984c398d5e15ec5a1e991656bba2",
+      "src/ai/interpreter/promotionPolicy.js": "9260e63ebd4467557fd1538ff0de8785470f2cee2d17d311ef5e9c76f6b689aa",
+      "src/ai/interpreter/semanticConsultationPolicy.js": "d29de01e15dc830c905ffca68d3d296d1edf6b004c28de88242eae26d20b2ecc",
+      "src/ai/interpreter/semanticTaskSchemas.js": "6118a54285e2f45e9253fb002812fb4ac087f462fda5674784a0186dcaa1dad7",
+      "src/ai/interpreter/shadowComparison.js": "3bbb3f98c1d58b656081ae0bfab28ba377c02ed463e471e1fe17ee42c7bdcdda",
+      "src/ai/interpreter/shadowInterpreter.js": "229e0d1a2018e12751f15c82d4ef1ddf6c203883bf5f84f1e8caa24dd626da74",
+      "src/ai/interpreter/splitSemanticInterpreter.js": "9f9647a6c34d8f82b0db243f62a2732977ec5d8001d706278931aec3f1e8bbba",
+      "src/ai/interpreter/stage2ActionSchema.js": "aac58af21a345838f026eb9d161ec591b2828e91a7c39208d0bf8b168efda2cc",
+      "src/ai/interpreter/textMatch.js": "f7f9a324c38af800c13a251fbb6cd75212e9da32c6e6d0aae5c90063733d2737",
+      "src/ai/interpreter/vocabulary.js": "73c489f2942b0fc311565a1cd9186eb7742f0d1c358afe1d6ec01c181e8c65b1",
+      "src/ai/modelConfig.js": "bd76b1c347e3d2ee30366bd3a5c8a551d8b8d8a0af02a993bfc48ed03d8fbdc6",
+      "src/core/commands/commandTypes.js": "82e46c72807a7b8a04f167d2109800f7c2ac83f9cbb512fbcd7a3b6f499ca2f4",
+      "src/core/commands/executeCommand.js": "46d336e63b6f6edf54b4805079782e816b527499c267df19575e3ed91bde80e1",
+      "src/content/shared/interaction/concepts.yaml": "ac88e00f435622ea82f87b8e190898088ac93055475b0a08e7031e85b379f599",
+      "scripts/legacyRealLanguage/legacyMetrics.mjs": "d796c9c51204265c13f5f8c8869dab989aa2ec25d05c9f2dc9d4e773c147aa82",
+      "scripts/legacyRealLanguage/taxonomy.mjs": "8b58c55d2fa5fba654c67e0b22f60b10acb88402bf95f767479f4e7ac3554109",
+      "scripts/legacyRealLanguage/runLegacyCorpus.mjs": "b3d9c6b3cde3b86e7d8aeaf773647f9d5ed3ab15397601dba8e010a76d8d9a0f"
+    },
+    "candidateHash": "9843151dd929ee848a06c5286d929c37e147a02d993ec5af6364bbdd7f525ebc",
+    "contentHash": "639efec612f42204a085923d7d142e0a933335368f415093c1ff8b2746267973",
+    "recorded": {
+      "tag": "baseline-live-relaxed",
+      "candidateHash": "cface0ca98833506ec1b31143f058317f6905d64542c9c77d9a650df15664ad5",
+      "mode": "live"
+    }
+  },
+  "budget": null,
+  "infrastructure": {
+    "consulted": 61,
+    "providerFailures": 4,
+    "errorCodes": {
+      "no_recorded_response": 4
+    },
+    "valid": true
+  },
+  "replay": {
+    "requestChanged": 57,
+    "notReplayable": [
+      "lrd-e1c493-t09",
+      "lrd-d728c6-t02",
+      "lrd-cc06a4-t02",
+      "lrd-387ba1-t03"
+    ],
+    "recordedResponsesUsed": 57
+  },
+  "targets": {
+    "v3": [
+      {
+        "name": "false executions = 0",
+        "value": 8,
+        "pass": false
+      },
+      {
+        "name": "high-risk false executions = 0",
+        "value": 0,
+        "pass": true
+      },
+      {
+        "name": "invented parameters = 0",
+        "value": 0,
+        "pass": true
+      },
+      {
+        "name": "precision >= 0.95",
+        "value": 0.9090909090909091,
+        "pass": false
+      },
+      {
+        "name": "recall >= 0.90",
+        "value": 0.8062015503875969,
+        "pass": false
+      },
+      {
+        "name": "exact interpretation >= 0.90",
+        "value": 0.7391304347826086,
+        "pass": false
+      }
+    ],
+    "deterministicOnly": [
+      {
+        "name": "false executions = 0",
+        "value": 7,
+        "pass": false
+      },
+      {
+        "name": "high-risk false executions = 0",
+        "value": 0,
+        "pass": true
+      },
+      {
+        "name": "invented parameters = 0",
+        "value": 0,
+        "pass": true
+      },
+      {
+        "name": "precision >= 0.95",
+        "value": 0.9069767441860465,
+        "pass": false
+      },
+      {
+        "name": "recall >= 0.90",
+        "value": 0.751937984496124,
+        "pass": false
+      },
+      {
+        "name": "exact interpretation >= 0.90",
+        "value": 0.6811594202898551,
+        "pass": false
+      }
+    ]
+  },
+  "metrics": {
+    "v3": {
+      "rows": 69,
+      "exactAccuracy": 0.7391304347826086,
+      "exactRows": 51,
+      "exactOnActionRows": 0.6792452830188679,
+      "actionRows": 53,
+      "exactOnRestraintRows": 0.9375,
+      "restraintRows": 16,
+      "commandPrecision": 0.9090909090909091,
+      "committedCommandCount": 99,
+      "commandRecall": 0.8062015503875969,
+      "requiredGoldCount": 129,
+      "falseExecutionCount": 8,
+      "falseExecutionRows": [
+        "lrd-324b0a-t05",
+        "lrd-d728c6-t01",
+        "lrd-93c2ad-t05",
+        "lrd-387ba1-t03",
+        "lrd-387ba1-t06"
+      ],
+      "highRiskFalseExecutionCount": 0,
+      "highRiskFalseExecutionRows": [],
+      "inventedParameterCount": 0,
+      "inventedFromGoldAbsent": 0,
+      "inventedByModel": 0,
+      "inventedParameterRows": [],
+      "spuriousClarificationCount": 4,
+      "providerFallbackRate": 0.06557377049180328,
+      "consultationRate": 0.8840579710144928,
+      "consultedRows": 61,
+      "costUsd": null,
+      "byChannel": {
+        "compound": {
+          "rows": 35,
+          "exact": 21
+        },
+        "conversation_management": {
+          "rows": 11,
+          "exact": 11
+        },
+        "mentor_answer": {
+          "rows": 4,
+          "exact": 3
+        },
+        "clinical_action": {
+          "rows": 17,
+          "exact": 15
+        },
+        "clinical_reasoning": {
+          "rows": 2,
+          "exact": 1
+        }
+      }
+    },
+    "deterministicOnly": {
+      "rows": 69,
+      "exactAccuracy": 0.6811594202898551,
+      "exactRows": 47,
+      "exactOnActionRows": 0.6037735849056604,
+      "actionRows": 53,
+      "exactOnRestraintRows": 0.9375,
+      "restraintRows": 16,
+      "commandPrecision": 0.9069767441860465,
+      "committedCommandCount": 86,
+      "commandRecall": 0.751937984496124,
+      "requiredGoldCount": 129,
+      "falseExecutionCount": 7,
+      "falseExecutionRows": [
+        "lrd-324b0a-t05",
+        "lrd-93c2ad-t05",
+        "lrd-387ba1-t03",
+        "lrd-387ba1-t06"
+      ],
+      "highRiskFalseExecutionCount": 0,
+      "highRiskFalseExecutionRows": [],
+      "inventedParameterCount": 0,
+      "inventedFromGoldAbsent": 0,
+      "inventedByModel": 0,
+      "inventedParameterRows": [],
+      "spuriousClarificationCount": 4,
+      "providerFallbackRate": null,
+      "consultationRate": 0,
+      "consultedRows": 0,
+      "costUsd": null,
+      "byChannel": {
+        "compound": {
+          "rows": 35,
+          "exact": 21
+        },
+        "conversation_management": {
+          "rows": 11,
+          "exact": 11
+        },
+        "mentor_answer": {
+          "rows": 4,
+          "exact": 3
+        },
+        "clinical_action": {
+          "rows": 17,
+          "exact": 11
+        },
+        "clinical_reasoning": {
+          "rows": 2,
+          "exact": 1
+        }
+      }
+    }
+  },
+  "failureClassCounts": {
+    "MISS_MODEL_REJECTED": 4,
+    "MISS_NOT_PROPOSED": 7,
+    "MISS_WITHHELD": 3,
+    "SPURIOUS_CLARIFY": 4,
+    "MISS_PARAM_MISMATCH": 5,
+    "FE_UNMODELED_MISRESOLVED": 2,
+    "FE_OTHER": 1,
+    "CLARIFY_PARAM_LOSS": 1,
+    "CLARIFY_COMPLETED_WITH_INVENTED_PARAM": 1,
+    "MISS_CLARIFIED_INSTEAD": 1,
+    "CLARIFY_NOT_RAISED": 3,
+    "FE_PARAM_ALTERED": 4,
+    "SPURIOUS_COMMIT": 1,
+    "FE_NOT_COMMITTED": 1
+  },
+  "perTurn": [
+    {
+      "turnId": "lrd-ef81b2-t01",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-ef81b2-t02",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-ef81b2-t03",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-ef81b2-t04",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-ef81b2-t06",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-ef81b2-t07",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-ef81b2-t11",
+      "exact": false,
+      "classes": [
+        "MISS_MODEL_REJECTED",
+        "MISS_NOT_PROPOSED"
+      ]
+    },
+    {
+      "turnId": "lrd-ef81b2-t12",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-ef81b2-t13",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-ef81b2-t14",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-ef81b2-t15",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-e1c493-t01",
+      "exact": false,
+      "classes": [
+        "MISS_WITHHELD"
+      ]
+    },
+    {
+      "turnId": "lrd-e1c493-t02",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-e1c493-t04",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-e1c493-t05",
+      "exact": false,
+      "classes": [
+        "MISS_MODEL_REJECTED",
+        "SPURIOUS_CLARIFY"
+      ]
+    },
+    {
+      "turnId": "lrd-e1c493-t06",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-e1c493-t08",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-e1c493-t09",
+      "exact": false,
+      "classes": [
+        "MISS_PARAM_MISMATCH"
+      ]
+    },
+    {
+      "turnId": "lrd-e1c493-t11",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-e89230-t01",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-e89230-t02",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-e89230-t03",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-e89230-t04",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-e89230-t05",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-e89230-t06",
+      "exact": false,
+      "classes": [
+        "MISS_NOT_PROPOSED"
+      ]
+    },
+    {
+      "turnId": "lrd-e89230-t07",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-e89230-t08",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-e89230-t09",
+      "exact": false,
+      "classes": [
+        "MISS_NOT_PROPOSED"
+      ]
+    },
+    {
+      "turnId": "lrd-e89230-t10",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-e89230-t11",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-e89230-t12",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-324b0a-t01",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-324b0a-t02",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-324b0a-t04",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-324b0a-t05",
+      "exact": false,
+      "classes": [
+        "FE_UNMODELED_MISRESOLVED",
+        "MISS_PARAM_MISMATCH"
+      ]
+    },
+    {
+      "turnId": "lrd-324b0a-t06",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-324b0a-t07",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-d728c6-t01",
+      "exact": false,
+      "classes": [
+        "FE_OTHER",
+        "MISS_PARAM_MISMATCH"
+      ]
+    },
+    {
+      "turnId": "lrd-d728c6-t02",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-d728c6-t04",
+      "exact": false,
+      "classes": [
+        "MISS_NOT_PROPOSED",
+        "CLARIFY_PARAM_LOSS"
+      ]
+    },
+    {
+      "turnId": "lrd-2c0ab2-t01",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-2c0ab2-t02",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-2c0ab2-t03",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-2c0ab2-t05",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-2c0ab2-t07",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-93c2ad-t01",
+      "exact": false,
+      "classes": [
+        "CLARIFY_COMPLETED_WITH_INVENTED_PARAM"
+      ]
+    },
+    {
+      "turnId": "lrd-93c2ad-t02",
+      "exact": false,
+      "classes": [
+        "MISS_CLARIFIED_INSTEAD",
+        "SPURIOUS_CLARIFY"
+      ]
+    },
+    {
+      "turnId": "lrd-93c2ad-t04",
+      "exact": false,
+      "classes": [
+        "MISS_MODEL_REJECTED",
+        "CLARIFY_NOT_RAISED"
+      ]
+    },
+    {
+      "turnId": "lrd-93c2ad-t05",
+      "exact": false,
+      "classes": [
+        "FE_UNMODELED_MISRESOLVED",
+        "FE_PARAM_ALTERED",
+        "MISS_NOT_PROPOSED",
+        "MISS_PARAM_MISMATCH",
+        "SPURIOUS_CLARIFY"
+      ]
+    },
+    {
+      "turnId": "lrd-4d67d8-t01",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-4d67d8-t02",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-4d67d8-t07",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-4d67d8-t08",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-4d67d8-t09",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-4d67d8-t10",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-920534-t01",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-920534-t05",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-920534-t06",
+      "exact": false,
+      "classes": [
+        "MISS_NOT_PROPOSED",
+        "CLARIFY_NOT_RAISED"
+      ]
+    },
+    {
+      "turnId": "lrd-cc06a4-t01",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-cc06a4-t02",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-cc06a4-t04",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-cc06a4-t05",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-cc06a4-t06",
+      "exact": false,
+      "classes": [
+        "MISS_WITHHELD"
+      ]
+    },
+    {
+      "turnId": "lrd-cc06a4-t07",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-387ba1-t01",
+      "exact": false,
+      "classes": [
+        "SPURIOUS_CLARIFY"
+      ]
+    },
+    {
+      "turnId": "lrd-387ba1-t03",
+      "exact": false,
+      "classes": [
+        "FE_PARAM_ALTERED",
+        "MISS_WITHHELD",
+        "MISS_NOT_PROPOSED",
+        "CLARIFY_NOT_RAISED",
+        "SPURIOUS_COMMIT"
+      ]
+    },
+    {
+      "turnId": "lrd-387ba1-t04",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-387ba1-t05",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-387ba1-t06",
+      "exact": false,
+      "classes": [
+        "FE_NOT_COMMITTED"
+      ]
+    }
+  ],
+  "generatedAt": "2026-09-20T16:45:24.728Z",
+  "privateRun": "private/legacy-real-language/runs/wave4.json"
+}

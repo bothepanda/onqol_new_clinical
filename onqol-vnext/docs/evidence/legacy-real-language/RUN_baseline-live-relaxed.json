@@ -1,0 +1,742 @@
+{
+  "schema": "onqol-legacy-real-language-run-evidence-v1",
+  "corpus": "legacy_real_language_development",
+  "corpusHash": "60406a6db13ac312849525f0e2fc2c656208dbb8240827bf487577d9f8b76c13",
+  "scope": "IN_SCOPE",
+  "evidenceUse": "development_only_not_holdout_not_generalization",
+  "holdout": {
+    "touched": false
+  },
+  "status": "MEASURED_LIVE_DEVELOPMENT",
+  "candidate": {
+    "tag": "baseline-live-relaxed",
+    "mode": "live",
+    "scope": "IN_SCOPE",
+    "promotionPolicyVersion": "v3a1-2026-09-20",
+    "commitmentPolicyVersion": "commitment-2026-09-20-r2",
+    "sourceHashes": {
+      "src/ai/interpreter/actionCandidateValidation.js": "c172e9b3b21ab5c23ebcb16bb84f9c008f76d5d9da1a986a0c1278d4bb2c0ab0",
+      "src/ai/interpreter/candidateArbitration.js": "84252ad74d4af0f3b901f135bb88b599ee3e372dd2f81519c1095bd7a1459eeb",
+      "src/ai/interpreter/commitmentPolicy.js": "2e5e313eed17a09b154ecc63fda601b5b69f85dde0b83db1482f5f43d3568e1a",
+      "src/ai/interpreter/conceptGrounding.js": "d95dfb733508dd1fe907702f147ef14903e5d85f64c4667233fd259f2391df1a",
+      "src/ai/interpreter/deterministicInterpreter.js": "20d10c9f35860d3d9ae535463e5922d419a0ebbb942414ebe0588f86abc8d679",
+      "src/ai/interpreter/deterministicParameterBinder.js": "bbec9194985682b479a72d450309ec538c2fd20c70714a439fc16e40708e83d3",
+      "src/ai/interpreter/hybridInterpreter.js": "676d88647ed9b1d0a61f5fd15fdf6cd3d57bb99867d3e7497b5c51001a7582ad",
+      "src/ai/interpreter/interpretTurn.js": "700a38639c33b4d08b4c4ee13167064fdfc6bc279f01da9d0f56d53f215c11bd",
+      "src/ai/interpreter/modelConceptValidation.js": "75f56d36bf612adaf0a8f2f57bf10778e341a820c1610f628cb69f0ce158eda5",
+      "src/ai/interpreter/modelInterpreter.js": "9e0b0344cd340db0896a0e4d9f7652dfdf8a5b1f6f0849aff1d9d7888cb2f6f7",
+      "src/ai/interpreter/modelOutputSchema.js": "1cbf2f4cae4b7a63c5d119ca479090cd034b984c398d5e15ec5a1e991656bba2",
+      "src/ai/interpreter/promotionPolicy.js": "9f66d7dbf50412765230cf3cb31bb7f157c144b0573818310c9cbd83e0975f3d",
+      "src/ai/interpreter/semanticConsultationPolicy.js": "d29de01e15dc830c905ffca68d3d296d1edf6b004c28de88242eae26d20b2ecc",
+      "src/ai/interpreter/semanticTaskSchemas.js": "6118a54285e2f45e9253fb002812fb4ac087f462fda5674784a0186dcaa1dad7",
+      "src/ai/interpreter/shadowComparison.js": "3bbb3f98c1d58b656081ae0bfab28ba377c02ed463e471e1fe17ee42c7bdcdda",
+      "src/ai/interpreter/shadowInterpreter.js": "229e0d1a2018e12751f15c82d4ef1ddf6c203883bf5f84f1e8caa24dd626da74",
+      "src/ai/interpreter/splitSemanticInterpreter.js": "9f9647a6c34d8f82b0db243f62a2732977ec5d8001d706278931aec3f1e8bbba",
+      "src/ai/interpreter/stage2ActionSchema.js": "aac58af21a345838f026eb9d161ec591b2828e91a7c39208d0bf8b168efda2cc",
+      "src/ai/interpreter/textMatch.js": "f7f9a324c38af800c13a251fbb6cd75212e9da32c6e6d0aae5c90063733d2737",
+      "src/ai/interpreter/vocabulary.js": "2817c3f314a63e776348a4880ecd8b2ecbbad617317b46ed69c3e39c95724902",
+      "src/ai/modelConfig.js": "bd76b1c347e3d2ee30366bd3a5c8a551d8b8d8a0af02a993bfc48ed03d8fbdc6",
+      "src/core/commands/commandTypes.js": "82e46c72807a7b8a04f167d2109800f7c2ac83f9cbb512fbcd7a3b6f499ca2f4",
+      "src/core/commands/executeCommand.js": "46d336e63b6f6edf54b4805079782e816b527499c267df19575e3ed91bde80e1",
+      "src/content/shared/interaction/concepts.yaml": "16ebb7d08d5ec5d81598efd25c0fd6bcec6317fece426f4f604a200341f372eb",
+      "scripts/legacyRealLanguage/legacyMetrics.mjs": "d796c9c51204265c13f5f8c8869dab989aa2ec25d05c9f2dc9d4e773c147aa82",
+      "scripts/legacyRealLanguage/taxonomy.mjs": "8b58c55d2fa5fba654c67e0b22f60b10acb88402bf95f767479f4e7ac3554109",
+      "scripts/legacyRealLanguage/runLegacyCorpus.mjs": "942af8460aa153f8660328b7afc755f4326f8846b219d5469f78b47d7c4a0581"
+    },
+    "candidateHash": "cface0ca98833506ec1b31143f058317f6905d64542c9c77d9a650df15664ad5",
+    "contentHash": "639efec612f42204a085923d7d142e0a933335368f415093c1ff8b2746267973",
+    "model": {
+      "model": "gpt-5-mini",
+      "endpointMode": "chat_completions",
+      "endpoint": "https://api.openai.com/v1/chat/completions",
+      "reasoningEffort": "minimal",
+      "pricing": {
+        "inputPerMillionUsd": 0.25,
+        "outputPerMillionUsd": 2
+      },
+      "maxCompletionTokens": 2048,
+      "sessionMaxCalls": 40,
+      "sessionMaxUsd": 0.25,
+      "pilotMaxUsd": 5
+    },
+    "timeouts": {
+      "gatewayMs": 30000,
+      "providerMs": 32000,
+      "hybridMs": 34000,
+      "relaxedForMeasurement": true
+    }
+  },
+  "budget": {
+    "file": ".onqol-legacy-real-language-budget.json",
+    "pilotMaxUsd": 2
+  },
+  "infrastructure": {
+    "consulted": 59,
+    "providerFailures": 0,
+    "errorCodes": {},
+    "valid": true
+  },
+  "replay": null,
+  "targets": {
+    "v3": [
+      {
+        "name": "false executions = 0",
+        "value": 24,
+        "pass": false
+      },
+      {
+        "name": "high-risk false executions = 0",
+        "value": 3,
+        "pass": false
+      },
+      {
+        "name": "invented parameters = 0",
+        "value": 0,
+        "pass": true
+      },
+      {
+        "name": "precision >= 0.95",
+        "value": 0.7156862745098039,
+        "pass": false
+      },
+      {
+        "name": "recall >= 0.90",
+        "value": 0.6299212598425197,
+        "pass": false
+      },
+      {
+        "name": "exact interpretation >= 0.90",
+        "value": 0.5072463768115942,
+        "pass": false
+      }
+    ],
+    "deterministicOnly": [
+      {
+        "name": "false executions = 0",
+        "value": 16,
+        "pass": false
+      },
+      {
+        "name": "high-risk false executions = 0",
+        "value": 0,
+        "pass": true
+      },
+      {
+        "name": "invented parameters = 0",
+        "value": 0,
+        "pass": true
+      },
+      {
+        "name": "precision >= 0.95",
+        "value": 0.7391304347826086,
+        "pass": false
+      },
+      {
+        "name": "recall >= 0.90",
+        "value": 0.5039370078740157,
+        "pass": false
+      },
+      {
+        "name": "exact interpretation >= 0.90",
+        "value": 0.4782608695652174,
+        "pass": false
+      }
+    ]
+  },
+  "metrics": {
+    "v3": {
+      "rows": 69,
+      "exactAccuracy": 0.5072463768115942,
+      "exactRows": 35,
+      "exactOnActionRows": 0.41509433962264153,
+      "actionRows": 53,
+      "exactOnRestraintRows": 0.8125,
+      "restraintRows": 16,
+      "commandPrecision": 0.7156862745098039,
+      "committedCommandCount": 102,
+      "commandRecall": 0.6299212598425197,
+      "requiredGoldCount": 127,
+      "falseExecutionCount": 24,
+      "falseExecutionRows": [
+        "lrd-ef81b2-t04",
+        "lrd-ef81b2-t11",
+        "lrd-e1c493-t04",
+        "lrd-e1c493-t06",
+        "lrd-e89230-t11",
+        "lrd-324b0a-t04",
+        "lrd-324b0a-t05",
+        "lrd-d728c6-t01",
+        "lrd-93c2ad-t02",
+        "lrd-93c2ad-t04",
+        "lrd-93c2ad-t05",
+        "lrd-920534-t01",
+        "lrd-920534-t05",
+        "lrd-387ba1-t05",
+        "lrd-387ba1-t06"
+      ],
+      "highRiskFalseExecutionCount": 3,
+      "highRiskFalseExecutionRows": [
+        "lrd-e1c493-t04",
+        "lrd-324b0a-t04",
+        "lrd-93c2ad-t02"
+      ],
+      "inventedParameterCount": 0,
+      "inventedFromGoldAbsent": 0,
+      "inventedByModel": 0,
+      "inventedParameterRows": [],
+      "spuriousClarificationCount": 7,
+      "providerFallbackRate": 0,
+      "consultationRate": 0.855072463768116,
+      "consultedRows": 59,
+      "costUsd": 0.09078024999999998,
+      "byChannel": {
+        "compound": {
+          "rows": 35,
+          "exact": 13
+        },
+        "conversation_management": {
+          "rows": 11,
+          "exact": 9
+        },
+        "mentor_answer": {
+          "rows": 4,
+          "exact": 1
+        },
+        "clinical_action": {
+          "rows": 17,
+          "exact": 11
+        },
+        "clinical_reasoning": {
+          "rows": 2,
+          "exact": 1
+        }
+      }
+    },
+    "deterministicOnly": {
+      "rows": 69,
+      "exactAccuracy": 0.4782608695652174,
+      "exactRows": 33,
+      "exactOnActionRows": 0.3584905660377358,
+      "actionRows": 53,
+      "exactOnRestraintRows": 0.875,
+      "restraintRows": 16,
+      "commandPrecision": 0.7391304347826086,
+      "committedCommandCount": 69,
+      "commandRecall": 0.5039370078740157,
+      "requiredGoldCount": 127,
+      "falseExecutionCount": 16,
+      "falseExecutionRows": [
+        "lrd-ef81b2-t04",
+        "lrd-ef81b2-t11",
+        "lrd-e1c493-t06",
+        "lrd-e89230-t11",
+        "lrd-324b0a-t05",
+        "lrd-d728c6-t01",
+        "lrd-93c2ad-t05",
+        "lrd-920534-t01",
+        "lrd-387ba1-t05",
+        "lrd-387ba1-t06"
+      ],
+      "highRiskFalseExecutionCount": 0,
+      "highRiskFalseExecutionRows": [],
+      "inventedParameterCount": 0,
+      "inventedFromGoldAbsent": 0,
+      "inventedByModel": 0,
+      "inventedParameterRows": [],
+      "spuriousClarificationCount": 4,
+      "providerFallbackRate": null,
+      "consultationRate": 0,
+      "consultedRows": 0,
+      "costUsd": null,
+      "byChannel": {
+        "compound": {
+          "rows": 35,
+          "exact": 13
+        },
+        "conversation_management": {
+          "rows": 11,
+          "exact": 9
+        },
+        "mentor_answer": {
+          "rows": 4,
+          "exact": 1
+        },
+        "clinical_action": {
+          "rows": 17,
+          "exact": 9
+        },
+        "clinical_reasoning": {
+          "rows": 2,
+          "exact": 1
+        }
+      }
+    }
+  },
+  "failureClassCounts": {
+    "CLARIFY_NOT_RAISED": 8,
+    "FE_OTHER": 6,
+    "MISS_NOT_PROPOSED": 23,
+    "SPURIOUS_COMMIT": 5,
+    "SPURIOUS_CLARIFY": 7,
+    "FE_NOT_COMMITTED": 6,
+    "MISS_MODEL_REJECTED": 6,
+    "MISS_WITHHELD": 1,
+    "CLARIFY_PARAM_LOSS": 2,
+    "FE_UNMODELED_MISRESOLVED": 7,
+    "MISS_PARAM_MISMATCH": 6,
+    "FE_PARAM_ALTERED": 4,
+    "CLARIFY_COMPLETED_WITH_INVENTED_PARAM": 1,
+    "FE_ON_NON_ACTION_TURN": 1
+  },
+  "perTurn": [
+    {
+      "turnId": "lrd-ef81b2-t01",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-ef81b2-t02",
+      "exact": false,
+      "classes": [
+        "CLARIFY_NOT_RAISED"
+      ]
+    },
+    {
+      "turnId": "lrd-ef81b2-t03",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-ef81b2-t04",
+      "exact": false,
+      "classes": [
+        "FE_OTHER",
+        "MISS_NOT_PROPOSED"
+      ]
+    },
+    {
+      "turnId": "lrd-ef81b2-t06",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-ef81b2-t07",
+      "exact": false,
+      "classes": [
+        "SPURIOUS_COMMIT",
+        "SPURIOUS_CLARIFY"
+      ]
+    },
+    {
+      "turnId": "lrd-ef81b2-t11",
+      "exact": false,
+      "classes": [
+        "FE_NOT_COMMITTED",
+        "MISS_MODEL_REJECTED",
+        "MISS_NOT_PROPOSED"
+      ]
+    },
+    {
+      "turnId": "lrd-ef81b2-t12",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-ef81b2-t13",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-ef81b2-t14",
+      "exact": false,
+      "classes": [
+        "MISS_NOT_PROPOSED"
+      ]
+    },
+    {
+      "turnId": "lrd-ef81b2-t15",
+      "exact": false,
+      "classes": [
+        "MISS_NOT_PROPOSED"
+      ]
+    },
+    {
+      "turnId": "lrd-e1c493-t01",
+      "exact": false,
+      "classes": [
+        "MISS_WITHHELD",
+        "CLARIFY_NOT_RAISED",
+        "SPURIOUS_CLARIFY"
+      ]
+    },
+    {
+      "turnId": "lrd-e1c493-t02",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-e1c493-t04",
+      "exact": false,
+      "classes": [
+        "FE_OTHER",
+        "MISS_NOT_PROPOSED"
+      ]
+    },
+    {
+      "turnId": "lrd-e1c493-t05",
+      "exact": false,
+      "classes": [
+        "MISS_MODEL_REJECTED",
+        "SPURIOUS_CLARIFY"
+      ]
+    },
+    {
+      "turnId": "lrd-e1c493-t06",
+      "exact": false,
+      "classes": [
+        "FE_NOT_COMMITTED"
+      ]
+    },
+    {
+      "turnId": "lrd-e1c493-t08",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-e1c493-t09",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-e1c493-t11",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-e89230-t01",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-e89230-t02",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-e89230-t03",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-e89230-t04",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-e89230-t05",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-e89230-t06",
+      "exact": false,
+      "classes": [
+        "MISS_NOT_PROPOSED",
+        "CLARIFY_NOT_RAISED"
+      ]
+    },
+    {
+      "turnId": "lrd-e89230-t07",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-e89230-t08",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-e89230-t09",
+      "exact": false,
+      "classes": [
+        "MISS_NOT_PROPOSED"
+      ]
+    },
+    {
+      "turnId": "lrd-e89230-t10",
+      "exact": false,
+      "classes": [
+        "CLARIFY_NOT_RAISED"
+      ]
+    },
+    {
+      "turnId": "lrd-e89230-t11",
+      "exact": false,
+      "classes": [
+        "FE_NOT_COMMITTED"
+      ]
+    },
+    {
+      "turnId": "lrd-e89230-t12",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-324b0a-t01",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-324b0a-t02",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-324b0a-t04",
+      "exact": false,
+      "classes": [
+        "FE_OTHER",
+        "MISS_NOT_PROPOSED",
+        "CLARIFY_PARAM_LOSS",
+        "SPURIOUS_CLARIFY"
+      ]
+    },
+    {
+      "turnId": "lrd-324b0a-t05",
+      "exact": false,
+      "classes": [
+        "FE_UNMODELED_MISRESOLVED",
+        "MISS_MODEL_REJECTED",
+        "MISS_PARAM_MISMATCH"
+      ]
+    },
+    {
+      "turnId": "lrd-324b0a-t06",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-324b0a-t07",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-d728c6-t01",
+      "exact": false,
+      "classes": [
+        "FE_PARAM_ALTERED"
+      ]
+    },
+    {
+      "turnId": "lrd-d728c6-t02",
+      "exact": false,
+      "classes": [
+        "MISS_NOT_PROPOSED"
+      ]
+    },
+    {
+      "turnId": "lrd-d728c6-t04",
+      "exact": false,
+      "classes": [
+        "MISS_NOT_PROPOSED",
+        "CLARIFY_PARAM_LOSS",
+        "SPURIOUS_CLARIFY"
+      ]
+    },
+    {
+      "turnId": "lrd-2c0ab2-t01",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-2c0ab2-t02",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-2c0ab2-t03",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-2c0ab2-t05",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-2c0ab2-t07",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-93c2ad-t01",
+      "exact": false,
+      "classes": [
+        "CLARIFY_COMPLETED_WITH_INVENTED_PARAM"
+      ]
+    },
+    {
+      "turnId": "lrd-93c2ad-t02",
+      "exact": false,
+      "classes": [
+        "FE_UNMODELED_MISRESOLVED",
+        "FE_NOT_COMMITTED",
+        "MISS_PARAM_MISMATCH"
+      ]
+    },
+    {
+      "turnId": "lrd-93c2ad-t04",
+      "exact": false,
+      "classes": [
+        "FE_UNMODELED_MISRESOLVED",
+        "MISS_MODEL_REJECTED",
+        "CLARIFY_NOT_RAISED"
+      ]
+    },
+    {
+      "turnId": "lrd-93c2ad-t05",
+      "exact": false,
+      "classes": [
+        "FE_UNMODELED_MISRESOLVED",
+        "FE_PARAM_ALTERED",
+        "FE_OTHER",
+        "MISS_NOT_PROPOSED",
+        "MISS_PARAM_MISMATCH",
+        "SPURIOUS_CLARIFY"
+      ]
+    },
+    {
+      "turnId": "lrd-4d67d8-t01",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-4d67d8-t02",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-4d67d8-t07",
+      "exact": false,
+      "classes": [
+        "MISS_NOT_PROPOSED"
+      ]
+    },
+    {
+      "turnId": "lrd-4d67d8-t08",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-4d67d8-t09",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-4d67d8-t10",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-920534-t01",
+      "exact": false,
+      "classes": [
+        "FE_UNMODELED_MISRESOLVED",
+        "SPURIOUS_COMMIT"
+      ]
+    },
+    {
+      "turnId": "lrd-920534-t05",
+      "exact": false,
+      "classes": [
+        "FE_UNMODELED_MISRESOLVED"
+      ]
+    },
+    {
+      "turnId": "lrd-920534-t06",
+      "exact": false,
+      "classes": [
+        "MISS_NOT_PROPOSED",
+        "CLARIFY_NOT_RAISED",
+        "SPURIOUS_COMMIT"
+      ]
+    },
+    {
+      "turnId": "lrd-cc06a4-t01",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-cc06a4-t02",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-cc06a4-t04",
+      "exact": false,
+      "classes": [
+        "MISS_NOT_PROPOSED"
+      ]
+    },
+    {
+      "turnId": "lrd-cc06a4-t05",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-cc06a4-t06",
+      "exact": false,
+      "classes": [
+        "MISS_NOT_PROPOSED"
+      ]
+    },
+    {
+      "turnId": "lrd-cc06a4-t07",
+      "exact": false,
+      "classes": [
+        "MISS_NOT_PROPOSED"
+      ]
+    },
+    {
+      "turnId": "lrd-387ba1-t01",
+      "exact": false,
+      "classes": [
+        "MISS_PARAM_MISMATCH",
+        "SPURIOUS_CLARIFY"
+      ]
+    },
+    {
+      "turnId": "lrd-387ba1-t03",
+      "exact": false,
+      "classes": [
+        "MISS_NOT_PROPOSED",
+        "CLARIFY_NOT_RAISED",
+        "SPURIOUS_COMMIT"
+      ]
+    },
+    {
+      "turnId": "lrd-387ba1-t04",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-387ba1-t05",
+      "exact": false,
+      "classes": [
+        "FE_OTHER",
+        "MISS_MODEL_REJECTED",
+        "SPURIOUS_COMMIT"
+      ]
+    },
+    {
+      "turnId": "lrd-387ba1-t06",
+      "exact": false,
+      "classes": [
+        "FE_ON_NON_ACTION_TURN",
+        "FE_NOT_COMMITTED"
+      ]
+    }
+  ],
+  "generatedAt": "2026-09-20T16:29:12.374Z",
+  "privateRun": "private/legacy-real-language/runs/baseline-live-relaxed.json"
+}

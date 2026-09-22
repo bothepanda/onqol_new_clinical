@@ -24,10 +24,10 @@
   "deterministicBaselineVsGold": {
     "metrics": {
       "runs": 52,
-      "commandPrecision": 0.8864,
-      "commandRecall": 0.7222,
-      "canonicalExactTurnAgreement": 0.6923,
-      "parameterFidelity": 0.6829,
+      "commandPrecision": 0.9111,
+      "commandRecall": 0.7593,
+      "canonicalExactTurnAgreement": 0.7308,
+      "parameterFidelity": 0.7317,
       "unsupportedActionFalsePositiveRate": 0.2143,
       "ambiguityDetectionRecall": 0,
       "unresolvedFragmentRecall": 0,
@@ -60,11 +60,11 @@
       "counts": {
         "runs": 52,
         "goldCommands": 54,
-        "actualCommands": 44,
-        "matchedCommands": 39,
-        "exactTurns": 36,
+        "actualCommands": 45,
+        "matchedCommands": 41,
+        "exactTurns": 38,
         "parameterizedGoldCommands": 41,
-        "parameterMatches": 28,
+        "parameterMatches": 30,
         "unsupportedTurns": 14,
         "unsupportedFalsePositives": 3,
         "reasoningGold": 11,
@@ -116,10 +116,10 @@
     "metricsByCategory": {
       "compound": {
         "runs": 8,
-        "commandPrecision": 0.8667,
-        "commandRecall": 0.7222,
-        "canonicalExactTurnAgreement": 0.5,
-        "parameterFidelity": 0.6923,
+        "commandPrecision": 0.9333,
+        "commandRecall": 0.7778,
+        "canonicalExactTurnAgreement": 0.625,
+        "parameterFidelity": 0.8462,
         "unsupportedActionFalsePositiveRate": null,
         "ambiguityDetectionRecall": null,
         "unresolvedFragmentRecall": 0,
@@ -153,10 +153,10 @@
           "runs": 8,
           "goldCommands": 18,
           "actualCommands": 15,
-          "matchedCommands": 13,
-          "exactTurns": 4,
+          "matchedCommands": 14,
+          "exactTurns": 5,
           "parameterizedGoldCommands": 13,
-          "parameterMatches": 9,
+          "parameterMatches": 11,
           "unsupportedTurns": 0,
           "unsupportedFalsePositives": 0,
           "reasoningGold": 3,
@@ -390,8 +390,8 @@
       "history": {
         "runs": 4,
         "commandPrecision": 1,
-        "commandRecall": 0.8,
-        "canonicalExactTurnAgreement": 0.75,
+        "commandRecall": 1,
+        "canonicalExactTurnAgreement": 1,
         "parameterFidelity": 1,
         "unsupportedActionFalsePositiveRate": null,
         "ambiguityDetectionRecall": null,
@@ -425,9 +425,9 @@
         "counts": {
           "runs": 4,
           "goldCommands": 5,
-          "actualCommands": 4,
-          "matchedCommands": 4,
-          "exactTurns": 3,
+          "actualCommands": 5,
+          "matchedCommands": 5,
+          "exactTurns": 4,
           "parameterizedGoldCommands": 1,
           "parameterMatches": 1,
           "unsupportedTurns": 0,
@@ -1060,7 +1060,31 @@
           ],
           "rawText": "опрос пациента",
           "unmatchedFragments": [],
-          "answeredMentorQuestion": false
+          "answeredMentorQuestion": false,
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "опрос пациента",
+              "range": [
+                0,
+                2
+              ],
+              "sentence": 0,
+              "channel": "patient_question",
+              "commitment": {
+                "status": "COMMITTED",
+                "cues": [],
+                "scope": "clause"
+              },
+              "commandIds": [
+                "H01-c0"
+              ],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            }
+          ]
         },
         "evaluation": {
           "goldCommands": [
@@ -1167,7 +1191,31 @@
           ],
           "rawText": "соберу анамнез",
           "unmatchedFragments": [],
-          "answeredMentorQuestion": false
+          "answeredMentorQuestion": false,
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "соберу анамнез",
+              "range": [
+                0,
+                2
+              ],
+              "sentence": 0,
+              "channel": "patient_question",
+              "commitment": {
+                "status": "COMMITTED",
+                "cues": [],
+                "scope": "clause"
+              },
+              "commandIds": [
+                "H02-c0"
+              ],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            }
+          ]
         },
         "evaluation": {
           "goldCommands": [
@@ -1263,11 +1311,41 @@
         },
         "rawDeterministicOutput": {
           "mode": "deterministic",
-          "intent": "CLINICAL_REASONING",
-          "commands": [],
+          "intent": "CLINICAL_ACTION",
+          "commands": [
+            {
+              "id": "H03-c0",
+              "type": "TAKE_HISTORY",
+              "params": {},
+              "sourceText": "расспрошу подробно"
+            }
+          ],
           "rawText": "расспрошу подробно",
-          "unmatchedFragments": [
-            "расспрошу подробно"
+          "unmatchedFragments": [],
+          "answeredMentorQuestion": false,
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "расспрошу подробно",
+              "range": [
+                0,
+                2
+              ],
+              "sentence": 0,
+              "channel": "patient_question",
+              "commitment": {
+                "status": "COMMITTED",
+                "cues": [],
+                "scope": "clause"
+              },
+              "commandIds": [
+                "H03-c0"
+              ],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            }
           ]
         },
         "evaluation": {
@@ -1277,9 +1355,14 @@
               "params": {}
             }
           ],
-          "actualCommands": [],
-          "matchedCommands": 0,
-          "exactTurn": false,
+          "actualCommands": [
+            {
+              "type": "take_history",
+              "params": {}
+            }
+          ],
+          "matchedCommands": 1,
+          "exactTurn": true,
           "parameterizedGoldCommands": 0,
           "parameterMatches": 0,
           "reasoning": {
@@ -1304,7 +1387,7 @@
           },
           "unresolved": {
             "gold": 0,
-            "actual": 1,
+            "actual": 0,
             "matched": 0
           },
           "unsupportedFalsePositive": false,
@@ -1385,7 +1468,53 @@
           ],
           "rawText": "анамнез и осмотр живота",
           "unmatchedFragments": [],
-          "answeredMentorQuestion": false
+          "answeredMentorQuestion": false,
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "анамнез",
+              "range": [
+                0,
+                1
+              ],
+              "sentence": 0,
+              "channel": "patient_question",
+              "commitment": {
+                "status": "COMMITTED",
+                "cues": [],
+                "scope": "clause"
+              },
+              "commandIds": [
+                "H04-c0"
+              ],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            },
+            {
+              "id": "k1",
+              "index": 1,
+              "text": "осмотр живота",
+              "range": [
+                2,
+                4
+              ],
+              "sentence": 0,
+              "channel": "clinical_action",
+              "commitment": {
+                "status": "COMMITTED",
+                "cues": [],
+                "scope": "clause"
+              },
+              "commandIds": [
+                "H04-c1"
+              ],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            }
+          ]
         },
         "evaluation": {
           "goldCommands": [
@@ -1508,7 +1637,31 @@
           ],
           "rawText": "живот",
           "unmatchedFragments": [],
-          "answeredMentorQuestion": false
+          "answeredMentorQuestion": false,
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "живот",
+              "range": [
+                0,
+                1
+              ],
+              "sentence": 0,
+              "channel": "clinical_action",
+              "commitment": {
+                "status": "COMMITTED",
+                "cues": [],
+                "scope": "clause"
+              },
+              "commandIds": [
+                "E01-c0"
+              ],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": true
+            }
+          ]
         },
         "evaluation": {
           "goldCommands": [
@@ -1615,6 +1768,24 @@
           "rawText": "пальпирую живот",
           "unmatchedFragments": [
             "пальпирую живот"
+          ],
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "пальпирую живот",
+              "range": [
+                0,
+                2
+              ],
+              "sentence": 0,
+              "channel": "unresolved",
+              "commitment": null,
+              "commandIds": [],
+              "withheldIds": [],
+              "unresolved": true,
+              "structural": false
+            }
           ]
         },
         "evaluation": {
@@ -1715,6 +1886,24 @@
           "rawText": "живот пасматреть",
           "unmatchedFragments": [
             "живот пасматреть"
+          ],
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "живот пасматреть",
+              "range": [
+                0,
+                2
+              ],
+              "sentence": 0,
+              "channel": "unresolved",
+              "commitment": null,
+              "commandIds": [],
+              "withheldIds": [],
+              "unresolved": true,
+              "structural": false
+            }
           ]
         },
         "evaluation": {
@@ -1824,7 +2013,31 @@
           ],
           "rawText": "осмотрю пациента",
           "unmatchedFragments": [],
-          "answeredMentorQuestion": false
+          "answeredMentorQuestion": false,
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "осмотрю пациента",
+              "range": [
+                0,
+                2
+              ],
+              "sentence": 0,
+              "channel": "clinical_action",
+              "commitment": {
+                "status": "COMMITTED",
+                "cues": [],
+                "scope": "clause"
+              },
+              "commandIds": [
+                "E04-c0"
+              ],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            }
+          ]
         },
         "evaluation": {
           "goldCommands": [
@@ -1940,7 +2153,47 @@
           "unmatchedFragments": [
             "физикалық қарап"
           ],
-          "answeredMentorQuestion": false
+          "answeredMentorQuestion": false,
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "физикалық қарап",
+              "range": [
+                0,
+                2
+              ],
+              "sentence": 0,
+              "channel": "unresolved",
+              "commitment": null,
+              "commandIds": [],
+              "withheldIds": [],
+              "unresolved": true,
+              "structural": false
+            },
+            {
+              "id": "k1",
+              "index": 1,
+              "text": "анамнез жинаймын",
+              "range": [
+                2,
+                4
+              ],
+              "sentence": 0,
+              "channel": "patient_question",
+              "commitment": {
+                "status": "COMMITTED",
+                "cues": [],
+                "scope": "clause"
+              },
+              "commandIds": [
+                "E05-c1"
+              ],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            }
+          ]
         },
         "evaluation": {
           "goldCommands": [
@@ -2057,7 +2310,31 @@
           ],
           "rawText": "ОАК",
           "unmatchedFragments": [],
-          "answeredMentorQuestion": false
+          "answeredMentorQuestion": false,
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "ОАК",
+              "range": [
+                0,
+                1
+              ],
+              "sentence": 0,
+              "channel": "clinical_action",
+              "commitment": {
+                "status": "COMMITTED",
+                "cues": [],
+                "scope": "clause"
+              },
+              "commandIds": [
+                "T01-c0"
+              ],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            }
+          ]
         },
         "evaluation": {
           "goldCommands": [
@@ -2172,7 +2449,31 @@
           ],
           "rawText": "СРБ",
           "unmatchedFragments": [],
-          "answeredMentorQuestion": false
+          "answeredMentorQuestion": false,
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "СРБ",
+              "range": [
+                0,
+                1
+              ],
+              "sentence": 0,
+              "channel": "clinical_action",
+              "commitment": {
+                "status": "COMMITTED",
+                "cues": [],
+                "scope": "clause"
+              },
+              "commandIds": [
+                "T02-c0"
+              ],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            }
+          ]
         },
         "evaluation": {
           "goldCommands": [
@@ -2287,7 +2588,31 @@
           ],
           "rawText": "ОАМ",
           "unmatchedFragments": [],
-          "answeredMentorQuestion": false
+          "answeredMentorQuestion": false,
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "ОАМ",
+              "range": [
+                0,
+                1
+              ],
+              "sentence": 0,
+              "channel": "clinical_action",
+              "commitment": {
+                "status": "COMMITTED",
+                "cues": [],
+                "scope": "clause"
+              },
+              "commandIds": [
+                "T03-c0"
+              ],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            }
+          ]
         },
         "evaluation": {
           "goldCommands": [
@@ -2402,7 +2727,31 @@
           ],
           "rawText": "ХГЧ",
           "unmatchedFragments": [],
-          "answeredMentorQuestion": false
+          "answeredMentorQuestion": false,
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "ХГЧ",
+              "range": [
+                0,
+                1
+              ],
+              "sentence": 0,
+              "channel": "clinical_action",
+              "commitment": {
+                "status": "COMMITTED",
+                "cues": [],
+                "scope": "clause"
+              },
+              "commandIds": [
+                "T04-c0"
+              ],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            }
+          ]
         },
         "evaluation": {
           "goldCommands": [
@@ -2517,7 +2866,31 @@
           ],
           "rawText": "КТ ОБП",
           "unmatchedFragments": [],
-          "answeredMentorQuestion": false
+          "answeredMentorQuestion": false,
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "КТ ОБП",
+              "range": [
+                0,
+                2
+              ],
+              "sentence": 0,
+              "channel": "clinical_action",
+              "commitment": {
+                "status": "COMMITTED",
+                "cues": [],
+                "scope": "clause"
+              },
+              "commandIds": [
+                "T05-c0"
+              ],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            }
+          ]
         },
         "evaluation": {
           "goldCommands": [
@@ -2632,7 +3005,31 @@
           ],
           "rawText": "УЗИ живота",
           "unmatchedFragments": [],
-          "answeredMentorQuestion": false
+          "answeredMentorQuestion": false,
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "УЗИ живота",
+              "range": [
+                0,
+                2
+              ],
+              "sentence": 0,
+              "channel": "clinical_action",
+              "commitment": {
+                "status": "COMMITTED",
+                "cues": [],
+                "scope": "clause"
+              },
+              "commandIds": [
+                "T06-c0"
+              ],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            }
+          ]
         },
         "evaluation": {
           "goldCommands": [
@@ -2750,7 +3147,31 @@
               "sourceText": "БХАК"
             }
           ],
-          "rawText": "БХАК"
+          "rawText": "БХАК",
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "БХАК",
+              "range": [
+                0,
+                1
+              ],
+              "sentence": 0,
+              "channel": "clinical_action",
+              "commitment": {
+                "status": "COMMITTED",
+                "cues": [],
+                "scope": "clause"
+              },
+              "commandIds": [
+                "T07-c0"
+              ],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            }
+          ]
         },
         "evaluation": {
           "goldCommands": [
@@ -2868,10 +3289,58 @@
                   "electrolytes"
                 ]
               },
-              "sourceText": "БХАК: креатинин и электролиты"
+              "sourceText": "БХАК: креатинин, электролиты"
             }
           ],
-          "rawText": "БХАК: креатинин и электролиты"
+          "rawText": "БХАК: креатинин и электролиты",
+          "unmatchedFragments": [],
+          "answeredMentorQuestion": false,
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "БХАК: креатинин",
+              "range": [
+                0,
+                2
+              ],
+              "sentence": 0,
+              "channel": "clinical_action",
+              "commitment": {
+                "status": "COMMITTED",
+                "cues": [],
+                "scope": "clause"
+              },
+              "commandIds": [
+                "T08-c0"
+              ],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            },
+            {
+              "id": "k1",
+              "index": 1,
+              "text": "электролиты",
+              "range": [
+                3,
+                4
+              ],
+              "sentence": 0,
+              "channel": "clinical_action",
+              "commitment": {
+                "status": "COMMITTED",
+                "cues": [],
+                "scope": "clause"
+              },
+              "commandIds": [
+                "T08-c0"
+              ],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            }
+          ]
         },
         "evaluation": {
           "goldCommands": [
@@ -3024,7 +3493,75 @@
           ],
           "rawText": "ОАК, СРБ и ОАМ",
           "unmatchedFragments": [],
-          "answeredMentorQuestion": false
+          "answeredMentorQuestion": false,
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "ОАК",
+              "range": [
+                0,
+                1
+              ],
+              "sentence": 0,
+              "channel": "clinical_action",
+              "commitment": {
+                "status": "COMMITTED",
+                "cues": [],
+                "scope": "clause"
+              },
+              "commandIds": [
+                "T09-c0"
+              ],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            },
+            {
+              "id": "k1",
+              "index": 1,
+              "text": "СРБ",
+              "range": [
+                1,
+                2
+              ],
+              "sentence": 0,
+              "channel": "clinical_action",
+              "commitment": {
+                "status": "COMMITTED",
+                "cues": [],
+                "scope": "clause"
+              },
+              "commandIds": [
+                "T09-c1"
+              ],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            },
+            {
+              "id": "k2",
+              "index": 2,
+              "text": "ОАМ",
+              "range": [
+                3,
+                4
+              ],
+              "sentence": 0,
+              "channel": "clinical_action",
+              "commitment": {
+                "status": "COMMITTED",
+                "cues": [],
+                "scope": "clause"
+              },
+              "commandIds": [
+                "T09-c2"
+              ],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            }
+          ]
         },
         "evaluation": {
           "goldCommands": [
@@ -3172,7 +3709,47 @@
           "unmatchedFragments": [
             "общий анализ крови"
           ],
-          "answeredMentorQuestion": false
+          "answeredMentorQuestion": false,
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "общий анализ крови",
+              "range": [
+                0,
+                3
+              ],
+              "sentence": 0,
+              "channel": "unresolved",
+              "commitment": null,
+              "commandIds": [],
+              "withheldIds": [],
+              "unresolved": true,
+              "structural": false
+            },
+            {
+              "id": "k1",
+              "index": 1,
+              "text": "КТ живота",
+              "range": [
+                4,
+                6
+              ],
+              "sentence": 0,
+              "channel": "clinical_action",
+              "commitment": {
+                "status": "COMMITTED",
+                "cues": [],
+                "scope": "clause"
+              },
+              "commandIds": [
+                "T10-c1"
+              ],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            }
+          ]
         },
         "evaluation": {
           "goldCommands": [
@@ -3334,7 +3911,97 @@
           ],
           "rawText": "опрос, живот, ОАК и КТ ОБП",
           "unmatchedFragments": [],
-          "answeredMentorQuestion": false
+          "answeredMentorQuestion": false,
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "опрос",
+              "range": [
+                0,
+                1
+              ],
+              "sentence": 0,
+              "channel": "patient_question",
+              "commitment": {
+                "status": "COMMITTED",
+                "cues": [],
+                "scope": "clause"
+              },
+              "commandIds": [
+                "C01-c0"
+              ],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            },
+            {
+              "id": "k1",
+              "index": 1,
+              "text": "живот",
+              "range": [
+                1,
+                2
+              ],
+              "sentence": 0,
+              "channel": "clinical_action",
+              "commitment": {
+                "status": "COMMITTED",
+                "cues": [],
+                "scope": "clause"
+              },
+              "commandIds": [
+                "C01-c1"
+              ],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": true
+            },
+            {
+              "id": "k2",
+              "index": 2,
+              "text": "ОАК",
+              "range": [
+                2,
+                3
+              ],
+              "sentence": 0,
+              "channel": "clinical_action",
+              "commitment": {
+                "status": "COMMITTED",
+                "cues": [],
+                "scope": "clause"
+              },
+              "commandIds": [
+                "C01-c2"
+              ],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            },
+            {
+              "id": "k3",
+              "index": 3,
+              "text": "КТ ОБП",
+              "range": [
+                4,
+                6
+              ],
+              "sentence": 0,
+              "channel": "clinical_action",
+              "commitment": {
+                "status": "COMMITTED",
+                "cues": [],
+                "scope": "clause"
+              },
+              "commandIds": [
+                "C01-c3"
+              ],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            }
+          ]
         },
         "evaluation": {
           "goldCommands": [
@@ -3493,7 +4160,9 @@
             {
               "id": "C02-c2",
               "type": "CALL_STAFF",
-              "params": {},
+              "params": {
+                "role": "surgeon"
+              },
               "sourceText": "вызову хирурга"
             },
             {
@@ -3516,7 +4185,69 @@
           "unmatchedFragments": [
             "поставлю вену"
           ],
-          "answeredMentorQuestion": false
+          "answeredMentorQuestion": false,
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "поставлю вену",
+              "range": [
+                0,
+                2
+              ],
+              "sentence": 0,
+              "channel": "unresolved",
+              "commitment": null,
+              "commandIds": [],
+              "withheldIds": [],
+              "unresolved": true,
+              "structural": false
+            },
+            {
+              "id": "k1",
+              "index": 1,
+              "text": "возьму ОАК",
+              "range": [
+                2,
+                4
+              ],
+              "sentence": 0,
+              "channel": "clinical_action",
+              "commitment": {
+                "status": "COMMITTED",
+                "cues": [],
+                "scope": "clause"
+              },
+              "commandIds": [
+                "C02-c1"
+              ],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            },
+            {
+              "id": "k2",
+              "index": 2,
+              "text": "вызову хирурга",
+              "range": [
+                5,
+                7
+              ],
+              "sentence": 0,
+              "channel": "clinical_action",
+              "commitment": {
+                "status": "COMMITTED",
+                "cues": [],
+                "scope": "clause"
+              },
+              "commandIds": [
+                "C02-c2"
+              ],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            }
+          ]
         },
         "evaluation": {
           "goldCommands": [
@@ -3546,7 +4277,9 @@
             },
             {
               "type": "call_staff",
-              "params": {}
+              "params": {
+                "role": "surgeon"
+              }
             },
             {
               "type": "state_reasoning",
@@ -3562,10 +4295,10 @@
               }
             }
           ],
-          "matchedCommands": 1,
+          "matchedCommands": 2,
           "exactTurn": false,
           "parameterizedGoldCommands": 2,
-          "parameterMatches": 1,
+          "parameterMatches": 2,
           "reasoning": {
             "gold": 0,
             "actual": 0,
@@ -3672,7 +4405,69 @@
           "unmatchedFragments": [
             "голод"
           ],
-          "answeredMentorQuestion": false
+          "answeredMentorQuestion": false,
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "голод",
+              "range": [
+                0,
+                1
+              ],
+              "sentence": 0,
+              "channel": "unresolved",
+              "commitment": null,
+              "commandIds": [],
+              "withheldIds": [],
+              "unresolved": true,
+              "structural": false
+            },
+            {
+              "id": "k1",
+              "index": 1,
+              "text": "венозный доступ",
+              "range": [
+                1,
+                3
+              ],
+              "sentence": 0,
+              "channel": "clinical_action",
+              "commitment": {
+                "status": "COMMITTED",
+                "cues": [],
+                "scope": "clause"
+              },
+              "commandIds": [
+                "C03-c1"
+              ],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            },
+            {
+              "id": "k2",
+              "index": 2,
+              "text": "осмотр анестезиолога",
+              "range": [
+                4,
+                6
+              ],
+              "sentence": 0,
+              "channel": "clinical_action",
+              "commitment": {
+                "status": "COMMITTED",
+                "cues": [],
+                "scope": "clause"
+              },
+              "commandIds": [
+                "C03-c2"
+              ],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            }
+          ]
         },
         "evaluation": {
           "goldCommands": [
@@ -3809,14 +4604,60 @@
                 "targets": [
                   "vitals"
                 ],
-                "everyMinutes": 240
+                "intervalMinutes": 240
               },
               "sourceText": "vitals каждые 4 часа"
             }
           ],
           "rawText": "в отделение, vitals каждые 4 часа",
           "unmatchedFragments": [],
-          "answeredMentorQuestion": false
+          "answeredMentorQuestion": false,
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "в отделение",
+              "range": [
+                0,
+                2
+              ],
+              "sentence": 0,
+              "channel": "clinical_action",
+              "commitment": {
+                "status": "COMMITTED",
+                "cues": [],
+                "scope": "clause"
+              },
+              "commandIds": [
+                "C04-c0"
+              ],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            },
+            {
+              "id": "k1",
+              "index": 1,
+              "text": "vitals каждые 4 часа",
+              "range": [
+                2,
+                6
+              ],
+              "sentence": 0,
+              "channel": "clinical_action",
+              "commitment": {
+                "status": "COMMITTED",
+                "cues": [],
+                "scope": "clause"
+              },
+              "commandIds": [
+                "C04-c1"
+              ],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            }
+          ]
         },
         "evaluation": {
           "goldCommands": [
@@ -3846,7 +4687,7 @@
             {
               "type": "prescribe_monitoring",
               "params": {
-                "everyMinutes": 240,
+                "intervalMinutes": 240,
                 "targets": [
                   "vitals"
                 ]
@@ -3854,9 +4695,9 @@
             }
           ],
           "matchedCommands": 2,
-          "exactTurn": false,
+          "exactTurn": true,
           "parameterizedGoldCommands": 2,
-          "parameterMatches": 1,
+          "parameterMatches": 2,
           "reasoning": {
             "gold": 0,
             "actual": 0,
@@ -3955,7 +4796,53 @@
               "sourceText": "переоценю боль и витальные через час"
             }
           ],
-          "rawText": "переоценю боль и витальные через час"
+          "rawText": "переоценю боль и витальные через час",
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "переоценю боль",
+              "range": [
+                0,
+                2
+              ],
+              "sentence": 0,
+              "channel": "clinical_action",
+              "commitment": {
+                "status": "COMMITTED",
+                "cues": [],
+                "scope": "clause"
+              },
+              "commandIds": [
+                "C05-c0"
+              ],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            },
+            {
+              "id": "k1",
+              "index": 1,
+              "text": "витальные через час",
+              "range": [
+                3,
+                6
+              ],
+              "sentence": 0,
+              "channel": "clinical_action",
+              "commitment": {
+                "status": "COMMITTED",
+                "cues": [],
+                "scope": "clause"
+              },
+              "commandIds": [
+                "C05-c0"
+              ],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            }
+          ]
         },
         "evaluation": {
           "goldCommands": [
@@ -4085,7 +4972,47 @@
           "unmatchedFragments": [
             "что-то странное"
           ],
-          "answeredMentorQuestion": false
+          "answeredMentorQuestion": false,
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "ОАК",
+              "range": [
+                0,
+                1
+              ],
+              "sentence": 0,
+              "channel": "clinical_action",
+              "commitment": {
+                "status": "COMMITTED",
+                "cues": [],
+                "scope": "clause"
+              },
+              "commandIds": [
+                "C06-c0"
+              ],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            },
+            {
+              "id": "k1",
+              "index": 1,
+              "text": "что-то странное",
+              "range": [
+                2,
+                5
+              ],
+              "sentence": 0,
+              "channel": "unresolved",
+              "commitment": null,
+              "commandIds": [],
+              "withheldIds": [],
+              "unresolved": true,
+              "structural": false
+            }
+          ]
         },
         "evaluation": {
           "goldCommands": [
@@ -4220,7 +5147,85 @@
           "unmatchedFragments": [
             "исключаю внематочную"
           ],
-          "answeredMentorQuestion": false
+          "answeredMentorQuestion": false,
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "думаю аппендицит",
+              "range": [
+                0,
+                2
+              ],
+              "sentence": 0,
+              "channel": "clinical_reasoning",
+              "commitment": null,
+              "commandIds": [],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            },
+            {
+              "id": "k1",
+              "index": 1,
+              "text": "исключаю внематочную",
+              "range": [
+                2,
+                4
+              ],
+              "sentence": 0,
+              "channel": "unresolved",
+              "commitment": null,
+              "commandIds": [],
+              "withheldIds": [],
+              "unresolved": true,
+              "structural": false
+            },
+            {
+              "id": "k2",
+              "index": 2,
+              "text": "ОАК",
+              "range": [
+                4,
+                5
+              ],
+              "sentence": 0,
+              "channel": "clinical_action",
+              "commitment": {
+                "status": "COMMITTED",
+                "cues": [],
+                "scope": "clause"
+              },
+              "commandIds": [
+                "C07-c2"
+              ],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            },
+            {
+              "id": "k3",
+              "index": 3,
+              "text": "ХГЧ",
+              "range": [
+                6,
+                7
+              ],
+              "sentence": 0,
+              "channel": "clinical_action",
+              "commitment": {
+                "status": "COMMITTED",
+                "cues": [],
+                "scope": "clause"
+              },
+              "commandIds": [
+                "C07-c3"
+              ],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            }
+          ]
         },
         "evaluation": {
           "goldCommands": [
@@ -4346,7 +5351,57 @@
           "intent": "MENTOR_ANSWER",
           "commands": [],
           "mentorSignal": "STUCK",
-          "rawText": "не уверен в диагнозе, но осмотрю живот и закажу ОАК"
+          "rawText": "не уверен в диагнозе, но осмотрю живот и закажу ОАК",
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "не уверен в диагнозе",
+              "range": [
+                0,
+                4
+              ],
+              "sentence": 0,
+              "channel": "clinical_reasoning",
+              "commitment": null,
+              "commandIds": [],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            },
+            {
+              "id": "k1",
+              "index": 1,
+              "text": "но осмотрю живот",
+              "range": [
+                4,
+                7
+              ],
+              "sentence": 0,
+              "channel": "clinical_reasoning",
+              "commitment": null,
+              "commandIds": [],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            },
+            {
+              "id": "k2",
+              "index": 2,
+              "text": "закажу ОАК",
+              "range": [
+                8,
+                10
+              ],
+              "sentence": 0,
+              "channel": "unresolved",
+              "commitment": null,
+              "commandIds": [],
+              "withheldIds": [],
+              "unresolved": true,
+              "structural": false
+            }
+          ]
         },
         "evaluation": {
           "goldCommands": [
@@ -4466,7 +5521,31 @@
           ],
           "rawText": "кетопрофен 100 мг в/м",
           "unmatchedFragments": [],
-          "answeredMentorQuestion": false
+          "answeredMentorQuestion": false,
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "кетопрофен 100 мг в/м",
+              "range": [
+                0,
+                5
+              ],
+              "sentence": 0,
+              "channel": "clinical_action",
+              "commitment": {
+                "status": "COMMITTED",
+                "cues": [],
+                "scope": "clause"
+              },
+              "commandIds": [
+                "M01-c0"
+              ],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            }
+          ]
         },
         "evaluation": {
           "goldCommands": [
@@ -4593,7 +5672,31 @@
           ],
           "rawText": "парацетамол 1 г в/в",
           "unmatchedFragments": [],
-          "answeredMentorQuestion": false
+          "answeredMentorQuestion": false,
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "парацетамол 1 г в/в",
+              "range": [
+                0,
+                5
+              ],
+              "sentence": 0,
+              "channel": "clinical_action",
+              "commitment": {
+                "status": "COMMITTED",
+                "cues": [],
+                "scope": "clause"
+              },
+              "commandIds": [
+                "M02-c0"
+              ],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            }
+          ]
         },
         "evaluation": {
           "goldCommands": [
@@ -4723,7 +5826,31 @@
           ],
           "rawText": "кетопрофен 100 мг",
           "unmatchedFragments": [],
-          "answeredMentorQuestion": false
+          "answeredMentorQuestion": false,
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "кетопрофен 100 мг",
+              "range": [
+                0,
+                3
+              ],
+              "sentence": 0,
+              "channel": "clinical_action",
+              "commitment": {
+                "status": "COMMITTED",
+                "cues": [],
+                "scope": "clause"
+              },
+              "commandIds": [
+                "M03-c0"
+              ],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            }
+          ]
         },
         "evaluation": {
           "goldCommands": [
@@ -4848,7 +5975,31 @@
           ],
           "rawText": "антибиотикопрофилактика цефазолин 2 г в/в",
           "unmatchedFragments": [],
-          "answeredMentorQuestion": false
+          "answeredMentorQuestion": false,
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "антибиотикопрофилактика цефазолин 2 г в/в",
+              "range": [
+                0,
+                6
+              ],
+              "sentence": 0,
+              "channel": "clinical_action",
+              "commitment": {
+                "status": "COMMITTED",
+                "cues": [],
+                "scope": "clause"
+              },
+              "commandIds": [
+                "M05-c0"
+              ],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            }
+          ]
         },
         "evaluation": {
           "goldCommands": [
@@ -4973,7 +6124,31 @@
           ],
           "rawText": "физраствор 500 мл за час",
           "unmatchedFragments": [],
-          "answeredMentorQuestion": false
+          "answeredMentorQuestion": false,
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "физраствор 500 мл за час",
+              "range": [
+                0,
+                5
+              ],
+              "sentence": 0,
+              "channel": "clinical_action",
+              "commitment": {
+                "status": "COMMITTED",
+                "cues": [],
+                "scope": "clause"
+              },
+              "commandIds": [
+                "M06-c0"
+              ],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            }
+          ]
         },
         "evaluation": {
           "goldCommands": [
@@ -5093,7 +6268,31 @@
           ],
           "rawText": "прокапаем его нормально",
           "unmatchedFragments": [],
-          "answeredMentorQuestion": false
+          "answeredMentorQuestion": false,
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "прокапаем его нормально",
+              "range": [
+                0,
+                3
+              ],
+              "sentence": 0,
+              "channel": "clinical_action",
+              "commitment": {
+                "status": "COMMITTED",
+                "cues": [],
+                "scope": "clause"
+              },
+              "commandIds": [
+                "M07-c0"
+              ],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            }
+          ]
         },
         "evaluation": {
           "goldCommands": [
@@ -5192,6 +6391,24 @@
           "rawText": "сделайте что-нибудь",
           "unmatchedFragments": [
             "сделайте что-нибудь"
+          ],
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "сделайте что-нибудь",
+              "range": [
+                0,
+                3
+              ],
+              "sentence": 0,
+              "channel": "unresolved",
+              "commitment": null,
+              "commandIds": [],
+              "withheldIds": [],
+              "unresolved": true,
+              "structural": false
+            }
           ]
         },
         "evaluation": {
@@ -5281,6 +6498,24 @@
           "rawText": "МРТ живота",
           "unmatchedFragments": [
             "МРТ живота"
+          ],
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "МРТ живота",
+              "range": [
+                0,
+                2
+              ],
+              "sentence": 0,
+              "channel": "unresolved",
+              "commitment": null,
+              "commandIds": [],
+              "withheldIds": [],
+              "unresolved": true,
+              "structural": false
+            }
           ]
         },
         "evaluation": {
@@ -5370,6 +6605,24 @@
           "rawText": "поставьте центральную линию",
           "unmatchedFragments": [
             "поставьте центральную линию"
+          ],
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "поставьте центральную линию",
+              "range": [
+                0,
+                3
+              ],
+              "sentence": 0,
+              "channel": "unresolved",
+              "commitment": null,
+              "commandIds": [],
+              "withheldIds": [],
+              "unresolved": true,
+              "structural": false
+            }
           ]
         },
         "evaluation": {
@@ -5452,7 +6705,25 @@
           "intent": "MENTOR_ANSWER",
           "commands": [],
           "mentorSignal": "STUCK",
-          "rawText": "не знаю"
+          "rawText": "не знаю",
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "не знаю",
+              "range": [
+                0,
+                2
+              ],
+              "sentence": 0,
+              "channel": "unresolved",
+              "commitment": null,
+              "commandIds": [],
+              "withheldIds": [],
+              "unresolved": true,
+              "structural": false
+            }
+          ]
         },
         "evaluation": {
           "goldCommands": [],
@@ -5538,6 +6809,40 @@
           "rawText": "думаю, это аппендицит",
           "unmatchedFragments": [
             "это аппендицит"
+          ],
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "думаю",
+              "range": [
+                0,
+                1
+              ],
+              "sentence": 0,
+              "channel": "clinical_reasoning",
+              "commitment": null,
+              "commandIds": [],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            },
+            {
+              "id": "k1",
+              "index": 1,
+              "text": "это аппендицит",
+              "range": [
+                1,
+                3
+              ],
+              "sentence": 0,
+              "channel": "unresolved",
+              "commitment": null,
+              "commandIds": [],
+              "withheldIds": [],
+              "unresolved": true,
+              "structural": false
+            }
           ]
         },
         "evaluation": {
@@ -5622,7 +6927,25 @@
           "intent": "CLINICAL_REASONING",
           "commands": [],
           "rawText": "внематочная пока в дифференциале",
-          "unmatchedFragments": []
+          "unmatchedFragments": [],
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "внематочная пока в дифференциале",
+              "range": [
+                0,
+                4
+              ],
+              "sentence": 0,
+              "channel": "clinical_reasoning",
+              "commitment": null,
+              "commandIds": [],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            }
+          ]
         },
         "evaluation": {
           "goldCommands": [],
@@ -5708,6 +7031,24 @@
           "rawText": "внематочную считаю менее вероятной",
           "unmatchedFragments": [
             "внематочную считаю менее вероятной"
+          ],
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "внематочную считаю менее вероятной",
+              "range": [
+                0,
+                4
+              ],
+              "sentence": 0,
+              "channel": "unresolved",
+              "commitment": null,
+              "commandIds": [],
+              "withheldIds": [],
+              "unresolved": true,
+              "structural": false
+            }
           ]
         },
         "evaluation": {
@@ -5794,6 +7135,24 @@
           "rawText": "я исключил внематочную",
           "unmatchedFragments": [
             "я исключил внематочную"
+          ],
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "я исключил внематочную",
+              "range": [
+                0,
+                3
+              ],
+              "sentence": 0,
+              "channel": "unresolved",
+              "commitment": null,
+              "commandIds": [],
+              "withheldIds": [],
+              "unresolved": true,
+              "structural": false
+            }
           ]
         },
         "evaluation": {
@@ -5897,7 +7256,25 @@
           "unmatchedFragments": [
             "пациент стабилен"
           ],
-          "answeredMentorQuestion": false
+          "answeredMentorQuestion": false,
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "пациент стабилен",
+              "range": [
+                0,
+                2
+              ],
+              "sentence": 0,
+              "channel": "unresolved",
+              "commitment": null,
+              "commandIds": [],
+              "withheldIds": [],
+              "unresolved": true,
+              "structural": false
+            }
+          ]
         },
         "evaluation": {
           "goldCommands": [],
@@ -6005,7 +7382,47 @@
           "unmatchedFragments": [
             "начинаю наблюдение"
           ],
-          "answeredMentorQuestion": false
+          "answeredMentorQuestion": false,
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "начинаю наблюдение",
+              "range": [
+                0,
+                2
+              ],
+              "sentence": 0,
+              "channel": "unresolved",
+              "commitment": null,
+              "commandIds": [],
+              "withheldIds": [],
+              "unresolved": true,
+              "structural": false
+            },
+            {
+              "id": "k1",
+              "index": 1,
+              "text": "повторный осмотр через час",
+              "range": [
+                2,
+                6
+              ],
+              "sentence": 0,
+              "channel": "clinical_action",
+              "commitment": {
+                "status": "COMMITTED",
+                "cues": [],
+                "scope": "clause"
+              },
+              "commandIds": [
+                "R06-c1"
+              ],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            }
+          ]
         },
         "evaluation": {
           "goldCommands": [],
@@ -6094,8 +7511,24 @@
           "intent": "CLINICAL_REASONING",
           "commands": [],
           "rawText": "от наблюдения отказываюсь",
-          "unmatchedFragments": [
-            "от наблюдения отказываюсь"
+          "unmatchedFragments": [],
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "от наблюдения отказываюсь",
+              "range": [
+                0,
+                3
+              ],
+              "sentence": 0,
+              "channel": "clinical_reasoning",
+              "commitment": null,
+              "commandIds": [],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            }
           ]
         },
         "evaluation": {
@@ -6127,7 +7560,7 @@
           },
           "unresolved": {
             "gold": 0,
-            "actual": 1,
+            "actual": 0,
             "matched": 0
           },
           "unsupportedFalsePositive": false,
@@ -6180,7 +7613,25 @@
           "intent": "CLINICAL_REASONING",
           "commands": [],
           "rawText": "рабочий диагноз не уверен",
-          "unmatchedFragments": []
+          "unmatchedFragments": [],
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "рабочий диагноз не уверен",
+              "range": [
+                0,
+                4
+              ],
+              "sentence": 0,
+              "channel": "clinical_reasoning",
+              "commitment": null,
+              "commandIds": [],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            }
+          ]
         },
         "evaluation": {
           "goldCommands": [],
@@ -6274,7 +7725,25 @@
           "commands": [],
           "rawText": "где именно болит?",
           "unmatchedFragments": [
-            "где именно болит?"
+            "где именно болит"
+          ],
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "где именно болит",
+              "range": [
+                0,
+                3
+              ],
+              "sentence": 0,
+              "channel": "unresolved",
+              "commitment": null,
+              "commandIds": [],
+              "withheldIds": [],
+              "unresolved": true,
+              "structural": false
+            }
           ]
         },
         "evaluation": {
@@ -6376,7 +7845,25 @@
           "commands": [],
           "rawText": "когда началась боль?",
           "unmatchedFragments": [
-            "когда началась боль?"
+            "когда началась боль"
+          ],
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "когда началась боль",
+              "range": [
+                0,
+                3
+              ],
+              "sentence": 0,
+              "channel": "unresolved",
+              "commitment": null,
+              "commandIds": [],
+              "withheldIds": [],
+              "unresolved": true,
+              "structural": false
+            }
           ]
         },
         "evaluation": {
@@ -6478,7 +7965,25 @@
           "commands": [],
           "rawText": "тошнило или рвало?",
           "unmatchedFragments": [
-            "тошнило или рвало?"
+            "тошнило или рвало"
+          ],
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "тошнило или рвало",
+              "range": [
+                0,
+                3
+              ],
+              "sentence": 0,
+              "channel": "unresolved",
+              "commitment": null,
+              "commandIds": [],
+              "withheldIds": [],
+              "unresolved": true,
+              "structural": false
+            }
           ]
         },
         "evaluation": {
@@ -6585,9 +8090,49 @@
           ],
           "rawText": "когда последний раз ел и пил?",
           "unmatchedFragments": [
-            "пил?"
+            "пил"
           ],
-          "answeredMentorQuestion": false
+          "answeredMentorQuestion": false,
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "когда последний раз ел",
+              "range": [
+                0,
+                4
+              ],
+              "sentence": 0,
+              "channel": "patient_question",
+              "commitment": {
+                "status": "COMMITTED",
+                "cues": [],
+                "scope": "clause"
+              },
+              "commandIds": [
+                "P04-c0"
+              ],
+              "withheldIds": [],
+              "unresolved": false,
+              "structural": false
+            },
+            {
+              "id": "k1",
+              "index": 1,
+              "text": "пил",
+              "range": [
+                5,
+                6
+              ],
+              "sentence": 0,
+              "channel": "unresolved",
+              "commitment": null,
+              "commandIds": [],
+              "withheldIds": [],
+              "unresolved": true,
+              "structural": false
+            }
+          ]
         },
         "evaluation": {
           "goldCommands": [
@@ -6683,6 +8228,24 @@
           "rawText": "сначала оценю стабильность",
           "unmatchedFragments": [
             "сначала оценю стабильность"
+          ],
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "сначала оценю стабильность",
+              "range": [
+                0,
+                3
+              ],
+              "sentence": 0,
+              "channel": "unresolved",
+              "commitment": null,
+              "commandIds": [],
+              "withheldIds": [],
+              "unresolved": true,
+              "structural": false
+            }
           ]
         },
         "evaluation": {
@@ -6787,7 +8350,25 @@
           "unmatchedFragments": [
             "потому что нужно исключить опасную альтернативу"
           ],
-          "answeredMentorQuestion": false
+          "answeredMentorQuestion": false,
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "потому что нужно исключить опасную альтернативу",
+              "range": [
+                0,
+                6
+              ],
+              "sentence": 0,
+              "channel": "unresolved",
+              "commitment": null,
+              "commandIds": [],
+              "withheldIds": [],
+              "unresolved": true,
+              "structural": false
+            }
+          ]
         },
         "evaluation": {
           "goldCommands": [],
@@ -6901,6 +8482,24 @@
           "rawText": "check the abdomen and CBC",
           "unmatchedFragments": [
             "check the abdomen and CBC"
+          ],
+          "clauses": [
+            {
+              "id": "k0",
+              "index": 0,
+              "text": "check the abdomen and CBC",
+              "range": [
+                0,
+                5
+              ],
+              "sentence": 0,
+              "channel": "unresolved",
+              "commitment": null,
+              "commandIds": [],
+              "withheldIds": [],
+              "unresolved": true,
+              "structural": false
+            }
           ]
         },
         "evaluation": {
@@ -7028,7 +8627,7 @@
         },
         "telemetry": {
           "status": "concept_validation_failure",
-          "elapsedMs": 4,
+          "elapsedMs": 3,
           "schemaErrors": [],
           "conceptErrors": [
             "clinicalActions[0].invented_dose_unit",
@@ -7302,7 +8901,7 @@
         },
         "telemetry": {
           "status": "concept_validation_failure",
-          "elapsedMs": 1,
+          "elapsedMs": 0,
           "schemaErrors": [],
           "conceptErrors": [
             "clinicalActions[0].tentative_not_committed"
@@ -7555,7 +9154,7 @@
         },
         "telemetry": {
           "status": "provider_timeout",
-          "elapsedMs": 1,
+          "elapsedMs": 0,
           "schemaErrors": [],
           "conceptErrors": [],
           "commandValidation": [],

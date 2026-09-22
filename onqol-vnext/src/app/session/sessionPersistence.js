@@ -25,6 +25,7 @@ export function createPersistedSession({ session, messages }) {
       .map((event) => event.payload.rawText),
     expectedEvents: session.events,
     messages,
+    mentorDialogue: session.mentorDialogue ?? [],
     completed: session.state.session.status === "complete",
   };
 }
@@ -48,13 +49,24 @@ export function loadPersistedSession(storage, bundle) {
     if (!Array.isArray(value.learnerTurns) || !Array.isArray(value.expectedEvents) || !Array.isArray(value.messages)) return null;
 
     let session = createSession({ ...value.start, bundle });
-    for (const text of value.learnerTurns) {
+    const recordedTurns = value.expectedEvents.filter((event) => event.type === "LEARNER_TURN_RECEIVED");
+    if (recordedTurns.length !== value.learnerTurns.length) return null;
+    for (const [index, text] of value.learnerTurns.entries()) {
       if (typeof text !== "string") return null;
-      session = submitLearnerTurn({ session, text }).session;
+      const payload = recordedTurns[index].payload;
+      if (payload?.rawText !== text) return null;
+      const interpreted = payload.recordedInterpretation;
+      if (interpreted !== undefined && (!interpreted || !Array.isArray(interpreted.commands) || typeof interpreted.intent !== "string")) return null;
+      // Clinical code still re-executes the recorded commands and must produce
+      // the identical causal log. No provider call or free-text reinterpretation
+      // is allowed for recorded asynchronous turns.
+      session = submitLearnerTurn({ session, text, interpreted }).session;
     }
     // Never partially restore clinical truth. The reconstructed causal log
     // must byte-match what was stored, otherwise the artifact is discarded.
     if (JSON.stringify(session.events) !== JSON.stringify(value.expectedEvents)) return null;
+    if (value.mentorDialogue !== undefined && !Array.isArray(value.mentorDialogue)) return null;
+    if (value.mentorDialogue?.length) session = { ...session, mentorDialogue: value.mentorDialogue };
     return { session, messages: value.messages, completed: value.completed === true };
   } catch {
     return null;

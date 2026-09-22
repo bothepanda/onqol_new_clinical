@@ -48,16 +48,16 @@ export async function preflight() {
     return { status: "PROVIDER_UNAVAILABLE", provider: config.provider ?? "openai", errorCode: error.cause?.code ?? error.name, config };
   }
 }
-export async function liveGateway({ config = interpreterModelConfig(process.env), apiKey = process.env[providerKeyName(config)] } = {}) {
+export async function liveGateway({ config = interpreterModelConfig(process.env), apiKey = process.env[providerKeyName(config)], budgetFile = ".onqol-stage2-budget.json", limits = {}, journalDir = path.join(root, "docs/evidence/stage2-provider-journal"), timeoutMs } = {}) {
   const raw = [];
-  const journal = createStage2Journal(path.join(root, "docs/evidence/stage2-provider-journal"));
-  const middleware = createAiGateway({ env: { ...process.env, [providerKeyName(config)]: apiKey }, budgetStore: fileBudgetStore(path.join(root, ".onqol-stage2-budget.json")),
+  const journal = createStage2Journal(journalDir);
+  const middleware = createAiGateway({ env: { ...process.env, [providerKeyName(config)]: apiKey }, budgetStore: fileBudgetStore(path.join(root, budgetFile)), limits, ...(timeoutMs ? { timeoutMs } : {}),
     fetchImpl: createJournaledFetch({ fetchImpl: globalThis.fetch, journal, raw, apiKey, journalFile: path.relative(root, journal.file) }),
   });
   const server = createServer((req, res) => middleware(req, res, () => { res.statusCode = 404; res.end(); }));
   await new Promise((resolve, reject) => { server.once("error", reject); server.listen(0, "127.0.0.1", resolve); });
   return { raw, journalFile: path.relative(root, journal.file),
-    provider(sessionId) { return createGatewayProviderClient({ endpoint: `http://127.0.0.1:${server.address().port}/api/ai/interpreter`, sessionId }); },
+    provider(sessionId, clientTimeoutMs) { return createGatewayProviderClient({ ...(clientTimeoutMs ? { timeoutMs: clientTimeoutMs } : {}), endpoint: `http://127.0.0.1:${server.address().port}/api/ai/interpreter`, sessionId }); },
     async close() { server.closeAllConnections(); await new Promise((resolve) => server.close(resolve)); },
   };
 }

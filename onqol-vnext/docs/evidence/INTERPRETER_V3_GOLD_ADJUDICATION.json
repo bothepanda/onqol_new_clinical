@@ -1,0 +1,1894 @@
+{
+  "schema": "onqol-gold-adjudication-v1",
+  "status": "PENDING_CLINICIAN_ADJUDICATION",
+  "note": "Draft linguistic gold is not clinically approved. Decisions: confirm | amend | exclude. An amend carries a full replacement gold.",
+  "rows": {
+    "stage2-010": {
+      "draftGoldHash": "10a2c6eda3de3edf055b98fa60b508278943e59172a8d112a9b800f7e559050a",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-011": {
+      "draftGoldHash": "10a2c6eda3de3edf055b98fa60b508278943e59172a8d112a9b800f7e559050a",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-012": {
+      "draftGoldHash": "10a2c6eda3de3edf055b98fa60b508278943e59172a8d112a9b800f7e559050a",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-013": {
+      "draftGoldHash": "10a2c6eda3de3edf055b98fa60b508278943e59172a8d112a9b800f7e559050a",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-014": {
+      "draftGoldHash": "10a2c6eda3de3edf055b98fa60b508278943e59172a8d112a9b800f7e559050a",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-015": {
+      "draftGoldHash": "10a2c6eda3de3edf055b98fa60b508278943e59172a8d112a9b800f7e559050a",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-016": {
+      "draftGoldHash": "10a2c6eda3de3edf055b98fa60b508278943e59172a8d112a9b800f7e559050a",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-017": {
+      "draftGoldHash": "10a2c6eda3de3edf055b98fa60b508278943e59172a8d112a9b800f7e559050a",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-018": {
+      "draftGoldHash": "10a2c6eda3de3edf055b98fa60b508278943e59172a8d112a9b800f7e559050a",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-019": {
+      "draftGoldHash": "7654059e4c6963fd0f36b98625614d49c3b2802e7e5566f03a13a296aa953e13",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-020": {
+      "draftGoldHash": "7654059e4c6963fd0f36b98625614d49c3b2802e7e5566f03a13a296aa953e13",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-021": {
+      "draftGoldHash": "7654059e4c6963fd0f36b98625614d49c3b2802e7e5566f03a13a296aa953e13",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-022": {
+      "draftGoldHash": "7654059e4c6963fd0f36b98625614d49c3b2802e7e5566f03a13a296aa953e13",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-023": {
+      "draftGoldHash": "7654059e4c6963fd0f36b98625614d49c3b2802e7e5566f03a13a296aa953e13",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-024": {
+      "draftGoldHash": "7654059e4c6963fd0f36b98625614d49c3b2802e7e5566f03a13a296aa953e13",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-025": {
+      "draftGoldHash": "7654059e4c6963fd0f36b98625614d49c3b2802e7e5566f03a13a296aa953e13",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-026": {
+      "draftGoldHash": "7654059e4c6963fd0f36b98625614d49c3b2802e7e5566f03a13a296aa953e13",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-027": {
+      "draftGoldHash": "7654059e4c6963fd0f36b98625614d49c3b2802e7e5566f03a13a296aa953e13",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-028": {
+      "draftGoldHash": "56b32a7e2e572106d018c7633c668663509145515aa6196910352a17012006e6",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-029": {
+      "draftGoldHash": "56b32a7e2e572106d018c7633c668663509145515aa6196910352a17012006e6",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-030": {
+      "draftGoldHash": "56b32a7e2e572106d018c7633c668663509145515aa6196910352a17012006e6",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-031": {
+      "draftGoldHash": "56b32a7e2e572106d018c7633c668663509145515aa6196910352a17012006e6",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-032": {
+      "draftGoldHash": "56b32a7e2e572106d018c7633c668663509145515aa6196910352a17012006e6",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-033": {
+      "draftGoldHash": "56b32a7e2e572106d018c7633c668663509145515aa6196910352a17012006e6",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-034": {
+      "draftGoldHash": "56b32a7e2e572106d018c7633c668663509145515aa6196910352a17012006e6",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-035": {
+      "draftGoldHash": "56b32a7e2e572106d018c7633c668663509145515aa6196910352a17012006e6",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-036": {
+      "draftGoldHash": "56b32a7e2e572106d018c7633c668663509145515aa6196910352a17012006e6",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-037": {
+      "draftGoldHash": "765dad7e3fb929919632ff3dfc5bd46b672c21ebac147173427e10f8421602b3",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-038": {
+      "draftGoldHash": "765dad7e3fb929919632ff3dfc5bd46b672c21ebac147173427e10f8421602b3",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-039": {
+      "draftGoldHash": "765dad7e3fb929919632ff3dfc5bd46b672c21ebac147173427e10f8421602b3",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-040": {
+      "draftGoldHash": "765dad7e3fb929919632ff3dfc5bd46b672c21ebac147173427e10f8421602b3",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-041": {
+      "draftGoldHash": "765dad7e3fb929919632ff3dfc5bd46b672c21ebac147173427e10f8421602b3",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-042": {
+      "draftGoldHash": "765dad7e3fb929919632ff3dfc5bd46b672c21ebac147173427e10f8421602b3",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-043": {
+      "draftGoldHash": "765dad7e3fb929919632ff3dfc5bd46b672c21ebac147173427e10f8421602b3",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-044": {
+      "draftGoldHash": "765dad7e3fb929919632ff3dfc5bd46b672c21ebac147173427e10f8421602b3",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-045": {
+      "draftGoldHash": "765dad7e3fb929919632ff3dfc5bd46b672c21ebac147173427e10f8421602b3",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-046": {
+      "draftGoldHash": "59d316af62bbdfc29c47876b4e97c1d603da1f88daa2e7c5749c267781d3537a",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-047": {
+      "draftGoldHash": "59d316af62bbdfc29c47876b4e97c1d603da1f88daa2e7c5749c267781d3537a",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-048": {
+      "draftGoldHash": "59d316af62bbdfc29c47876b4e97c1d603da1f88daa2e7c5749c267781d3537a",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-049": {
+      "draftGoldHash": "59d316af62bbdfc29c47876b4e97c1d603da1f88daa2e7c5749c267781d3537a",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-050": {
+      "draftGoldHash": "59d316af62bbdfc29c47876b4e97c1d603da1f88daa2e7c5749c267781d3537a",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-051": {
+      "draftGoldHash": "59d316af62bbdfc29c47876b4e97c1d603da1f88daa2e7c5749c267781d3537a",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-052": {
+      "draftGoldHash": "59d316af62bbdfc29c47876b4e97c1d603da1f88daa2e7c5749c267781d3537a",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-053": {
+      "draftGoldHash": "59d316af62bbdfc29c47876b4e97c1d603da1f88daa2e7c5749c267781d3537a",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-054": {
+      "draftGoldHash": "59d316af62bbdfc29c47876b4e97c1d603da1f88daa2e7c5749c267781d3537a",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-055": {
+      "draftGoldHash": "d4bb96defdb11811693ece14dabe26257686a2daa0473be81a5c20d8f6943de6",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-056": {
+      "draftGoldHash": "d4bb96defdb11811693ece14dabe26257686a2daa0473be81a5c20d8f6943de6",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-057": {
+      "draftGoldHash": "d4bb96defdb11811693ece14dabe26257686a2daa0473be81a5c20d8f6943de6",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-058": {
+      "draftGoldHash": "d4bb96defdb11811693ece14dabe26257686a2daa0473be81a5c20d8f6943de6",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-059": {
+      "draftGoldHash": "d4bb96defdb11811693ece14dabe26257686a2daa0473be81a5c20d8f6943de6",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-060": {
+      "draftGoldHash": "d4bb96defdb11811693ece14dabe26257686a2daa0473be81a5c20d8f6943de6",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-061": {
+      "draftGoldHash": "d4bb96defdb11811693ece14dabe26257686a2daa0473be81a5c20d8f6943de6",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-062": {
+      "draftGoldHash": "d4bb96defdb11811693ece14dabe26257686a2daa0473be81a5c20d8f6943de6",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-063": {
+      "draftGoldHash": "d4bb96defdb11811693ece14dabe26257686a2daa0473be81a5c20d8f6943de6",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-064": {
+      "draftGoldHash": "eaec508ea6566690beb27f10f9e2f342c42154194d62a22de4ddf17526d8d75b",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-065": {
+      "draftGoldHash": "eaec508ea6566690beb27f10f9e2f342c42154194d62a22de4ddf17526d8d75b",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-066": {
+      "draftGoldHash": "eaec508ea6566690beb27f10f9e2f342c42154194d62a22de4ddf17526d8d75b",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-067": {
+      "draftGoldHash": "eaec508ea6566690beb27f10f9e2f342c42154194d62a22de4ddf17526d8d75b",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-068": {
+      "draftGoldHash": "eaec508ea6566690beb27f10f9e2f342c42154194d62a22de4ddf17526d8d75b",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-069": {
+      "draftGoldHash": "eaec508ea6566690beb27f10f9e2f342c42154194d62a22de4ddf17526d8d75b",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-070": {
+      "draftGoldHash": "eaec508ea6566690beb27f10f9e2f342c42154194d62a22de4ddf17526d8d75b",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-071": {
+      "draftGoldHash": "eaec508ea6566690beb27f10f9e2f342c42154194d62a22de4ddf17526d8d75b",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-072": {
+      "draftGoldHash": "eaec508ea6566690beb27f10f9e2f342c42154194d62a22de4ddf17526d8d75b",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-073": {
+      "draftGoldHash": "948c7625fde7ebe043dbb7b103c25d89843d93cd93cb871ae5e69bb3d34cbf63",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-074": {
+      "draftGoldHash": "948c7625fde7ebe043dbb7b103c25d89843d93cd93cb871ae5e69bb3d34cbf63",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-075": {
+      "draftGoldHash": "948c7625fde7ebe043dbb7b103c25d89843d93cd93cb871ae5e69bb3d34cbf63",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-076": {
+      "draftGoldHash": "948c7625fde7ebe043dbb7b103c25d89843d93cd93cb871ae5e69bb3d34cbf63",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-077": {
+      "draftGoldHash": "948c7625fde7ebe043dbb7b103c25d89843d93cd93cb871ae5e69bb3d34cbf63",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-078": {
+      "draftGoldHash": "948c7625fde7ebe043dbb7b103c25d89843d93cd93cb871ae5e69bb3d34cbf63",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-079": {
+      "draftGoldHash": "948c7625fde7ebe043dbb7b103c25d89843d93cd93cb871ae5e69bb3d34cbf63",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-080": {
+      "draftGoldHash": "948c7625fde7ebe043dbb7b103c25d89843d93cd93cb871ae5e69bb3d34cbf63",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-081": {
+      "draftGoldHash": "948c7625fde7ebe043dbb7b103c25d89843d93cd93cb871ae5e69bb3d34cbf63",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-082": {
+      "draftGoldHash": "9ae2fe3f4e87e5d6a15311520df1f9ffb83e514b7836a3a1126749158b8fe2e1",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-083": {
+      "draftGoldHash": "9ae2fe3f4e87e5d6a15311520df1f9ffb83e514b7836a3a1126749158b8fe2e1",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-084": {
+      "draftGoldHash": "9ae2fe3f4e87e5d6a15311520df1f9ffb83e514b7836a3a1126749158b8fe2e1",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-085": {
+      "draftGoldHash": "9ae2fe3f4e87e5d6a15311520df1f9ffb83e514b7836a3a1126749158b8fe2e1",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-086": {
+      "draftGoldHash": "9ae2fe3f4e87e5d6a15311520df1f9ffb83e514b7836a3a1126749158b8fe2e1",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-087": {
+      "draftGoldHash": "9ae2fe3f4e87e5d6a15311520df1f9ffb83e514b7836a3a1126749158b8fe2e1",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-088": {
+      "draftGoldHash": "9ae2fe3f4e87e5d6a15311520df1f9ffb83e514b7836a3a1126749158b8fe2e1",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-089": {
+      "draftGoldHash": "9ae2fe3f4e87e5d6a15311520df1f9ffb83e514b7836a3a1126749158b8fe2e1",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-090": {
+      "draftGoldHash": "9ae2fe3f4e87e5d6a15311520df1f9ffb83e514b7836a3a1126749158b8fe2e1",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-091": {
+      "draftGoldHash": "c8768c2cafe189208ba65f87a0e8ef951004c9c098895219b4c83fb99a0de60e",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-092": {
+      "draftGoldHash": "c8768c2cafe189208ba65f87a0e8ef951004c9c098895219b4c83fb99a0de60e",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-093": {
+      "draftGoldHash": "c8768c2cafe189208ba65f87a0e8ef951004c9c098895219b4c83fb99a0de60e",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-094": {
+      "draftGoldHash": "97ffcf8c8d63a1ad8f15defa2c386c0bcaf2f3aa1529a0ff094fee97eeb03e49",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-095": {
+      "draftGoldHash": "97ffcf8c8d63a1ad8f15defa2c386c0bcaf2f3aa1529a0ff094fee97eeb03e49",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-096": {
+      "draftGoldHash": "97ffcf8c8d63a1ad8f15defa2c386c0bcaf2f3aa1529a0ff094fee97eeb03e49",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-097": {
+      "draftGoldHash": "823bc8564695047a5fbf4788b4b86747f1a04df4925a63ff6ce4df146b086265",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-098": {
+      "draftGoldHash": "823bc8564695047a5fbf4788b4b86747f1a04df4925a63ff6ce4df146b086265",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-099": {
+      "draftGoldHash": "823bc8564695047a5fbf4788b4b86747f1a04df4925a63ff6ce4df146b086265",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-100": {
+      "draftGoldHash": "823bc8564695047a5fbf4788b4b86747f1a04df4925a63ff6ce4df146b086265",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-101": {
+      "draftGoldHash": "823bc8564695047a5fbf4788b4b86747f1a04df4925a63ff6ce4df146b086265",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-102": {
+      "draftGoldHash": "823bc8564695047a5fbf4788b4b86747f1a04df4925a63ff6ce4df146b086265",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-103": {
+      "draftGoldHash": "3e69feb6db9a27d36764fc379c8e1157fcf50ff9b680db894e59c328a67a1c81",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-104": {
+      "draftGoldHash": "3e69feb6db9a27d36764fc379c8e1157fcf50ff9b680db894e59c328a67a1c81",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-105": {
+      "draftGoldHash": "3e69feb6db9a27d36764fc379c8e1157fcf50ff9b680db894e59c328a67a1c81",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-106": {
+      "draftGoldHash": "1446e6f7a9b23335e74e9b0461cedf59e447deee14710b4c1a8f7fe134c95f55",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-107": {
+      "draftGoldHash": "1446e6f7a9b23335e74e9b0461cedf59e447deee14710b4c1a8f7fe134c95f55",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-108": {
+      "draftGoldHash": "1446e6f7a9b23335e74e9b0461cedf59e447deee14710b4c1a8f7fe134c95f55",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-109": {
+      "draftGoldHash": "1446e6f7a9b23335e74e9b0461cedf59e447deee14710b4c1a8f7fe134c95f55",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-110": {
+      "draftGoldHash": "1446e6f7a9b23335e74e9b0461cedf59e447deee14710b4c1a8f7fe134c95f55",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-111": {
+      "draftGoldHash": "1446e6f7a9b23335e74e9b0461cedf59e447deee14710b4c1a8f7fe134c95f55",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-112": {
+      "draftGoldHash": "8605b971c80274b59c68e04ef8380e7011fc9839d32318b2e37c9d5f36629734",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-113": {
+      "draftGoldHash": "8605b971c80274b59c68e04ef8380e7011fc9839d32318b2e37c9d5f36629734",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-114": {
+      "draftGoldHash": "8605b971c80274b59c68e04ef8380e7011fc9839d32318b2e37c9d5f36629734",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-115": {
+      "draftGoldHash": "8605b971c80274b59c68e04ef8380e7011fc9839d32318b2e37c9d5f36629734",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-116": {
+      "draftGoldHash": "8605b971c80274b59c68e04ef8380e7011fc9839d32318b2e37c9d5f36629734",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-117": {
+      "draftGoldHash": "8605b971c80274b59c68e04ef8380e7011fc9839d32318b2e37c9d5f36629734",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-118": {
+      "draftGoldHash": "b0e537d0f79de1894f610ef0f434098a296e79f387cbad303501a0204af02323",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-119": {
+      "draftGoldHash": "b0e537d0f79de1894f610ef0f434098a296e79f387cbad303501a0204af02323",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-120": {
+      "draftGoldHash": "b0e537d0f79de1894f610ef0f434098a296e79f387cbad303501a0204af02323",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-121": {
+      "draftGoldHash": "d86e10baf082a92d68565f798a027bc9ca25f79cc3a733f4f77c7482ad2c19ed",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-122": {
+      "draftGoldHash": "d86e10baf082a92d68565f798a027bc9ca25f79cc3a733f4f77c7482ad2c19ed",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-123": {
+      "draftGoldHash": "d86e10baf082a92d68565f798a027bc9ca25f79cc3a733f4f77c7482ad2c19ed",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-124": {
+      "draftGoldHash": "0d22b682332edb13ae9c4722ff8d45ad85cf0229ef3f50190f85dde2988cdb39",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-125": {
+      "draftGoldHash": "0d22b682332edb13ae9c4722ff8d45ad85cf0229ef3f50190f85dde2988cdb39",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-126": {
+      "draftGoldHash": "0d22b682332edb13ae9c4722ff8d45ad85cf0229ef3f50190f85dde2988cdb39",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-127": {
+      "draftGoldHash": "b0e537d0f79de1894f610ef0f434098a296e79f387cbad303501a0204af02323",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-128": {
+      "draftGoldHash": "b0e537d0f79de1894f610ef0f434098a296e79f387cbad303501a0204af02323",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-129": {
+      "draftGoldHash": "b0e537d0f79de1894f610ef0f434098a296e79f387cbad303501a0204af02323",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-130": {
+      "draftGoldHash": "b0e537d0f79de1894f610ef0f434098a296e79f387cbad303501a0204af02323",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-131": {
+      "draftGoldHash": "b0e537d0f79de1894f610ef0f434098a296e79f387cbad303501a0204af02323",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-132": {
+      "draftGoldHash": "b0e537d0f79de1894f610ef0f434098a296e79f387cbad303501a0204af02323",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-133": {
+      "draftGoldHash": "b0e537d0f79de1894f610ef0f434098a296e79f387cbad303501a0204af02323",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-134": {
+      "draftGoldHash": "b0e537d0f79de1894f610ef0f434098a296e79f387cbad303501a0204af02323",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-135": {
+      "draftGoldHash": "b0e537d0f79de1894f610ef0f434098a296e79f387cbad303501a0204af02323",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-136": {
+      "draftGoldHash": "948c7625fde7ebe043dbb7b103c25d89843d93cd93cb871ae5e69bb3d34cbf63",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-137": {
+      "draftGoldHash": "948c7625fde7ebe043dbb7b103c25d89843d93cd93cb871ae5e69bb3d34cbf63",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-138": {
+      "draftGoldHash": "948c7625fde7ebe043dbb7b103c25d89843d93cd93cb871ae5e69bb3d34cbf63",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-139": {
+      "draftGoldHash": "301e6d76d8a752a85fac175a53cc2f02e9344b34ef8a6dc15a5e259cae2a5924",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-140": {
+      "draftGoldHash": "301e6d76d8a752a85fac175a53cc2f02e9344b34ef8a6dc15a5e259cae2a5924",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-141": {
+      "draftGoldHash": "301e6d76d8a752a85fac175a53cc2f02e9344b34ef8a6dc15a5e259cae2a5924",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-142": {
+      "draftGoldHash": "301e6d76d8a752a85fac175a53cc2f02e9344b34ef8a6dc15a5e259cae2a5924",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-143": {
+      "draftGoldHash": "301e6d76d8a752a85fac175a53cc2f02e9344b34ef8a6dc15a5e259cae2a5924",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-144": {
+      "draftGoldHash": "301e6d76d8a752a85fac175a53cc2f02e9344b34ef8a6dc15a5e259cae2a5924",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-145": {
+      "draftGoldHash": "6ca904a8a5ad6cb47dcced1ac1ba183722028eca232a05bb26527c5fb19b7680",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-146": {
+      "draftGoldHash": "6ca904a8a5ad6cb47dcced1ac1ba183722028eca232a05bb26527c5fb19b7680",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-147": {
+      "draftGoldHash": "6ca904a8a5ad6cb47dcced1ac1ba183722028eca232a05bb26527c5fb19b7680",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-148": {
+      "draftGoldHash": "301e6d76d8a752a85fac175a53cc2f02e9344b34ef8a6dc15a5e259cae2a5924",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-149": {
+      "draftGoldHash": "301e6d76d8a752a85fac175a53cc2f02e9344b34ef8a6dc15a5e259cae2a5924",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-150": {
+      "draftGoldHash": "301e6d76d8a752a85fac175a53cc2f02e9344b34ef8a6dc15a5e259cae2a5924",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-151": {
+      "draftGoldHash": "10a2c6eda3de3edf055b98fa60b508278943e59172a8d112a9b800f7e559050a",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-152": {
+      "draftGoldHash": "7654059e4c6963fd0f36b98625614d49c3b2802e7e5566f03a13a296aa953e13",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-153": {
+      "draftGoldHash": "56b32a7e2e572106d018c7633c668663509145515aa6196910352a17012006e6",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-154": {
+      "draftGoldHash": "59d316af62bbdfc29c47876b4e97c1d603da1f88daa2e7c5749c267781d3537a",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-155": {
+      "draftGoldHash": "765dad7e3fb929919632ff3dfc5bd46b672c21ebac147173427e10f8421602b3",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-156": {
+      "draftGoldHash": "d4bb96defdb11811693ece14dabe26257686a2daa0473be81a5c20d8f6943de6",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-157": {
+      "draftGoldHash": "1446e6f7a9b23335e74e9b0461cedf59e447deee14710b4c1a8f7fe134c95f55",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-158": {
+      "draftGoldHash": "1446e6f7a9b23335e74e9b0461cedf59e447deee14710b4c1a8f7fe134c95f55",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-159": {
+      "draftGoldHash": "6ca904a8a5ad6cb47dcced1ac1ba183722028eca232a05bb26527c5fb19b7680",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-160": {
+      "draftGoldHash": "71b13ffe21d95e4d2f66b162919e7089ed180a322d4192ed55a1f9d6036598d7",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-161": {
+      "draftGoldHash": "a0119407574806e3a336a1431f3531c0af05acec60b82d85e85be35b3934f89d",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-162": {
+      "draftGoldHash": "fc114a7ccf981708036bff6d342c51cb9c4d520d17f8abd8d29301d0dd766e60",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-163": {
+      "draftGoldHash": "765dad7e3fb929919632ff3dfc5bd46b672c21ebac147173427e10f8421602b3",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-164": {
+      "draftGoldHash": "59d316af62bbdfc29c47876b4e97c1d603da1f88daa2e7c5749c267781d3537a",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-165": {
+      "draftGoldHash": "eaec508ea6566690beb27f10f9e2f342c42154194d62a22de4ddf17526d8d75b",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-166": {
+      "draftGoldHash": "948c7625fde7ebe043dbb7b103c25d89843d93cd93cb871ae5e69bb3d34cbf63",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-167": {
+      "draftGoldHash": "9ae2fe3f4e87e5d6a15311520df1f9ffb83e514b7836a3a1126749158b8fe2e1",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-168": {
+      "draftGoldHash": "823bc8564695047a5fbf4788b4b86747f1a04df4925a63ff6ce4df146b086265",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-169": {
+      "draftGoldHash": "3e69feb6db9a27d36764fc379c8e1157fcf50ff9b680db894e59c328a67a1c81",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-170": {
+      "draftGoldHash": "948c7625fde7ebe043dbb7b103c25d89843d93cd93cb871ae5e69bb3d34cbf63",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-171": {
+      "draftGoldHash": "301e6d76d8a752a85fac175a53cc2f02e9344b34ef8a6dc15a5e259cae2a5924",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-172": {
+      "draftGoldHash": "301e6d76d8a752a85fac175a53cc2f02e9344b34ef8a6dc15a5e259cae2a5924",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-173": {
+      "draftGoldHash": "301e6d76d8a752a85fac175a53cc2f02e9344b34ef8a6dc15a5e259cae2a5924",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-174": {
+      "draftGoldHash": "301e6d76d8a752a85fac175a53cc2f02e9344b34ef8a6dc15a5e259cae2a5924",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-175": {
+      "draftGoldHash": "301e6d76d8a752a85fac175a53cc2f02e9344b34ef8a6dc15a5e259cae2a5924",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-176": {
+      "draftGoldHash": "301e6d76d8a752a85fac175a53cc2f02e9344b34ef8a6dc15a5e259cae2a5924",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-177": {
+      "draftGoldHash": "301e6d76d8a752a85fac175a53cc2f02e9344b34ef8a6dc15a5e259cae2a5924",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-178": {
+      "draftGoldHash": "301e6d76d8a752a85fac175a53cc2f02e9344b34ef8a6dc15a5e259cae2a5924",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-179": {
+      "draftGoldHash": "301e6d76d8a752a85fac175a53cc2f02e9344b34ef8a6dc15a5e259cae2a5924",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-180": {
+      "draftGoldHash": "301e6d76d8a752a85fac175a53cc2f02e9344b34ef8a6dc15a5e259cae2a5924",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-181": {
+      "draftGoldHash": "301e6d76d8a752a85fac175a53cc2f02e9344b34ef8a6dc15a5e259cae2a5924",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-182": {
+      "draftGoldHash": "301e6d76d8a752a85fac175a53cc2f02e9344b34ef8a6dc15a5e259cae2a5924",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-183": {
+      "draftGoldHash": "301e6d76d8a752a85fac175a53cc2f02e9344b34ef8a6dc15a5e259cae2a5924",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-184": {
+      "draftGoldHash": "301e6d76d8a752a85fac175a53cc2f02e9344b34ef8a6dc15a5e259cae2a5924",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-185": {
+      "draftGoldHash": "301e6d76d8a752a85fac175a53cc2f02e9344b34ef8a6dc15a5e259cae2a5924",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-186": {
+      "draftGoldHash": "301e6d76d8a752a85fac175a53cc2f02e9344b34ef8a6dc15a5e259cae2a5924",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-187": {
+      "draftGoldHash": "301e6d76d8a752a85fac175a53cc2f02e9344b34ef8a6dc15a5e259cae2a5924",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-188": {
+      "draftGoldHash": "301e6d76d8a752a85fac175a53cc2f02e9344b34ef8a6dc15a5e259cae2a5924",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-189": {
+      "draftGoldHash": "301e6d76d8a752a85fac175a53cc2f02e9344b34ef8a6dc15a5e259cae2a5924",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-190": {
+      "draftGoldHash": "301e6d76d8a752a85fac175a53cc2f02e9344b34ef8a6dc15a5e259cae2a5924",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-191": {
+      "draftGoldHash": "301e6d76d8a752a85fac175a53cc2f02e9344b34ef8a6dc15a5e259cae2a5924",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-192": {
+      "draftGoldHash": "301e6d76d8a752a85fac175a53cc2f02e9344b34ef8a6dc15a5e259cae2a5924",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-193": {
+      "draftGoldHash": "301e6d76d8a752a85fac175a53cc2f02e9344b34ef8a6dc15a5e259cae2a5924",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-194": {
+      "draftGoldHash": "301e6d76d8a752a85fac175a53cc2f02e9344b34ef8a6dc15a5e259cae2a5924",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-195": {
+      "draftGoldHash": "301e6d76d8a752a85fac175a53cc2f02e9344b34ef8a6dc15a5e259cae2a5924",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-196": {
+      "draftGoldHash": "301e6d76d8a752a85fac175a53cc2f02e9344b34ef8a6dc15a5e259cae2a5924",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-197": {
+      "draftGoldHash": "301e6d76d8a752a85fac175a53cc2f02e9344b34ef8a6dc15a5e259cae2a5924",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-198": {
+      "draftGoldHash": "301e6d76d8a752a85fac175a53cc2f02e9344b34ef8a6dc15a5e259cae2a5924",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-199": {
+      "draftGoldHash": "301e6d76d8a752a85fac175a53cc2f02e9344b34ef8a6dc15a5e259cae2a5924",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "stage2-200": {
+      "draftGoldHash": "301e6d76d8a752a85fac175a53cc2f02e9344b34ef8a6dc15a5e259cae2a5924",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "v3-001": {
+      "draftGoldHash": "765dad7e3fb929919632ff3dfc5bd46b672c21ebac147173427e10f8421602b3",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "v3-002": {
+      "draftGoldHash": "765dad7e3fb929919632ff3dfc5bd46b672c21ebac147173427e10f8421602b3",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "v3-003": {
+      "draftGoldHash": "765dad7e3fb929919632ff3dfc5bd46b672c21ebac147173427e10f8421602b3",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "v3-004": {
+      "draftGoldHash": "765dad7e3fb929919632ff3dfc5bd46b672c21ebac147173427e10f8421602b3",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "v3-005": {
+      "draftGoldHash": "765dad7e3fb929919632ff3dfc5bd46b672c21ebac147173427e10f8421602b3",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "v3-006": {
+      "draftGoldHash": "10a2c6eda3de3edf055b98fa60b508278943e59172a8d112a9b800f7e559050a",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "v3-007": {
+      "draftGoldHash": "7654059e4c6963fd0f36b98625614d49c3b2802e7e5566f03a13a296aa953e13",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "v3-008": {
+      "draftGoldHash": "c8768c2cafe189208ba65f87a0e8ef951004c9c098895219b4c83fb99a0de60e",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "v3-009": {
+      "draftGoldHash": "c8768c2cafe189208ba65f87a0e8ef951004c9c098895219b4c83fb99a0de60e",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "v3-010": {
+      "draftGoldHash": "8ef38b8ec061b1100513db5c1c6ca980795526453489e37d2aadbbb9fbe12ab1",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "v3-011": {
+      "draftGoldHash": "8ef38b8ec061b1100513db5c1c6ca980795526453489e37d2aadbbb9fbe12ab1",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "v3-012": {
+      "draftGoldHash": "fe33795843166d6f4928f91702854c53b83f9e84933d32ad74538d788da3583e",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "v3-013": {
+      "draftGoldHash": "fe33795843166d6f4928f91702854c53b83f9e84933d32ad74538d788da3583e",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "v3-014": {
+      "draftGoldHash": "8ac18b2d22c021880c3231d7a5bd6e51952ed432cdcb7e81638778924367f52a",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "v3-015": {
+      "draftGoldHash": "8ac18b2d22c021880c3231d7a5bd6e51952ed432cdcb7e81638778924367f52a",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "v3-016": {
+      "draftGoldHash": "73bfcef824bc7ba50af73178b5de23c23f51eee988cf9db031632c78f901c19a",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "v3-017": {
+      "draftGoldHash": "73bfcef824bc7ba50af73178b5de23c23f51eee988cf9db031632c78f901c19a",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "v3-018": {
+      "draftGoldHash": "6bda817758f26a0171afca39e6ef27fd10f6bac28b4630dae046ee6b407c91e6",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "v3-019": {
+      "draftGoldHash": "6bda817758f26a0171afca39e6ef27fd10f6bac28b4630dae046ee6b407c91e6",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "v3-020": {
+      "draftGoldHash": "6bda817758f26a0171afca39e6ef27fd10f6bac28b4630dae046ee6b407c91e6",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "v3-021": {
+      "draftGoldHash": "6e081437290f868c0763320db5fea312841b8b72d10d0e61b4d6ce5a7d4603be",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "v3-022": {
+      "draftGoldHash": "6e081437290f868c0763320db5fea312841b8b72d10d0e61b4d6ce5a7d4603be",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "v3-023": {
+      "draftGoldHash": "2b58ef917ce66e3e5083f5eaab83234261168a26a8b9e93e061c3a26aa4ed8f4",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "v3-024": {
+      "draftGoldHash": "9d476d25eccad49524afdba38b08a77e4a39903df3e4a4e6ade8b02f1a562b45",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "v3-025": {
+      "draftGoldHash": "823bc8564695047a5fbf4788b4b86747f1a04df4925a63ff6ce4df146b086265",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "v3-026": {
+      "draftGoldHash": "3e69feb6db9a27d36764fc379c8e1157fcf50ff9b680db894e59c328a67a1c81",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "v3-027": {
+      "draftGoldHash": "3e69feb6db9a27d36764fc379c8e1157fcf50ff9b680db894e59c328a67a1c81",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "v3-028": {
+      "draftGoldHash": "9ae2fe3f4e87e5d6a15311520df1f9ffb83e514b7836a3a1126749158b8fe2e1",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "v3-029": {
+      "draftGoldHash": "537dd0fd22151444ae5717e1b4ede063935ee275386169a882c7649a1aa3c31a",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "v3-030": {
+      "draftGoldHash": "bfa54ef569496f297e92f2813425a3d31c3edf05b58da3ad665ddca3c6f4816e",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "v3-031": {
+      "draftGoldHash": "301e6d76d8a752a85fac175a53cc2f02e9344b34ef8a6dc15a5e259cae2a5924",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "v3-032": {
+      "draftGoldHash": "301e6d76d8a752a85fac175a53cc2f02e9344b34ef8a6dc15a5e259cae2a5924",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "v3-033": {
+      "draftGoldHash": "301e6d76d8a752a85fac175a53cc2f02e9344b34ef8a6dc15a5e259cae2a5924",
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null
+    },
+    "Tc678f1681c7a": {
+      "draftGoldHash": null,
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null,
+      "source": "real_resident"
+    },
+    "Tda964393a4a1": {
+      "draftGoldHash": null,
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null,
+      "source": "real_resident"
+    },
+    "T1a188f737cfd": {
+      "draftGoldHash": null,
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null,
+      "source": "real_resident"
+    },
+    "Td94e293eeecc": {
+      "draftGoldHash": null,
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null,
+      "source": "real_resident"
+    },
+    "T30583f1cac1e": {
+      "draftGoldHash": null,
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null,
+      "source": "real_resident"
+    },
+    "T8a5dfdf2209e": {
+      "draftGoldHash": null,
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null,
+      "source": "real_resident"
+    },
+    "T7b5710dcb377": {
+      "draftGoldHash": null,
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null,
+      "source": "real_resident"
+    },
+    "Tccdc82fec239": {
+      "draftGoldHash": null,
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null,
+      "source": "real_resident"
+    },
+    "T8b703f6b24be": {
+      "draftGoldHash": null,
+      "decision": null,
+      "adjudicator": null,
+      "adjudicatedAt": null,
+      "amendedGold": null,
+      "notes": null,
+      "source": "real_resident"
+    }
+  },
+  "retiredRows": {
+    "ids": [
+      "stage2-001",
+      "stage2-002",
+      "stage2-003",
+      "stage2-004",
+      "stage2-005",
+      "stage2-006",
+      "stage2-007",
+      "stage2-008",
+      "stage2-009"
+    ],
+    "reason": "Built from a raw resident export; removed under the data-governance ruling (2026-09-20). Ids are never reused."
+  }
+}

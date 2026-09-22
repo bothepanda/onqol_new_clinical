@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { t } from "../i18n/strings.js";
 
-export function Composer({ locale, disabled, onSubmit }) {
+export function Composer({ locale, disabled, onSubmit, mentorEnabled = false }) {
   const [value, setValue] = useState("");
 
   const submit = () => {
@@ -16,7 +16,7 @@ export function Composer({ locale, disabled, onSubmit }) {
       <div className="onqol-composer">
         <textarea
           value={value}
-          placeholder={t(locale, "composer.placeholder")}
+          placeholder={mentorEnabled ? "Действие, вопрос или рассуждение…" : t(locale, "composer.placeholder")}
           disabled={disabled}
           onChange={(event) => setValue(event.target.value)}
           onKeyDown={(event) => {

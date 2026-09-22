@@ -67,9 +67,19 @@ export function submitLearnerTurn({ session, text, shadowProvider, interpreted: 
       // (Stage 2) "hybrid" / "hybrid_fallback_deterministic".
       interpreterMode: interpreted.mode ?? "deterministic",
       semanticTelemetry: interpreted.semanticTelemetry ?? null,
+      // Preserve the async interpretation for resume. Re-parsing its text with
+      // today's dictionary or provider would change the historical decision.
+      ...(interpretedOverride ? { recordedInterpretation: structuredClone(interpreted) } : {}),
       mentorSignal: interpreted.mentorSignal ?? null,
       unmatchedFragments: interpreted.unmatchedFragments ?? [],
-      interpretedCommands: interpreted.commands.map((c) => ({ id: c.id, type: c.type, params: c.params })),
+      // Every command here passed the commitment gate: it is a decision, not a
+      // hedge, condition, question, deferral or refusal. Those are recorded in
+      // `withheldCommands` with the reason and were not executed.
+      interpretedCommands: interpreted.commands.map((c) => ({ id: c.id, type: c.type, params: c.params, commitment: "COMMITTED" })),
+      withheldCommands: interpreted.withheldCommands ?? [],
+      // A stated «сначала X, затем Y»: the ordering the learner gave. Recorded only;
+      // each command is still executed and validated on its own.
+      ...(interpreted.commandSequence ? { commandSequence: interpreted.commandSequence } : {}),
     },
     cause: { actor: "learner", source: "interpreter" },
   });

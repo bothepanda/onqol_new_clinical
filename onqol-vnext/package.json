@@ -38,7 +38,13 @@
     "stage2:broken-key": "node scripts/stage2Acceptance.mjs --broken-key",
     "stage2:host-check": "node scripts/checkStage2Host.mjs",
     "pack:safe": "node scripts/packSafe.mjs",
-    "verify": "npm run content:check && npm test && npm run wave2:corpus && npm run lint && npm run build"
+    "governance:check": "node scripts/evidenceGovernance.mjs",
+    "verify": "npm run content:check && npm run governance:check && npm test && npm run wave2:corpus && npm run lint && npm run build",
+    "dev:mentor": "ONQOL_EXPERIMENTAL_MENTOR=true VITE_ONQOL_PILOT=false VITE_ONQOL_MENTOR=experimental npm run dev -- --host 127.0.0.1",
+    "test:e2e:mentor": "playwright test --config playwright.mentor.config.js",
+    "test:e2e:semantic": "playwright test --config playwright.semantic.config.js",
+    "dev:semantic": "VITE_ONQOL_INTERPRETER=semantic_first npm run dev:mentor",
+    "semantic:smoke": "node scripts/smokeSemanticFirst.mjs --live"
   },
   "dependencies": {
     "react": "^19.2.6",

@@ -1,14 +1,8 @@
 import { COMMAND } from "../../core/commands/commandTypes.js";
 import { DIFFERENTIAL_STATUSES } from "../../core/reasoning/reasoningState.js";
-import {
-  CHEMISTRY_ANALYTE_SYNONYMS,
-  DISPOSITION_SYNONYMS,
-  DRUG_SYNONYMS,
-  MONITORING_TARGETS,
-  REGION_SYNONYMS,
-  STAFF_SYNONYMS,
-  TEST_SYNONYMS,
-} from "./vocabulary.js";
+import { analyteAliases, groundConcept, targetAliases, typeEvident, CONCEPT_PARAM_KEYS, TOPIC_ANCHORS } from "./conceptGrounding.js";
+import { APPROACH_SYNONYMS, CHEMISTRY_ANALYTE_SYNONYMS, MONITORING_TARGETS } from "./vocabulary.js";
+import { containsAny, containsNormalized, normalizeText as normalize } from "./textMatch.js";
 
 const NON_MODEL_ACTION_TYPES = new Set([COMMAND.STATE_REASONING, COMMAND.ANSWER_MENTOR]);
 
@@ -55,45 +49,16 @@ const EXPLICIT_COMMITMENT_PATTERNS = [
   /\bcommitting\b/i, /\bproceed(?:ing)?\b/i, /\bwill (?:perform|transfer|discharge)\b/i,
 ];
 
-const TOPIC_ANCHORS = Object.freeze({
-  pain: ["боль", "болит", "ауыру", "pain"],
-  onset: ["когда нач", "начал", "бастал", "onset", "start"],
-  nausea_vomiting: ["тошнот", "рвот", "құсу", "nause", "vomit"],
-  urinary: ["моч", "дизур", "зәр", "urin"],
-  gynecologic: ["месячн", "менстру", "берем", "гинек", "pregnan"],
-  allergies: ["аллерг", "allerg"],
-  medications: ["приним", "лекар", "препарат", "medication"],
-  fasting: ["ел", "пил", "прием пищи", "приём пищи", "натощак", "fasting"],
-});
-
-const TYPE_ANCHORS = Object.freeze({
-  [COMMAND.TAKE_HISTORY]: ["опрос", "расспрос", "расспрош", "анамнез", "жалоб", "истори", "сұра", "жина"],
-  [COMMAND.EXAMINE]: ["осмотр", "осматр", "пальп", "пощуп", "қара"],
-  [COMMAND.REQUEST_STATUS]: ["что с пациент", "как пациент", "текущее состояние", "витальн"],
-  [COMMAND.WAIT]: ["жду", "подожд", "ожида", "wait"],
-  [COMMAND.ORDER_TEST]: ["анализ", "оак", "бхак", "срб", "оам", "хгч", "узи", "кт", "кров", "мочу", "исследов", "обследов", "проверь", "проверить", "глянуть", "посмотреть", "сдать", "возьм", "нужен", "нужна", "нужно", "закаж", "назнач"],
-  [COMMAND.ORDER_MEDICATION]: ["назнач", "ввести", "дать", "обезбол"],
-  [COMMAND.ORDER_INFUSION]: ["инфуз", "прокап", "раствор", "физраствор", "кристаллоид"],
-  [COMMAND.ORDER_PROCEDURE]: ["процедур", "установ", "постав"],
-  [COMMAND.PRESCRIBE_MONITORING]: ["монитор", "каждые", "контрол"],
-  [COMMAND.REASSESS]: ["переоцен", "повторн"],
-  [COMMAND.CALL_STAFF]: ["вызов", "вызвать", "позов", "консультац"],
-  [COMMAND.SET_NPO]: ["npo", "голод", "ничего не есть", "не корм", "ничего внутрь"],
-  [COMMAND.ASK_FASTING_HISTORY]: ["когда ел", "когда пил", "прием пищи", "приём пищи"],
-  [COMMAND.ESTABLISH_IV_ACCESS]: ["вен", "в/в доступ", "катетер"],
-  [COMMAND.REQUEST_ANESTHESIA_REVIEW]: ["анестезиолог"],
-  [COMMAND.GIVE_ANTIBIOTIC_PROPHYLAXIS]: ["антибиотикопрофилактик", "профилактик"],
-  [COMMAND.COMMIT_MANAGEMENT_PLAN]: ["операц", "оперир", "наблюден"],
-  [COMMAND.DISPOSITION]: ["отделение", "палату", "орит", "реанимац", "домой"],
-  [COMMAND.TRANSFER]: ["перевод", "перевож", "перевести", "транспортир"],
-});
-
 export function buildModelAllowlist({ bundle, turnContext = {} }) {
   const interaction = bundle.shared?.interaction ?? {};
+  const modeledTests = Object.keys(bundle.trajectories?.investigation_timing ?? {});
   return {
     commandTypes: Object.values(COMMAND).filter((type) => !NON_MODEL_ACTION_TYPES.has(type)),
     parameterSchemas: PARAMETER_SCHEMAS,
-    tests: Object.keys(bundle.trajectories?.investigation_timing ?? {}),
+    tests: modeledTests,
+    // Recognised but not modeled for this case: nameable (so the learner is told
+    // honestly it is a simulator limitation) yet never a modeled result.
+    recognizedUnmodeledTests: (interaction.recognized_unmodeled_tests ?? []).map((entry) => entry.id).filter((id) => !modeledTests.includes(id)),
     chemistryAnalytes: [...new Set(Object.values(CHEMISTRY_ANALYTE_SYNONYMS))],
     drugs: Object.keys(bundle.shared?.medications?.medications ?? {}),
     fluids: interaction.fluid_ids ?? ["crystalloid"],
@@ -112,23 +77,17 @@ export function buildModelAllowlist({ bundle, turnContext = {} }) {
 export function validateModelConcepts({ output, allowlist, rawText, openClarification }) {
   const errors = [];
   const actionValidation = [];
-  const commandTypes = new Set(allowlist.commandTypes);
 
   for (const [index, item] of output.clinicalActions.entries()) {
-    const actionErrors = [];
-    if (!commandTypes.has(item.type)) actionErrors.push("type_not_allowlisted");
-    const allowedParams = new Set(allowlist.parameterSchemas[item.type] ?? []);
-    for (const key of Object.keys(item.params)) if (!allowedParams.has(key)) actionErrors.push(`params.${key}_not_allowlisted`);
-    validateKnownIds(item, allowlist, actionErrors);
-    if (item.params.analytes !== undefined) {
-      if (item.params.testId !== "chemistry") actionErrors.push("params.analytes_not_allowed_for_test");
-      if (!Array.isArray(item.params.analytes) || item.params.analytes.some((id) => !allowlist.chemistryAnalytes.includes(id))) {
-        actionErrors.push("params.analytes_unknown");
-      }
-    }
-    validateEvidenceSpans(item, rawText, actionErrors);
-    validateLexicalGrounding(item, actionErrors);
-    if (tentativePromotion(item)) actionErrors.push("tentative_not_committed");
+    const structure = validateCandidateStructure({ item, allowlist, rawText });
+    const language = matchCandidateLanguage(item);
+    // Legacy (non-arbitrated) contract: every concept needs an alias in the
+    // learner's words. The arbitrated v3 path applies a per-kind policy instead
+    // (actionCandidateValidation.js).
+    const lexical = [];
+    if (!["lexical", "composite"].includes(language.grounding.status)) lexical.push("lexical_anchor_missing");
+    lexical.push(...language.analyteErrors, ...language.targetErrors);
+    const actionErrors = [...structure.beforeLexical, ...lexical, ...structure.afterLexical];
     actionValidation.push({ index, eligibleForBinding: actionErrors.length === 0, errors: actionErrors });
     errors.push(...actionErrors.map((error) => `clinicalActions[${index}].${error}`));
   }
@@ -172,9 +131,19 @@ export function validateNormalizedReasoning({ normalizedReasoning, allowlist }) 
   return { ok: errors.length === 0, errors };
 }
 
+const KNOWN_TARGET_IDS = new Set([...Object.values(MONITORING_TARGETS), "abdomen_exam", "mental_status"]);
+const KNOWN_APPROACHES = new Set(Object.values(APPROACH_SYNONYMS));
+
 function validateKnownIds(item, allowlist, errors) {
+  // A monitoring/reassessment target is one of the ids the system defines, never a word lifted out of the learner's
+  // text (a score name is not a parameter to monitor), and an approach is one of the two modeled ones, not free text.
+  if (item.params?.targets != null && (!Array.isArray(item.params.targets) || item.params.targets.some((id) => !KNOWN_TARGET_IDS.has(id)))) errors.push("params.targets_unknown");
+  if (item.params?.approach != null && !KNOWN_APPROACHES.has(item.params.approach)) errors.push("params.approach_unknown");
+  // TRANSFER leaves the facility. Moving the patient to the ICU or the ward is a DISPOSITION; a model that files it
+  // under TRANSFER is not corrected into another command, it is dropped.
+  if (item.type === COMMAND.TRANSFER && item.params?.destination !== "other_facility") errors.push("transfer_destination_not_other_facility");
   const checks = [
-    ["testId", allowlist.tests], ["drugId", allowlist.drugs], ["fluidId", allowlist.fluids],
+    ["testId", [...allowlist.tests, ...(allowlist.recognizedUnmodeledTests ?? [])]], ["drugId", allowlist.drugs], ["fluidId", allowlist.fluids],
     ["procedureId", allowlist.procedures], ["region", allowlist.regions], ["topic", allowlist.patientQuestionTopics],
     ["role", allowlist.staffRoles], ["destination", allowlist.destinations], ["to", allowlist.destinations],
     ["intent", allowlist.managementIntents], ["route", allowlist.routes], ["choice", allowlist.operativeChoices],
@@ -184,21 +153,50 @@ function validateKnownIds(item, allowlist, errors) {
   }
 }
 
-function validateEvidenceSpans(item, rawText, errors) {
-  for (const span of item.evidenceSpans) if (!containsNormalized(rawText, span)) errors.push("evidence_not_verbatim");
+/**
+ * A. STRUCTURAL / SAFETY validation - hard rules that never depend on how the
+ * learner phrased anything: allowlisted type, parameter schema, concept ids,
+ * chemistry analyte shape, verbatim evidence, tentative high-risk guard.
+ * `beforeLexical` / `afterLexical` only preserve the legacy error order.
+ */
+export function validateCandidateStructure({ item, allowlist, rawText }) {
+  const beforeLexical = [];
+  if (!new Set(allowlist.commandTypes).has(item.type)) beforeLexical.push("type_not_allowlisted");
+  const allowedParams = new Set(allowlist.parameterSchemas[item.type] ?? []);
+  for (const key of Object.keys(item.params ?? {})) if (!allowedParams.has(key)) beforeLexical.push(`params.${key}_not_allowlisted`);
+  validateKnownIds(item, allowlist, beforeLexical);
+  if (item.params?.analytes !== undefined) {
+    if (item.params.testId !== "chemistry") beforeLexical.push("params.analytes_not_allowed_for_test");
+    if (!Array.isArray(item.params.analytes) || item.params.analytes.some((id) => !allowlist.chemistryAnalytes.includes(id))) {
+      beforeLexical.push("params.analytes_unknown");
+    }
+  }
+  for (const span of item.evidenceSpans ?? []) if (!containsNormalized(rawText, span)) beforeLexical.push("evidence_not_verbatim");
+  const afterLexical = tentativePromotion(item) ? ["tentative_not_committed"] : [];
+  return { beforeLexical, afterLexical, errors: [...beforeLexical, ...afterLexical] };
 }
 
-function validateLexicalGrounding(item, errors) {
-  const evidence = normalize(item.evidenceSpans.join(" "));
-  const anchors = conceptAnchors(item);
-  const anchored = anchors.length > 0 && containsAny(evidence, anchors) && !imagingExcluded(item.params.testId, evidence);
-  if (!anchored && !imagingGrounded(item.params.testId, evidence)) errors.push("lexical_anchor_missing");
-  if (item.params.analytes && item.params.analytes.some((id) => !containsAny(evidence, aliasesFor(CHEMISTRY_ANALYTE_SYNONYMS, id)))) {
-    errors.push("params.analytes_not_grounded");
-  }
-  if (item.params.targets && item.params.targets.some((id) => !containsAny(evidence, aliasesFor(MONITORING_TARGETS, id)))) {
-    errors.push("params.targets_not_grounded");
-  }
+/**
+ * B. SEMANTIC-LANGUAGE matching - evidence about how the learner's words relate
+ * to the concept the model chose. Data-driven (conceptGrounding.js); this
+ * function only measures. What a weak match MEANS is decided by the caller.
+ */
+export function matchCandidateLanguage(item) {
+  const evidence = evidenceOf(item);
+  const analyteErrors = [];
+  const targetErrors = [];
+  if (item.params?.analytes && item.params.analytes.some((id) => !containsAny(evidence, analyteAliases(id)))) analyteErrors.push("params.analytes_not_grounded");
+  if (item.params?.targets && item.params.targets.some((id) => !containsAny(evidence, targetAliases(id)))) targetErrors.push("params.targets_not_grounded");
+  return { grounding: groundConcept(item, evidence), typeEvident: typeEvident(item.type, evidence), analyteErrors, targetErrors };
+}
+
+function evidenceOf(item) {
+  return normalize((item.evidenceSpans ?? []).join(" ") || item.evidence || "");
+}
+
+/** The kind of action itself (not which one) must be evident in the learner's words. */
+export function actionTypeGrounded(item) {
+  return typeEvident(item.type, evidenceOf(item));
 }
 
 /**
@@ -207,12 +205,6 @@ function validateLexicalGrounding(item, errors) {
  * only ever asks for a value the learner already implied it would give -
  * DISPOSITION/TRANSFER/OPERATIVE_DECISION/etc. stay out of this entirely).
  */
-/** The kind of action itself (not which one) must be evident in the learner's words. */
-export function actionTypeGrounded(item) {
-  const evidence = normalize((item.evidenceSpans ?? []).join(" ") || item.evidence || "");
-  return containsAny(evidence, TYPE_ANCHORS[item.type] ?? []);
-}
-
 export function identifyingParamKey(item) {
   if (HIGH_RISK_ACTIONS.has(item.type)) return null;
   const { params } = item;
@@ -225,80 +217,7 @@ export function identifyingParamKey(item) {
   return null;
 }
 
-function conceptAnchors(item) {
-  const { params } = item;
-  if (params.testId) return testAnchors(params.testId);
-  if (params.drugId) return aliasesFor(DRUG_SYNONYMS, params.drugId);
-  if (params.fluidId) return ["физраствор", "раствор", "кристаллоид", "инфуз"];
-  if (params.region) return regionAnchors(params.region);
-  if (params.topic) return TOPIC_ANCHORS[params.topic] ?? [];
-  if (params.role) return roleAnchors(params.role);
-  if (params.destination || params.to) return destinationAnchors(params.destination ?? params.to);
-  if (params.intent === "operative") return ["операц", "оперир"];
-  if (params.intent === "observation") return ["наблюден", "наблюда"];
-  if (params.approach) return [params.approach, "лапар", "открыт"];
-  if (params.choice) return [params.choice];
-  if (params.procedureId) return [params.procedureId];
-  return TYPE_ANCHORS[item.type] ?? [];
-}
-
-function regionAnchors(id) {
-  const authored = aliasesFor(REGION_SYNONYMS, id);
-  const extra = {
-    general: ["пациент", "целиком", "общий осмотр", "полный осмотр", "физикалық", "қарап", "жалпы"],
-    cardiorespiratory: ["сердц", "легк", "дых", "аускульт"],
-    extremities: ["конечност", "рук", "ног"],
-  };
-  return [...authored, ...(extra[id] ?? [])];
-}
-
-function testAnchors(id) {
-  // Anchors ground a model-proposed test in words the learner actually used.
-  // They cover ways of NAMING the test, never category words ("воспаление",
-  // "визуализация"), which are genuinely ambiguous and must stay a CLARIFY.
-  // Imaging anchors carry their region so "ультразвук малого таза" can never
-  // ground an ABDOMINAL ultrasound.
-  const extra = {
-    cbc: ["общий анализ крови", "general blood count", "клеточный состав крови", "гемограмм"],
-    crp: ["c-reactive", "c reactive", "реактивный белок", "реактивного белка"],
-    urinalysis: ["анализ мочи", "моча", "мочу", "мочи"],
-    betahcg: ["бета хгч", "beta hcg"],
-  };
-  return [...aliasesFor(TEST_SYNONYMS, id), ...(extra[id] ?? [])];
-}
-
-// Imaging is named by modality + region in any word order ("брюшную полость
-// ультразвуком"). A pelvic qualifier disqualifies the ABDOMINAL study, so
-// "сонография малого таза" can never ground it.
-const IMAGING_GROUNDING = Object.freeze({
-  ultrasound_abdomen: { modality: ["ультразвук", "сонограф", "узи"], region: ["живот", "брюшн", "обп"], exclude: ["таз", "омт"] },
-  ct_abdomen: { modality: ["томограф", "компьютерн", "мскт"], region: ["живот", "брюшн", "обп"], exclude: [] },
-});
-
-function imagingExcluded(testId, evidence) {
-  const rule = IMAGING_GROUNDING[testId];
-  return Boolean(rule) && containsAny(evidence, rule.exclude);
-}
-
-function imagingGrounded(testId, evidence) {
-  const rule = IMAGING_GROUNDING[testId];
-  return Boolean(rule) && containsAny(evidence, rule.modality) && containsAny(evidence, rule.region) && !containsAny(evidence, rule.exclude);
-}
-
-function roleAnchors(id) {
-  const authored = aliasesFor(STAFF_SYNONYMS, id);
-  const extra = { surgeon: ["хирург"], anesthesiologist: ["анестезиолог"], gynecologist: ["гинеколог"] };
-  return [...authored, ...(extra[id] ?? [])];
-}
-
-function destinationAnchors(id) {
-  const authored = aliasesFor(DISPOSITION_SYNONYMS, id);
-  const extra = {
-    observation: ["наблюден"], surgical_ward: ["хирургическое отделение", "отделение", "палату"],
-    icu: ["орит", "реанимац"], other_facility: ["другой стационар", "другую больницу"], home: ["домой", "выпис"],
-  };
-  return [...authored, ...(extra[id] ?? [])];
-}
+export { CONCEPT_PARAM_KEYS };
 
 function tentativePromotion(item) {
   if (!HIGH_RISK_ACTIONS.has(item.type)) return false;
@@ -350,14 +269,4 @@ function numericParameterExpressed({ key, number, value, text }) {
   return false;
 }
 
-function aliasesFor(dictionary, id) {
-  return [...new Set([
-    ...Object.entries(dictionary).filter(([, value]) => value === id).map(([key]) => normalize(key)),
-    normalize(id),
-    normalize(String(id).replaceAll("_", " ")),
-  ])];
-}
-function containsAny(text, anchors) { return anchors.some((anchor) => text.includes(normalize(anchor))); }
-function containsNormalized(text, span) { const normalized = normalize(span); return Boolean(normalized) && normalize(text).includes(normalized); }
-function normalize(value) { return String(value ?? "").normalize("NFKC").trim().toLocaleLowerCase("ru-RU").replace(/ё/g, "е").replace(/\u00a0/g, " ").replace(/\s+/g, " "); }
 function uniqueIssues(items) { const seen = new Set(); return items.filter((item) => { const key = JSON.stringify(item); if (seen.has(key)) return false; seen.add(key); return true; }); }

@@ -1,0 +1,135 @@
+{
+  "schema": "onqol-resident-turn-manifest-v2",
+  "note": "Hashes, keys and counts only. No resident words, no alias, no system reading. The words live in the private store (gitignored); see scripts/evidenceGovernance.mjs.",
+  "targets": {
+    "minimumReadinessTurns": 60,
+    "plannedTurns": {
+      "min": 150,
+      "max": 250
+    },
+    "minimumEvaluationParticipants": 3,
+    "minimumEvaluationTurns": 60
+  },
+  "target": 60,
+  "turnCount": 9,
+  "sessionCount": 1,
+  "counts": {
+    "quarantinedNoParticipant": 9,
+    "development": 0,
+    "evaluation": 0,
+    "evaluationEligible": 0,
+    "seenByDevelopers": 9
+  },
+  "participants": [],
+  "splitPlanChain": "aeebad4a796fcc2e15dc4c6061b45ed9b373f26adfc798ca7d2d8cc58182718e",
+  "sessions": {
+    "S2ac43aba86": {
+      "turns": 9,
+      "exportSha256": [
+        "7f2455c71f89afdfe14d9b01d1f011d2da6e3181df803914fd759d56ad8df1ee"
+      ]
+    }
+  },
+  "turns": [
+    {
+      "turnKey": "T1a188f737cfd",
+      "sessionKey": "S2ac43aba86",
+      "position": 2,
+      "textSha256": "b3bc5796310f707f3c90c0b30ee5df693ff1a98a7c8e228227a5ca8c7613f995",
+      "sessionPurpose": "learner_pilot",
+      "participantKey": null,
+      "split": null,
+      "exposure": "seen_by_developers",
+      "evaluationEligible": false
+    },
+    {
+      "turnKey": "T30583f1cac1e",
+      "sessionKey": "S2ac43aba86",
+      "position": 4,
+      "textSha256": "92dd41eba12c82ac7377b3299dad1385da65e01213aded74d25c1c8ecf5cc765",
+      "sessionPurpose": "learner_pilot",
+      "participantKey": null,
+      "split": null,
+      "exposure": "seen_by_developers",
+      "evaluationEligible": false
+    },
+    {
+      "turnKey": "T7b5710dcb377",
+      "sessionKey": "S2ac43aba86",
+      "position": 6,
+      "textSha256": "857a38eb517a2c05987365906fea127adf9049962ecf365eb70d1f8a03361db8",
+      "sessionPurpose": "learner_pilot",
+      "participantKey": null,
+      "split": null,
+      "exposure": "seen_by_developers",
+      "evaluationEligible": false
+    },
+    {
+      "turnKey": "T8a5dfdf2209e",
+      "sessionKey": "S2ac43aba86",
+      "position": 5,
+      "textSha256": "4310bbedae3affd1d5107458c62ba4cb57388805a416fd434fa918e24368639c",
+      "sessionPurpose": "learner_pilot",
+      "participantKey": null,
+      "split": null,
+      "exposure": "seen_by_developers",
+      "evaluationEligible": false
+    },
+    {
+      "turnKey": "T8b703f6b24be",
+      "sessionKey": "S2ac43aba86",
+      "position": 8,
+      "textSha256": "79cec9d7da3f40600f11f5b044943ca5d2e4155a001a96c349777c568c1e3095",
+      "sessionPurpose": "learner_pilot",
+      "participantKey": null,
+      "split": null,
+      "exposure": "seen_by_developers",
+      "evaluationEligible": false
+    },
+    {
+      "turnKey": "Tc678f1681c7a",
+      "sessionKey": "S2ac43aba86",
+      "position": 0,
+      "textSha256": "0a9f02dad6322862c87ac8bdbef4d300b8f1ed3d5b2e351eecfe4262cdb6d971",
+      "sessionPurpose": "learner_pilot",
+      "participantKey": null,
+      "split": null,
+      "exposure": "seen_by_developers",
+      "evaluationEligible": false
+    },
+    {
+      "turnKey": "Tccdc82fec239",
+      "sessionKey": "S2ac43aba86",
+      "position": 7,
+      "textSha256": "81d6d9a8942cc59121a7754511d0caffb0c77fb88df9f3d7a0e0958276af8fed",
+      "sessionPurpose": "learner_pilot",
+      "participantKey": null,
+      "split": null,
+      "exposure": "seen_by_developers",
+      "evaluationEligible": false
+    },
+    {
+      "turnKey": "Td94e293eeecc",
+      "sessionKey": "S2ac43aba86",
+      "position": 3,
+      "textSha256": "116bc412056c551181e7bcf3656eab7378cbec195dbbd31178870f74280ddd8f",
+      "sessionPurpose": "learner_pilot",
+      "participantKey": null,
+      "split": null,
+      "exposure": "seen_by_developers",
+      "evaluationEligible": false
+    },
+    {
+      "turnKey": "Tda964393a4a1",
+      "sessionKey": "S2ac43aba86",
+      "position": 1,
+      "textSha256": "56813e78813519067c92dd2f229b737afd19d93e47d995e0d0ea33a487b10ed6",
+      "sessionPurpose": "learner_pilot",
+      "participantKey": null,
+      "split": null,
+      "exposure": "seen_by_developers",
+      "evaluationEligible": false
+    }
+  ],
+  "skippedExports": 0
+}

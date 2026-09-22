@@ -1,0 +1,83 @@
+{
+  "generated_at": "2026-09-21T19:43:16.688549+00:00",
+  "purpose": "offline_engine_and_ui_verification_not_semantic_accuracy",
+  "baseline_observed": {
+    "tests": 610,
+    "passed": 610
+  },
+  "unit_and_integration": {
+    "tests": 633,
+    "passed": 633,
+    "failed": 0,
+    "log_sha256": "e9f2868cb767b49fe0513361c6fee535b0aacc037a8bd3260d0d1e7978bb5a39"
+  },
+  "browser_suites": [
+    {
+      "suite": "baseline",
+      "config": "playwright.config.js",
+      "passed": 4,
+      "failed": 0,
+      "provider": "fixture_or_offline",
+      "log_sha256": "7eb3b9169e2e7c654ee7a8e8340bd216dfda633445b6df66fba4f2fddeeda27a"
+    },
+    {
+      "suite": "hybrid",
+      "config": "playwright.hybrid.config.js",
+      "passed": 8,
+      "failed": 0,
+      "provider": "fixture_or_offline",
+      "log_sha256": "42cc25931f2a87edc25a182af3c5f8213b73ab51dc2cab00d87fffe2a184b009"
+    },
+    {
+      "suite": "mentor",
+      "config": "playwright.mentor.config.js",
+      "passed": 6,
+      "failed": 0,
+      "provider": "fixture_or_offline",
+      "log_sha256": "10673e771d722ead8cad96bfbd58298d613497bfddf30d0396b3e1782b28c3c5"
+    },
+    {
+      "suite": "semantic",
+      "config": "playwright.semantic.config.js",
+      "passed": 10,
+      "failed": 0,
+      "provider": "fixture_or_offline",
+      "log_sha256": "7c45fb5eb5b8eea7c7b92e8df409f52241a7ee23b238e580ef64cf70f68aa62b"
+    }
+  ],
+  "checks": {
+    "lint": "PASS",
+    "build": "PASS",
+    "content_check": "PASS",
+    "evidence_governance": "PASS"
+  },
+  "live_smoke": {
+    "status": "BLOCKED_BY_AUTOMATIC_APPROVAL_REVIEW",
+    "calls_executed": 0,
+    "planned_synthetic_rows": 6,
+    "provider": "openai",
+    "model": "gpt-5-mini",
+    "endpoint": "https://api.openai.com/v1/chat/completions",
+    "maximum_budget_usd": 0.2,
+    "requires": "explicit approval for external transfer of synthetic utterances and interpretation contract; raw responses retained locally"
+  },
+  "resident_pilot_promotion": false,
+  "source_sha256": {
+    "src/ai/interpreter/semanticFirstInterpreter.js": "3d9b8285b5641a1927700ee25378825392c2f741589ba2112e5f18ecf2b6054b",
+    "src/ai/interpreter/semanticFirstInterpreter.test.js": "4a1208b6a0b20cbb7a6a1a71dd5bce49b72bfe8011611a586cb5feb3a39ebd89",
+    "src/ai/interpreter/actionCandidateValidation.js": "40ee843129f42cd14137f4c493a2d8a162ff0a2adbf7050adbe391cb146787ea",
+    "src/ai/interpreter/candidateArbitration.js": "4d20050dcbb3e133af17b0cd03802049c957df9b01055c5b47ab2751ca211989",
+    "src/ai/interpreter/discussionFrame.js": "f180e2c7a00614b79149e5a6dd9aa6b7e0f5c43416c5166919fdd20c2ee14ead",
+    "src/ai/interpreter/deterministicParameterBinder.js": "9dbaaa65a862249dcf159d51677a5234b9c7373cd2210291aef97a2c435d6ff2",
+    "src/ai/interaction/featureFlags.js": "ac5a2577c3351cd0e107efd925bdc35b47da828150bea785491eb9ba63430b74",
+    "src/app/session/useSession.js": "ce84594e5b2cb312fe178886c982c81b6bc90c6d9e4cc2157a34d90a85ce0bbf",
+    "src/app/session/unifiedChat.js": "e26ab0c770f060deea7ddc132db6801656639ce9665b49921342d9b4e8592d25",
+    "src/app/session/interpreterContext.js": "cea596e945e7727b476241ea5e4b497e356a086e52019cfa24b78c7798a85d84",
+    "src/app/session/sessionPersistence.js": "2d336c135e04db03cbc9360dab731f43b8cda2306fe4de9a9877a0618cdbccbc",
+    "src/core/session/submitLearnerTurn.js": "6f8b3b605d4c64550e96d80d85c6ba8fee2c1be6efb3195974041e63962d4a9d",
+    "e2e-semantic/interpreter.spec.js": "a3eff53d95085c2d7de65ca5f90187c4a53cf3ec05944015b3f5eceaa730fe5f",
+    "playwright.semantic.config.js": "1d41ee785c9245cbb6f5de687b8313f83185596929aa0b43ae7f5f546e067e93",
+    "scripts/smokeSemanticFirst.mjs": "1615b7f4529e98cf3fdee855402760ea36bb13223095ac2e714a8c844c9a7749",
+    "package.json": "ac379cdb1a74020bf8bf0542f38b418d8d98de904083da06560ce07953de034d"
+  }
+}

@@ -163,8 +163,36 @@ export function renderOptionNotModeled(result) {
 
 const UNSUPPORTED_RU = "Это назначение пока не поддерживается текущей версией симуляции. Выбери другое назначение.";
 
-export function renderUnsupported() {
+/**
+ * Not supported by the current simulation. An investigation the platform
+ * recognises but does not model is named and framed as a limit of the platform:
+ * it is not the learner's mistake, and the system does not offer a substitute
+ * study in its place.
+ */
+export function renderUnsupported(result = null) {
+  const testId = /^test:(.+)$/.exec(result?.capabilityKey ?? "")?.[1];
+  if (testId) {
+    const label = RECOGNIZED_UNMODELED_LABEL_RU[testId] ?? TEST_LABEL_RU[testId] ?? null;
+    if (label) {
+      return { speakerRu: "Система", textRu: `${label} в этой версии симуляции не моделируется — результата не будет. Это ограничение платформы, а не ошибка. Продолжай с тем, что доступно.` };
+    }
+  }
   return { speakerRu: "Система", textRu: UNSUPPORTED_RU };
+}
+
+const RECOGNIZED_UNMODELED_LABEL_RU = Object.freeze({ pelvic_ultrasound: "УЗИ органов малого таза" });
+
+/**
+ * Something the learner said sounded like a plan, a hypothesis, a condition or a
+ * question rather than a decision, so nothing was carried out. The turn is
+ * acknowledged instead of silently ignored, and no judgement is attached: this is
+ * not an error and it is not scored.
+ */
+export function renderNotCommitted() {
+  return {
+    speakerRu: "Система",
+    textRu: "Пока ничего не выполнено: формулировка звучит как предположение, условие, вопрос или план на потом. Когда решишь, скажи прямо — например: «Назначаю КТ».",
+  };
 }
 
 export function renderOrderValidationFailure(result) {

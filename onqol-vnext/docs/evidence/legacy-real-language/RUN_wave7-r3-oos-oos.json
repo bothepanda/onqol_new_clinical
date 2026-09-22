@@ -1,0 +1,497 @@
+{
+  "schema": "onqol-legacy-real-language-run-evidence-v1",
+  "corpus": "legacy_real_language_development",
+  "corpusHash": "1004137eab7e4a0aba557244b57357490985ddc4839e520c0abaffa854cc60cd",
+  "scope": "OUT_OF_CURRENT_SCOPE",
+  "evidenceUse": "development_only_not_holdout_not_generalization",
+  "holdout": {
+    "touched": false
+  },
+  "status": "DETERMINISTIC_ONLY",
+  "candidate": {
+    "tag": "wave7-r3-oos",
+    "mode": "deterministic",
+    "scope": "OUT_OF_CURRENT_SCOPE",
+    "contextMode": "prompt",
+    "promotionPolicyVersion": "v3a1-2026-09-20-legacy-wave2",
+    "commitmentPolicyVersion": "commitment-2026-09-20-r3-legacy-wave1",
+    "sourceHashes": {
+      "src/ai/interpreter/actionCandidateValidation.js": "9e2442d54c58ff43d8f948c3a392948166a7753d25607aecf5ae45352a598cfb",
+      "src/ai/interpreter/candidateArbitration.js": "84252ad74d4af0f3b901f135bb88b599ee3e372dd2f81519c1095bd7a1459eeb",
+      "src/ai/interpreter/clauseParser.js": "4ae8f8a23f97db57aae0555def3cdd82b495754f2ee6a167140efdfe617b1e33",
+      "src/ai/interpreter/commitmentPolicy.js": "b8d2c732f63766286f3e41803c28e544c9822669e95196d3c8d37a6ece833fd6",
+      "src/ai/interpreter/conceptGrounding.js": "462d418192fc3a979cba95a02bfb8a42e1a98a6a2018448abefb1761ad1b63f6",
+      "src/ai/interpreter/conversationContext.js": "8c14dfad3f738320967835daaa8097577146f5fdbfb307f7d543f9b576fc114e",
+      "src/ai/interpreter/deterministicInterpreter.js": "b3929c35633989ad2b605a90c11455dd18ef61f90730f83cb82f6b66e1a80dfc",
+      "src/ai/interpreter/deterministicParameterBinder.js": "12640014954bb2679f608c208db882a5a3765b5844e25b4a5403cd938bd9a653",
+      "src/ai/interpreter/hybridInterpreter.js": "6b24470daee8d5f381ffc4f6b151a79926090d074436fbed709b23eef694904e",
+      "src/ai/interpreter/interpretTurn.js": "700a38639c33b4d08b4c4ee13167064fdfc6bc279f01da9d0f56d53f215c11bd",
+      "src/ai/interpreter/modelConceptValidation.js": "e63fdf4d0c8a891f0adb1e66ac275bf0a51b116b79a6ba1a482bb3df1cba5647",
+      "src/ai/interpreter/modelInterpreter.js": "9e0b0344cd340db0896a0e4d9f7652dfdf8a5b1f6f0849aff1d9d7888cb2f6f7",
+      "src/ai/interpreter/modelOutputSchema.js": "1cbf2f4cae4b7a63c5d119ca479090cd034b984c398d5e15ec5a1e991656bba2",
+      "src/ai/interpreter/promotionPolicy.js": "9260e63ebd4467557fd1538ff0de8785470f2cee2d17d311ef5e9c76f6b689aa",
+      "src/ai/interpreter/semanticConsultationPolicy.js": "2e75c2c4fd654ac5d510510f00033d8cfce5ecfbf87916f1243db1d9f0a8bff7",
+      "src/ai/interpreter/semanticTaskSchemas.js": "6118a54285e2f45e9253fb002812fb4ac087f462fda5674784a0186dcaa1dad7",
+      "src/ai/interpreter/shadowComparison.js": "3bbb3f98c1d58b656081ae0bfab28ba377c02ed463e471e1fe17ee42c7bdcdda",
+      "src/ai/interpreter/shadowInterpreter.js": "229e0d1a2018e12751f15c82d4ef1ddf6c203883bf5f84f1e8caa24dd626da74",
+      "src/ai/interpreter/splitSemanticInterpreter.js": "21e99dcb8e57ebc66b706bada021e8eca07b95d1ddd506838574ef0003f41c4e",
+      "src/ai/interpreter/stage2ActionSchema.js": "aac58af21a345838f026eb9d161ec591b2828e91a7c39208d0bf8b168efda2cc",
+      "src/ai/interpreter/textMatch.js": "f7f9a324c38af800c13a251fbb6cd75212e9da32c6e6d0aae5c90063733d2737",
+      "src/ai/interpreter/vocabulary.js": "73c489f2942b0fc311565a1cd9186eb7742f0d1c358afe1d6ec01c181e8c65b1",
+      "src/ai/modelConfig.js": "bd76b1c347e3d2ee30366bd3a5c8a551d8b8d8a0af02a993bfc48ed03d8fbdc6",
+      "src/core/commands/commandTypes.js": "82e46c72807a7b8a04f167d2109800f7c2ac83f9cbb512fbcd7a3b6f499ca2f4",
+      "src/core/commands/executeCommand.js": "46d336e63b6f6edf54b4805079782e816b527499c267df19575e3ed91bde80e1",
+      "src/content/shared/interaction/concepts.yaml": "ac88e00f435622ea82f87b8e190898088ac93055475b0a08e7031e85b379f599",
+      "scripts/legacyRealLanguage/legacyMetrics.mjs": "d796c9c51204265c13f5f8c8869dab989aa2ec25d05c9f2dc9d4e773c147aa82",
+      "scripts/legacyRealLanguage/taxonomy.mjs": "d6082d199ffca1616226bb42d24f65df9d2b6c76390ae9622599c7617654dd4a",
+      "scripts/legacyRealLanguage/runLegacyCorpus.mjs": "bb98b3170c3181e02fa3be273c7cd08429838934b7b3c52b75e30ae5dba2788e"
+    },
+    "candidateHash": "b6c0c506b1314fce5c568e432b6fc34ff6c84114a39e2b9f4a32b6fc74d409e9",
+    "contentHash": "639efec612f42204a085923d7d142e0a933335368f415093c1ff8b2746267973"
+  },
+  "budget": null,
+  "infrastructure": {
+    "consulted": 0,
+    "providerFailures": 0,
+    "errorCodes": {},
+    "valid": true
+  },
+  "replay": null,
+  "targets": {
+    "v3": [
+      {
+        "name": "false executions = 0",
+        "value": 1,
+        "pass": false
+      },
+      {
+        "name": "high-risk false executions = 0",
+        "value": 1,
+        "pass": false
+      },
+      {
+        "name": "invented parameters = 0",
+        "value": 0,
+        "pass": true
+      },
+      {
+        "name": "precision >= 0.95",
+        "value": 0,
+        "pass": false
+      },
+      {
+        "name": "recall >= 0.90",
+        "value": null,
+        "pass": false
+      },
+      {
+        "name": "exact interpretation >= 0.90",
+        "value": 0.9583333333333334,
+        "pass": true
+      }
+    ],
+    "deterministicOnly": [
+      {
+        "name": "false executions = 0",
+        "value": 1,
+        "pass": false
+      },
+      {
+        "name": "high-risk false executions = 0",
+        "value": 1,
+        "pass": false
+      },
+      {
+        "name": "invented parameters = 0",
+        "value": 0,
+        "pass": true
+      },
+      {
+        "name": "precision >= 0.95",
+        "value": 0,
+        "pass": false
+      },
+      {
+        "name": "recall >= 0.90",
+        "value": null,
+        "pass": false
+      },
+      {
+        "name": "exact interpretation >= 0.90",
+        "value": 0.9583333333333334,
+        "pass": true
+      }
+    ],
+    "v3ExcludingDisputed": [
+      {
+        "name": "false executions = 0",
+        "value": 1,
+        "pass": false
+      },
+      {
+        "name": "high-risk false executions = 0",
+        "value": 1,
+        "pass": false
+      },
+      {
+        "name": "invented parameters = 0",
+        "value": 0,
+        "pass": true
+      },
+      {
+        "name": "precision >= 0.95",
+        "value": 0,
+        "pass": false
+      },
+      {
+        "name": "recall >= 0.90",
+        "value": null,
+        "pass": false
+      },
+      {
+        "name": "exact interpretation >= 0.90",
+        "value": 0.9583333333333334,
+        "pass": true
+      }
+    ]
+  },
+  "metrics": {
+    "v3": {
+      "rows": 24,
+      "exactAccuracy": 0.9583333333333334,
+      "exactRows": 23,
+      "exactOnActionRows": null,
+      "actionRows": 0,
+      "exactOnRestraintRows": 0.9583333333333334,
+      "restraintRows": 24,
+      "commandPrecision": 0,
+      "committedCommandCount": 1,
+      "commandRecall": null,
+      "requiredGoldCount": 0,
+      "falseExecutionCount": 1,
+      "falseExecutionRows": [
+        "lrd-2c0ab2-t06"
+      ],
+      "highRiskFalseExecutionCount": 1,
+      "highRiskFalseExecutionRows": [
+        "lrd-2c0ab2-t06"
+      ],
+      "inventedParameterCount": 0,
+      "inventedFromGoldAbsent": 0,
+      "inventedByModel": 0,
+      "inventedParameterRows": [],
+      "spuriousClarificationCount": 0,
+      "providerFallbackRate": null,
+      "consultationRate": 0,
+      "consultedRows": 0,
+      "costUsd": 0,
+      "byChannel": {
+        "clinical_action": {
+          "rows": 4,
+          "exact": 4
+        },
+        "compound": {
+          "rows": 7,
+          "exact": 6
+        },
+        "clinical_reasoning": {
+          "rows": 9,
+          "exact": 9
+        },
+        "mentor_answer": {
+          "rows": 3,
+          "exact": 3
+        },
+        "conversation_management": {
+          "rows": 1,
+          "exact": 1
+        }
+      }
+    },
+    "deterministicOnly": {
+      "rows": 24,
+      "exactAccuracy": 0.9583333333333334,
+      "exactRows": 23,
+      "exactOnActionRows": null,
+      "actionRows": 0,
+      "exactOnRestraintRows": 0.9583333333333334,
+      "restraintRows": 24,
+      "commandPrecision": 0,
+      "committedCommandCount": 1,
+      "commandRecall": null,
+      "requiredGoldCount": 0,
+      "falseExecutionCount": 1,
+      "falseExecutionRows": [
+        "lrd-2c0ab2-t06"
+      ],
+      "highRiskFalseExecutionCount": 1,
+      "highRiskFalseExecutionRows": [
+        "lrd-2c0ab2-t06"
+      ],
+      "inventedParameterCount": 0,
+      "inventedFromGoldAbsent": 0,
+      "inventedByModel": 0,
+      "inventedParameterRows": [],
+      "spuriousClarificationCount": 0,
+      "providerFallbackRate": null,
+      "consultationRate": 0,
+      "consultedRows": 0,
+      "costUsd": null,
+      "byChannel": {
+        "clinical_action": {
+          "rows": 4,
+          "exact": 4
+        },
+        "compound": {
+          "rows": 7,
+          "exact": 6
+        },
+        "clinical_reasoning": {
+          "rows": 9,
+          "exact": 9
+        },
+        "mentor_answer": {
+          "rows": 3,
+          "exact": 3
+        },
+        "conversation_management": {
+          "rows": 1,
+          "exact": 1
+        }
+      }
+    },
+    "v3ExcludingDisputed": {
+      "rows": 24,
+      "exactAccuracy": 0.9583333333333334,
+      "exactRows": 23,
+      "exactOnActionRows": null,
+      "actionRows": 0,
+      "exactOnRestraintRows": 0.9583333333333334,
+      "restraintRows": 24,
+      "commandPrecision": 0,
+      "committedCommandCount": 1,
+      "commandRecall": null,
+      "requiredGoldCount": 0,
+      "falseExecutionCount": 1,
+      "falseExecutionRows": [
+        "lrd-2c0ab2-t06"
+      ],
+      "highRiskFalseExecutionCount": 1,
+      "highRiskFalseExecutionRows": [
+        "lrd-2c0ab2-t06"
+      ],
+      "inventedParameterCount": 0,
+      "inventedFromGoldAbsent": 0,
+      "inventedByModel": 0,
+      "inventedParameterRows": [],
+      "spuriousClarificationCount": 0,
+      "providerFallbackRate": null,
+      "consultationRate": 0,
+      "consultedRows": 0,
+      "costUsd": 0,
+      "byChannel": {
+        "clinical_action": {
+          "rows": 4,
+          "exact": 4
+        },
+        "compound": {
+          "rows": 7,
+          "exact": 6
+        },
+        "clinical_reasoning": {
+          "rows": 9,
+          "exact": 9
+        },
+        "mentor_answer": {
+          "rows": 3,
+          "exact": 3
+        },
+        "conversation_management": {
+          "rows": 1,
+          "exact": 1
+        }
+      }
+    },
+    "deterministicOnlyExcludingDisputed": {
+      "rows": 24,
+      "exactAccuracy": 0.9583333333333334,
+      "exactRows": 23,
+      "exactOnActionRows": null,
+      "actionRows": 0,
+      "exactOnRestraintRows": 0.9583333333333334,
+      "restraintRows": 24,
+      "commandPrecision": 0,
+      "committedCommandCount": 1,
+      "commandRecall": null,
+      "requiredGoldCount": 0,
+      "falseExecutionCount": 1,
+      "falseExecutionRows": [
+        "lrd-2c0ab2-t06"
+      ],
+      "highRiskFalseExecutionCount": 1,
+      "highRiskFalseExecutionRows": [
+        "lrd-2c0ab2-t06"
+      ],
+      "inventedParameterCount": 0,
+      "inventedFromGoldAbsent": 0,
+      "inventedByModel": 0,
+      "inventedParameterRows": [],
+      "spuriousClarificationCount": 0,
+      "providerFallbackRate": null,
+      "consultationRate": 0,
+      "consultedRows": 0,
+      "costUsd": null,
+      "byChannel": {
+        "clinical_action": {
+          "rows": 4,
+          "exact": 4
+        },
+        "compound": {
+          "rows": 7,
+          "exact": 6
+        },
+        "clinical_reasoning": {
+          "rows": 9,
+          "exact": 9
+        },
+        "mentor_answer": {
+          "rows": 3,
+          "exact": 3
+        },
+        "conversation_management": {
+          "rows": 1,
+          "exact": 1
+        }
+      }
+    }
+  },
+  "failureClassCounts": {
+    "FE_ON_NON_ACTION_TURN": 1
+  },
+  "perTurn": [
+    {
+      "turnId": "lrd-ef81b2-t05",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-ef81b2-t08",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-ef81b2-t09",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-ef81b2-t10",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-e1c493-t03",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-e1c493-t07",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-e1c493-t10",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-324b0a-t03",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-324b0a-t08",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-d728c6-t03",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-2c0ab2-t04",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-2c0ab2-t06",
+      "exact": false,
+      "classes": [
+        "FE_ON_NON_ACTION_TURN"
+      ]
+    },
+    {
+      "turnId": "lrd-93c2ad-t03",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-4d67d8-t03",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-4d67d8-t04",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-4d67d8-t05",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-4d67d8-t06",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-920534-t02",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-920534-t03",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-920534-t04",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-cc06a4-t03",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-cc06a4-t08",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-cc06a4-t09",
+      "exact": true,
+      "classes": []
+    },
+    {
+      "turnId": "lrd-387ba1-t02",
+      "exact": true,
+      "classes": []
+    }
+  ],
+  "generatedAt": "2026-09-20T19:53:52.054Z",
+  "privateRun": "private/legacy-real-language/runs/wave7-r3-oos-oos.json"
+}

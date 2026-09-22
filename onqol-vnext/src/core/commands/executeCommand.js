@@ -11,7 +11,7 @@ import { eligibleRules, governanceBlockedEligibleRules } from "../rules/ruleEngi
 import { isRuntimeAuthoritative } from "../rules/governance.js";
 import { reviewStatusOf, authorityLayerOf, jurisdictionOf } from "../rules/contentProvenance.js";
 import { appliesInJurisdiction } from "../hospital/hospitalProfiles.js";
-import { simulatorLimitation } from "../rules/governance.js";
+import { LIMITATION_REASON_NOT_MODELED, simulatorLimitation } from "../rules/governance.js";
 import { normalizeReasoningDelta, REASONING_SCHEMA_VERSION } from "../reasoning/reasoningState.js";
 import { isInteractionV2Enabled } from "../../ai/interaction/featureFlags.js";
 import { contentConditionsMet } from "../rules/contentConditions.js";
@@ -158,7 +158,26 @@ const HANDLERS = {
 
   [COMMAND.ORDER_TEST]: ({ state, clockRoot, bundle, command, patient }) => {
     const timing = bundle.trajectories.investigation_timing[command.params.testId];
-    if (!timing) return { outcome: "UNSUPPORTED_CONTENT", capabilityKey: `test:${command.params.testId}` };
+    if (!timing) {
+      // An investigation with no modeled result in this case (a recognised name such
+      // as pelvic ultrasound, or any unmodeled id). It is a SIMULATOR LIMITATION -
+      // recorded as one, classified as one in the trail, never a learner error and
+      // never answered with a substitute study.
+      return {
+        outcome: "UNSUPPORTED_CONTENT",
+        capabilityKey: `test:${command.params.testId}`,
+        classification: "simulator_limitation",
+        events: [
+          createEvent({
+            type: EVENT.SIMULATOR_LIMITATION_NOTED,
+            atMinutes: state.clock.elapsedMinutes,
+            atIso: nowIso(clockRoot, state),
+            payload: simulatorLimitation({ kind: "investigation_not_modeled", id: command.params.testId, reviewStatus: null, reason: LIMITATION_REASON_NOT_MODELED }),
+            cause: { actor: "system", source: "content_coverage", commandId: command.id },
+          }),
+        ],
+      };
+    }
 
     // Wave §13: the same investigation is already in flight or already has a
     // result, and the learner did not EXPLICITLY ask for a repeat/serial test

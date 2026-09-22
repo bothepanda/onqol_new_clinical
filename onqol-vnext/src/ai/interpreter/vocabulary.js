@@ -12,6 +12,7 @@ export const TEST_SYNONYMS = Object.freeze({
   "оак": "cbc",
   "клинический анализ крови": "cbc",
   "бхак": "chemistry",
+  "бх": "chemistry", // the ordinary short form of «БХАК» (biochemistry): unreviewed lexicon addition, see docs/LEGACY_REAL_LANGUAGE_REMEDIATION.md
   "биохимия": "chemistry",
   "срб": "crp",
   "крп": "crp",
@@ -48,6 +49,30 @@ export const TEST_SYNONYMS = Object.freeze({
   "кт брюшной полости": "ct_abdomen",
 });
 
+/**
+ * Imaging language. DATA lists, used by the deterministic pass and by
+ * semantic-candidate validation so both apply one definition.
+ *
+ * MODALITY terms name a kind of imaging study (modeled or not). A fragment that
+ * contains one is about a study, never a physical examination:
+ * «осмотрите живот ультразвуком» must not become an abdominal palpation. The
+ * exam path is skipped; if the lexicon cannot resolve the study the fragment stays
+ * an unrecognised request (and is offered to the semantic model), because the
+ * learner has already said which kind of study they mean - asking «Какое
+ * исследование?» would ask them something they answered.
+ *
+ * CATEGORY terms name imaging in general without a modality («сделайте
+ * визуализацию живота»). That IS an under-specified request, so the answer is a
+ * question, not a guess and not an examination.
+ *
+ * Whole-word matching (`containsWholePhrase`): a short abbreviation ("кт", "узи")
+ * must never be found inside a longer word.
+ */
+export const IMAGING_MODALITY_TERMS = Object.freeze([
+  "узи", "ультразвук", "сонограф", "эхограф", "кт", "мскт", "компьютерн", "томограф", "рентген", "мрт", "магнитно-резонанс", "флюорограф",
+]);
+export const IMAGING_CATEGORY_TERMS = Object.freeze(["визуализ", "снимок", "снимк"]);
+
 export const REGION_SYNONYMS = Object.freeze({
   "живот": "abdomen",
   "брюшная полость": "abdomen",
@@ -57,9 +82,11 @@ export const REGION_SYNONYMS = Object.freeze({
   "нижние конечности": "legs",
   "пах": "groin",
   "паховая область": "groin",
-  "неврологический": "neuro",
+  "неврологическ": "neuro",  // stem: неврологический / неврологического статуса / неврологическое состояние
   "неврологию": "neuro",
   "прямая кишка": "rectal",
+  "прямой киш": "rectal",   // прямой кишки (genitive)
+  "прямую киш": "rectal",   // прямую кишку (accusative)
   "ректально": "rectal",
 });
 
@@ -220,6 +247,7 @@ export const DISPOSITION_SYNONYMS = Object.freeze({
 export const MONITORING_TARGETS = Object.freeze({
   "витальн": "vitals",
   "давлен": "blood_pressure",
+  "ад": "blood_pressure", // «АД»: whole word only (deterministicInterpreter.extractMonitoringTargets)
   "чсс": "heart_rate",
   "температур": "temperature",
   "диурез": "urine_output",
@@ -241,12 +269,12 @@ export const MONITORING_TARGETS = Object.freeze({
  */
 export const STATUS_QUERY_PATTERNS = Object.freeze([
   /что с пациентом( сейчас)?/i,
-  /как (он|она|пациент)( сейчас)?/i,
+  /^\s*как (он|она|пациент)( сейчас)?/i,
   /как(ая|ие) (боль|витальные|показатели)( сейчас)?/i,
   // adverb-first order: "как сейчас боль?", "как сейчас витальные?"
   /как сейчас (боль|витальные|показатели|пациент|он|она)/i,
   // subject in the middle: "как у неё сейчас боль?", "как у пациента дела с болью?"
-  /как у (не[её]|него|пациент[а-яё]*) .*(боль|витальн|показател|состоян|дел)/i,
+  /^\s*как у (не[её]|него|пациент[а-яё]*) [^.!?]*(боль|витальн|показател|состоян|дел)/i,
   /что сейчас с (пациентом|болью)/i,
   /что по витальным/i,
   /что с витальными/i,

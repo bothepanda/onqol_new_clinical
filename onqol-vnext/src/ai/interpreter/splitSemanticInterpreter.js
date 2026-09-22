@@ -1,6 +1,9 @@
 import { createCommand, validateCommand } from "../../core/commands/commandTypes.js";
 import { stage2ActionFormat, normalizeStage2Output, stage2SafeContext } from "./stage2ActionSchema.js";
 import { bindModelCommands } from "./deterministicParameterBinder.js";
+import { validateActionCandidates } from "./actionCandidateValidation.js";
+import { DEFAULT_PROMOTION_POLICY } from "./promotionPolicy.js";
+import { buildConversationFrame, frameForModel } from "./conversationContext.js";
 import { actionTypeGrounded, buildModelAllowlist, detectParameterInventions, identifyingParamKey, validateModelConcepts } from "./modelConceptValidation.js";
 import {
   ACTION_RESPONSE_FORMAT,
@@ -26,7 +29,21 @@ export function buildSemanticTaskRequest({ task, text, locale, turnContext = {},
   throw new Error(`unknown_semantic_task:${task}`);
 }
 
-export async function interpretSemanticTask({ task, provider, text, locale, turnContext = {}, bundle, strictAction = false }) {
+/**
+ * `validationMode`:
+ *   "legacy_strict"        the frozen Wave 2.3 shadow contract - any candidate error
+ *                          makes the task `concept_validation_failure`.
+ *   "candidate_arbitrated" interpreter v3 - each candidate gets its own
+ *                          ACCEPT / CLARIFY / REJECT result and the task stays
+ *                          `valid`. Only provider / transport / schema failure
+ *                          is task-level.
+ */
+export const VALIDATION_MODE = Object.freeze({ LEGACY_STRICT: "legacy_strict", CANDIDATE_ARBITRATED: "candidate_arbitrated" });
+
+export async function interpretSemanticTask({
+  task, provider, text, locale, turnContext = {}, bundle, strictAction = false,
+  validationMode = VALIDATION_MODE.LEGACY_STRICT, policy = DEFAULT_PROMOTION_POLICY,
+}) {
   const request = buildSemanticTaskRequest({ task, text, locale, turnContext, bundle });
   if (strictAction && task === SEMANTIC_TASK.ACTION) {
     request.responseFormat = stage2ActionFormat(request.allowlist);
@@ -87,13 +104,15 @@ export async function interpretSemanticTask({ task, provider, text, locale, turn
 
   try {
     const validated = task === SEMANTIC_TASK.ACTION
-      ? validateActionTask({ output: schema.value, text, turnContext, allowlist: request.allowlist })
+      ? (validationMode === VALIDATION_MODE.CANDIDATE_ARBITRATED
+        ? validateActionCandidates({ output: schema.value, text, turnContext, allowlist: request.allowlist, policy })
+        : validateActionTask({ output: schema.value, text, turnContext, allowlist: request.allowlist }))
       : task === SEMANTIC_TASK.REASONING
         ? validateReasoningTask({ output: schema.value, text, allowlist: request.allowlist })
         : validateMentorTask({ output: schema.value, text, turnContext, allowlist: request.allowlist });
     return {
       task,
-      status: validated.errors.length ? "concept_validation_failure" : "valid",
+      status: validated.errors.length && validationMode !== VALIDATION_MODE.CANDIDATE_ARBITRATED ? "concept_validation_failure" : "valid",
       clinicalAuthority: "none",
       elapsedMs: Date.now() - startedAt,
       errorCode: null,
@@ -166,8 +185,12 @@ function buildActionRequest({ text, locale, turnContext, allowlist }) {
           "A diagnosis or short clinical observation alone is not an action. Tentative or conditional operation, procedure, transfer, disposition, or discharge wording is not a committed action.",
           "Every action and patient question needs verbatim evidenceSpans copied from rawLearnerText and an allowlisted canonical concept ID.",
           "Unsupported concepts stay unresolved; never substitute the nearest generic action. Incomplete high-risk orders stay incomplete.",
+          "When the learner names only a category of investigations (for example a class of markers or a modality without a region) and not one specific allowlisted concept, report an ambiguity with reason ambiguous_target instead of choosing one member of the category.",
+          "allowlist.tests are modeled investigations. allowlist.recognizedUnmodeledTests are investigations the platform recognises but cannot simulate: when the learner names one, propose ORDER_TEST with that testId (the platform reports it as a simulator limitation) and never substitute a modeled study for it. Imaging language (ultrasound, CT, visualization, a picture of the abdomen) is a request for a study, never a physical examination.",
+          "Return one action per distinct learner action. A question addressed to the patient is a patientQuestion, not a clinicalAction.",
           "Do not supply dose, unit, route, volume, duration, interval, or timing values in params; deterministic code binds only values literally present in evidence.",
           "When an open mentor question exists, answer nouns are not measurement orders without explicit ordering language.",
+          "When precedingSystemQuestion is present, read a short or elliptical learner reply against it before any generic reading: a noun that fills the slot the question asked about names its answer; a yes/no reply is not itself an action. The identity of an act must come from the learner's own words, never from the question, and no dose, route, volume or duration may be taken from the question.",
           "Return only the task JSON schema.",
         ].join(" "),
       },
@@ -177,6 +200,7 @@ function buildActionRequest({ text, locale, turnContext, allowlist }) {
           rawLearnerText: text,
           locale,
           openStaffClarification: turnContext.openClarification ?? null,
+          ...(frameForModel(buildConversationFrame(turnContext)) ? { precedingSystemQuestion: frameForModel(buildConversationFrame(turnContext)) } : {}),
           allowlist: actionAllowlist,
         }),
       },
@@ -414,7 +438,7 @@ function serializableActionAllowlist(allowlist) {
     clinicalActionTypes: allowlist.commandTypes,
     parameterSchemas: Object.fromEntries(Object.entries(allowlist.parameterSchemas).map(([type, keys]) => [type, keys.filter((key) => !deterministicOnly.has(key))])),
     concepts: {
-      tests: allowlist.tests, chemistryAnalytes: allowlist.chemistryAnalytes, drugs: allowlist.drugs,
+      tests: allowlist.tests, recognizedUnmodeledTests: allowlist.recognizedUnmodeledTests ?? [], chemistryAnalytes: allowlist.chemistryAnalytes, drugs: allowlist.drugs,
       fluids: allowlist.fluids, procedures: allowlist.procedures, regions: allowlist.regions,
       patientQuestionTopics: allowlist.patientQuestionTopics, staffRoles: allowlist.staffRoles,
       destinations: allowlist.destinations, managementIntents: allowlist.managementIntents,

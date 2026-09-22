@@ -1,0 +1,5 @@
+{
+  "schema": "onqol-resident-evaluation-state-v1",
+  "evaluationCompleted": false,
+  "note": "Only the owner sets this to true, after the predefined evaluation on the untouched resident evaluation split has been run and reported. Until then, evaluation-split rows are released hash-only. The CLI never sets it."
+}

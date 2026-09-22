@@ -1,0 +1,1287 @@
+{
+  "runId": "2026-09-21T19-53-17-382Z",
+  "policyVersion": "semantic-first-2026-09-21-v1",
+  "purpose": "development_smoke_only",
+  "retries": 0,
+  "corpusHash": "1509b980dcf68eb1e958a14d132956cbc2753ffcdc85843d165e4818ed1aea0c",
+  "model": "gpt-5-mini",
+  "totalRows": 6,
+  "results": [
+    {
+      "id": "paraphrase",
+      "text": "Пусть лаборант определит число белых клеток в крови",
+      "types": [
+        "ORDER_TEST"
+      ],
+      "testId": "cbc",
+      "pass": true,
+      "result": {
+        "intent": "CLINICAL_ACTION",
+        "commands": [
+          {
+            "id": "cmd-s0",
+            "type": "ORDER_TEST",
+            "params": {
+              "testId": "cbc"
+            },
+            "sourceText": "Пусть лаборант определит число белых клеток в крови"
+          }
+        ],
+        "rawText": "Пусть лаборант определит число белых клеток в крови",
+        "unmatchedFragments": [],
+        "clauses": [
+          {
+            "id": "k0",
+            "index": 0,
+            "text": "Пусть лаборант определит число белых клеток в крови",
+            "range": [
+              0,
+              8
+            ],
+            "sentence": 0,
+            "channel": "unresolved",
+            "commitment": null,
+            "commandIds": [],
+            "withheldIds": [],
+            "unresolved": true,
+            "structural": false
+          }
+        ],
+        "commandSequence": null,
+        "mode": "semantic_first",
+        "withheldCommands": [],
+        "semanticTelemetry": {
+          "policyVersion": "semantic-first-2026-09-21-v1",
+          "clinicalAuthority": "none",
+          "deterministicCandidates": [],
+          "status": "valid",
+          "called": true,
+          "elapsedMs": 4261,
+          "providerMeta": {
+            "model": "gpt-5-mini-2025-08-07",
+            "requestId": null,
+            "usage": {
+              "prompt_tokens": 3725,
+              "completion_tokens": 102,
+              "total_tokens": 3827,
+              "prompt_tokens_details": {
+                "cached_tokens": 0,
+                "audio_tokens": 0
+              },
+              "completion_tokens_details": {
+                "reasoning_tokens": 0,
+                "audio_tokens": 0,
+                "accepted_prediction_tokens": 0,
+                "rejected_prediction_tokens": 0
+              }
+            },
+            "costUsd": 0.00113525
+          },
+          "providerEvidence": {
+            "captured": true,
+            "rawProviderPayload": {
+              "text": "{\"clinicalActions\":[{\"type\":\"ORDER_TEST\",\"params\":{\"testId\":\"cbc\",\"analytes\":null},\"evidenceSpans\":[\"Пусть лаборант определит число белых клеток в крови\"] ,\"statedParameters\":[]}],\"patientQuestions\":[],\"ambiguities\":[],\"unresolvedFragments\":[],\"meta\":{\"schemaVersion\":\"wave23-split-semantic-v1\",\"confidence\":0.77}}",
+              "meta": {
+                "model": "gpt-5-mini-2025-08-07",
+                "requestId": null,
+                "usage": {
+                  "prompt_tokens": 3725,
+                  "completion_tokens": 102,
+                  "total_tokens": 3827,
+                  "prompt_tokens_details": {
+                    "cached_tokens": 0,
+                    "audio_tokens": 0
+                  },
+                  "completion_tokens_details": {
+                    "reasoning_tokens": 0,
+                    "audio_tokens": 0,
+                    "accepted_prediction_tokens": 0,
+                    "rejected_prediction_tokens": 0
+                  }
+                },
+                "costUsd": 0.00113525
+              }
+            },
+            "rawProviderOutput": "{\"clinicalActions\":[{\"type\":\"ORDER_TEST\",\"params\":{\"testId\":\"cbc\",\"analytes\":null},\"evidenceSpans\":[\"Пусть лаборант определит число белых клеток в крови\"] ,\"statedParameters\":[]}],\"patientQuestions\":[],\"ambiguities\":[],\"unresolvedFragments\":[],\"meta\":{\"schemaVersion\":\"wave23-split-semantic-v1\",\"confidence\":0.77}}",
+            "returnedModelMetadata": {
+              "model": "gpt-5-mini-2025-08-07",
+              "requestId": null,
+              "usage": {
+                "prompt_tokens": 3725,
+                "completion_tokens": 102,
+                "total_tokens": 3827,
+                "prompt_tokens_details": {
+                  "cached_tokens": 0,
+                  "audio_tokens": 0
+                },
+                "completion_tokens_details": {
+                  "reasoning_tokens": 0,
+                  "audio_tokens": 0,
+                  "accepted_prediction_tokens": 0,
+                  "rejected_prediction_tokens": 0
+                }
+              },
+              "costUsd": 0.00113525
+            }
+          },
+          "candidateDecisions": [
+            {
+              "index": 0,
+              "source": "clinicalAction",
+              "type": "ORDER_TEST",
+              "params": {
+                "testId": "cbc"
+              },
+              "validation": "ACCEPT",
+              "reasonCodes": [
+                "concept_semantic_only"
+              ],
+              "evidenceSpans": [
+                "Пусть лаборант определит число белых клеток в крови"
+              ],
+              "grounding": "semantic_only",
+              "arbitration": {
+                "resolution": "semantic_added"
+              },
+              "commandId": "cmd-s0"
+            }
+          ],
+          "finalCommands": [
+            {
+              "id": "cmd-s0",
+              "type": "ORDER_TEST",
+              "params": {
+                "testId": "cbc"
+              },
+              "sourceText": "Пусть лаборант определит число белых клеток в крови"
+            }
+          ],
+          "resolutions": [
+            {
+              "commandId": "cmd-s0",
+              "type": "ORDER_TEST",
+              "resolution": "semantic_added",
+              "origins": [
+                "semantic"
+              ]
+            }
+          ],
+          "schemaErrors": [],
+          "conceptErrors": []
+        }
+      }
+    },
+    {
+      "id": "examination",
+      "text": "Хочу пропальпировать живот у этого пациента",
+      "types": [
+        "EXAMINE"
+      ],
+      "region": "abdomen",
+      "pass": true,
+      "result": {
+        "intent": "CLINICAL_ACTION",
+        "commands": [
+          {
+            "id": "cmd-s0",
+            "type": "EXAMINE",
+            "params": {
+              "region": "abdomen"
+            },
+            "sourceText": "Хочу пропальпировать живот у этого пациента"
+          }
+        ],
+        "rawText": "Хочу пропальпировать живот у этого пациента",
+        "unmatchedFragments": [],
+        "clauses": [
+          {
+            "id": "k0",
+            "index": 0,
+            "text": "Хочу пропальпировать живот у этого пациента",
+            "range": [
+              0,
+              6
+            ],
+            "sentence": 0,
+            "channel": "unresolved",
+            "commitment": null,
+            "commandIds": [],
+            "withheldIds": [],
+            "unresolved": true,
+            "structural": false
+          }
+        ],
+        "commandSequence": null,
+        "mode": "semantic_first",
+        "withheldCommands": [],
+        "semanticTelemetry": {
+          "policyVersion": "semantic-first-2026-09-21-v1",
+          "clinicalAuthority": "none",
+          "deterministicCandidates": [],
+          "status": "valid",
+          "called": true,
+          "elapsedMs": 3554,
+          "providerMeta": {
+            "model": "gpt-5-mini-2025-08-07",
+            "requestId": null,
+            "usage": {
+              "prompt_tokens": 3719,
+              "completion_tokens": 92,
+              "total_tokens": 3811,
+              "prompt_tokens_details": {
+                "cached_tokens": 2816,
+                "audio_tokens": 0
+              },
+              "completion_tokens_details": {
+                "reasoning_tokens": 0,
+                "audio_tokens": 0,
+                "accepted_prediction_tokens": 0,
+                "rejected_prediction_tokens": 0
+              }
+            },
+            "costUsd": 0.00111375
+          },
+          "providerEvidence": {
+            "captured": true,
+            "rawProviderPayload": {
+              "text": "{\"clinicalActions\":[{\"type\":\"EXAMINE\",\"params\":{\"region\":\"abdomen\"},\"evidenceSpans\":[\"Хочу пропальпировать живот у этого пациента\"],\"statedParameters\":[]}],\"patientQuestions\":[],\"ambiguities\":[],\"unresolvedFragments\":[],\"meta\":{\"schemaVersion\":\"wave23-split-semantic-v1\",\"confidence\":0.72}}",
+              "meta": {
+                "model": "gpt-5-mini-2025-08-07",
+                "requestId": null,
+                "usage": {
+                  "prompt_tokens": 3719,
+                  "completion_tokens": 92,
+                  "total_tokens": 3811,
+                  "prompt_tokens_details": {
+                    "cached_tokens": 2816,
+                    "audio_tokens": 0
+                  },
+                  "completion_tokens_details": {
+                    "reasoning_tokens": 0,
+                    "audio_tokens": 0,
+                    "accepted_prediction_tokens": 0,
+                    "rejected_prediction_tokens": 0
+                  }
+                },
+                "costUsd": 0.00111375
+              }
+            },
+            "rawProviderOutput": "{\"clinicalActions\":[{\"type\":\"EXAMINE\",\"params\":{\"region\":\"abdomen\"},\"evidenceSpans\":[\"Хочу пропальпировать живот у этого пациента\"],\"statedParameters\":[]}],\"patientQuestions\":[],\"ambiguities\":[],\"unresolvedFragments\":[],\"meta\":{\"schemaVersion\":\"wave23-split-semantic-v1\",\"confidence\":0.72}}",
+            "returnedModelMetadata": {
+              "model": "gpt-5-mini-2025-08-07",
+              "requestId": null,
+              "usage": {
+                "prompt_tokens": 3719,
+                "completion_tokens": 92,
+                "total_tokens": 3811,
+                "prompt_tokens_details": {
+                  "cached_tokens": 2816,
+                  "audio_tokens": 0
+                },
+                "completion_tokens_details": {
+                  "reasoning_tokens": 0,
+                  "audio_tokens": 0,
+                  "accepted_prediction_tokens": 0,
+                  "rejected_prediction_tokens": 0
+                }
+              },
+              "costUsd": 0.00111375
+            }
+          },
+          "candidateDecisions": [
+            {
+              "index": 0,
+              "source": "clinicalAction",
+              "type": "EXAMINE",
+              "params": {
+                "region": "abdomen"
+              },
+              "validation": "ACCEPT",
+              "reasonCodes": [
+                "concept_lexically_grounded"
+              ],
+              "evidenceSpans": [
+                "Хочу пропальпировать живот у этого пациента"
+              ],
+              "grounding": "lexical",
+              "arbitration": {
+                "resolution": "semantic_added"
+              },
+              "commandId": "cmd-s0"
+            }
+          ],
+          "finalCommands": [
+            {
+              "id": "cmd-s0",
+              "type": "EXAMINE",
+              "params": {
+                "region": "abdomen"
+              },
+              "sourceText": "Хочу пропальпировать живот у этого пациента"
+            }
+          ],
+          "resolutions": [
+            {
+              "commandId": "cmd-s0",
+              "type": "EXAMINE",
+              "resolution": "semantic_added",
+              "origins": [
+                "semantic"
+              ]
+            }
+          ],
+          "schemaErrors": [],
+          "conceptErrors": []
+        }
+      }
+    },
+    {
+      "id": "conditional",
+      "text": "КТ только если состояние ухудшится",
+      "types": [],
+      "pass": true,
+      "result": {
+        "intent": "CLINICAL_REASONING",
+        "commands": [
+          {
+            "id": "cmd-creasoning",
+            "type": "STATE_REASONING",
+            "params": {
+              "text": "КТ только если состояние ухудшится",
+              "evidenceSpans": [
+                "КТ только если состояние ухудшится"
+              ],
+              "contingency": {
+                "stated": true,
+                "specificity": "vague",
+                "triggerConceptIds": [
+                  "clinical_deterioration"
+                ]
+              }
+            },
+            "sourceText": "КТ только если состояние ухудшится"
+          }
+        ],
+        "rawText": "КТ только если состояние ухудшится",
+        "unmatchedFragments": [
+          "кт только если состояние ухудшится",
+          "КТ только если состояние ухудшится"
+        ],
+        "answeredMentorQuestion": false,
+        "withheldCommands": [
+          {
+            "id": "cmd-c0",
+            "type": "ORDER_TEST",
+            "params": {
+              "testId": "ct_abdomen"
+            },
+            "sourceText": "КТ только если состояние ухудшится",
+            "commitment": {
+              "status": "CONDITIONAL",
+              "cues": [
+                "если"
+              ],
+              "scope": "clause"
+            }
+          }
+        ],
+        "clauses": [
+          {
+            "id": "k0",
+            "index": 0,
+            "text": "КТ только если состояние ухудшится",
+            "range": [
+              0,
+              5
+            ],
+            "sentence": 0,
+            "channel": "clinical_action",
+            "commitment": {
+              "status": "CONDITIONAL",
+              "cues": [
+                "если"
+              ],
+              "scope": "clause"
+            },
+            "commandIds": [],
+            "withheldIds": [
+              "cmd-c0"
+            ],
+            "unresolved": false,
+            "structural": false
+          }
+        ],
+        "commandSequence": null,
+        "mode": "semantic_first",
+        "semanticTelemetry": {
+          "policyVersion": "semantic-first-2026-09-21-v1",
+          "clinicalAuthority": "none",
+          "deterministicCandidates": [],
+          "status": "valid",
+          "called": true,
+          "elapsedMs": 2422,
+          "providerMeta": {
+            "model": "gpt-5-mini-2025-08-07",
+            "requestId": null,
+            "usage": {
+              "prompt_tokens": 3717,
+              "completion_tokens": 104,
+              "total_tokens": 3821,
+              "prompt_tokens_details": {
+                "cached_tokens": 2816,
+                "audio_tokens": 0
+              },
+              "completion_tokens_details": {
+                "reasoning_tokens": 0,
+                "audio_tokens": 0,
+                "accepted_prediction_tokens": 0,
+                "rejected_prediction_tokens": 0
+              }
+            },
+            "costUsd": 0.00113725
+          },
+          "providerEvidence": {
+            "captured": true,
+            "rawProviderPayload": {
+              "text": "{\"clinicalActions\":[],\"patientQuestions\":[],\"ambiguities\":[{\"evidenceSpan\":\"КТ только если состояние ухудшится\",\"reason\":\"tentative_not_committed\",\"explanation\":\"Phrase defers ordering CT contingent on future deterioration rather than committing to ORDER_TEST now; action is tentative/conditional.\"}],\"unresolvedFragments\":[],\"meta\":{\"schemaVersion\":\"wave23-split-semantic-v1\",\"confidence\":0.69}}",
+              "meta": {
+                "model": "gpt-5-mini-2025-08-07",
+                "requestId": null,
+                "usage": {
+                  "prompt_tokens": 3717,
+                  "completion_tokens": 104,
+                  "total_tokens": 3821,
+                  "prompt_tokens_details": {
+                    "cached_tokens": 2816,
+                    "audio_tokens": 0
+                  },
+                  "completion_tokens_details": {
+                    "reasoning_tokens": 0,
+                    "audio_tokens": 0,
+                    "accepted_prediction_tokens": 0,
+                    "rejected_prediction_tokens": 0
+                  }
+                },
+                "costUsd": 0.00113725
+              }
+            },
+            "rawProviderOutput": "{\"clinicalActions\":[],\"patientQuestions\":[],\"ambiguities\":[{\"evidenceSpan\":\"КТ только если состояние ухудшится\",\"reason\":\"tentative_not_committed\",\"explanation\":\"Phrase defers ordering CT contingent on future deterioration rather than committing to ORDER_TEST now; action is tentative/conditional.\"}],\"unresolvedFragments\":[],\"meta\":{\"schemaVersion\":\"wave23-split-semantic-v1\",\"confidence\":0.69}}",
+            "returnedModelMetadata": {
+              "model": "gpt-5-mini-2025-08-07",
+              "requestId": null,
+              "usage": {
+                "prompt_tokens": 3717,
+                "completion_tokens": 104,
+                "total_tokens": 3821,
+                "prompt_tokens_details": {
+                  "cached_tokens": 2816,
+                  "audio_tokens": 0
+                },
+                "completion_tokens_details": {
+                  "reasoning_tokens": 0,
+                  "audio_tokens": 0,
+                  "accepted_prediction_tokens": 0,
+                  "rejected_prediction_tokens": 0
+                }
+              },
+              "costUsd": 0.00113725
+            }
+          },
+          "candidateDecisions": [],
+          "finalCommands": [
+            {
+              "id": "cmd-creasoning",
+              "type": "STATE_REASONING",
+              "params": {
+                "text": "КТ только если состояние ухудшится",
+                "evidenceSpans": [
+                  "КТ только если состояние ухудшится"
+                ],
+                "contingency": {
+                  "stated": true,
+                  "specificity": "vague",
+                  "triggerConceptIds": [
+                    "clinical_deterioration"
+                  ]
+                }
+              },
+              "sourceText": "КТ только если состояние ухудшится"
+            }
+          ],
+          "resolutions": [],
+          "schemaErrors": [],
+          "conceptErrors": []
+        }
+      }
+    },
+    {
+      "id": "negated",
+      "text": "Пока не назначаю кетопрофен",
+      "types": [],
+      "pass": true,
+      "result": {
+        "intent": "CLINICAL_REASONING",
+        "commands": [],
+        "rawText": "Пока не назначаю кетопрофен",
+        "unmatchedFragments": [
+          "пока не назначаю кетопрофен",
+          "Пока не назначаю кетопрофен"
+        ],
+        "answeredMentorQuestion": false,
+        "withheldCommands": [
+          {
+            "id": "cmd-c0",
+            "type": "ORDER_MEDICATION",
+            "params": {
+              "drugId": "ketoprofen"
+            },
+            "sourceText": "Пока не назначаю кетопрофен",
+            "commitment": {
+              "status": "DECLINED",
+              "cues": [
+                "не назнач"
+              ],
+              "scope": "clause"
+            }
+          }
+        ],
+        "clauses": [
+          {
+            "id": "k0",
+            "index": 0,
+            "text": "Пока не назначаю кетопрофен",
+            "range": [
+              0,
+              4
+            ],
+            "sentence": 0,
+            "channel": "clinical_action",
+            "commitment": {
+              "status": "DECLINED",
+              "cues": [
+                "не назнач"
+              ],
+              "scope": "clause"
+            },
+            "commandIds": [],
+            "withheldIds": [
+              "cmd-c0"
+            ],
+            "unresolved": false,
+            "structural": false
+          }
+        ],
+        "commandSequence": null,
+        "mode": "semantic_first",
+        "semanticTelemetry": {
+          "policyVersion": "semantic-first-2026-09-21-v1",
+          "clinicalAuthority": "none",
+          "deterministicCandidates": [],
+          "status": "valid",
+          "called": true,
+          "elapsedMs": 2824,
+          "providerMeta": {
+            "model": "gpt-5-mini-2025-08-07",
+            "requestId": null,
+            "usage": {
+              "prompt_tokens": 3718,
+              "completion_tokens": 99,
+              "total_tokens": 3817,
+              "prompt_tokens_details": {
+                "cached_tokens": 2816,
+                "audio_tokens": 0
+              },
+              "completion_tokens_details": {
+                "reasoning_tokens": 0,
+                "audio_tokens": 0,
+                "accepted_prediction_tokens": 0,
+                "rejected_prediction_tokens": 0
+              }
+            },
+            "costUsd": 0.0011275
+          },
+          "providerEvidence": {
+            "captured": true,
+            "rawProviderPayload": {
+              "text": "{\"clinicalActions\":[],\"patientQuestions\":[],\"ambiguities\":[{\"evidenceSpan\":\"Пока не назначаю кетопрофен\",\"reason\":\"tentative_not_committed\",\"explanation\":\"Phrase states withholding/not yet prescribing (tentative) rather than committing to an action.\"}],\"unresolvedFragments\":[],\"meta\":{\"schemaVersion\":\"wave23-split-semantic-v1\",\"confidence\":0.32}}",
+              "meta": {
+                "model": "gpt-5-mini-2025-08-07",
+                "requestId": null,
+                "usage": {
+                  "prompt_tokens": 3718,
+                  "completion_tokens": 99,
+                  "total_tokens": 3817,
+                  "prompt_tokens_details": {
+                    "cached_tokens": 2816,
+                    "audio_tokens": 0
+                  },
+                  "completion_tokens_details": {
+                    "reasoning_tokens": 0,
+                    "audio_tokens": 0,
+                    "accepted_prediction_tokens": 0,
+                    "rejected_prediction_tokens": 0
+                  }
+                },
+                "costUsd": 0.0011275
+              }
+            },
+            "rawProviderOutput": "{\"clinicalActions\":[],\"patientQuestions\":[],\"ambiguities\":[{\"evidenceSpan\":\"Пока не назначаю кетопрофен\",\"reason\":\"tentative_not_committed\",\"explanation\":\"Phrase states withholding/not yet prescribing (tentative) rather than committing to an action.\"}],\"unresolvedFragments\":[],\"meta\":{\"schemaVersion\":\"wave23-split-semantic-v1\",\"confidence\":0.32}}",
+            "returnedModelMetadata": {
+              "model": "gpt-5-mini-2025-08-07",
+              "requestId": null,
+              "usage": {
+                "prompt_tokens": 3718,
+                "completion_tokens": 99,
+                "total_tokens": 3817,
+                "prompt_tokens_details": {
+                  "cached_tokens": 2816,
+                  "audio_tokens": 0
+                },
+                "completion_tokens_details": {
+                  "reasoning_tokens": 0,
+                  "audio_tokens": 0,
+                  "accepted_prediction_tokens": 0,
+                  "rejected_prediction_tokens": 0
+                }
+              },
+              "costUsd": 0.0011275
+            }
+          },
+          "candidateDecisions": [],
+          "finalCommands": [],
+          "resolutions": [],
+          "schemaErrors": [],
+          "conceptErrors": []
+        }
+      }
+    },
+    {
+      "id": "literal-order",
+      "text": "Назначаю кетопрофен 100 мг в/м",
+      "types": [
+        "ORDER_MEDICATION"
+      ],
+      "doseMg": 100,
+      "route": "im",
+      "pass": true,
+      "result": {
+        "intent": "CLINICAL_ACTION",
+        "commands": [
+          {
+            "id": "cmd-s0",
+            "type": "ORDER_MEDICATION",
+            "params": {
+              "drugId": "ketoprofen",
+              "dose": "100 мг",
+              "doseMg": 100,
+              "route": "im"
+            },
+            "sourceText": "Назначаю кетопрофен 100 мг в/м"
+          }
+        ],
+        "rawText": "Назначаю кетопрофен 100 мг в/м",
+        "unmatchedFragments": [],
+        "answeredMentorQuestion": false,
+        "clauses": [
+          {
+            "id": "k0",
+            "index": 0,
+            "text": "Назначаю кетопрофен 100 мг в/м",
+            "range": [
+              0,
+              6
+            ],
+            "sentence": 0,
+            "channel": "clinical_action",
+            "commitment": {
+              "status": "COMMITTED",
+              "cues": [],
+              "scope": "clause"
+            },
+            "commandIds": [
+              "cmd-c0"
+            ],
+            "withheldIds": [],
+            "unresolved": false,
+            "structural": false
+          }
+        ],
+        "commandSequence": null,
+        "mode": "semantic_first",
+        "withheldCommands": [],
+        "semanticTelemetry": {
+          "policyVersion": "semantic-first-2026-09-21-v1",
+          "clinicalAuthority": "none",
+          "deterministicCandidates": [
+            {
+              "id": "cmd-c0",
+              "type": "ORDER_MEDICATION",
+              "params": {
+                "drugId": "ketoprofen",
+                "dose": "100мг",
+                "doseMg": 100,
+                "route": "im"
+              },
+              "sourceText": "Назначаю кетопрофен 100 мг в/м"
+            }
+          ],
+          "status": "valid",
+          "called": true,
+          "elapsedMs": 2911,
+          "providerMeta": {
+            "model": "gpt-5-mini-2025-08-07",
+            "requestId": null,
+            "usage": {
+              "prompt_tokens": 3722,
+              "completion_tokens": 97,
+              "total_tokens": 3819,
+              "prompt_tokens_details": {
+                "cached_tokens": 2816,
+                "audio_tokens": 0
+              },
+              "completion_tokens_details": {
+                "reasoning_tokens": 0,
+                "audio_tokens": 0,
+                "accepted_prediction_tokens": 0,
+                "rejected_prediction_tokens": 0
+              }
+            },
+            "costUsd": 0.0011245
+          },
+          "providerEvidence": {
+            "captured": true,
+            "rawProviderPayload": {
+              "text": "{\"clinicalActions\":[{\"type\":\"ORDER_MEDICATION\",\"params\":{\"drugId\":\"ketoprofen\"},\"evidenceSpans\":[\"Назначаю кетопрофен 100 мг в/м\"],\"statedParameters\":[]}],\"patientQuestions\":[],\"ambiguities\":[],\"unresolvedFragments\":[],\"meta\":{\"schemaVersion\":\"wave23-split-semantic-v1\",\"confidence\":0.42}}",
+              "meta": {
+                "model": "gpt-5-mini-2025-08-07",
+                "requestId": null,
+                "usage": {
+                  "prompt_tokens": 3722,
+                  "completion_tokens": 97,
+                  "total_tokens": 3819,
+                  "prompt_tokens_details": {
+                    "cached_tokens": 2816,
+                    "audio_tokens": 0
+                  },
+                  "completion_tokens_details": {
+                    "reasoning_tokens": 0,
+                    "audio_tokens": 0,
+                    "accepted_prediction_tokens": 0,
+                    "rejected_prediction_tokens": 0
+                  }
+                },
+                "costUsd": 0.0011245
+              }
+            },
+            "rawProviderOutput": "{\"clinicalActions\":[{\"type\":\"ORDER_MEDICATION\",\"params\":{\"drugId\":\"ketoprofen\"},\"evidenceSpans\":[\"Назначаю кетопрофен 100 мг в/м\"],\"statedParameters\":[]}],\"patientQuestions\":[],\"ambiguities\":[],\"unresolvedFragments\":[],\"meta\":{\"schemaVersion\":\"wave23-split-semantic-v1\",\"confidence\":0.42}}",
+            "returnedModelMetadata": {
+              "model": "gpt-5-mini-2025-08-07",
+              "requestId": null,
+              "usage": {
+                "prompt_tokens": 3722,
+                "completion_tokens": 97,
+                "total_tokens": 3819,
+                "prompt_tokens_details": {
+                  "cached_tokens": 2816,
+                  "audio_tokens": 0
+                },
+                "completion_tokens_details": {
+                  "reasoning_tokens": 0,
+                  "audio_tokens": 0,
+                  "accepted_prediction_tokens": 0,
+                  "rejected_prediction_tokens": 0
+                }
+              },
+              "costUsd": 0.0011245
+            }
+          },
+          "candidateDecisions": [
+            {
+              "index": 0,
+              "source": "clinicalAction",
+              "type": "ORDER_MEDICATION",
+              "params": {
+                "drugId": "ketoprofen"
+              },
+              "validation": "ACCEPT",
+              "reasonCodes": [
+                "concept_lexically_grounded"
+              ],
+              "evidenceSpans": [
+                "Назначаю кетопрофен 100 мг в/м"
+              ],
+              "grounding": "lexical",
+              "arbitration": {
+                "resolution": "semantic_added"
+              },
+              "commandId": "cmd-s0"
+            }
+          ],
+          "finalCommands": [
+            {
+              "id": "cmd-s0",
+              "type": "ORDER_MEDICATION",
+              "params": {
+                "drugId": "ketoprofen",
+                "dose": "100 мг",
+                "doseMg": 100,
+                "route": "im"
+              },
+              "sourceText": "Назначаю кетопрофен 100 мг в/м"
+            }
+          ],
+          "resolutions": [
+            {
+              "commandId": "cmd-s0",
+              "type": "ORDER_MEDICATION",
+              "resolution": "semantic_added",
+              "origins": [
+                "semantic"
+              ]
+            }
+          ],
+          "schemaErrors": [],
+          "conceptErrors": []
+        }
+      }
+    },
+    {
+      "id": "quoted-order",
+      "text": "Назначаю кетопрофен 100 мг в/в — это вопрос для обсуждения",
+      "types": [],
+      "pass": true,
+      "result": {
+        "intent": "CLINICAL_ACTION",
+        "commands": [],
+        "rawText": "Назначаю кетопрофен 100 мг в/в — это вопрос для обсуждения",
+        "unmatchedFragments": [
+          "назначаю кетопрофен 100 мг в/в",
+          "это вопрос для обсуждения",
+          "Назначаю кетопрофен 100 мг в/в — это вопрос для обсуждения"
+        ],
+        "answeredMentorQuestion": false,
+        "clauses": [
+          {
+            "id": "k0",
+            "index": 0,
+            "text": "Назначаю кетопрофен 100 мг в/в",
+            "range": [
+              0,
+              6
+            ],
+            "sentence": 0,
+            "channel": "clinical_action",
+            "commitment": {
+              "status": "COMMITTED",
+              "cues": [],
+              "scope": "clause"
+            },
+            "commandIds": [
+              "cmd-c0"
+            ],
+            "withheldIds": [],
+            "unresolved": false,
+            "structural": false
+          },
+          {
+            "id": "k1",
+            "index": 1,
+            "text": "это вопрос для обсуждения",
+            "range": [
+              6,
+              10
+            ],
+            "sentence": 0,
+            "channel": "unresolved",
+            "commitment": null,
+            "commandIds": [],
+            "withheldIds": [],
+            "unresolved": true,
+            "structural": false
+          }
+        ],
+        "commandSequence": null,
+        "mode": "semantic_first",
+        "interpretationNotice": "Ты хочешь выполнить действие сейчас или обсудить его? Уточни и напиши само действие — пока ничего не выполнено.",
+        "withheldCommands": [],
+        "semanticTelemetry": {
+          "policyVersion": "semantic-first-2026-09-21-v1",
+          "clinicalAuthority": "none",
+          "deterministicCandidates": [
+            {
+              "id": "cmd-c0",
+              "type": "ORDER_MEDICATION",
+              "params": {
+                "drugId": "ketoprofen",
+                "dose": "100мг",
+                "doseMg": 100,
+                "route": "iv"
+              },
+              "sourceText": "Назначаю кетопрофен 100 мг в/в"
+            }
+          ],
+          "status": "valid",
+          "called": true,
+          "elapsedMs": 2879,
+          "providerMeta": {
+            "model": "gpt-5-mini-2025-08-07",
+            "requestId": null,
+            "usage": {
+              "prompt_tokens": 3728,
+              "completion_tokens": 103,
+              "total_tokens": 3831,
+              "prompt_tokens_details": {
+                "cached_tokens": 2816,
+                "audio_tokens": 0
+              },
+              "completion_tokens_details": {
+                "reasoning_tokens": 0,
+                "audio_tokens": 0,
+                "accepted_prediction_tokens": 0,
+                "rejected_prediction_tokens": 0
+              }
+            },
+            "costUsd": 0.001138
+          },
+          "providerEvidence": {
+            "captured": true,
+            "rawProviderPayload": {
+              "text": "{\"clinicalActions\":[{\"type\":\"ORDER_MEDICATION\",\"params\":{\"drugId\":\"ketoprofen\"},\"evidenceSpans\":[\"Назначаю кетопрофен 100 мг в/в — это вопрос для обсуждения\"],\"statedParameters\":[]}],\"patientQuestions\":[],\"ambiguities\":[],\"unresolvedFragments\":[],\"meta\":{\"schemaVersion\":\"wave23-split-semantic-v1\",\"confidence\":0.64}}",
+              "meta": {
+                "model": "gpt-5-mini-2025-08-07",
+                "requestId": null,
+                "usage": {
+                  "prompt_tokens": 3728,
+                  "completion_tokens": 103,
+                  "total_tokens": 3831,
+                  "prompt_tokens_details": {
+                    "cached_tokens": 2816,
+                    "audio_tokens": 0
+                  },
+                  "completion_tokens_details": {
+                    "reasoning_tokens": 0,
+                    "audio_tokens": 0,
+                    "accepted_prediction_tokens": 0,
+                    "rejected_prediction_tokens": 0
+                  }
+                },
+                "costUsd": 0.001138
+              }
+            },
+            "rawProviderOutput": "{\"clinicalActions\":[{\"type\":\"ORDER_MEDICATION\",\"params\":{\"drugId\":\"ketoprofen\"},\"evidenceSpans\":[\"Назначаю кетопрофен 100 мг в/в — это вопрос для обсуждения\"],\"statedParameters\":[]}],\"patientQuestions\":[],\"ambiguities\":[],\"unresolvedFragments\":[],\"meta\":{\"schemaVersion\":\"wave23-split-semantic-v1\",\"confidence\":0.64}}",
+            "returnedModelMetadata": {
+              "model": "gpt-5-mini-2025-08-07",
+              "requestId": null,
+              "usage": {
+                "prompt_tokens": 3728,
+                "completion_tokens": 103,
+                "total_tokens": 3831,
+                "prompt_tokens_details": {
+                  "cached_tokens": 2816,
+                  "audio_tokens": 0
+                },
+                "completion_tokens_details": {
+                  "reasoning_tokens": 0,
+                  "audio_tokens": 0,
+                  "accepted_prediction_tokens": 0,
+                  "rejected_prediction_tokens": 0
+                }
+              },
+              "costUsd": 0.001138
+            }
+          },
+          "candidateDecisions": [
+            {
+              "index": 0,
+              "source": "clinicalAction",
+              "type": "ORDER_MEDICATION",
+              "params": {
+                "drugId": "ketoprofen"
+              },
+              "validation": "REJECT",
+              "reasonCodes": [
+                "concept_lexically_grounded",
+                "discussion_not_execution"
+              ],
+              "evidenceSpans": [
+                "Назначаю кетопрофен 100 мг в/в — это вопрос для обсуждения"
+              ],
+              "grounding": "lexical",
+              "arbitration": {
+                "resolution": "rejected",
+                "reason": "candidate_rejected"
+              }
+            }
+          ],
+          "finalCommands": [],
+          "resolutions": [],
+          "schemaErrors": [],
+          "conceptErrors": []
+        }
+      }
+    }
+  ],
+  "status": "PASS",
+  "journalFile": "docs/evidence/semantic-first/provider-journal/e605ac70-aee0-4e84-9084-3dc65db99d2b.jsonl",
+  "rawProviderResponses": [
+    {
+      "seq": 1,
+      "receivedAt": "2026-09-21T19:53:21.630Z",
+      "status": 200,
+      "rawBody": "{\n  \"id\": \"chatcmpl-EQeMhUBlh9BGofhzXTwyE32PlP6iz\",\n  \"object\": \"chat.completion\",\n  \"created\": 1790020399,\n  \"model\": \"gpt-5-mini-2025-08-07\",\n  \"choices\": [\n    {\n      \"index\": 0,\n      \"message\": {\n        \"role\": \"assistant\",\n        \"content\": \"{\\\"clinicalActions\\\":[{\\\"type\\\":\\\"ORDER_TEST\\\",\\\"params\\\":{\\\"testId\\\":\\\"cbc\\\",\\\"analytes\\\":null},\\\"evidenceSpans\\\":[\\\"Пусть лаборант определит число белых клеток в крови\\\"] ,\\\"statedParameters\\\":[]}],\\\"patientQuestions\\\":[],\\\"ambiguities\\\":[],\\\"unresolvedFragments\\\":[],\\\"meta\\\":{\\\"schemaVersion\\\":\\\"wave23-split-semantic-v1\\\",\\\"confidence\\\":0.77}}\",\n        \"refusal\": null,\n        \"annotations\": []\n      },\n      \"finish_reason\": \"stop\"\n    }\n  ],\n  \"usage\": {\n    \"prompt_tokens\": 3725,\n    \"completion_tokens\": 102,\n    \"total_tokens\": 3827,\n    \"prompt_tokens_details\": {\n      \"cached_tokens\": 0,\n      \"audio_tokens\": 0\n    },\n    \"completion_tokens_details\": {\n      \"reasoning_tokens\": 0,\n      \"audio_tokens\": 0,\n      \"accepted_prediction_tokens\": 0,\n      \"rejected_prediction_tokens\": 0\n    }\n  },\n  \"service_tier\": \"default\",\n  \"system_fingerprint\": null\n}\n",
+      "requestId": "req_7c2558d914dd48f0927a72dd98c06022",
+      "payload": {
+        "id": "chatcmpl-EQeMhUBlh9BGofhzXTwyE32PlP6iz",
+        "object": "chat.completion",
+        "created": 1790020399,
+        "model": "gpt-5-mini-2025-08-07",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "{\"clinicalActions\":[{\"type\":\"ORDER_TEST\",\"params\":{\"testId\":\"cbc\",\"analytes\":null},\"evidenceSpans\":[\"Пусть лаборант определит число белых клеток в крови\"] ,\"statedParameters\":[]}],\"patientQuestions\":[],\"ambiguities\":[],\"unresolvedFragments\":[],\"meta\":{\"schemaVersion\":\"wave23-split-semantic-v1\",\"confidence\":0.77}}",
+              "refusal": null,
+              "annotations": []
+            },
+            "finish_reason": "stop"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 3725,
+          "completion_tokens": 102,
+          "total_tokens": 3827,
+          "prompt_tokens_details": {
+            "cached_tokens": 0,
+            "audio_tokens": 0
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 0,
+            "audio_tokens": 0,
+            "accepted_prediction_tokens": 0,
+            "rejected_prediction_tokens": 0
+          }
+        },
+        "service_tier": "default",
+        "system_fingerprint": null
+      },
+      "journalFile": "docs/evidence/semantic-first/provider-journal/e605ac70-aee0-4e84-9084-3dc65db99d2b.jsonl"
+    },
+    {
+      "seq": 2,
+      "receivedAt": "2026-09-21T19:53:25.197Z",
+      "status": 200,
+      "rawBody": "{\n  \"id\": \"chatcmpl-EQeMl3Bx9MOG7IZSV7YfXSoIQRW5k\",\n  \"object\": \"chat.completion\",\n  \"created\": 1790020403,\n  \"model\": \"gpt-5-mini-2025-08-07\",\n  \"choices\": [\n    {\n      \"index\": 0,\n      \"message\": {\n        \"role\": \"assistant\",\n        \"content\": \"{\\\"clinicalActions\\\":[{\\\"type\\\":\\\"EXAMINE\\\",\\\"params\\\":{\\\"region\\\":\\\"abdomen\\\"},\\\"evidenceSpans\\\":[\\\"Хочу пропальпировать живот у этого пациента\\\"],\\\"statedParameters\\\":[]}],\\\"patientQuestions\\\":[],\\\"ambiguities\\\":[],\\\"unresolvedFragments\\\":[],\\\"meta\\\":{\\\"schemaVersion\\\":\\\"wave23-split-semantic-v1\\\",\\\"confidence\\\":0.72}}\",\n        \"refusal\": null,\n        \"annotations\": []\n      },\n      \"finish_reason\": \"stop\"\n    }\n  ],\n  \"usage\": {\n    \"prompt_tokens\": 3719,\n    \"completion_tokens\": 92,\n    \"total_tokens\": 3811,\n    \"prompt_tokens_details\": {\n      \"cached_tokens\": 2816,\n      \"audio_tokens\": 0\n    },\n    \"completion_tokens_details\": {\n      \"reasoning_tokens\": 0,\n      \"audio_tokens\": 0,\n      \"accepted_prediction_tokens\": 0,\n      \"rejected_prediction_tokens\": 0\n    }\n  },\n  \"service_tier\": \"default\",\n  \"system_fingerprint\": null\n}\n",
+      "requestId": "req_7200eb67883d451c9c2e40502b96c10c",
+      "payload": {
+        "id": "chatcmpl-EQeMl3Bx9MOG7IZSV7YfXSoIQRW5k",
+        "object": "chat.completion",
+        "created": 1790020403,
+        "model": "gpt-5-mini-2025-08-07",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "{\"clinicalActions\":[{\"type\":\"EXAMINE\",\"params\":{\"region\":\"abdomen\"},\"evidenceSpans\":[\"Хочу пропальпировать живот у этого пациента\"],\"statedParameters\":[]}],\"patientQuestions\":[],\"ambiguities\":[],\"unresolvedFragments\":[],\"meta\":{\"schemaVersion\":\"wave23-split-semantic-v1\",\"confidence\":0.72}}",
+              "refusal": null,
+              "annotations": []
+            },
+            "finish_reason": "stop"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 3719,
+          "completion_tokens": 92,
+          "total_tokens": 3811,
+          "prompt_tokens_details": {
+            "cached_tokens": 2816,
+            "audio_tokens": 0
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 0,
+            "audio_tokens": 0,
+            "accepted_prediction_tokens": 0,
+            "rejected_prediction_tokens": 0
+          }
+        },
+        "service_tier": "default",
+        "system_fingerprint": null
+      },
+      "journalFile": "docs/evidence/semantic-first/provider-journal/e605ac70-aee0-4e84-9084-3dc65db99d2b.jsonl"
+    },
+    {
+      "seq": 3,
+      "receivedAt": "2026-09-21T19:53:27.620Z",
+      "status": 200,
+      "rawBody": "{\n  \"id\": \"chatcmpl-EQeMoKxKX21otkLQUvktBjyevmT4l\",\n  \"object\": \"chat.completion\",\n  \"created\": 1790020406,\n  \"model\": \"gpt-5-mini-2025-08-07\",\n  \"choices\": [\n    {\n      \"index\": 0,\n      \"message\": {\n        \"role\": \"assistant\",\n        \"content\": \"{\\\"clinicalActions\\\":[],\\\"patientQuestions\\\":[],\\\"ambiguities\\\":[{\\\"evidenceSpan\\\":\\\"КТ только если состояние ухудшится\\\",\\\"reason\\\":\\\"tentative_not_committed\\\",\\\"explanation\\\":\\\"Phrase defers ordering CT contingent on future deterioration rather than committing to ORDER_TEST now; action is tentative/conditional.\\\"}],\\\"unresolvedFragments\\\":[],\\\"meta\\\":{\\\"schemaVersion\\\":\\\"wave23-split-semantic-v1\\\",\\\"confidence\\\":0.69}}\",\n        \"refusal\": null,\n        \"annotations\": []\n      },\n      \"finish_reason\": \"stop\"\n    }\n  ],\n  \"usage\": {\n    \"prompt_tokens\": 3717,\n    \"completion_tokens\": 104,\n    \"total_tokens\": 3821,\n    \"prompt_tokens_details\": {\n      \"cached_tokens\": 2816,\n      \"audio_tokens\": 0\n    },\n    \"completion_tokens_details\": {\n      \"reasoning_tokens\": 0,\n      \"audio_tokens\": 0,\n      \"accepted_prediction_tokens\": 0,\n      \"rejected_prediction_tokens\": 0\n    }\n  },\n  \"service_tier\": \"default\",\n  \"system_fingerprint\": null\n}\n",
+      "requestId": "req_919caae25e4d470f90ff25c32a5804ce",
+      "payload": {
+        "id": "chatcmpl-EQeMoKxKX21otkLQUvktBjyevmT4l",
+        "object": "chat.completion",
+        "created": 1790020406,
+        "model": "gpt-5-mini-2025-08-07",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "{\"clinicalActions\":[],\"patientQuestions\":[],\"ambiguities\":[{\"evidenceSpan\":\"КТ только если состояние ухудшится\",\"reason\":\"tentative_not_committed\",\"explanation\":\"Phrase defers ordering CT contingent on future deterioration rather than committing to ORDER_TEST now; action is tentative/conditional.\"}],\"unresolvedFragments\":[],\"meta\":{\"schemaVersion\":\"wave23-split-semantic-v1\",\"confidence\":0.69}}",
+              "refusal": null,
+              "annotations": []
+            },
+            "finish_reason": "stop"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 3717,
+          "completion_tokens": 104,
+          "total_tokens": 3821,
+          "prompt_tokens_details": {
+            "cached_tokens": 2816,
+            "audio_tokens": 0
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 0,
+            "audio_tokens": 0,
+            "accepted_prediction_tokens": 0,
+            "rejected_prediction_tokens": 0
+          }
+        },
+        "service_tier": "default",
+        "system_fingerprint": null
+      },
+      "journalFile": "docs/evidence/semantic-first/provider-journal/e605ac70-aee0-4e84-9084-3dc65db99d2b.jsonl"
+    },
+    {
+      "seq": 4,
+      "receivedAt": "2026-09-21T19:53:30.442Z",
+      "status": 200,
+      "rawBody": "{\n  \"id\": \"chatcmpl-EQeMrBYhvzHaH0LrQQbzg23GNaHe7\",\n  \"object\": \"chat.completion\",\n  \"created\": 1790020409,\n  \"model\": \"gpt-5-mini-2025-08-07\",\n  \"choices\": [\n    {\n      \"index\": 0,\n      \"message\": {\n        \"role\": \"assistant\",\n        \"content\": \"{\\\"clinicalActions\\\":[],\\\"patientQuestions\\\":[],\\\"ambiguities\\\":[{\\\"evidenceSpan\\\":\\\"Пока не назначаю кетопрофен\\\",\\\"reason\\\":\\\"tentative_not_committed\\\",\\\"explanation\\\":\\\"Phrase states withholding/not yet prescribing (tentative) rather than committing to an action.\\\"}],\\\"unresolvedFragments\\\":[],\\\"meta\\\":{\\\"schemaVersion\\\":\\\"wave23-split-semantic-v1\\\",\\\"confidence\\\":0.32}}\",\n        \"refusal\": null,\n        \"annotations\": []\n      },\n      \"finish_reason\": \"stop\"\n    }\n  ],\n  \"usage\": {\n    \"prompt_tokens\": 3718,\n    \"completion_tokens\": 99,\n    \"total_tokens\": 3817,\n    \"prompt_tokens_details\": {\n      \"cached_tokens\": 2816,\n      \"audio_tokens\": 0\n    },\n    \"completion_tokens_details\": {\n      \"reasoning_tokens\": 0,\n      \"audio_tokens\": 0,\n      \"accepted_prediction_tokens\": 0,\n      \"rejected_prediction_tokens\": 0\n    }\n  },\n  \"service_tier\": \"default\",\n  \"system_fingerprint\": null\n}\n",
+      "requestId": "req_3e07e8235ad547b3933f8984ad89dfbd",
+      "payload": {
+        "id": "chatcmpl-EQeMrBYhvzHaH0LrQQbzg23GNaHe7",
+        "object": "chat.completion",
+        "created": 1790020409,
+        "model": "gpt-5-mini-2025-08-07",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "{\"clinicalActions\":[],\"patientQuestions\":[],\"ambiguities\":[{\"evidenceSpan\":\"Пока не назначаю кетопрофен\",\"reason\":\"tentative_not_committed\",\"explanation\":\"Phrase states withholding/not yet prescribing (tentative) rather than committing to an action.\"}],\"unresolvedFragments\":[],\"meta\":{\"schemaVersion\":\"wave23-split-semantic-v1\",\"confidence\":0.32}}",
+              "refusal": null,
+              "annotations": []
+            },
+            "finish_reason": "stop"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 3718,
+          "completion_tokens": 99,
+          "total_tokens": 3817,
+          "prompt_tokens_details": {
+            "cached_tokens": 2816,
+            "audio_tokens": 0
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 0,
+            "audio_tokens": 0,
+            "accepted_prediction_tokens": 0,
+            "rejected_prediction_tokens": 0
+          }
+        },
+        "service_tier": "default",
+        "system_fingerprint": null
+      },
+      "journalFile": "docs/evidence/semantic-first/provider-journal/e605ac70-aee0-4e84-9084-3dc65db99d2b.jsonl"
+    },
+    {
+      "seq": 5,
+      "receivedAt": "2026-09-21T19:53:33.350Z",
+      "status": 200,
+      "rawBody": "{\n  \"id\": \"chatcmpl-EQeMtwkIXIBF9TMaShjjnn4F0ZUys\",\n  \"object\": \"chat.completion\",\n  \"created\": 1790020411,\n  \"model\": \"gpt-5-mini-2025-08-07\",\n  \"choices\": [\n    {\n      \"index\": 0,\n      \"message\": {\n        \"role\": \"assistant\",\n        \"content\": \"{\\\"clinicalActions\\\":[{\\\"type\\\":\\\"ORDER_MEDICATION\\\",\\\"params\\\":{\\\"drugId\\\":\\\"ketoprofen\\\"},\\\"evidenceSpans\\\":[\\\"Назначаю кетопрофен 100 мг в/м\\\"],\\\"statedParameters\\\":[]}],\\\"patientQuestions\\\":[],\\\"ambiguities\\\":[],\\\"unresolvedFragments\\\":[],\\\"meta\\\":{\\\"schemaVersion\\\":\\\"wave23-split-semantic-v1\\\",\\\"confidence\\\":0.42}}\",\n        \"refusal\": null,\n        \"annotations\": []\n      },\n      \"finish_reason\": \"stop\"\n    }\n  ],\n  \"usage\": {\n    \"prompt_tokens\": 3722,\n    \"completion_tokens\": 97,\n    \"total_tokens\": 3819,\n    \"prompt_tokens_details\": {\n      \"cached_tokens\": 2816,\n      \"audio_tokens\": 0\n    },\n    \"completion_tokens_details\": {\n      \"reasoning_tokens\": 0,\n      \"audio_tokens\": 0,\n      \"accepted_prediction_tokens\": 0,\n      \"rejected_prediction_tokens\": 0\n    }\n  },\n  \"service_tier\": \"default\",\n  \"system_fingerprint\": null\n}\n",
+      "requestId": "req_f4fea57ce6b343af87de77fd448de433",
+      "payload": {
+        "id": "chatcmpl-EQeMtwkIXIBF9TMaShjjnn4F0ZUys",
+        "object": "chat.completion",
+        "created": 1790020411,
+        "model": "gpt-5-mini-2025-08-07",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "{\"clinicalActions\":[{\"type\":\"ORDER_MEDICATION\",\"params\":{\"drugId\":\"ketoprofen\"},\"evidenceSpans\":[\"Назначаю кетопрофен 100 мг в/м\"],\"statedParameters\":[]}],\"patientQuestions\":[],\"ambiguities\":[],\"unresolvedFragments\":[],\"meta\":{\"schemaVersion\":\"wave23-split-semantic-v1\",\"confidence\":0.42}}",
+              "refusal": null,
+              "annotations": []
+            },
+            "finish_reason": "stop"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 3722,
+          "completion_tokens": 97,
+          "total_tokens": 3819,
+          "prompt_tokens_details": {
+            "cached_tokens": 2816,
+            "audio_tokens": 0
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 0,
+            "audio_tokens": 0,
+            "accepted_prediction_tokens": 0,
+            "rejected_prediction_tokens": 0
+          }
+        },
+        "service_tier": "default",
+        "system_fingerprint": null
+      },
+      "journalFile": "docs/evidence/semantic-first/provider-journal/e605ac70-aee0-4e84-9084-3dc65db99d2b.jsonl"
+    },
+    {
+      "seq": 6,
+      "receivedAt": "2026-09-21T19:53:36.236Z",
+      "status": 200,
+      "rawBody": "{\n  \"id\": \"chatcmpl-EQeMwpTrqttxCEMF7F6BMYkuA3SYh\",\n  \"object\": \"chat.completion\",\n  \"created\": 1790020414,\n  \"model\": \"gpt-5-mini-2025-08-07\",\n  \"choices\": [\n    {\n      \"index\": 0,\n      \"message\": {\n        \"role\": \"assistant\",\n        \"content\": \"{\\\"clinicalActions\\\":[{\\\"type\\\":\\\"ORDER_MEDICATION\\\",\\\"params\\\":{\\\"drugId\\\":\\\"ketoprofen\\\"},\\\"evidenceSpans\\\":[\\\"Назначаю кетопрофен 100 мг в/в — это вопрос для обсуждения\\\"],\\\"statedParameters\\\":[]}],\\\"patientQuestions\\\":[],\\\"ambiguities\\\":[],\\\"unresolvedFragments\\\":[],\\\"meta\\\":{\\\"schemaVersion\\\":\\\"wave23-split-semantic-v1\\\",\\\"confidence\\\":0.64}}\",\n        \"refusal\": null,\n        \"annotations\": []\n      },\n      \"finish_reason\": \"stop\"\n    }\n  ],\n  \"usage\": {\n    \"prompt_tokens\": 3728,\n    \"completion_tokens\": 103,\n    \"total_tokens\": 3831,\n    \"prompt_tokens_details\": {\n      \"cached_tokens\": 2816,\n      \"audio_tokens\": 0\n    },\n    \"completion_tokens_details\": {\n      \"reasoning_tokens\": 0,\n      \"audio_tokens\": 0,\n      \"accepted_prediction_tokens\": 0,\n      \"rejected_prediction_tokens\": 0\n    }\n  },\n  \"service_tier\": \"default\",\n  \"system_fingerprint\": null\n}\n",
+      "requestId": "req_093676e647d248beb1ed465cd1e79a1e",
+      "payload": {
+        "id": "chatcmpl-EQeMwpTrqttxCEMF7F6BMYkuA3SYh",
+        "object": "chat.completion",
+        "created": 1790020414,
+        "model": "gpt-5-mini-2025-08-07",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "{\"clinicalActions\":[{\"type\":\"ORDER_MEDICATION\",\"params\":{\"drugId\":\"ketoprofen\"},\"evidenceSpans\":[\"Назначаю кетопрофен 100 мг в/в — это вопрос для обсуждения\"],\"statedParameters\":[]}],\"patientQuestions\":[],\"ambiguities\":[],\"unresolvedFragments\":[],\"meta\":{\"schemaVersion\":\"wave23-split-semantic-v1\",\"confidence\":0.64}}",
+              "refusal": null,
+              "annotations": []
+            },
+            "finish_reason": "stop"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 3728,
+          "completion_tokens": 103,
+          "total_tokens": 3831,
+          "prompt_tokens_details": {
+            "cached_tokens": 2816,
+            "audio_tokens": 0
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 0,
+            "audio_tokens": 0,
+            "accepted_prediction_tokens": 0,
+            "rejected_prediction_tokens": 0
+          }
+        },
+        "service_tier": "default",
+        "system_fingerprint": null
+      },
+      "journalFile": "docs/evidence/semantic-first/provider-journal/e605ac70-aee0-4e84-9084-3dc65db99d2b.jsonl"
+    }
+  ],
+  "unrunRows": []
+}

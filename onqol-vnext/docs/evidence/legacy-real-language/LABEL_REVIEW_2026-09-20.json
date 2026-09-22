@@ -1,0 +1,152 @@
+{
+  "schema": "onqol-legacy-label-review-v1",
+  "corpus": "legacy_real_language_development",
+  "corpusVersionReviewed": "v1.1",
+  "corpusHash": "1004137eab7e4a0aba557244b57357490985ddc4839e520c0abaffa854cc60cd",
+  "evidenceUse": "development_only_not_holdout_not_generalization",
+  "reviewer": {
+    "kind": "model",
+    "model": "claude-sonnet-5",
+    "independentOfAnnotator": false,
+    "humanReviewed": false,
+    "clinicianReviewed": false
+  },
+  "note": "Second read by the same model family as the annotator. Not an independent review; does not satisfy the freeze condition. Disputed labels are UNRESOLVED until the owner rules. No learner words in this file; reasoning is in private/legacy-real-language/LABEL_REVIEW_2026-09-20.md.",
+  "selection": {
+    "lowConfidence": [
+      "lrd-ef81b2-t06",
+      "lrd-ef81b2-t07",
+      "lrd-e1c493-t05",
+      "lrd-e1c493-t08",
+      "lrd-e89230-t12",
+      "lrd-2c0ab2-t04",
+      "lrd-4d67d8-t07",
+      "lrd-920534-t05",
+      "lrd-cc06a4-t04",
+      "lrd-cc06a4-t06",
+      "lrd-cc06a4-t07",
+      "lrd-387ba1-t04"
+    ],
+    "flagged": [
+      "lrd-e1c493-t08",
+      "lrd-324b0a-t05"
+    ],
+    "randomSample": {
+      "algorithm": "mulberry32",
+      "seed": 20260920,
+      "poolSize": 80,
+      "drawn": [
+        "lrd-387ba1-t05",
+        "lrd-4d67d8-t03",
+        "lrd-93c2ad-t03",
+        "lrd-cc06a4-t08",
+        "lrd-e1c493-t02",
+        "lrd-e89230-t01",
+        "lrd-e89230-t02",
+        "lrd-e89230-t03",
+        "lrd-e89230-t10",
+        "lrd-ef81b2-t13"
+      ]
+    },
+    "distinctRowsReviewed": 23
+  },
+  "verdicts": {
+    "lrd-ef81b2-t06": {
+      "verdict": "CONFIRMED_WITH_NOTE",
+      "issue": "commitment_field_arguably_mentor_answer_metadata_only"
+    },
+    "lrd-ef81b2-t07": {
+      "verdict": "CONFIRMED"
+    },
+    "lrd-e1c493-t05": {
+      "verdict": "DISPUTED",
+      "issue": "criterion_of_infusion_read_as_monitoring_order; repeated_control_labelled_as_single_order",
+      "proposal": "urine_output monitoring -> optional; electrolytes chemistry -> either"
+    },
+    "lrd-e1c493-t08": {
+      "verdict": "DISPUTED",
+      "issue": "infinitive_of_purpose_inside_reasoning_answer_to_formulation_prompt_labelled_execute",
+      "proposal": "ct_abdomen -> optional"
+    },
+    "lrd-e89230-t12": {
+      "verdict": "CONFIRMED"
+    },
+    "lrd-2c0ab2-t04": {
+      "verdict": "CONFIRMED_WITH_NOTE",
+      "issue": "scope_boundary_weight_based_bolus_could_be_clarification"
+    },
+    "lrd-4d67d8-t07": {
+      "verdict": "CLINICIAN",
+      "issue": "english_surveillance_formula_vs_generic_observation_intent"
+    },
+    "lrd-920534-t05": {
+      "verdict": "CONFIRMED",
+      "issue": "correct_only_via_preceding_question"
+    },
+    "lrd-cc06a4-t04": {
+      "verdict": "CONFIRMED_WITH_NOTE",
+      "issue": "unordered_component_list"
+    },
+    "lrd-cc06a4-t06": {
+      "verdict": "CONFIRMED",
+      "issue": "matches_bare_potom_ruling"
+    },
+    "lrd-cc06a4-t07": {
+      "verdict": "CONFIRMED"
+    },
+    "lrd-387ba1-t04": {
+      "verdict": "CONFIRMED_WITH_NOTE",
+      "issue": "drug_class_mentions_labelled_inconsistently_clarify_vs_unmodeled"
+    },
+    "lrd-324b0a-t05": {
+      "verdict": "DISPUTED",
+      "issue": "gold_unions_two_clauses_into_one_monitoring_command",
+      "proposal": "split: heart_rate+blood_pressure execute; urine_output optional"
+    },
+    "lrd-387ba1-t05": {
+      "verdict": "CONFIRMED"
+    },
+    "lrd-4d67d8-t03": {
+      "verdict": "CONFIRMED"
+    },
+    "lrd-93c2ad-t03": {
+      "verdict": "CONFIRMED"
+    },
+    "lrd-cc06a4-t08": {
+      "verdict": "CONFIRMED"
+    },
+    "lrd-e1c493-t02": {
+      "verdict": "CONFIRMED_WITH_NOTE",
+      "issue": "bare_ct_defaults_to_the_only_modeled_ct"
+    },
+    "lrd-e89230-t01": {
+      "verdict": "CONFIRMED"
+    },
+    "lrd-e89230-t02": {
+      "verdict": "CONFIRMED"
+    },
+    "lrd-e89230-t03": {
+      "verdict": "CONFIRMED"
+    },
+    "lrd-e89230-t10": {
+      "verdict": "CONFIRMED_WITH_NOTE",
+      "issue": "annotation_note_wrongly_says_metamizole_not_in_formulary"
+    },
+    "lrd-ef81b2-t13": {
+      "verdict": "CONFIRMED"
+    }
+  },
+  "counts": {
+    "reviewed": 23,
+    "confirmed": 13,
+    "confirmedWithNote": 6,
+    "disputed": 3,
+    "clinician": 1
+  },
+  "disputedRowIds": [
+    "lrd-e1c493-t05",
+    "lrd-e1c493-t08",
+    "lrd-324b0a-t05"
+  ],
+  "binding": "No interpreter change may be motivated by a disputed row until the owner resolves it. Replay is reported on all 69 rows (frozen v1.1) and on the 66 rows without the disputed ones; mechanisms are judged on the latter."
+}

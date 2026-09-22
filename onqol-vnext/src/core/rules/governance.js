@@ -70,6 +70,9 @@ export function isContentAuthoritative(item) {
 }
 
 /** A structured, non-clinical marker for "this would have applied, but isn't approved yet". */
-export function simulatorLimitation({ kind, id, reviewStatus }) {
-  return { kind, id, reviewStatus: reviewStatus ?? null, reason: "not_approved_for_training" };
+export function simulatorLimitation({ kind, id, reviewStatus, reason = "not_approved_for_training" }) {
+  return { kind, id, reviewStatus: reviewStatus ?? null, reason };
 }
+
+/** The platform has no modeled content for this at all (as opposed to content that exists but is not approved). */
+export const LIMITATION_REASON_NOT_MODELED = "not_modeled";

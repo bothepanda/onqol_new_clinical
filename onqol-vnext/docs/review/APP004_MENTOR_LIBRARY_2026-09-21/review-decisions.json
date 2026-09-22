@@ -1,0 +1,423 @@
+{
+  "schema_version": "review-only-1",
+  "package_version": "0.2",
+  "case_id": "APP-004",
+  "created_at": "2026-09-21",
+  "notice": "Scoped decisions for internal APP-004 RU experimental dialogue; approved subset integrated in src/content/mentor/app004-library.json. Not resident-pilot approval.",
+  "decisions": [
+    {
+      "id": "K01",
+      "review_status": "approved_for_training",
+      "decision": "approve_scoped",
+      "allowed_decisions": [
+        "approve_scoped",
+        "revise",
+        "defer",
+        "reject"
+      ],
+      "approved_scope": "APP-004; internal_development; RU experimental mentor dialogue; background explanations only (K12 pedagogical guidance); no treatment, safety, scoring or patient-state authority",
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead / product owner"
+      ],
+      "reviewed_at": "2026-09-21",
+      "second_review_required": false,
+      "second_reviewed_by": [],
+      "second_reviewed_at": null,
+      "source_versions_confirmed": false,
+      "runtime_enabled": true,
+      "notes": "Explicit user approval in this task: «да, давай» to K01–K06 and K12 for experimental dialogue. Source-copy verification recorded separately; OX3 independent byte identity remains unconfirmed."
+    },
+    {
+      "id": "K02",
+      "review_status": "approved_for_training",
+      "decision": "approve_scoped",
+      "allowed_decisions": [
+        "approve_scoped",
+        "revise",
+        "defer",
+        "reject"
+      ],
+      "approved_scope": "APP-004; internal_development; RU experimental mentor dialogue; background explanations only (K12 pedagogical guidance); no treatment, safety, scoring or patient-state authority",
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead / product owner"
+      ],
+      "reviewed_at": "2026-09-21",
+      "second_review_required": false,
+      "second_reviewed_by": [],
+      "second_reviewed_at": null,
+      "source_versions_confirmed": false,
+      "runtime_enabled": true,
+      "notes": "Explicit user approval in this task: «да, давай» to K01–K06 and K12 for experimental dialogue. Source-copy verification recorded separately; OX3 independent byte identity remains unconfirmed."
+    },
+    {
+      "id": "K03",
+      "review_status": "approved_for_training",
+      "decision": "approve_scoped",
+      "allowed_decisions": [
+        "approve_scoped",
+        "revise",
+        "defer",
+        "reject"
+      ],
+      "approved_scope": "APP-004; internal_development; RU experimental mentor dialogue; background explanations only (K12 pedagogical guidance); no treatment, safety, scoring or patient-state authority",
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead / product owner"
+      ],
+      "reviewed_at": "2026-09-21",
+      "second_review_required": false,
+      "second_reviewed_by": [],
+      "second_reviewed_at": null,
+      "source_versions_confirmed": false,
+      "runtime_enabled": true,
+      "notes": "Explicit user approval in this task: «да, давай» to K01–K06 and K12 for experimental dialogue. Source-copy verification recorded separately; OX3 independent byte identity remains unconfirmed."
+    },
+    {
+      "id": "K04",
+      "review_status": "approved_for_training",
+      "decision": "approve_scoped",
+      "allowed_decisions": [
+        "approve_scoped",
+        "revise",
+        "defer",
+        "reject"
+      ],
+      "approved_scope": "APP-004; internal_development; RU experimental mentor dialogue; background explanations only (K12 pedagogical guidance); no treatment, safety, scoring or patient-state authority",
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead / product owner"
+      ],
+      "reviewed_at": "2026-09-21",
+      "second_review_required": false,
+      "second_reviewed_by": [],
+      "second_reviewed_at": null,
+      "source_versions_confirmed": false,
+      "runtime_enabled": true,
+      "notes": "Explicit user approval in this task: «да, давай» to K01–K06 and K12 for experimental dialogue. Source-copy verification recorded separately; OX3 independent byte identity remains unconfirmed."
+    },
+    {
+      "id": "K05",
+      "review_status": "approved_for_training",
+      "decision": "approve_scoped",
+      "allowed_decisions": [
+        "approve_scoped",
+        "revise",
+        "defer",
+        "reject"
+      ],
+      "approved_scope": "APP-004; internal_development; RU experimental mentor dialogue; background explanations only (K12 pedagogical guidance); no treatment, safety, scoring or patient-state authority",
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead / product owner"
+      ],
+      "reviewed_at": "2026-09-21",
+      "second_review_required": false,
+      "second_reviewed_by": [],
+      "second_reviewed_at": null,
+      "source_versions_confirmed": false,
+      "runtime_enabled": true,
+      "notes": "Explicit user approval in this task: «да, давай» to K01–K06 and K12 for experimental dialogue. Source-copy verification recorded separately; OX3 independent byte identity remains unconfirmed."
+    },
+    {
+      "id": "K06",
+      "review_status": "approved_for_training",
+      "decision": "approve_scoped",
+      "allowed_decisions": [
+        "approve_scoped",
+        "revise",
+        "defer",
+        "reject"
+      ],
+      "approved_scope": "APP-004; internal_development; RU experimental mentor dialogue; background explanations only (K12 pedagogical guidance); no treatment, safety, scoring or patient-state authority",
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead / product owner"
+      ],
+      "reviewed_at": "2026-09-21",
+      "second_review_required": false,
+      "second_reviewed_by": [],
+      "second_reviewed_at": null,
+      "source_versions_confirmed": false,
+      "runtime_enabled": true,
+      "notes": "Explicit user approval in this task: «да, давай» to K01–K06 and K12 for experimental dialogue. Source-copy verification recorded separately; OX3 independent byte identity remains unconfirmed."
+    },
+    {
+      "id": "K07",
+      "review_status": "draft",
+      "decision": null,
+      "allowed_decisions": [
+        "approve_scoped",
+        "revise",
+        "defer",
+        "reject"
+      ],
+      "approved_scope": null,
+      "reviewed_by": [],
+      "reviewed_at": null,
+      "second_review_required": false,
+      "second_reviewed_by": [],
+      "second_reviewed_at": null,
+      "source_versions_confirmed": false,
+      "runtime_enabled": false,
+      "notes": null
+    },
+    {
+      "id": "K08",
+      "review_status": "draft",
+      "decision": null,
+      "allowed_decisions": [
+        "approve_scoped",
+        "revise",
+        "defer",
+        "reject"
+      ],
+      "approved_scope": null,
+      "reviewed_by": [],
+      "reviewed_at": null,
+      "second_review_required": true,
+      "second_reviewed_by": [],
+      "second_reviewed_at": null,
+      "source_versions_confirmed": false,
+      "runtime_enabled": false,
+      "notes": null
+    },
+    {
+      "id": "K09",
+      "review_status": "draft",
+      "decision": null,
+      "allowed_decisions": [
+        "approve_scoped",
+        "revise",
+        "defer",
+        "reject"
+      ],
+      "approved_scope": null,
+      "reviewed_by": [],
+      "reviewed_at": null,
+      "second_review_required": true,
+      "second_reviewed_by": [],
+      "second_reviewed_at": null,
+      "source_versions_confirmed": false,
+      "runtime_enabled": false,
+      "notes": null
+    },
+    {
+      "id": "K10",
+      "review_status": "draft",
+      "decision": null,
+      "allowed_decisions": [
+        "approve_scoped",
+        "revise",
+        "defer",
+        "reject"
+      ],
+      "approved_scope": null,
+      "reviewed_by": [],
+      "reviewed_at": null,
+      "second_review_required": true,
+      "second_reviewed_by": [],
+      "second_reviewed_at": null,
+      "source_versions_confirmed": false,
+      "runtime_enabled": false,
+      "notes": null
+    },
+    {
+      "id": "K11",
+      "review_status": "draft",
+      "decision": null,
+      "allowed_decisions": [
+        "approve_scoped",
+        "revise",
+        "defer",
+        "reject"
+      ],
+      "approved_scope": null,
+      "reviewed_by": [],
+      "reviewed_at": null,
+      "second_review_required": true,
+      "second_reviewed_by": [],
+      "second_reviewed_at": null,
+      "source_versions_confirmed": false,
+      "runtime_enabled": false,
+      "notes": null
+    },
+    {
+      "id": "K12",
+      "review_status": "approved_for_training",
+      "decision": "approve_scoped",
+      "allowed_decisions": [
+        "approve_scoped",
+        "revise",
+        "defer",
+        "reject"
+      ],
+      "approved_scope": "APP-004; internal_development; RU experimental mentor dialogue; background explanations only (K12 pedagogical guidance); no treatment, safety, scoring or patient-state authority",
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead / product owner"
+      ],
+      "reviewed_at": "2026-09-21",
+      "second_review_required": false,
+      "second_reviewed_by": [],
+      "second_reviewed_at": null,
+      "source_versions_confirmed": false,
+      "runtime_enabled": true,
+      "notes": "Explicit user approval in this task: «да, давай» to K01–K06 and K12 for experimental dialogue. Source-copy verification recorded separately; OX3 independent byte identity remains unconfirmed."
+    },
+    {
+      "id": "D01",
+      "review_status": "draft",
+      "decision": null,
+      "allowed_decisions": [
+        "approve_scoped",
+        "revise",
+        "defer",
+        "reject"
+      ],
+      "approved_scope": null,
+      "reviewed_by": [],
+      "reviewed_at": null,
+      "second_review_required": false,
+      "second_reviewed_by": [],
+      "second_reviewed_at": null,
+      "source_versions_confirmed": false,
+      "runtime_enabled": false,
+      "notes": null
+    },
+    {
+      "id": "D02",
+      "review_status": "draft",
+      "decision": null,
+      "allowed_decisions": [
+        "approve_scoped",
+        "revise",
+        "defer",
+        "reject"
+      ],
+      "approved_scope": null,
+      "reviewed_by": [],
+      "reviewed_at": null,
+      "second_review_required": true,
+      "second_reviewed_by": [],
+      "second_reviewed_at": null,
+      "source_versions_confirmed": false,
+      "runtime_enabled": false,
+      "notes": null
+    },
+    {
+      "id": "D03",
+      "review_status": "draft",
+      "decision": null,
+      "allowed_decisions": [
+        "approve_scoped",
+        "revise",
+        "defer",
+        "reject"
+      ],
+      "approved_scope": null,
+      "reviewed_by": [],
+      "reviewed_at": null,
+      "second_review_required": true,
+      "second_reviewed_by": [],
+      "second_reviewed_at": null,
+      "source_versions_confirmed": false,
+      "runtime_enabled": false,
+      "notes": null
+    },
+    {
+      "id": "D04",
+      "review_status": "draft",
+      "decision": null,
+      "allowed_decisions": [
+        "approve_scoped",
+        "revise",
+        "defer",
+        "reject"
+      ],
+      "approved_scope": null,
+      "reviewed_by": [],
+      "reviewed_at": null,
+      "second_review_required": true,
+      "second_reviewed_by": [],
+      "second_reviewed_at": null,
+      "source_versions_confirmed": false,
+      "runtime_enabled": false,
+      "notes": null
+    },
+    {
+      "id": "D05",
+      "review_status": "draft",
+      "decision": null,
+      "allowed_decisions": [
+        "approve_scoped",
+        "revise",
+        "defer",
+        "reject"
+      ],
+      "approved_scope": null,
+      "reviewed_by": [],
+      "reviewed_at": null,
+      "second_review_required": true,
+      "second_reviewed_by": [],
+      "second_reviewed_at": null,
+      "source_versions_confirmed": false,
+      "runtime_enabled": false,
+      "notes": null
+    },
+    {
+      "id": "D06",
+      "review_status": "draft",
+      "decision": null,
+      "allowed_decisions": [
+        "approve_scoped",
+        "revise",
+        "defer",
+        "reject"
+      ],
+      "approved_scope": null,
+      "reviewed_by": [],
+      "reviewed_at": null,
+      "second_review_required": false,
+      "second_reviewed_by": [],
+      "second_reviewed_at": null,
+      "source_versions_confirmed": false,
+      "runtime_enabled": false,
+      "notes": null
+    },
+    {
+      "id": "D07",
+      "review_status": "draft",
+      "decision": null,
+      "allowed_decisions": [
+        "approve_scoped",
+        "revise",
+        "defer",
+        "reject"
+      ],
+      "approved_scope": null,
+      "reviewed_by": [],
+      "reviewed_at": null,
+      "second_review_required": false,
+      "second_reviewed_by": [],
+      "second_reviewed_at": null,
+      "source_versions_confirmed": false,
+      "runtime_enabled": false,
+      "notes": null
+    },
+    {
+      "id": "D08",
+      "review_status": "draft",
+      "decision": null,
+      "allowed_decisions": [
+        "approve_scoped",
+        "revise",
+        "defer",
+        "reject"
+      ],
+      "approved_scope": null,
+      "reviewed_by": [],
+      "reviewed_at": null,
+      "second_review_required": false,
+      "second_reviewed_by": [],
+      "second_reviewed_at": null,
+      "source_versions_confirmed": false,
+      "runtime_enabled": false,
+      "notes": null
+    }
+  ]
+}

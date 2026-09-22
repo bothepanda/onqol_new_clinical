@@ -1,8 +1,8 @@
 /**
  * Interaction Reliability Remediation Wave — regression suite.
  *
- * §20: the exact failure cases from the reported learner-pilot session
- *      <raw pilot export, private>
+ * §20: the structural failure classes of a reported learner-pilot session,
+ *      re-expressed in de-identified synthetic wording (the raw export is not in the repository)
  * §21: a reusable Russian clinical-language corpus - "understand what the
  *      resident said, but never add what the resident did not say"
  * §22: safety / negative tests - the interpreter must never invent a parameter,
@@ -67,7 +67,7 @@ test("§20-B `осмотрю живот` examines the abdomen", () => {
 test("§20-C `оак оам узи обп и хрт` decomposes; the unknown token stays unresolved", () => {
   const turn = parse("оак оам узи обп и хрт");
   assert.deepEqual(testIds({ interpreted: turn }), ["cbc", "urinalysis", "ultrasound_abdomen"]);
-  assert.deepEqual(turn.unmatchedFragments, ["ост"]);
+  assert.deepEqual(turn.unmatchedFragments, ["хрт"]);
 });
 
 test("§20-D `узи обп + узи омт` is two orders, not one", () => {
@@ -270,9 +270,9 @@ const CORPUS = [
   ["088 не знаю", (t) => assert.ok(["MENTOR_ANSWER", "CLINICAL_REASONING"].includes(t.intent))],
   ["омт", (t) => assert.deepEqual(testIds({ interpreted: t }), ["pelvic_ultrasound"])],
   ["узи омт", (t) => assert.deepEqual(testIds({ interpreted: t }), ["pelvic_ultrasound"])],
-  ["ост", (t) => {
+  ["хрт", (t) => {
     assert.deepEqual(t.commands, []);
-    assert.deepEqual(t.unmatchedFragments, ["ост"]);
+    assert.deepEqual(t.unmatchedFragments, ["хрт"]);
   }],
 ];
 
