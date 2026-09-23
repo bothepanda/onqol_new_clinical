@@ -122,6 +122,57 @@ function rate(numerator, denominator) {
   return denominator > 0 ? Number((numerator / denominator).toFixed(4)) : null;
 }
 
+/**
+ * Wave B additions (fluids_01). Same counts-not-rates convention.
+ *
+ *  - reassessment follow-through: of the learner's bolus infusions, how many were
+ *    followed by an observation or a monitoring plan before the next bolus
+ *    (or that the learner had planned monitoring for beforehand)
+ *  - world-vs-mentor clarification: of the turns where the WORLD (nurse / lab)
+ *    had to ask for a missing operational parameter, how many were answered by
+ *    the world alone rather than also drawing a mentor intervention
+ *  - stale issue reopen: spoken interventions on an issue that had already been
+ *    deferred to the debrief
+ */
+export function tallyWaveB(events) {
+  const tally = { boluses: 0, followedUp: 0, clarificationTurns: 0, clarificationsWorldOnly: 0, spoken: 0, staleReopened: 0 };
+  let monitoringPlanned = false;
+  const deferred = new Set();
+  const turns = [];
+  for (const event of events) {
+    if (event.type === "LEARNER_TURN_RECEIVED") turns.push([]);
+    else if (turns.length) turns.at(-1).push(event);
+    if (event.type === "MONITORING_PRESCRIBED") monitoringPlanned = true;
+  }
+  const bolusEvents = events.filter((e) => e.type === "INFUSION_STARTED" && e.cause?.actor === "learner" && e.payload?.bolus === true);
+  tally.boluses = bolusEvents.length;
+  monitoringPlanned = false;
+  bolusEvents.forEach((bolus, index) => {
+    const start = events.indexOf(bolus);
+    const next = bolusEvents[index + 1] ? events.indexOf(bolusEvents[index + 1]) : events.length;
+    const window = events.slice(start + 1, next);
+    const plannedBefore = events.slice(0, start).some((e) => e.type === "MONITORING_PRESCRIBED");
+    if (plannedBefore || window.some((e) => ["VITALS_OBSERVED", "MONITORING_PRESCRIBED"].includes(e.type))) tally.followedUp += 1;
+  });
+  for (const turn of turns) {
+    const clarified = turn.some((e) => e.type === "CLARIFICATION_REQUESTED");
+    const mentorSpoke = turn.some((e) => e.type === "MENTOR_INTERVENED" && e.payload.spoke !== false);
+    if (clarified) {
+      tally.clarificationTurns += 1;
+      if (!mentorSpoke) tally.clarificationsWorldOnly += 1;
+    }
+    for (const e of turn) {
+      if (e.type !== "MENTOR_INTERVENED") continue;
+      for (const id of e.payload.deferredMentorIssues ?? []) deferred.add(id);
+      if (e.payload.spoke !== false && e.payload.issueId) {
+        tally.spoken += 1;
+        if (deferred.has(e.payload.issueId) && !(e.payload.deferredMentorIssues ?? []).includes(e.payload.issueId)) tally.staleReopened += 1;
+      }
+    }
+  }
+  return tally;
+}
+
 export function computeMetrics(sessions) {
   const totals = sessions.reduce((sum, { events }) => {
     const t = tallySession(events);
@@ -129,8 +180,18 @@ export function computeMetrics(sessions) {
     return sum;
   }, {});
 
+  const waveB = sessions.reduce((sum, { events }) => {
+    const t = tallyWaveB(events);
+    for (const key of Object.keys(t)) sum[key] = (sum[key] ?? 0) + t[key];
+    return sum;
+  }, {});
+
   return {
     sessionCount: sessions.length,
+    reassessment_followthrough_rate: rate(waveB.followedUp, waveB.boluses),
+    world_vs_mentor_clarification_accuracy: rate(waveB.clarificationsWorldOnly, waveB.clarificationTurns),
+    stale_issue_reopen_rate: rate(waveB.staleReopened, waveB.spoken),
+    _waveBCounts: waveB,
     question_repeat_rate: rate(totals.repeatedQuestion, totals.spokenInterventions),
     unnecessary_intervention_rate: rate(totals.sufficientButSpoke, totals.spokenInterventions),
     same_issue_persistence_accuracy: rate(totals.continuationRecognized, totals.continuationOpportunities),
