@@ -1,0 +1,9 @@
+# No reviewed postoperative-complication model for fluids-01 this wave
+# (the case's own complication is volume overload, modeled as a treatment
+# effect + a derived exam finding in trajectories.yaml/findings.yaml, not
+# as a scheduled complication check). Required file, deliberately empty -
+# see operative.yaml's header for why an empty shell is preferred to a
+# borrowed appendicitis shape that would not apply.
+schema_version: "1.0"
+postoperative_course:
+  complications: []

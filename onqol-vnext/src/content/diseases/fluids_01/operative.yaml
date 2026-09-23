@@ -1,0 +1,10 @@
+# fluids-01 has no operative decision in scope: the operation already
+# happened before the case opens (POD1, source already controlled). This
+# file exists only because it is a required content file for every disease
+# bundle (scripts/buildContentIndex.mjs#REQUIRED_FILES); every section below
+# is deliberately empty rather than populated with an appendicitis-shaped
+# operative sequence that does not apply here.
+schema_version: "1.0"
+decisions: {}
+operative_sequence: []
+preop_requirements: []

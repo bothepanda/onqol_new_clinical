@@ -1,0 +1,135 @@
+# fluids-01 reviewed clinical rules.
+#
+# Only the two rules the source calls out as CRITICAL FLAGS separate from
+# score (Часть C "Критические флаги: C1, C2") are wired as runtime rules this
+# wave. The rest of Часть A's teaching content (balance misleading, beta-
+# blocker masking tachycardia, premature AKI-by-output claim, fluid-choice
+# rationale, maintenance/potassium dosing) is catalogued in
+# docs/WAVE_B_FLUIDS_MIGRATION_MAP.md as clinical-card candidates for the
+# stateful grounded mentor, NOT wired into cardRetrieval.js /
+# ISSUE_CARD_MAP this wave - that module is still appendicitis-keyed
+# (see docs/WAVE_B_FLUIDS_VALIDATION_REPORT.md known gaps). Wiring rules
+# for every teaching point here, ungrounded by an actual retrieval path,
+# would be dead content pretending to be integrated.
+schema_version: "1.0"
+
+rules:
+  # C1: diuretic ordered before any resuscitation bolus given. LEVEL_3, not
+  # LEVEL_4 - the order still executes (see trajectories.yaml
+  # furosemide_before_volume_correction for the worsening consequence the
+  # source itself specifies), because the case models this as a dangerous
+  # error with a real consequence and a teachable moment, not a hard stop.
+  - id: RULE-FLUIDS-DIURETIC-BEFORE-VOLUME-CORRECTION
+    topic: TRAP-OLIGURIA-DIURETIC
+    level: LEVEL_3_DANGEROUS
+    authority_layer: clinical_rule
+    conditions:
+      - type: commandTypeIs
+        commandType: ORDER_MEDICATION
+      - type: commandParamHasTag
+        param: drugId
+        tag: diuretic
+      - type: noResuscitationBolusGiven
+        tag: resuscitation_fluid
+    teaching_point_ru: >-
+      Олигурия у гиповолемичного пациента — не показание к диуретику. Сначала
+      оцените и скорректируйте объём, диуретик здесь ухудшит перфузию.
+    source_ids: [SRC-ONCALL-SURGERY-CH12, SRC-NICE-CG174]
+    provenance:
+      id: RULE-FLUIDS-DIURETIC-BEFORE-VOLUME-CORRECTION
+      authority_layer: clinical_rule
+      jurisdiction: international
+      source: "onqol-trainer cases/2026-09-25-fluids-01.md v1.2, Часть C флаг C1"
+      source_version_or_date: "1.2 / 2026-09-21"
+      evidence_strength: expert_consensus
+      review_status: approved_for_training
+      reviewed_by: ["Botagoz Kaukenova — Clinical Lead"]
+      reviewed_at: "2026-09-21"
+      second_review_required: false
+      second_reviewed_by: null
+      second_reviewed_at: null
+      next_review_due: null
+      notes: "Source's own #1 typical resident error (Часть A «Типичные ошибки резидентов», item 1)."
+    score_weight: 0
+
+  # C2: another bolus after overload signs (RR>=24, matching the derived exam
+  # finding) have already been shown to the learner via
+  # learnerVisibleVitalGte - never fires on a fact the learner never asked
+  # about (the rule engine's own hidden-truth boundary, unchanged).
+  - id: RULE-FLUIDS-REPEAT-BOLUS-AFTER-OVERLOAD-SIGNS
+    topic: TRAP-BOLUS-WITHOUT-REASSESSMENT
+    level: LEVEL_3_DANGEROUS
+    authority_layer: clinical_rule
+    conditions:
+      - type: commandTypeIs
+        commandType: ORDER_INFUSION
+      - type: commandParamEquals
+        param: bolus
+        value: true
+      - type: learnerVisibleVitalGte
+        field: respiratoryRate
+        value: 24
+    teaching_point_ru: >-
+      Уже видны признаки перегрузки (ЧДД растёт). Прежде чем давать ещё
+      болюс, переоцените — лёгкие, сатурацию, диурез — и решите, нужен ли
+      объём вообще, а не наращивайте его автоматически.
+    source_ids: [SRC-NICE-CG174]
+    provenance:
+      id: RULE-FLUIDS-REPEAT-BOLUS-AFTER-OVERLOAD-SIGNS
+      authority_layer: clinical_rule
+      jurisdiction: international
+      source: "onqol-trainer cases/2026-09-25-fluids-01.md v1.2, Часть C флаг C2"
+      source_version_or_date: "1.2 / 2026-09-21"
+      evidence_strength: expert_consensus
+      review_status: approved_for_training
+      reviewed_by: ["Botagoz Kaukenova — Clinical Lead"]
+      reviewed_at: "2026-09-21"
+      second_review_required: false
+      second_reviewed_by: null
+      second_reviewed_at: null
+      next_review_due: null
+      notes: "Source's own #5 typical resident error (Часть A, item 5: «Болюс за болюсом без переоценки, вплоть до отёка лёгких»)."
+    score_weight: 0
+
+  # Deliberately PENDING, not approved: proves the governance gate actually
+  # withholds content, using the one item the source itself could not verify
+  # against the NICE CG174 PDF it checked (disease.yaml provenance notes).
+  # This rule must appear only in governanceBlockedEligibleRules, never fire
+  # as authority, and never reach a learner - see
+  # WAVE_B_FLUIDS_VALIDATION_REPORT.md's governance test.
+  - id: RULE-FLUIDS-REPEAT-BOLUS-THRESHOLD
+    topic: fluid_repeat_bolus_escalation_threshold
+    level: LEVEL_2_EDUCATIONAL
+    authority_layer: clinical_rule
+    conditions:
+      - type: commandTypeIs
+        commandType: ORDER_INFUSION
+      - type: commandParamEquals
+        param: bolus
+        value: true
+    teaching_point_ru: >-
+      [PENDING — не должно достигать резидента] После ~2000 мл болюсами без
+      ответа — эскалация и пересмотр диагноза.
+    source_ids: [SRC-NICE-CG174]
+    provenance:
+      id: RULE-FLUIDS-REPEAT-BOLUS-THRESHOLD
+      authority_layer: clinical_rule
+      jurisdiction: international
+      source: "onqol-trainer cases/2026-09-25-fluids-01.md v1.2, Часть A «Тактика»: repeat-bolus / 2000mL threshold"
+      source_version_or_date: "1.2 / 2026-09-21"
+      evidence_strength: NEEDS_SOURCE
+      review_status: pending_review
+      reviewed_by: null
+      reviewed_at: null
+      second_review_required: true
+      second_reviewed_by: null
+      second_reviewed_at: null
+      next_review_due: null
+      notes: >-
+        The source document itself states this threshold was NOT found in the
+        NICE CG174 PDF it checked (attributed to NICE's algorithm 2, not
+        included in that PDF). Per governance-gate-strict-approved-only, this
+        stays pending_review rather than being silently promoted alongside
+        the rest of the case - even though the Clinical Lead promoted the
+        rest of v1.2 directly.
+    score_weight: 0

@@ -223,6 +223,30 @@ medications:
       source: "APP-004 — Second Clinical Review, VTE section"
       notes: "40 mg SC once daily only when Caprini/bleeding/renal gates permit. No renal-adjustment dose is authored."
 
+  # fluids-01 (Wave B): tags: [diuretic] is what
+  # RULE-FLUIDS-DIURETIC-BEFORE-VOLUME-CORRECTION (rules.yaml) matches on.
+  furosemide:
+    label_ru: "фуросемид"
+    tags: [diuretic]
+    order_validation:
+      routes:
+        iv: { allowed_doses_mg: [20, 40] }
+    provenance:
+      id: MED-FUROSEMIDE-FLUIDS-01
+      authority_layer: clinical_rule
+      jurisdiction: international
+      source: "onqol-trainer cases/2026-09-25-fluids-01.md v1.2, branching table row «Фуросемид»"
+      source_version_or_date: "1.2 / 2026-09-21"
+      evidence_strength: expert_consensus
+      review_status: approved_for_training
+      reviewed_by: ["Botagoz Kaukenova — Clinical Lead"]
+      reviewed_at: "2026-09-21"
+      second_review_required: false
+      second_reviewed_by: null
+      second_reviewed_at: null
+      next_review_due: null
+      notes: "Order is permitted to execute (LEVEL_3, not a hard stop) - the case's own point is the physiologic consequence, not an unreachable action."
+
 not_in_reference_set:
   - id: metamizole_plus_diphenhydramine
     label_ru: "метамизол + дифенгидрамин"
@@ -247,6 +271,46 @@ fluids:
   crystalloid:
     label_ru: "кристаллоидный раствор"
     review_status: pending
+
+  # fluids-01 (Wave B) formulary of the fixed patient's own clinic (source
+  # document, Часть B "Формуляр вашей клиники"). tags: [resuscitation_fluid]
+  # is what core/rules/conditions.js#noResuscitationBolusGiven checks for C1.
+  sterofundin: &fluids_01_formulary_entry
+    label_ru: "Стерофундин"
+    tags: [resuscitation_fluid, balanced_crystalloid]
+    review_status: approved_for_training
+    reviewed_by: ["Botagoz Kaukenova — Clinical Lead"]
+    reviewed_at: "2026-09-21"
+  ringers_lactate:
+    <<: *fluids_01_formulary_entry
+    label_ru: "Рингер-лактат"
+  hartmann:
+    <<: *fluids_01_formulary_entry
+    label_ru: "раствор Хартмана"
+  normal_saline:
+    <<: *fluids_01_formulary_entry
+    label_ru: "0,9% NaCl"
+    tags: [resuscitation_fluid]
+  ringers_no_lactate:
+    <<: *fluids_01_formulary_entry
+    label_ru: "раствор Рингера (без лактата)"
+    tags: [resuscitation_fluid]
+  gelofusine:
+    <<: *fluids_01_formulary_entry
+    label_ru: "Гелофузин"
+    tags: [resuscitation_fluid, colloid]
+  albumin:
+    <<: *fluids_01_formulary_entry
+    label_ru: "альбумин"
+    tags: []
+  glucose_5_percent:
+    <<: *fluids_01_formulary_entry
+    label_ru: "глюкоза 5%"
+    tags: []
+  sodium_bicarbonate:
+    <<: *fluids_01_formulary_entry
+    label_ru: "бикарбонат натрия"
+    tags: []
 
 provenance:
   id: CONTENT-SHARED-FORMULARY

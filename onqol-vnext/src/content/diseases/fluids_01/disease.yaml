@@ -1,0 +1,110 @@
+# Disease card: postoperative fluid/volume management (Wave B vertical slice).
+#
+# Migrated from onqol-trainer (prototype/study-sessions branch, read-only
+# donor) cases/2026-09-25-fluids-01.md v1.2 - see
+# docs/WAVE_B_FLUIDS_SOURCE_MANIFEST.md and
+# docs/WAVE_B_FLUIDS_MIGRATION_MAP.md for provenance and category mapping.
+#
+# Unlike appendicitis, this is ONE frozen scripted teaching patient with a
+# deterministic branching table, not a phenotype library - see
+# phenotypes.yaml's `fixed_patient` block. There is therefore no
+# `physiology_envelopes` / `inflammatory_profiles` section here: nothing in
+# this bundle draws from one.
+#
+# Governance: the user reviewed and froze the source case herself (v1.2,
+# 2026-09-21) with per-guideline verification already recorded inline in the
+# source document, and explicitly decided (2026-09-23, Wave B kickoff) to
+# promote it directly to approved_for_training on migration rather than
+# route it through a second pending_review pass - see memory
+# wave-b-fluids-governance-decision. The ONE item the source itself flags as
+# an unconfirmed citation (the repeat-bolus / "2000mL -> call senior"
+# threshold, explicitly NOT found in the NICE CG174 PDF the source checked)
+# stays pending_review below, on the manifest's own honesty requirement, not
+# because of a different rule.
+schema_version: "1.0"
+disease_id: fluids_01
+presentation_category: postoperative_fluid_management
+
+provenance:
+  id: DISEASE-FLUIDS-01
+  authority_layer: clinical_rule
+  jurisdiction: international
+  source: "onqol-trainer cases/2026-09-25-fluids-01.md v1.2 (2026-09-21); Adams G.A. On Call Surgery ch.12 (pedagogical base)"
+  source_version_or_date: "1.2 / 2026-09-21"
+  evidence_strength: guideline
+  review_status: approved_for_training
+  reviewed_by: ["Botagoz Kaukenova — Clinical Lead"]
+  reviewed_at: "2026-09-21"
+  second_review_required: false
+  second_reviewed_by: null
+  second_reviewed_at: null
+  next_review_due: null
+  notes: >-
+    Case frozen by the Clinical Lead before its first live session, with
+    per-guideline verification (NICE CG174, ASCRS/SAGES ERAS 2023, SSC 2026,
+    KDIGO 2012) recorded inline in the source document. Promoted directly to
+    approved_for_training on Wave B migration by explicit Clinical Lead
+    decision (2026-09-23), not by a second independent review pass.
+
+sources:
+  - id: SRC-NICE-CG174
+    title: "Intravenous fluid therapy in adults in hospital (CG174)"
+    organization: "National Institute for Health and Care Excellence"
+    publication_year: 2017
+    jurisdiction: international
+    role: >-
+      Checked against the source PDF for §§1.2.1, 1.2.5, 1.3.1, 1.4.1-1.4.4.
+      The repeat-bolus and "2000mL -> call senior" thresholds were NOT found
+      in this PDF (attributed by the case author to NICE's algorithm 2,
+      which the checked PDF does not include) - see RULE-FLUIDS-REPEAT-BOLUS-THRESHOLD.
+  - id: SRC-ASCRS-SAGES-ERAS-2023
+    title: "ERAS Society consensus guidelines for colorectal surgery (2023 update)"
+    organization: "ASCRS/SAGES; Dis Colon Rectum 66:15"
+    publication_year: 2023
+    jurisdiction: international
+    role: "Checked against source PDF for rec. 13 (1A), 14 (1B), 16 (2B), 19 (1B)."
+  - id: SRC-SSC-2026
+    title: "Surviving Sepsis Campaign 2026"
+    organization: "Society of Critical Care Medicine"
+    publication_year: 2026
+    jurisdiction: international
+    role: >-
+      Sepsis guideline used only as a directional reference for fluid-type
+      and resuscitation-logic in this non-septic postoperative-hypovolemia
+      case, not as direct authority for this patient (case author's own
+      caveat, preserved here).
+  - id: SRC-KDIGO-2012-AKI
+    title: "KDIGO Clinical Practice Guideline for Acute Kidney Injury"
+    organization: "Kidney Disease: Improving Global Outcomes"
+    publication_year: 2012
+    jurisdiction: international
+    role: "AKI staging criteria only."
+  - id: SRC-ONCALL-SURGERY-CH12
+    title: "On Call Surgery, ch. 12 (fluids)"
+    organization: "Adams G.A."
+    role: "Pedagogical starting point only - not treated as clinical authority; several of its claims were explicitly rejected (see rules.yaml REJECTED-TEXTBOOK-CLAIMS)."
+
+teaching_traps:
+  - id: TRAP-OLIGURIA-DIURETIC
+    concept: oliguria_treated_with_diuretic_instead_of_volume_assessment
+    source_ids: [SRC-ONCALL-SURGERY-CH12]
+  - id: TRAP-POSITIVE-BALANCE-MEANS-ENOUGH-FLUID
+    concept: positive_io_balance_does_not_rule_out_hypovolemia
+    source_ids: [SRC-NICE-CG174]
+  - id: TRAP-BOLUS-WITHOUT-REASSESSMENT
+    concept: repeated_boluses_without_reassessment_risk_overload
+    source_ids: [SRC-NICE-CG174]
+  - id: TRAP-PREMATURE-AKI-BY-OUTPUT
+    concept: aki_by_urine_output_criterion_requires_the_full_6h_window
+    source_ids: [SRC-KDIGO-2012-AKI]
+  - id: TRAP-BETA-BLOCKER-MASKS-TACHYCARDIA
+    concept: beta_blocker_blunts_tachycardic_response_to_hypovolemia
+    source_ids: [SRC-ONCALL-SURGERY-CH12]
+
+release_gate:
+  production_allowed: false
+  reason: >-
+    Wave B vertical slice: core mechanism and content authored and unit
+    tested; no live-provider session has been run yet (requires explicit
+    spend approval - see docs/WAVE_B_FLUIDS_VALIDATION_REPORT.md). Not
+    pilot-ready until a live session is reviewed.

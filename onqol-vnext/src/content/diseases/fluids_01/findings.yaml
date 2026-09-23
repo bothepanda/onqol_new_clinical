@@ -1,0 +1,99 @@
+# fluids-01 exam findings: static (chosen once, per patient) and derived
+# (evaluated against CURRENT state each time the region is examined).
+#
+# Region names here are content, not a fixed appendicitis vocabulary:
+# perfusion, neck_veins, chest, abdomen, catheter.
+schema_version: "1.0"
+localisation_token: null
+
+exam_slots:
+  - id: skin
+    region: perfusion
+    group: inspection
+    title_ru: "кожа, капиллярное наполнение"
+    states:
+      cold_pale: "кожа конечностей прохладная, бледная"
+
+  - id: mucous_membranes
+    region: perfusion
+    group: inspection
+    title_ru: "слизистые"
+    states:
+      dry: "слизистые сухие"
+
+  - id: neck_veins
+    region: neck_veins
+    group: inspection
+    title_ru: "вены шеи"
+    states:
+      flat: "вены шеи плоские лёжа"
+
+  - id: heart_sounds
+    region: chest
+    group: auscultation
+    title_ru: "тоны сердца"
+    states:
+      regular_no_s3: "тоны сердца ритмичные, S3 нет"
+
+  - id: abdomen_postop
+    region: abdomen
+    group: inspection
+    title_ru: "живот (послеоперационный)"
+    states:
+      moderately_distended_wound_tender: "живот умеренно вздут, болезненен в области раны, перитонеальных знаков нет; повязка сухая"
+
+  - id: drains_catheter
+    region: catheter
+    group: devices
+    title_ru: "дренаж, мочевой катетер"
+    states:
+      patent: "дренаж — отделяемое серозное; мочевой катетер проходим (промывание свободное)"
+
+# Wave B mechanism (core/renderEvent.js#renderSlotExam): a rule is evaluated
+# against LIVE state, not a snapshot, so this finding can change mid-case as
+# the patient responds to treatment or deteriorates. CRT itself is reported
+# as a NUMBER via vitals (renderStatus.js), not here - this slot is
+# specifically the lung finding the case ties to volume overload.
+derived_exam_slots:
+  - id: lung_auscultation
+    region: chest
+    group: auscultation
+    rules:
+      - when: { path: "physiology.respiratoryRate", operator: "gte", value: 24 }
+        text_ru: "дыхание везикулярное, в нижних отделах влажные хрипы"
+      - default: true
+        text_ru: "дыхание везикулярное, хрипов нет"
+    provenance:
+      id: DERIVED-EXAM-FLUIDS-01-LUNGS
+      authority_layer: patient_truth
+      jurisdiction: international
+      source: "onqol-trainer cases/2026-09-25-fluids-01.md v1.2, branching table row «Суммарно > 2,5 л болюсами без переоценки»"
+      source_version_or_date: "1.2 / 2026-09-21"
+      evidence_strength: expert_consensus
+      review_status: approved_for_training
+      reviewed_by: ["Botagoz Kaukenova — Clinical Lead"]
+      reviewed_at: "2026-09-21"
+      second_review_required: false
+      second_reviewed_by: null
+      second_reviewed_at: null
+      next_review_due: null
+      notes: "RR>=24 threshold is an authoring choice matched to the source's RR26/SpO2 92 overload row, not a separately cited guideline number."
+
+universal_normal_layer:
+  default_ru: "Эта область не описана в кейсе fluids-01. Общий осмотр здесь: кожа/капиллярное наполнение, слизистые, вены шеи, тоны сердца и дыхание, живот, дренаж/катетер."
+  regions: {}
+  provenance:
+    id: FINDINGS-UNIVERSAL-NORMAL-LAYER-FLUIDS-01
+    authority_layer: patient_truth
+    jurisdiction: international
+    source: "Wave B authoring decision - fluids-01 has no 'everything else is normal' catalogue; unmodeled regions say so honestly instead of asserting an unreviewed normal finding."
+    source_version_or_date: "2026-09-23"
+    evidence_strength: expert_consensus
+    review_status: approved_for_training
+    reviewed_by: ["Botagoz Kaukenova — Clinical Lead"]
+    reviewed_at: "2026-09-23"
+    second_review_required: false
+    second_reviewed_by: null
+    second_reviewed_at: null
+    next_review_due: null
+    notes: "Deliberately empty `regions` - unlike appendicitis's universal_normal_layer, this case has no reviewed catalogue of incidental normal findings to fall back on."

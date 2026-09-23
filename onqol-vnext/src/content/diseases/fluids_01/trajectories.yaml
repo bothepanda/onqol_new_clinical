@@ -1,0 +1,142 @@
+# fluids-01 treatment effects and natural course.
+#
+# Every delta below is taken from onqol-trainer cases/2026-09-25-fluids-01.md
+# v1.2, Часть B "Ответы на действия резидента (ветвления)" and the fluid-choice
+# table beneath it. `scheduleGovernedTreatmentEffect` (executeCommand.js)
+# applies the SAME flat delta to every order of a given fluid, so a bolus
+# followed by a repeat bolus compounds two applications of one delta rather
+# than reading two different table rows. Checked against the source: HR,
+# diastolic BP, CRT and urine output land EXACTLY on both rows this way;
+# systolic BP lands within 1 mmHg of row 1 (113 vs the source's 112) to hit
+# row 2 (122) exactly two applications later - documented here rather than
+# silently accepted, per this project's standing "don't invent physiology"
+# rule (a single authored delta cannot reproduce two independently-authored
+# table rows to the decimal, and the alternative - a state flag distinguishing
+# "first" from "repeat" bolus - is a real mechanism this Wave does not build).
+schema_version: "1.0"
+
+trajectories:
+  TRJ-FLUIDS-01-BASELINE:
+    id: TRJ-FLUIDS-01-BASELINE
+    description_ru: >-
+      Без вмешательства гиповолемия ухудшается примерно за час (источник,
+      строка «Наблюдение без вмешательства»). Любой болюс прерывает эту
+      траекторию, потому что переход обусловлен infusions.length == 0.
+    natural_course_model:
+      kind: bounded_state_transitions
+      initial_state_id: hypovolemic_untreated
+      transitions:
+        - id: TRJ-FLUIDS-01-DETERIORATION-NO-INTERVENTION
+          from: hypovolemic_untreated
+          to: hypovolemic_deteriorated
+          eligible_after_minutes: 60
+          conditions:
+            - path: infusions.length
+              operator: equals
+              value: 0
+          effects:
+            physiology:
+              systolicBp: { set: 94 }
+              diastolicBp: { set: 58 }
+              heartRate: { set: 124 }
+              urineOutputMlPerHr: { set: 5 }
+              lactate: { set: 3.4 }
+          rule_ids: [RULE-FLUIDS-DETERIORATION-NO-INTERVENTION]
+          source_ids: [SRC-NICE-CG174]
+    provenance:
+      id: TRJ-FLUIDS-01-BASELINE
+      authority_layer: patient_truth
+      jurisdiction: international
+      source: "onqol-trainer cases/2026-09-25-fluids-01.md v1.2, branching table row «Наблюдение без вмешательства»"
+      source_version_or_date: "1.2 / 2026-09-21"
+      evidence_strength: expert_consensus
+      review_status: approved_for_training
+      reviewed_by: ["Botagoz Kaukenova — Clinical Lead"]
+      reviewed_at: "2026-09-21"
+      second_review_required: false
+      second_reviewed_by: null
+      second_reviewed_at: null
+      next_review_due: null
+      notes: "Deliberately qualitative single deterioration step, not a continuous decay curve, matching the source's own one-row table entry."
+
+treatment_effects:
+  fluid_bolus_balanced_crystalloid:
+    applies_to_fluid: [sterofundin, ringers_lactate, hartmann]
+    response_envelope:
+      onset_minutes: 15
+      heart_rate_delta: -8
+      systolic_bp_delta: 9
+      diastolic_bp_delta: 6
+      crt_seconds_delta: -0.5
+      urine_output_ml_per_hr_delta: 20
+    source_ids: [SRC-NICE-CG174, SRC-ASCRS-SAGES-ERAS-2023]
+    provenance: &fluids_treatment_effect_provenance
+      id: TE-FLUIDS-01-BOLUS-BALANCED
+      authority_layer: clinical_rule
+      jurisdiction: international
+      source: "onqol-trainer cases/2026-09-25-fluids-01.md v1.2, branching table"
+      source_version_or_date: "1.2 / 2026-09-21"
+      evidence_strength: expert_consensus
+      review_status: approved_for_training
+      reviewed_by: ["Botagoz Kaukenova — Clinical Lead"]
+      reviewed_at: "2026-09-21"
+      second_review_required: false
+      second_reviewed_by: null
+      second_reviewed_at: null
+      next_review_due: null
+      notes: "500mL <15min bolus response; identical delta applied to a repeat bolus (see file header for the two-application tolerance note)."
+
+  # "Same hemodynamic effect" as the balanced bolus (source's own words for
+  # the NS / non-lactate Ringer's rows) - the teaching point here is fluid
+  # CHOICE (rubric item 8), not a different physiologic response. The
+  # source's repeat-ABG chloride divergence (Cl 114, HCO3 16) is NOT modeled
+  # here - deferred, see WAVE_B_FLUIDS_VALIDATION_REPORT.md known gaps.
+  fluid_bolus_unbalanced:
+    applies_to_fluid: [normal_saline, ringers_no_lactate]
+    response_envelope:
+      onset_minutes: 15
+      heart_rate_delta: -8
+      systolic_bp_delta: 9
+      diastolic_bp_delta: 6
+      crt_seconds_delta: -0.5
+      urine_output_ml_per_hr_delta: 20
+    source_ids: [SRC-NICE-CG174]
+    provenance:
+      <<: *fluids_treatment_effect_provenance
+      id: TE-FLUIDS-01-BOLUS-UNBALANCED
+      notes: "Source: '0,9% NaCl вместо сбалансированного — эффект тот же'. Chloride/ABG consequence deliberately not modeled this wave."
+
+  fluid_bolus_colloid:
+    applies_to_fluid: [gelofusine]
+    response_envelope:
+      onset_minutes: 15
+      heart_rate_delta: -12
+      systolic_bp_delta: 10
+      diastolic_bp_delta: 6
+    source_ids: [SRC-ASCRS-SAGES-ERAS-2023]
+    provenance:
+      <<: *fluids_treatment_effect_provenance
+      id: TE-FLUIDS-01-BOLUS-COLLOID
+      notes: "Source gives HR/BP only for this row; CRT/urine output not stated, so not modeled (left unchanged) rather than guessed."
+
+  # C1's own physiology consequence: worsening, not improvement - matches the
+  # source exactly ("Диурез 80 мл за час, АД 92/54, ЧСС 122, лактат 3,4
+  # (ухудшение)"). The C1 rule (rules.yaml) flags the ORDER; this effect
+  # models what actually then happens to the patient if it executes.
+  furosemide_before_volume_correction:
+    applies_to: [furosemide]
+    applies_to_routes: [iv]
+    response_envelope:
+      onset_minutes: 20
+      heart_rate_delta: 10
+      systolic_bp_delta: -12
+      diastolic_bp_delta: -8
+      urine_output_ml_per_hr_delta: 65
+      lactate_delta: 0.8
+    source_ids: [SRC-ONCALL-SURGERY-CH12]
+    provenance:
+      <<: *fluids_treatment_effect_provenance
+      id: TE-FLUIDS-01-FUROSEMIDE
+      notes: "Diuretic-driven output rise with hemodynamic/perfusion worsening - the case's own illustration of why oliguria here is not a diuretic-responsive problem."
+
+investigation_timing: {}

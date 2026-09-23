@@ -3,6 +3,22 @@
  * current snapshot, built only from `learnerVisible` - never from
  * `state.truth` - and never expanded into a full re-examination.
  */
+// Label/unit for every physiology field any disease's content may generate.
+// Order here is display order. A field absent from `vitals` (because that
+// disease's envelope never produces it) is simply skipped, not shown blank.
+const VITALS_FIELD_RU = Object.freeze({
+  heartRate: { label: "ЧСС", unit: "/мин" },
+  systolicBp: { label: "АД сист.", unit: " мм рт.ст." },
+  diastolicBp: { label: "АД диаст.", unit: " мм рт.ст." },
+  respiratoryRate: { label: "ЧДД", unit: "/мин" },
+  temperatureC: { label: "T", unit: " °C" },
+  spo2Percent: { label: "SpO₂", unit: "%" },
+  crtSeconds: { label: "CRT", unit: " с" },
+  urineOutputMlPerHr: { label: "диурез", unit: " мл/ч" },
+  lactate: { label: "лактат", unit: " ммоль/л" },
+});
+const VITALS_FIELD_ORDER = Object.keys(VITALS_FIELD_RU);
+
 export function renderStatusSnapshot(learnerVisible) {
   const observation = learnerVisible.physiologyKnownAt;
   const vitals = observation?.values;
@@ -11,14 +27,17 @@ export function renderStatusSnapshot(learnerVisible) {
   // timestamp lets the learner read a stale number as current - the same class
   // of invented certainty task §20 prohibits.
   const staleByMinutes = observation ? Math.round(learnerVisible.clock.elapsedMinutes - observation.atMinutes) : null;
-  // Systolic only: the reviewed physiology envelope does not model a
-  // diastolic value, and the renderer does not invent one (Governance
-  // Spec §2). Task brief §14's "clinically usable BP" is conditional on both
-  // values existing; here they do not, and saying so honestly beats printing
-  // a plausible number nobody reviewed.
+  // Generic over whichever physiology fields the disease's content actually
+  // generates (Wave B): appendicitis's envelope never produces diastolicBp/
+  // spo2Percent/crtSeconds/urineOutputMlPerHr/lactate, so those simply don't
+  // appear for it, unchanged from before this generalization. A field this
+  // renderer doesn't recognise at all is silently skipped rather than shown
+  // as a raw key - the renderer does not invent a label any more than it
+  // invents a value (Governance Spec §2).
   const vitalsRu = vitals
-    ? `ЧСС ${vitals.heartRate}/мин, АД сист. ${vitals.systolicBp} мм рт.ст., ЧДД ${vitals.respiratoryRate}/мин, T ${vitals.temperatureC} °C` +
-      (staleByMinutes >= 30 ? ` (последнее измерение ${staleByMinutes} мин назад).` : ".")
+    ? VITALS_FIELD_ORDER.filter((field) => vitals[field] != null)
+        .map((field) => `${VITALS_FIELD_RU[field].label} ${vitals[field]}${VITALS_FIELD_RU[field].unit}`)
+        .join(", ") + (staleByMinutes >= 30 ? ` (последнее измерение ${staleByMinutes} мин назад).` : ".")
     : "Витальные ещё не оценивались.";
   // Matrix PO01: once the source is controlled the pre-source-control pain is a
   // CLOSED state, and the recovery trajectory that would give the new one a

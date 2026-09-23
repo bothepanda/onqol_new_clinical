@@ -1,0 +1,129 @@
+# fluids-01: one frozen scripted patient, not a phenotype library.
+#
+# `fixed_patient` is read directly by `core/patient/patientGenerator.js`'s
+# generic fixed-patient path (Wave B core extension) instead of the
+# draw-from-ranges pipeline appendicitis uses. Every number below is taken
+# verbatim from onqol-trainer cases/2026-09-25-fluids-01.md v1.2, Часть B.
+schema_version: "1.0"
+
+phenotypes:
+  fluids_01_patient:
+    phenotype_id: fluids_01_patient
+    provenance:
+      id: PHENOTYPE-FLUIDS-01
+      authority_layer: patient_truth
+      jurisdiction: international
+      source: "onqol-trainer cases/2026-09-25-fluids-01.md v1.2, Часть B"
+      source_version_or_date: "1.2 / 2026-09-21"
+      evidence_strength: expert_consensus
+      review_status: approved_for_training
+      reviewed_by: ["Botagoz Kaukenova — Clinical Lead"]
+      reviewed_at: "2026-09-21"
+      second_review_required: false
+      second_reviewed_by: null
+      second_reviewed_at: null
+      next_review_due: null
+      notes: "One scripted teaching patient; see disease.yaml provenance for the promotion decision."
+
+    fixed_patient:
+      demographics:
+        age: 61
+        sex: male
+
+      # Hidden truth. Nothing here reaches the learner directly - it is read
+      # only for rule conditions and the debrief's causal trail.
+      truth:
+        diseaseId: fluids_01
+        operativeHistoryRu: >-
+          Плановая резекция сигмовидной кишки с анастомозом (дивертикулярная
+          стриктура), срединная лапаротомия, операция 4 ч, закончена в 16:00,
+          кровопотеря 300 мл, интраоперационно 2500 мл 0,9% NaCl.
+        # AKI staging (ТЗ §60/§14 - already reviewed, not invented): creatinine
+        # criterion (rise +36 µmol/L in <=48h, threshold >=26.5) IS met; the
+        # KDIGO 6h urine-output criterion is NOT yet met at case open (60mL/4h
+        # for an 82kg patient is a running total, not a completed 6h window).
+        # A mentor/debrief claim of "AKI by urine output" before that window
+        # closes is exactly TRAP-PREMATURE-AKI-BY-OUTPUT.
+        akiCreatinineCriterionMet: true
+        akiUrineOutputCriterionMet: false
+        betaBlockerRu: "метопролола сукцинат 100 мг 1 раз/сут, принят накануне в 21:00"
+        baselineSystolicBp: 140
+
+      initial_physiology:
+        heartRate: 112
+        systolicBp: 104
+        diastolicBp: 62
+        temperatureC: 37.6
+        respiratoryRate: 20
+        spo2Percent: 96
+        crtSeconds: 3.0
+        urineOutputMlPerHr: 15
+        lactate: 2.6
+
+      initial_symptoms:
+        painState: post_source_control
+        preSourceControlPainScore: null
+        postSourceControlPainScore: null
+        postSourceControlPainModeled: false
+        painSiteRu: "область операционной раны"
+        nausea: false
+        vomitingEpisodes: 0
+
+      presentation:
+        historyFixedRu:
+          - "02:10. Дежурная медсестра хирургического отделения: пациент, послеоперационные сутки 1, за последние 4 часа выделил 60 мл мочи, «какой-то вялый»."
+          - "Мужчина 61 год, 82 кг. Плановая резекция сигмовидной кишки с анастомозом, срединная лапаротомия, операция 4 ч, закончена в 16:00 (сейчас ≈10 часов после операции)."
+          - "Гипертензия, метопролола сукцинат 100 мг 1 раз/сут, принят вчера в 21:00. Базовое АД 140/85."
+        painSiteRu: "область операционной раны"
+
+      laboratory:
+        weightKg: 82
+        chemistry:
+          sodium_mmol_l: 138
+          potassium_mmol_l: 3.6
+          chloride_mmol_l: 110
+          urea_mmol_l: 9.8
+          creatinine_umol_l: { current: 118, baseline: 82 }
+        hemoglobin_g_l: { current: 126, preop: 128 }
+        glucose_mmol_l: 7.2
+        abg:
+          ph: 7.32
+          pco2_mm_hg: 36
+          hco3_mmol_l: 18
+          be_mmol_l: -7
+          anion_gap_approx: 10
+        urine_specific_gravity: 1.030
+        ecg_ru: "синусовая тахикардия 110, ишемии нет"
+        troponin_ru: "отрицательный"
+
+      exam_slots:
+        skin: cold_pale
+        mucous_membranes: dry
+        neck_veins: flat
+        heart_sounds: regular_no_s3
+        abdomen_postop: moderately_distended_wound_tender
+        drains_catheter: patent
+
+demographics:
+  age_years: [61, 61]
+  sexes: [male]
+  provenance:
+    id: DEMOGRAPHICS-FLUIDS-01
+    authority_layer: patient_truth
+    jurisdiction: international
+    source: "Not used by generation (fixed_patient path); present only for schema/tooling that expects this key."
+    source_version_or_date: "2026-09-23"
+    evidence_strength: expert_consensus
+    review_status: approved_for_training
+    reviewed_by: ["Botagoz Kaukenova — Clinical Lead"]
+    reviewed_at: "2026-09-23"
+    second_review_required: false
+    second_reviewed_by: null
+    second_reviewed_at: null
+    next_review_due: null
+    notes: "Degenerate single-value range; the actual patient comes from fixed_patient, not from this range."
+
+case_presets:
+  - case_preset_id: FLUIDS-01
+    phenotype_id: fluids_01_patient
+    trajectory_id: TRJ-FLUIDS-01-BASELINE
