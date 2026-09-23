@@ -1,4 +1,4 @@
-import { COMMAND } from "../../core/commands/commandTypes.js";
+import { COMMAND, createCommand } from "../../core/commands/commandTypes.js";
 import { interpretDeterministically } from "./deterministicInterpreter.js";
 import { interpretSemanticTask, VALIDATION_MODE } from "./splitSemanticInterpreter.js";
 import { SEMANTIC_TASK } from "./semanticTaskSchemas.js";
@@ -118,7 +118,7 @@ export async function interpretSemanticFirst({
     rawText: text, idPrefix, policy: SEMANTIC_FIRST_POLICY, consulted: true });
   const rejected = candidates.filter((candidate) => candidate.decision === "REJECT")
     .flatMap((candidate) => candidate.evidenceSpans).filter((span) => containsNormalized(text, span));
-  const commands = arbitration.finalCommands;
+  const commands = mergeLiteralReassessTargets(arbitration.finalCommands, deterministic.commands ?? []);
   const clinicalCommands = commands.filter((command) => !BOOKKEEPING.has(command.type));
   return {
     ...base, commands, mode: "semantic_first",
@@ -146,5 +146,19 @@ function withoutUnderstoodSpans(fragments, commands) {
   return fragments.filter((fragment) => {
     const words = normalizeText(fragment);
     return !understood.some((span) => span.length > words.length && span.includes(words));
+  });
+}
+
+// A model sometimes lists only the FIRST thing to measure. The deterministic
+// reading of the same words names targets literally («давление, пульс, диурез,
+// перфузию»); an accepted REASSESS gains the targets the learner literally
+// named, never any the words do not contain.
+function mergeLiteralReassessTargets(commands, deterministicCommands) {
+  const literal = deterministicCommands.filter((command) => command.type === COMMAND.REASSESS).flatMap((command) => command.params?.targets ?? []);
+  if (!literal.length) return commands;
+  return commands.map((command) => {
+    if (command.type !== COMMAND.REASSESS) return command;
+    const targets = [...new Set([...(command.params?.targets ?? []), ...literal])];
+    return targets.length === (command.params?.targets ?? []).length ? command : createCommand({ id: command.id, type: command.type, params: { ...command.params, targets }, sourceText: command.sourceText });
   });
 }
