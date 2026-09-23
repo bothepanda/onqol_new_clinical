@@ -149,6 +149,7 @@ export async function runGroundedDialogue({ provider, context, library, timeoutM
         lastError = error;
         if (attempt < maxRegenerations && REPAIRABLE_ERRORS.has(error.message)) {
           attempt += 1;
+          audit.regenerations = attempt; // recorded on a fallback too, so metrics see the retry
           continue;
         }
         throw error;

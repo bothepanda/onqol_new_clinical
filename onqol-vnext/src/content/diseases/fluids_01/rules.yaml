@@ -195,6 +195,7 @@ teaching_issues:
       next_review_due: null
       notes: "Mentor timing and question wording only. Asserts no clinical claim: levels 1-3 are questions/cues, level 4 quotes the approved cards named in `explains` verbatim (checked by test). Not promoted by any reviewer."
   - id: fluids.fluid_choice
+    once: true
     scope: command
     priority: 4
     mode: CLARIFY
@@ -308,6 +309,7 @@ teaching_issues:
       next_review_due: null
       notes: "Mentor timing and question wording only. Asserts no clinical claim: levels 1-3 are questions/cues, level 4 quotes the approved cards named in `explains` verbatim (checked by test). Not promoted by any reviewer."
   - id: fluids.overload_unaddressed
+    once: true
     scope: turn
     priority: 3
     mode: CLARIFY
@@ -351,6 +353,7 @@ teaching_issues:
       next_review_due: null
       notes: "Mentor timing and question wording only. Asserts no clinical claim: levels 1-3 are questions/cues, level 4 quotes the approved cards named in `explains` verbatim (checked by test). Not promoted by any reviewer."
   - id: fluids.consult_ownership
+    once: true
     scope: turn
     priority: 4
     mode: CLARIFY

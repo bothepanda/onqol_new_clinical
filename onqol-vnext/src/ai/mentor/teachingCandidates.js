@@ -72,6 +72,9 @@ export function detectTeachingCandidates({ bundle, state, learnerVisible, result
 
   for (const issue of bundle.rules?.teaching_issues ?? []) {
     if (!isTeachingIssueActive(issue) || deferred.has(issue.id)) continue;
+    // `once: true` - a closed issue is not reopened without new evidence: once it
+    // has been raised and is no longer pending, it stays closed for the case.
+    if (issue.once === true && (state.mentor.raisedIssues ?? []).includes(issue.id) && pending?.issueId !== issue.id) continue;
     const base = { state, learnerVisible, bundle, turn };
     let triggered;
     if (issue.scope === "rule") triggered = executed.some((r) => (r.firedRules ?? []).some((rule) => rule.id === issue.rule_id));
