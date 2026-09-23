@@ -34,6 +34,7 @@ phenotypes:
       # only for rule conditions and the debrief's causal trail.
       truth:
         diseaseId: fluids_01
+        trajectoryId: TRJ-FLUIDS-01-BASELINE
         operativeHistoryRu: >-
           Плановая резекция сигмовидной кишки с анастомозом (дивертикулярная
           стриктура), срединная лапаротомия, операция 4 ч, закончена в 16:00,
@@ -127,3 +128,8 @@ case_presets:
   - case_preset_id: FLUIDS-01
     phenotype_id: fluids_01_patient
     trajectory_id: TRJ-FLUIDS-01-BASELINE
+    # internal_development only this wave - no live-provider session has run
+    # yet (docs/WAVE_B_FLUIDS_VALIDATION_REPORT.md). Promoting to
+    # learner_enabled is a later, explicit decision, not a side effect of
+    # content authoring.
+    runtime_status: development_only
