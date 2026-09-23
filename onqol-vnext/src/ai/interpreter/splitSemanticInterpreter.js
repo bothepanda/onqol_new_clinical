@@ -1,3 +1,4 @@
+import { narrowBroadEvidence } from "./evidenceNarrowing.js";
 import { createCommand, validateCommand } from "../../core/commands/commandTypes.js";
 import { stage2ActionFormat, normalizeStage2Output, stage2SafeContext } from "./stage2ActionSchema.js";
 import { bindModelCommands } from "./deterministicParameterBinder.js";
@@ -105,7 +106,7 @@ export async function interpretSemanticTask({
   try {
     const validated = task === SEMANTIC_TASK.ACTION
       ? (validationMode === VALIDATION_MODE.CANDIDATE_ARBITRATED
-        ? validateActionCandidates({ output: schema.value, text, turnContext, allowlist: request.allowlist, policy })
+        ? validateActionCandidates({ output: narrowBroadEvidence(schema.value, text), text, turnContext, allowlist: request.allowlist, policy })
         : validateActionTask({ output: schema.value, text, turnContext, allowlist: request.allowlist }))
       : task === SEMANTIC_TASK.REASONING
         ? validateReasoningTask({ output: schema.value, text, allowlist: request.allowlist })
