@@ -1,4 +1,5 @@
 import { EVENT } from "../../core/events/eventTypes.js";
+import { evaluateContentCondition } from "../../core/rules/contentConditions.js";
 
 /**
  * Turning one domain event into learner-facing Russian text.
@@ -12,7 +13,7 @@ import { EVENT } from "../../core/events/eventTypes.js";
  * docs/KNOWN_GAPS.md) but must not be handed anything this function did not
  * already establish as true.
  */
-export function renderEvent({ event, bundle, patient }) {
+export function renderEvent({ event, bundle, patient, state }) {
   switch (event.type) {
     case EVENT.PATIENT_ARRIVED:
       return { speakerRu: "Приёмный покой", textRu: event.payload.handoffRu };
@@ -24,10 +25,10 @@ export function renderEvent({ event, bundle, patient }) {
       return { speakerRu: "Пациент", textRu: event.payload.answerRu };
 
     case EVENT.EXAMINATION_PERFORMED:
-      return { speakerRu: "Осмотр", textRu: renderExamination(event, bundle, patient) };
+      return { speakerRu: "Осмотр", textRu: renderExamination(event, bundle, patient, state) };
 
     case EVENT.PATIENT_REASSESSED:
-      return { speakerRu: "Переоценка", textRu: renderReassessment(event, bundle, patient) };
+      return { speakerRu: "Переоценка", textRu: renderReassessment(event, bundle, patient, state) };
 
     case EVENT.TEST_ORDERED:
       return {
@@ -207,13 +208,24 @@ const REASSESS_TARGET_LABEL_RU = Object.freeze({
   mental_status: "сознание",
 });
 
-function renderReassessment(event, bundle, patient) {
+function renderReassessment(event, bundle, patient, state) {
   const targets = event.payload.targets ?? [];
   const parts = [];
+  const remainingTargets = [];
 
-  if (targets.includes("abdomen_exam")) parts.push(renderSlotExam(bundle, patient, "abdomen"));
+  if (targets.includes("abdomen_exam")) parts.push(renderSlotExam(bundle, patient, state, "abdomen"));
 
-  const named = targets.filter((target) => REASSESS_TARGET_LABEL_RU[target]).map((target) => REASSESS_TARGET_LABEL_RU[target]);
+  // Wave B: a reassessment target naming a region with DERIVED findings
+  // (e.g. "lungs" for overload signs) renders the current threshold-evaluated
+  // text inline, not just a "see current values" pointer - reassessment is
+  // the moment those findings are supposed to actually surface (ТЗ §13).
+  for (const target of targets) {
+    if (target === "abdomen_exam") continue;
+    if (derivedSlotRegionsPresent(bundle).has(target)) parts.push(renderSlotExam(bundle, patient, state, target));
+    else remainingTargets.push(target);
+  }
+
+  const named = remainingTargets.filter((target) => REASSESS_TARGET_LABEL_RU[target]).map((target) => REASSESS_TARGET_LABEL_RU[target]);
   if (named.length) parts.push(`Переоценены: ${named.join(", ")} — см. текущие показатели.`);
 
   if (parts.length === 0) parts.push("Пациент осмотрен повторно. Клинически значимых изменений нет.");
@@ -231,30 +243,56 @@ function slotRegionsPresent(bundle) {
   return new Set((bundle.findings.exam_slots ?? []).map((slot) => slot.region ?? "abdomen"));
 }
 
-function renderExamination(event, bundle, patient) {
+function renderExamination(event, bundle, patient, state) {
   const region = event.payload.region;
-  if (region && slotRegionsPresent(bundle).has(region)) return renderSlotExam(bundle, patient, region);
+  const hasStaticSlots = region && slotRegionsPresent(bundle).has(region);
+  const hasDerivedSlots = region && derivedSlotRegionsPresent(bundle).has(region);
+  if (hasStaticSlots || hasDerivedSlots) return renderSlotExam(bundle, patient, state, region);
   if (region && bundle.findings.universal_normal_layer.regions[`${region}_ru`]) {
     return bundle.findings.universal_normal_layer.regions[`${region}_ru`];
   }
   if (region) return bundle.findings.universal_normal_layer.default_ru;
-  return renderSlotExam(bundle, patient, "abdomen");
+  return renderSlotExam(bundle, patient, state, "abdomen");
 }
 
-function renderSlotExam(bundle, patient, region) {
-  const slotsById = Object.fromEntries(bundle.findings.exam_slots.map((slot) => [slot.id, slot]));
+function derivedSlotRegionsPresent(bundle) {
+  return new Set((bundle.findings.derived_exam_slots ?? []).map((slot) => slot.region ?? "abdomen"));
+}
+
+/**
+ * Wave B: a finding may be STATIC (`exam_slots`, chosen once at patient
+ * generation - appendicitis's whole exam) or DERIVED (`derived_exam_slots`,
+ * a threshold rule evaluated against CURRENT `state` every time the region is
+ * examined - fluids-01 needs lung/perfusion findings that change as the
+ * patient responds to treatment, which a fixed snapshot cannot express).
+ * Both may contribute sentences to the same region; a case with only one
+ * kind (appendicitis: static only) is unaffected by the other existing.
+ */
+function renderSlotExam(bundle, patient, state, region) {
+  const slotsById = Object.fromEntries((bundle.findings.exam_slots ?? []).map((slot) => [slot.id, slot]));
   const grouped = new Map();
-  for (const [slotId, stateValue] of Object.entries(patient.examSlots)) {
+  const push = (group, phrase) => {
+    if (!phrase) return;
+    if (!grouped.has(group)) grouped.set(group, []);
+    grouped.get(group).push(phrase);
+  };
+
+  for (const [slotId, stateValue] of Object.entries(patient.examSlots ?? {})) {
     const slot = slotsById[slotId];
     if (!slot || (slot.region ?? "abdomen") !== region) continue;
     const phrase = slot.states[stateValue];
     if (!phrase) continue;
-    const filled = bundle.findings.localisation_token
-      ? phrase.replace(bundle.findings.localisation_token, patient.presentation?.painSiteRu ?? "")
-      : phrase;
-    if (!grouped.has(slot.group)) grouped.set(slot.group, []);
-    grouped.get(slot.group).push(filled);
+    push(slot.group, bundle.findings.localisation_token ? phrase.replace(bundle.findings.localisation_token, patient.presentation?.painSiteRu ?? "") : phrase);
   }
+
+  if (state) {
+    for (const slot of bundle.findings.derived_exam_slots ?? []) {
+      if ((slot.region ?? "abdomen") !== region) continue;
+      const rule = (slot.rules ?? []).find((r) => r.default === true || evaluateContentCondition(r.when, state));
+      if (rule) push(slot.group, rule.text_ru);
+    }
+  }
+
   const text = [
     ...[...grouped.values()].map((sentences) => sentences.join(", ") + "."),
     ...(region === "abdomen" ? patient.presentation?.examinationExtraRu ?? [] : []),

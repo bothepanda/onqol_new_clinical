@@ -106,7 +106,7 @@ export function useSession() {
     setSession(next);
     setDebrief(null);
     const arrival = next.events.find((e) => e.type === "PATIENT_ARRIVED");
-    setMessages([toMessage("env", renderEvent({ event: arrival, bundle, patient: next.patient }))]);
+    setMessages([toMessage("env", renderEvent({ event: arrival, bundle, patient: next.patient, state: next.state }))]);
     setResumeCandidate(null);
   }, []);
 
@@ -189,7 +189,7 @@ export function useSession() {
       // the order they actually happened, before the action that waited for
       // them (Contract §7.3 - results arrive when ready, not when asked for).
       for (const event of turn.timeEvents ?? []) {
-        rendered.push(toMessage("env", renderEvent({ event, bundle, patient: turn.session.patient })));
+        rendered.push(toMessage("env", renderEvent({ event, bundle, patient: turn.session.patient, state: turn.session.state })));
       }
 
       for (const result of turn.outcomes) {
@@ -210,7 +210,7 @@ export function useSession() {
           rendered.push({ id: `${Date.now()}-safety`, role: "mentor", speakerRu: "Наставник", textRu: result.teachingPointRu });
         } else {
           for (const event of result.events ?? []) {
-            rendered.push(toMessage("env", renderEvent({ event, bundle, patient: turn.session.patient })));
+            rendered.push(toMessage("env", renderEvent({ event, bundle, patient: turn.session.patient, state: turn.session.state })));
           }
         }
       }
@@ -218,7 +218,7 @@ export function useSession() {
       // Time consumed BY an action (interfacility transport) is narrated after
       // the action itself - the ambulance leaves, then it arrives (Contract §7.1).
       for (const event of turn.afterEvents ?? []) {
-        rendered.push(toMessage("env", renderEvent({ event, bundle, patient: turn.session.patient })));
+        rendered.push(toMessage("env", renderEvent({ event, bundle, patient: turn.session.patient, state: turn.session.state })));
       }
 
       if (!route?.discuss && turn.interpreted.withheldCommands?.length) {
