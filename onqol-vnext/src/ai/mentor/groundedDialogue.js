@@ -41,7 +41,16 @@ export function validateCandidate(candidate, context, library) {
     if (s.text.includes("?")) return false; // Questions have one explicit contract below.
   }
   const q = candidate.question;
-  if (q !== null && (!q || Object.keys(q).sort().join() !== "expects,text" || typeof q.text !== "string" || !q.text.trim() || typeof q.expects !== "string" || !q.expects.trim() || q.expects.length > 200 || (q.text.match(/\?/g) ?? []).length !== 1)) return false;
+  // A question mark is not required: the POLICY prompt itself instructs
+  // imperative mood ("назови", "выбери"), which is a grammatically complete
+  // Russian question with no "?" - live testing (Wave A.1) found this
+  // rejecting the majority of live drafts on formatting alone, none of them
+  // unsafe. `expects` (required, non-empty) is what actually carries "this
+  // is a question and here is the kind of answer it wants" - a literal "?"
+  // is no longer load-bearing. More than one "?" is still rejected: that is
+  // a real sign of a compound/multi-question dump, which the single-question
+  // contract below (§19) exists to prevent.
+  if (q !== null && (!q || Object.keys(q).sort().join() !== "expects,text" || typeof q.text !== "string" || !q.text.trim() || typeof q.expects !== "string" || !q.expects.trim() || q.expects.length > 200 || (q.text.match(/\?/g) ?? []).length > 1)) return false;
   const text = candidateText(candidate);
   // This library authorizes no numeric clinical teaching, prescriptions or doses.
   if (!text.trim() || text.length > 1100 || /\p{Number}/u.test(text)) return false;
