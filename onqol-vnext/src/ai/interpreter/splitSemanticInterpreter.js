@@ -188,7 +188,7 @@ function buildActionRequest({ text, locale, turnContext, allowlist }) {
           "When the learner names only a category of investigations (for example a class of markers or a modality without a region) and not one specific allowlisted concept, report an ambiguity with reason ambiguous_target instead of choosing one member of the category.",
           "allowlist.tests are modeled investigations. allowlist.recognizedUnmodeledTests are investigations the platform recognises but cannot simulate: when the learner names one, propose ORDER_TEST with that testId (the platform reports it as a simulator limitation) and never substitute a modeled study for it. Imaging language (ultrasound, CT, visualization, a picture of the abdomen) is a request for a study, never a physical examination.",
           "Return one action per distinct learner action. A question addressed to the patient is a patientQuestion, not a clinicalAction.",
-          "Taking a reading or measurement NOW (blood pressure, pulse, saturation, urine output, perfusion, lungs, neck veins: «измеряю давление», «проверю диурез», «оцениваю перфузию») is a REASSESS action whose params.targets are the things measured. A schedule over time («каждые 15 минут», «мониторинг») is PRESCRIBE_MONITORING, not REASSESS. Stopping or holding an infusion («останавливаю инфузию», «больше жидкость не вводим») is STOP_INFUSION, never ORDER_INFUSION.",
+          "Taking a reading or measurement NOW (blood pressure, pulse, saturation, urine output, perfusion, lungs, neck veins: «измеряю давление», «проверю диурез», «оцениваю перфузию») is a REASSESS action whose params.targets are ids from concepts.reassessTargets (never invented ones). A schedule over time («каждые 15 минут», «мониторинг») is PRESCRIBE_MONITORING, not REASSESS. Stopping or holding an infusion («останавливаю инфузию», «больше жидкость не вводим») is STOP_INFUSION, never ORDER_INFUSION.",
           "Do not supply dose, unit, route, volume, duration, interval, or timing values in params; deterministic code binds only values literally present in evidence.",
           "When an open mentor question exists, answer nouns are not measurement orders without explicit ordering language.",
           "When precedingSystemQuestion is present, read a short or elliptical learner reply against it before any generic reading: a noun that fills the slot the question asked about names its answer; a yes/no reply is not itself an action. The identity of an act must come from the learner's own words, never from the question, and no dose, route, volume or duration may be taken from the question.",
@@ -444,6 +444,7 @@ function serializableActionAllowlist(allowlist) {
       patientQuestionTopics: allowlist.patientQuestionTopics, staffRoles: allowlist.staffRoles,
       destinations: allowlist.destinations, managementIntents: allowlist.managementIntents,
       operativeChoices: allowlist.operativeChoices,
+      reassessTargets: allowlist.reassessTargets ?? [],
     },
   };
 }

@@ -13,6 +13,14 @@ localisation_token: null
 observation_targets:
   vitals:
     fields: [heartRate, systolicBp, diastolicBp, respiratoryRate, spo2Percent, temperatureC]
+  blood_pressure:
+    fields: [systolicBp, diastolicBp]
+  heart_rate:
+    fields: [heartRate]
+  spo2:
+    fields: [spo2Percent]
+  temperature:
+    fields: [temperatureC]
   urine_output:
     fields: [urineOutputMlPerHr]
   perfusion:

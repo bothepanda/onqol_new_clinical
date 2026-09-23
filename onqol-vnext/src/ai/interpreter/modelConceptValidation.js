@@ -70,6 +70,7 @@ export function buildModelAllowlist({ bundle, turnContext = {} }) {
     destinations: interaction.destinations ?? ["observation", "surgical_ward", "icu", "other_facility", "home"],
     managementIntents: interaction.management_intents ?? ["operative", "nonoperative", "observation"],
     routes: interaction.routes ?? ["iv", "im", "oral"],
+    reassessTargets: [...KNOWN_TARGET_IDS],
     operativeChoices: (turnContext.pendingDecisionOptions ?? []).map((option) => option.id),
   };
 }

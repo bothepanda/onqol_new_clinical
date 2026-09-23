@@ -1,6 +1,6 @@
 import { EVENT } from "../../core/events/eventTypes.js";
 import { evaluateContentCondition } from "../../core/rules/contentConditions.js";
-import { formatObserved } from "./vitalsLabels.js";
+import { formatObserved, sentence } from "./vitalsLabels.js";
 
 /**
  * Turning one domain event into learner-facing Russian text.
@@ -233,13 +233,16 @@ function renderReassessment(event, bundle, patient, state) {
   // actually reassessed. Content without observation targets keeps the old
   // "see current values" pointer.
   const observedText = formatObserved(event.payload.observed);
-  if (observedText) parts.push(`Измерено: ${observedText}.`);
+  if (observedText) parts.push(sentence(`Измерено: ${observedText}`));
   else if (event.payload.observed === undefined) {
     const named = remainingTargets.filter((target) => REASSESS_TARGET_LABEL_RU[target]).map((target) => REASSESS_TARGET_LABEL_RU[target]);
     if (named.length) parts.push(`Переоценены: ${named.join(", ")} — см. текущие показатели.`);
   }
 
-  if (parts.length === 0) parts.push("Пациент осмотрен повторно. Клинически значимых изменений нет.");
+  if (parts.length === 0) {
+    // Content with observation targets never claims "no change" about something it did not measure.
+    parts.push(event.payload.observed !== undefined ? "Ничего не измерено: уточни, какие показатели или какую область осмотреть." : "Пациент осмотрен повторно. Клинически значимых изменений нет.");
+  }
   return parts.join(" ");
 }
 
@@ -257,7 +260,7 @@ function slotRegionsPresent(bundle) {
 function renderExamination(event, bundle, patient, state) {
   const text = renderExaminationFindings(event, bundle, patient, state);
   const measured = formatObserved(event.payload.observed);
-  return measured ? `${text} ${measured}.` : text;
+  return measured ? `${text} ${sentence(measured)}` : text;
 }
 
 function renderExaminationFindings(event, bundle, patient, state) {

@@ -13,6 +13,10 @@ export const VITALS_FIELD_RU = Object.freeze({
 });
 export const VITALS_FIELD_ORDER = Object.keys(VITALS_FIELD_RU);
 
+// A sentence built from these ends with the last unit; a unit that itself ends
+// in "." (мм рт.ст.) must not double the sentence's own full stop.
+export const sentence = (text) => (text.endsWith(".") ? text : `${text}.`);
+
 export function formatObserved(values) {
   return VITALS_FIELD_ORDER.filter((field) => values?.[field] != null)
     .map((field) => `${VITALS_FIELD_RU[field].label} ${String(values[field]).replace(".", ",")}${VITALS_FIELD_RU[field].unit}`)
