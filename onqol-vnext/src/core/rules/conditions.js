@@ -86,6 +86,18 @@ export const RULE_CONDITION = Object.freeze({
    * `procedureNotStarted` naming convention rather than adding a generic NOT
    * operator to the (deliberately AND-only) rule engine.
    */
+  /**
+   * Has a vital the LEARNER has actually seen (via `learnerVisible.physiologyKnownAt`,
+   * refreshed on REASSESS/arrival - never `state.physiology` directly) crossed a
+   * threshold? Generic across diseases and fields. Introduced for fluids-01's C2
+   * flag ("repeat bolus after overload signs were shown"): the rule must fire on
+   * what the learner was told, not on hidden state they never asked about.
+   */
+  learnerVisibleVitalGte: (condition, ctx) => {
+    const value = ctx.learnerVisible.physiologyKnownAt?.values?.[condition.field];
+    return typeof value === "number" ? value >= condition.value : undefined;
+  },
+
   noResuscitationBolusGiven: (condition, ctx) => {
     const fluids = ctx.bundle?.shared?.medications?.fluids ?? {};
     const tag = condition.tag ?? "resuscitation_fluid";
