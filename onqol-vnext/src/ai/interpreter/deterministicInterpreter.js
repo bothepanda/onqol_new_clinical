@@ -147,7 +147,7 @@ function interpretRaw({ text, turnContext = {}, idPrefix = "cmd", bundle = null 
   // reassessment request into an incomplete REASSESS plus orphaned target
   // words that match nothing (Contract §12 - reassessment targets are one
   // request, not several parallel orders).
-  if (/переоцен/.test(normalized) && !turnHasOtherActions(raw, turnContext, (n) => /переоцен/.test(n), splitReassessClause)) {
+  if ((/переоцен/.test(normalized) || isMeasurePhrase(normalized)) && !turnHasOtherActions(raw, turnContext, (n) => /переоцен/.test(n) || isMeasurePhrase(n), splitReassessClause)) {
     const targets = extractReassessTargets(normalized);
     const afterMinutes = extractDurationMinutes(normalized);
     const params = {};
@@ -620,12 +620,7 @@ function interpretFragment(fragment, idPrefix, index, turnContext) {
   // observation of the current state: it reads the same way as a reassessment
   // and refreshes what the learner has actually been shown. A cadence
   // («каждый час») makes it a monitoring prescription instead, handled below.
-  if (
-    !mentionsImagingModality(normalized) &&
-    /(?:^|[^а-яё])(?:измер|замер|проверя|проверю|проверить|оцениваю|оценю|оценить|оцени|контролирую)[а-яё]*/.test(normalized) &&
-    /давлен|пульс|чсс|витальн|сатурац|диурез|перфуз|капилляр/.test(normalized) &&
-    !/кажд|через|раз в|в течени|мониторинг/.test(normalized)
-  ) {
+  if (!mentionsImagingModality(normalized) && isMeasurePhrase(normalized)) {
     const targets = extractReassessTargets(normalized);
     if (targets.length) return [command(idPrefix, index, COMMAND.REASSESS, { targets }, fragment)];
   }
@@ -791,6 +786,13 @@ function interpretFragment(fragment, idPrefix, index, turnContext) {
   const staffRequested = STAFF_REQUEST_CUES.test(normalized);
   if (staffRequested && (staffRole || /позов|позва|вызов|вызыва|нужн[а-яе]* консультаци|консультаци[яю] (?:хирург|анестезиолог|гинеколог)/.test(normalized))) {
     results.push(command(idPrefix, index, COMMAND.CALL_STAFF, staffRole ? { role: staffRole } : {}, fragment));
+    return results;
+  }
+
+  // «останавливаю инфузию», «больше жидкость не вводим»: stopping is not ordering
+  // (the word «инфузию» must not read as a new order that then asks «какой раствор?»).
+  if (STOP_INFUSION_WORDS.test(normalized) && !/(?:начина|назнач|введ|вводи)/.test(normalized.replace(STOP_INFUSION_WORDS, ""))) {
+    results.push(command(idPrefix, index, COMMAND.STOP_INFUSION, {}, fragment));
     return results;
   }
 
@@ -1141,6 +1143,12 @@ const ROUTE_PATTERN = /(?:^|\s)(в\/в|в\/м|п\/к|внутривенно|вн
 // «продолжаем капать / продолжение антибиотикотерапии»: an order that already exists, not a new one.
 const CONTINUATION = /продолж/;
 // «откапать / капать / капельно» and the abbreviated names of the same fluids the learner writes by hand.
+// "измеряю давление и пульс", "оцениваю диурез": taking a measurement. A cadence
+// ("каждый час") makes it a monitoring prescription instead.
+const MEASURE_VERBS = /(?:^|[^а-яё])(?:измер|замер|проверя|проверю|проверить|оцениваю|оценю|оценить|оцени|контролирую)[а-яё]*/;
+const MEASURE_TARGETS = /давлен|пульс|чсс|витальн|сатурац|диурез|перфуз|капилляр/;
+const isMeasurePhrase = (normalized) => MEASURE_VERBS.test(normalized) && MEASURE_TARGETS.test(normalized) && !/кажд|через|раз в|в течени|мониторинг/.test(normalized);
+const STOP_INFUSION_WORDS = /(?:останов|останавл|прекращ|прекрат|приостанов|приостанавл|перекрыва|перекрою)[а-яё]*\s+(?:\S+\s+){0,2}(?:инфуз|капельниц|жидкост|болюс|введени)[а-яё]*|(?:больше|дальше)\s+(?:\S+\s+){0,2}(?:жидкост|инфуз|болюс)[а-яё]*\s+(?:не|уже не)\s+(?:вводим|вводить|вводить|лью|льём|капаем|даём|даем|буду)|(?:жидкост|инфуз|болюс)[а-яё]*\s+(?:больше|дальше)\s+не\s+(?:вводим|вводить|лью|льём|капаем|даём|даем|буду)|хватит\s+(?:жидкост|инфуз|болюс)/;
 const INFUSION_WORDS = /прокапа|откапа|капать|капельн|инфузи|раствор|физраствор|физ\.?\s?р-р|р-р\s+(?:рингер|натри|глюкоз)|рингер|стерофундин|кристаллоид|хартман|гелофузин|альбумин[а-яё]*\s+\d|глюкоз[а-яё]*\s+5|болюс/;
 
 function matchInfusion(normalized) {

@@ -130,6 +130,7 @@ function validateTeachingIssues(rules, diseaseId) {
     if (!Number.isInteger(issue.priority) || issue.priority < 1 || issue.priority > 6) errors.push(`${label} priority must be 1-6`);
     if (typeof issue.prompt_ru !== "string" || !issue.prompt_ru.trim()) errors.push(`${label} missing prompt_ru`);
     for (const level of [1, 2, 3, 4]) if (typeof issue.scaffold_ru?.[level] !== "string") errors.push(`${label} missing scaffold_ru level ${level}`);
+    if (issue.follow_through && (!issue.follow_through.trigger_event || !Array.isArray(issue.follow_through.expected_events))) errors.push(`${label} follow_through needs trigger_event and expected_events`);
     errors.push(...validateProvenance(issue, label));
     const status = issue.provenance?.review_status;
     if (status !== "approved_for_training" && !(status === "not_a_clinical_rule" && issue.provenance?.authority_layer === "mentor_behavior")) {

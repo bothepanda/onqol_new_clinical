@@ -73,6 +73,7 @@ export const TYPE_ANCHORS = Object.freeze({
   ],
   [COMMAND.ORDER_MEDICATION]: ["назнач", "ввести", "дать", "обезбол"],
   [COMMAND.ORDER_INFUSION]: ["инфуз", "прокап", "раствор", "физраствор", "кристаллоид"],
+  [COMMAND.STOP_INFUSION]: ["останов", "прекращ", "прекрат", "стоп", "хватит", "не буду больше"],
   [COMMAND.ORDER_PROCEDURE]: ["процедур", "установ", "постав"],
   [COMMAND.PRESCRIBE_MONITORING]: ["монитор", "каждые", "контрол"],
   [COMMAND.REASSESS]: ["переоцен", "повторн"],

@@ -24,6 +24,8 @@
 schema_version: "1.0"
 disease_id: fluids_01
 presentation_category: postoperative_fluid_management
+# The resident ends this case themselves ("завершить кейс") once the plan is done; there is no discharge/transfer endpoint.
+end_case_status: complete
 
 provenance:
   id: DISEASE-FLUIDS-01

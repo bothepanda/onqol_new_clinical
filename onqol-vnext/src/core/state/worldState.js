@@ -391,6 +391,12 @@ export function applyEvent(state, event) {
       };
       break;
 
+    case EVENT.INFUSION_STOPPED:
+      next.infusions = state.infusions.map((infusion) =>
+        (event.payload.orderIds ?? []).includes(infusion.orderId) ? { ...infusion, status: "stopped", stoppedAt: event.atMinutes } : infusion,
+      );
+      break;
+
     case EVENT.INFUSION_COMPLETED:
       next.infusions = state.infusions.map((infusion) =>
         infusion.orderId === event.payload.orderId ? { ...infusion, status: "completed" } : infusion,

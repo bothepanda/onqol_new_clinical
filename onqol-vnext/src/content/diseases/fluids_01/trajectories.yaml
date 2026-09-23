@@ -184,6 +184,10 @@ treatment_effects:
       id: TE-FLUIDS-01-FUROSEMIDE
       notes: "Diuretic-driven output rise with hemodynamic/perfusion worsening - the case's own illustration of why oliguria here is not a diuretic-responsive problem."
 
+# "Кристаллоид" names a class, not a solution: the source distinguishes
+# balanced from unbalanced solutions, so the nurse asks which one.
+fluid_class_requires_choice: [crystalloid]
+
 # Laboratory results (Wave B). Values are the patient's authored laboratory
 # truth (phenotypes.yaml#fixed_patient.laboratory) or live physiology, filled
 # into the wording at ORDER time - the sample is drawn when it is ordered, so a

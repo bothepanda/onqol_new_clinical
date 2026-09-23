@@ -55,6 +55,9 @@ export function renderEvent({ event, bundle, patient, state }) {
         textRu: `Инфузия начата: ${fluidLabelRu(event.payload.fluidId, bundle)} ${event.payload.volumeMl ?? ""} мл${event.payload.durationMinutes ? ` за ${event.payload.durationMinutes} мин` : " болюсно"}.`.replace(/\s{2,}/g, " "),
       };
 
+    case EVENT.INFUSION_STOPPED:
+      return { speakerRu: "Медсестра", textRu: event.payload.nothingRunning ? "Сейчас ничего не вводится." : "Инфузию остановила." };
+
     // Perioperative events previously rendered as `null`, so the learner
     // committed to an operation, completed preparation, and started a
     // procedure to total silence - the UI acknowledged nothing between

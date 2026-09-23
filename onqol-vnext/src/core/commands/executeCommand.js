@@ -319,9 +319,33 @@ const HANDLERS = {
     };
   },
 
+  // Stopping the infusions that are running (e.g. on finding overload). Nothing
+  // is invented: it only marks what the learner had started as stopped, and a
+  // bolus already delivered stays delivered (its effect is already in flight).
+  [COMMAND.STOP_INFUSION]: ({ state, clockRoot, command }) => {
+    const running = state.infusions.filter((infusion) => infusion.status === "running");
+    return {
+      outcome: "EXECUTED",
+      events: [
+        createEvent({
+          type: EVENT.INFUSION_STOPPED,
+          atMinutes: state.clock.elapsedMinutes,
+          atIso: nowIso(clockRoot, state),
+          payload: { orderIds: running.map((infusion) => infusion.orderId), nothingRunning: running.length === 0 },
+          cause: { actor: "learner", commandId: command.id },
+        }),
+      ],
+    };
+  },
+
   [COMMAND.ORDER_INFUSION]: ({ state, clockRoot, bundle, command, rng }) => {
     const known = bundle.shared?.medications?.fluids?.[command.params.fluidId];
     if (!known) return { outcome: "UNSUPPORTED_CONTENT", capabilityKey: `fluid:${command.params.fluidId}` };
+    // A case may declare that a fluid CLASS ("кристаллоид") is not an order: the
+    // nurse asks which solution, exactly as she would for a drug with no name.
+    if (bundle.trajectories?.fluid_class_requires_choice?.includes(command.params.fluidId)) {
+      return { outcome: "CLARIFY", missing: ["fluidId"], clarifyPromptRu: "Какой именно раствор?", clarifyBy: "nurse", command };
+    }
     const durationMinutes = command.params.durationMinutes ?? 0;
     const effectPending = scheduleGovernedTreatmentEffect({
       bundle,
@@ -850,14 +874,16 @@ const HANDLERS = {
     ],
   }),
 
-  [COMMAND.END_CASE]: ({ state, clockRoot, command }) => ({
+  [COMMAND.END_CASE]: ({ state, clockRoot, bundle, command }) => ({
     outcome: "EXECUTED",
     events: [
       createEvent({
         type: EVENT.SESSION_ENDED,
         atMinutes: state.clock.elapsedMinutes,
         atIso: nowIso(clockRoot, state),
-        payload: { status: "incomplete" },
+        // A case with no natural clinical endpoint (fluids: the resident decides
+        // when the management plan is done) declares `end_case_status: complete`.
+        payload: { status: bundle.disease?.end_case_status ?? "incomplete" },
         cause: { actor: "learner", commandId: command.id },
       }),
     ],

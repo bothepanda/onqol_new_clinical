@@ -2,6 +2,7 @@ import { EVENT } from "../events/eventTypes.js";
 import { reviewStatusOf, authorityLayerOf, jurisdictionOf, isJurisdictional } from "../rules/contentProvenance.js";
 import { hasWorkingDiagnosis } from "../reasoning/reasoningState.js";
 import { isLearnerFacingSessionApproved } from "../session/sessionPurpose.js";
+import { buildTeachingIssueTimeline } from "./teachingIssueTimeline.js";
 
 /**
  * Formative debrief v1 (task brief §15, Contract §25, Mentor Spec §21).
@@ -47,6 +48,9 @@ export function buildDebrief({ session, bundle }) {
     contentGovernance: buildContentGovernance(state),
     learningObjectives: buildLearningObjectives(state),
     reading: buildReading(bundle),
+    // Only present for content that declares teaching issues (Wave B): what
+    // was raised, how it was resolved, and what happened afterwards.
+    ...(bundle.rules?.teaching_issues?.length ? { teachingIssues: buildTeachingIssueTimeline({ events, bundle }) } : {}),
     // Deliberately absent: any numeric competence score (Governance Spec §22).
   };
 }
