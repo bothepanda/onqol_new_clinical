@@ -82,7 +82,8 @@ function bindExplicitParameters(type, text) {
     }
     const duration = extractDurationMinutes(text, { requiresTemporalCue: true });
     if (duration != null) params.durationMinutes = duration;
-    if (/(?:^|[^\p{L}\p{N}])болюс(?:ом)?(?=$|[^\p{L}\p{N}])/iu.test(text)) params.bolus = true;
+    // «струйно», «быстро»: the ordinary ways of asking for a bolus.
+    if (/(?:^|[^\p{L}\p{N}])(?:болюс(?:ом)?|струйно|струёй|струей|быстро)(?=$|[^\p{L}\p{N}])/iu.test(text)) params.bolus = true;
   }
 
   if (type === COMMAND.PRESCRIBE_MONITORING) {
