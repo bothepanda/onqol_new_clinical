@@ -331,7 +331,7 @@ function runPendingItem({ state, clockRoot, bundle, rng, item, cause }) {
       const physiology = {};
       for (const [key, delta] of Object.entries(item.deltas ?? {})) {
         if (delta == null) continue;
-        physiology[key] = key === "temperatureC" ? round1(state.physiology[key] + delta) : Math.round(state.physiology[key] + delta);
+        physiology[key] = DECIMAL_PHYSIOLOGY_FIELDS.has(key) ? round1(state.physiology[key] + delta) : Math.round(state.physiology[key] + delta);
       }
       const symptoms = {};
       // Analgesia acts on whichever pain state is active; it can never write
@@ -480,6 +480,12 @@ function complicationCheckEvents({ bundle, rng, item, atIso }) {
     }),
   ];
 }
+
+// Physiology fields that carry a decimal (round to 1dp on delta application,
+// not the integer rounding the rest of physiology uses). Generic across
+// diseases - a content author naming a new decimal field here is a one-line
+// registration, not a new core branch.
+const DECIMAL_PHYSIOLOGY_FIELDS = new Set(["temperatureC", "crtSeconds", "lactate"]);
 
 function round1(value) {
   return Math.round(value * 10) / 10;

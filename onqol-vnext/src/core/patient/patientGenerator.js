@@ -46,6 +46,14 @@ export function generatePatient({ seed, bundle, casePresetId }) {
   const phenotype = bundle.phenotypes.phenotypes[preset.phenotype_id];
   if (!phenotype) throw new Error(`Case preset "${casePresetId}" names unknown phenotype "${preset.phenotype_id}".`);
 
+  // A "fixed" phenotype (Wave B / ТЗ §7-8: fluids-01 is one scripted teaching
+  // patient with a deterministic branching table, not a generated instance of
+  // a phenotype library) skips the whole draw pipeline below and returns its
+  // authored state directly. Generic on the phenotype's own shape, not on
+  // disease_id - any future single-scripted-patient case can use it the same
+  // way appendicitis's generated phenotypes use the draw pipeline.
+  if (phenotype.fixed_patient) return buildFixedPatient({ seed, casePresetId, phenotype });
+
   const morphology = preset.morphology;
   const envelope = bundle.disease.physiology_envelopes[morphology];
   if (!envelope) throw new Error(`No physiology envelope for morphology "${morphology}".`);
@@ -134,6 +142,37 @@ export function generatePatient({ seed, bundle, casePresetId }) {
     laboratory: { urinalysisRu },
     examSlots,
     imaging,
+  };
+}
+
+/**
+ * A fixed scripted patient (Wave B). `phenotype.fixed_patient` carries
+ * exactly the fields the draw pipeline would otherwise have produced -
+ * `demographics`, `truth`, `initial_physiology`, `initial_symptoms`,
+ * `presentation`, `laboratory`, `exam_slots`, `imaging` - authored directly
+ * instead of drawn, because the case is one frozen teaching scenario, not a
+ * population to sample from. The returned shape matches `generatePatient`'s
+ * generated-path return exactly, so `createInitialState` and everything
+ * downstream reads either path identically.
+ */
+function buildFixedPatient({ seed, casePresetId, phenotype }) {
+  const fp = phenotype.fixed_patient;
+  if (!fp.demographics || !fp.truth || !fp.initial_physiology || !fp.initial_symptoms) {
+    throw new Error(`Phenotype "${phenotype.phenotype_id}" declares fixed_patient but is missing demographics/truth/initial_physiology/initial_symptoms.`);
+  }
+  return {
+    caseId: `${casePresetId}::${seed}`,
+    seed,
+    presetId: casePresetId,
+    phenotypeId: phenotype.phenotype_id,
+    demographics: { ...fp.demographics },
+    truth: { ...fp.truth },
+    initialPhysiology: { ...fp.initial_physiology },
+    initialSymptoms: { ...fp.initial_symptoms },
+    presentation: { ...(fp.presentation ?? {}) },
+    laboratory: { ...(fp.laboratory ?? {}) },
+    examSlots: { ...(fp.exam_slots ?? {}) },
+    imaging: fp.imaging ?? null,
   };
 }
 

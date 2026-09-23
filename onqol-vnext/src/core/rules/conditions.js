@@ -74,4 +74,21 @@ export const RULE_CONDITION = Object.freeze({
     if (!entry) return undefined;
     return (entry.tags ?? []).includes(condition.tag);
   },
+
+  /**
+   * Has the learner already administered a bolus infusion tagged
+   * `condition.tag` (e.g. "resuscitation_fluid")? Generic across diseases:
+   * content declares the tag on the fluid, this reads `state.infusions`
+   * (never `state.truth`) rather than enumerating fluid ids. Introduced for
+   * fluids-01's C1 flag ("diuretic ordered before any resuscitation bolus
+   * given"), phrased in the negative because that is the only direction the
+   * rule needs - matches the existing `consentNotObtained` /
+   * `procedureNotStarted` naming convention rather than adding a generic NOT
+   * operator to the (deliberately AND-only) rule engine.
+   */
+  noResuscitationBolusGiven: (condition, ctx) => {
+    const fluids = ctx.bundle?.shared?.medications?.fluids ?? {};
+    const tag = condition.tag ?? "resuscitation_fluid";
+    return !(ctx.state.infusions ?? []).some((infusion) => infusion.bolus === true && fluids[infusion.fluidId]?.tags?.includes(tag));
+  },
 });

@@ -1209,11 +1209,7 @@ function scheduleGovernedTreatmentEffect({ bundle, state, command, matchKey, mat
       id: `${command.id}::effect::${effectId}`,
       kind: "treatment_effect",
       effectId,
-      deltas: {
-        heartRate: sample(envelope.heart_rate_delta ?? envelope.heart_rate_delta_range, "heartRate"),
-        systolicBp: sample(envelope.systolic_bp_delta ?? envelope.systolic_bp_delta_range, "systolicBp"),
-        temperatureC: sample(envelope.temperature_c_delta ?? envelope.temperature_c_delta_range, "temperatureC"),
-      },
+      deltas: samplePhysiologyDeltas(envelope, sample),
       symptomDeltas: { painScore: sample(envelope.pain_score_delta ?? envelope.pain_score_delta_range, "painScore") },
       commandId: command.id,
       ruleId: effect.provenance?.id ?? effectId,
@@ -1222,6 +1218,34 @@ function scheduleGovernedTreatmentEffect({ bundle, state, command, matchKey, mat
       dueAtMinutes: state.clock.elapsedMinutes + onsetMinutes,
     },
   ];
+}
+
+// A response envelope declares a physiology delta as `<field>_delta` (a fixed
+// number) or `<field>_delta_range` (sampled). This reads whichever fields are
+// actually present, generically - a content author adding `crt_seconds_delta`
+// or `urine_output_ml_per_hr_delta` for a new disease needs no code change
+// here (Wave B / ТЗ §14 generalization: the physiology-delta mechanism was
+// previously hardcoded to heart_rate/systolic_bp/temperature_c only).
+const DELTA_SUFFIX = "_delta";
+const DELTA_RANGE_SUFFIX = "_delta_range";
+
+function toCamelCase(snakeCase) {
+  return snakeCase.replace(/_([a-z0-9])/g, (_, char) => char.toUpperCase());
+}
+
+function samplePhysiologyDeltas(envelope, sample) {
+  const fields = new Set();
+  for (const key of Object.keys(envelope ?? {})) {
+    if (key.endsWith(DELTA_RANGE_SUFFIX)) fields.add(key.slice(0, -DELTA_RANGE_SUFFIX.length));
+    else if (key.endsWith(DELTA_SUFFIX)) fields.add(key.slice(0, -DELTA_SUFFIX.length));
+  }
+  const deltas = {};
+  for (const field of fields) {
+    const physiologyKey = toCamelCase(field);
+    const raw = envelope[`${field}_delta`] ?? envelope[`${field}_delta_range`];
+    deltas[physiologyKey] = sample(raw, physiologyKey);
+  }
+  return deltas;
 }
 
 /**

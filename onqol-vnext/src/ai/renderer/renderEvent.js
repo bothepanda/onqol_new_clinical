@@ -211,7 +211,7 @@ function renderReassessment(event, bundle, patient) {
   const targets = event.payload.targets ?? [];
   const parts = [];
 
-  if (targets.includes("abdomen_exam")) parts.push(renderAbdominalExam(bundle, patient));
+  if (targets.includes("abdomen_exam")) parts.push(renderSlotExam(bundle, patient, "abdomen"));
 
   const named = targets.filter((target) => REASSESS_TARGET_LABEL_RU[target]).map((target) => REASSESS_TARGET_LABEL_RU[target]);
   if (named.length) parts.push(`Переоценены: ${named.join(", ")} — см. текущие показатели.`);
@@ -220,32 +220,44 @@ function renderReassessment(event, bundle, patient) {
   return parts.join(" ");
 }
 
-function renderExamination(event, bundle, patient) {
-  const region = event.payload.region;
-  if (region && region !== "abdomen" && bundle.findings.universal_normal_layer.regions[`${region}_ru`]) {
-    return bundle.findings.universal_normal_layer.regions[`${region}_ru`];
-  }
-  if (region && region !== "abdomen") {
-    return bundle.findings.universal_normal_layer.default_ru;
-  }
-  return renderAbdominalExam(bundle, patient);
+// Wave B generalization: an exam slot may declare which body region it
+// belongs to (`slot.region`); slots that don't declare one default to
+// "abdomen", which is exactly appendicitis's existing (and only) region, so
+// this is a no-op for every already-authored exam_slots file. A second
+// disease whose examination centres on a different region (fluids-01: skin
+// perfusion, neck veins, lungs, heart) declares its own `region` per slot
+// instead of every finding being forced through "abdomen".
+function slotRegionsPresent(bundle) {
+  return new Set((bundle.findings.exam_slots ?? []).map((slot) => slot.region ?? "abdomen"));
 }
 
-function renderAbdominalExam(bundle, patient) {
+function renderExamination(event, bundle, patient) {
+  const region = event.payload.region;
+  if (region && slotRegionsPresent(bundle).has(region)) return renderSlotExam(bundle, patient, region);
+  if (region && bundle.findings.universal_normal_layer.regions[`${region}_ru`]) {
+    return bundle.findings.universal_normal_layer.regions[`${region}_ru`];
+  }
+  if (region) return bundle.findings.universal_normal_layer.default_ru;
+  return renderSlotExam(bundle, patient, "abdomen");
+}
+
+function renderSlotExam(bundle, patient, region) {
   const slotsById = Object.fromEntries(bundle.findings.exam_slots.map((slot) => [slot.id, slot]));
   const grouped = new Map();
   for (const [slotId, stateValue] of Object.entries(patient.examSlots)) {
     const slot = slotsById[slotId];
-    if (!slot) continue;
+    if (!slot || (slot.region ?? "abdomen") !== region) continue;
     const phrase = slot.states[stateValue];
     if (!phrase) continue;
-    const filled = phrase.replace(bundle.findings.localisation_token, patient.presentation.painSiteRu);
+    const filled = bundle.findings.localisation_token
+      ? phrase.replace(bundle.findings.localisation_token, patient.presentation?.painSiteRu ?? "")
+      : phrase;
     if (!grouped.has(slot.group)) grouped.set(slot.group, []);
     grouped.get(slot.group).push(filled);
   }
   const text = [
     ...[...grouped.values()].map((sentences) => sentences.join(", ") + "."),
-    ...(patient.presentation?.examinationExtraRu ?? []),
+    ...(region === "abdomen" ? patient.presentation?.examinationExtraRu ?? [] : []),
   ].join(" ");
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
