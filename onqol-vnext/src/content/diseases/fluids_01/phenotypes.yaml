@@ -71,6 +71,15 @@ phenotypes:
         vomitingEpisodes: 0
 
       presentation:
+        # The case opens with a phone call, not with measurements: nothing is
+        # on the learner's screen until they take it (source, Часть B
+        # «Данные, которые преподаватель выдаёт только по запросу»).
+        arrivalHandoffRu: >-
+          Вы дежурный резидент. 02:10. Звонит медсестра хирургического
+          отделения: пациент, послеоперационные сутки 1, за последние 4 часа
+          выделил 60 мл мочи, «какой-то вялый».
+        initialLocation: surgical_ward
+        disclosesVitalsOnArrival: false
         historyFixedRu:
           - "02:10. Дежурная медсестра хирургического отделения: пациент, послеоперационные сутки 1, за последние 4 часа выделил 60 мл мочи, «какой-то вялый»."
           - "Мужчина 61 год, 82 кг. Плановая резекция сигмовидной кишки с анастомозом, срединная лапаротомия, операция 4 ч, закончена в 16:00 (сейчас ≈10 часов после операции)."
@@ -128,6 +137,7 @@ case_presets:
   - case_preset_id: FLUIDS-01
     phenotype_id: fluids_01_patient
     trajectory_id: TRJ-FLUIDS-01-BASELINE
+    requires_flag: FLUIDS_VERTICAL_SLICE_V1
     # internal_development only this wave - no live-provider session has run
     # yet (docs/WAVE_B_FLUIDS_VALIDATION_REPORT.md). Promoting to
     # learner_enabled is a later, explicit decision, not a side effect of

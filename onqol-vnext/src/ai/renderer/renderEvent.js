@@ -1,5 +1,6 @@
 import { EVENT } from "../../core/events/eventTypes.js";
 import { evaluateContentCondition } from "../../core/rules/contentConditions.js";
+import { formatObserved } from "./vitalsLabels.js";
 
 /**
  * Turning one domain event into learner-facing Russian text.
@@ -145,7 +146,7 @@ export function renderEvent({ event, bundle, patient, state }) {
       return { speakerRu: "Операционная", textRu: renderOperativeFinding(event, bundle, patient) };
 
     case EVENT.DETERIORATION_DETECTED:
-      return { speakerRu: "Медсестра", textRu: "Пациенту хуже: " + (event.payload.summaryRu ?? "изменились витальные показатели.") };
+      return { speakerRu: "Медсестра", textRu: "Пациенту хуже: " + (event.payload.textRu ?? event.payload.summaryRu ?? "изменились витальные показатели.") };
 
     case EVENT.COMPLICATION_OCCURRED:
       return { speakerRu: "Медсестра", textRu: event.payload.presentationRu ?? "Развилось осложнение." };
@@ -215,18 +216,25 @@ function renderReassessment(event, bundle, patient, state) {
 
   if (targets.includes("abdomen_exam")) parts.push(renderSlotExam(bundle, patient, state, "abdomen"));
 
-  // Wave B: a reassessment target naming a region with DERIVED findings
-  // (e.g. "lungs" for overload signs) renders the current threshold-evaluated
-  // text inline, not just a "see current values" pointer - reassessment is
-  // the moment those findings are supposed to actually surface (ТЗ §13).
+  // Wave B: a reassessment target naming a region with findings (static or
+  // derived, e.g. "cardiorespiratory" for overload signs) renders the
+  // current text inline, not just a "see current values" pointer -
+  // reassessment is the moment those findings are supposed to surface.
   for (const target of targets) {
     if (target === "abdomen_exam") continue;
-    if (derivedSlotRegionsPresent(bundle).has(target)) parts.push(renderSlotExam(bundle, patient, state, target));
+    if (slotRegionsPresent(bundle).has(target) || derivedSlotRegionsPresent(bundle).has(target)) parts.push(renderSlotExam(bundle, patient, state, target));
     else remainingTargets.push(target);
   }
 
-  const named = remainingTargets.filter((target) => REASSESS_TARGET_LABEL_RU[target]).map((target) => REASSESS_TARGET_LABEL_RU[target]);
-  if (named.length) parts.push(`Переоценены: ${named.join(", ")} — см. текущие показатели.`);
+  // Targeted observation: the measurements themselves, only for what was
+  // actually reassessed. Content without observation targets keeps the old
+  // "see current values" pointer.
+  const observedText = formatObserved(event.payload.observed);
+  if (observedText) parts.push(`Измерено: ${observedText}.`);
+  else if (event.payload.observed === undefined) {
+    const named = remainingTargets.filter((target) => REASSESS_TARGET_LABEL_RU[target]).map((target) => REASSESS_TARGET_LABEL_RU[target]);
+    if (named.length) parts.push(`Переоценены: ${named.join(", ")} — см. текущие показатели.`);
+  }
 
   if (parts.length === 0) parts.push("Пациент осмотрен повторно. Клинически значимых изменений нет.");
   return parts.join(" ");
@@ -244,6 +252,12 @@ function slotRegionsPresent(bundle) {
 }
 
 function renderExamination(event, bundle, patient, state) {
+  const text = renderExaminationFindings(event, bundle, patient, state);
+  const measured = formatObserved(event.payload.observed);
+  return measured ? `${text} ${measured}.` : text;
+}
+
+function renderExaminationFindings(event, bundle, patient, state) {
   const region = event.payload.region;
   const hasStaticSlots = region && slotRegionsPresent(bundle).has(region);
   const hasDerivedSlots = region && derivedSlotRegionsPresent(bundle).has(region);

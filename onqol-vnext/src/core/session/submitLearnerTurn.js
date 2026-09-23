@@ -151,6 +151,26 @@ export function submitLearnerTurn({ session, text, shadowProvider, interpreted: 
     }
   }
 
+  // Reassessing "after the bolus" means the bolus has run: a reassessment lets
+  // treatment effects that are already in flight reach onset first, so it
+  // observes the patient's response rather than the moment of the order
+  // (ТЗ §13). Only in-flight treatment effects move the clock - a
+  // reassessment never skips an investigation or a consultant's arrival.
+  if (!waitCommand && interpreted.commands.some((c) => c.type === "REASSESS" && c.params.afterMinutes == null)) {
+    const inFlight = (working.state.pending ?? [])
+      .filter((item) => item.kind === "treatment_effect" && Number.isFinite(item.dueAtMinutes) && item.dueAtMinutes > working.state.clock.elapsedMinutes)
+      .map((item) => item.dueAtMinutes);
+    if (inFlight.length) {
+      const advanced = applyTimeAdvance({
+        session: working,
+        targetMinutes: Math.max(...inFlight),
+        cause: { actor: "learner", source: "reassessment_after_treatment" },
+      });
+      working = advanced.session;
+      timeEvents = [...timeEvents, ...advanced.newEvents];
+    }
+  }
+
   const { session: afterCommands, results } = applyCommands({
     session: working,
     commands: interpreted.commands,

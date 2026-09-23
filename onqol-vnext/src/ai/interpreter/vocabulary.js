@@ -84,6 +84,29 @@ export const REGION_SYNONYMS = Object.freeze({
   "паховая область": "groin",
   "неврологическ": "neuro",  // stem: неврологический / неврологического статуса / неврологическое состояние
   "неврологию": "neuro",
+  // Wave B: examination regions a postoperative volume assessment needs.
+  // Region ids are shared vocabulary (shared/interaction/concepts.yaml).
+  "перфузия": "perfusion",
+  "перфузию": "perfusion",
+  "капиллярное наполнение": "perfusion",
+  "кожные покровы": "perfusion",
+  "кожу": "perfusion",
+  "слизистые": "perfusion",
+  "вены шеи": "neck_veins",
+  "шейные вены": "neck_veins",
+  "яремные вены": "neck_veins",
+  "лёгкие": "cardiorespiratory",
+  "легкие": "cardiorespiratory",
+  "лёгких": "cardiorespiratory",
+  "легких": "cardiorespiratory",
+  "аускультация": "cardiorespiratory",
+  "аускультацию": "cardiorespiratory",
+  "тоны сердца": "cardiorespiratory",
+  "сердце": "cardiorespiratory",
+  "дренаж": "catheter",
+  "дренажи": "catheter",
+  "катетер": "catheter",
+  "мочевой катетер": "catheter",
   "прямая кишка": "rectal",
   "прямой киш": "rectal",   // прямой кишки (genitive)
   "прямую киш": "rectal",   // прямую кишку (accusative)
@@ -162,6 +185,36 @@ export const DRUG_SYNONYMS = Object.freeze({
   "анальгин": "metamizole",
   "димедрол": "diphenhydramine",
   "дифенгидрамин": "diphenhydramine",
+  // Generic loop diuretic; a formulary drug (Wave B), not a disease term.
+  "фуросемид": "furosemide",
+  "лазикс": "furosemide",
+});
+
+/**
+ * Infusion solutions the interpreter can name, resolved to the formulary's
+ * `fluids` ids (shared/medications/formulary.yaml). As with drugs, naming a
+ * solution is not supporting it: `executeCommand` looks the id up in the
+ * reviewed formulary. «кристаллоид» keeps the pre-existing generic id.
+ * Longest phrase wins, so «рингер-лактат» is never read as bare «рингер».
+ */
+export const FLUID_SYNONYMS = Object.freeze({
+  "рингер-лактат": "ringers_lactate",
+  "рингер лактат": "ringers_lactate",
+  "рингера лактат": "ringers_lactate",
+  "лактат рингера": "ringers_lactate",
+  "рингер": "ringers_no_lactate",
+  "стерофундин": "sterofundin",
+  "хартман": "hartmann",
+  "физраствор": "normal_saline",
+  "физ раствор": "normal_saline",
+  "физ р-р": "normal_saline",
+  "nacl": "normal_saline",
+  "натрия хлорид": "normal_saline",
+  "гелофузин": "gelofusine",
+  "альбумин": "albumin",
+  "глюкоз": "glucose_5_percent",
+  "бикарбонат": "sodium_bicarbonate",
+  "кристаллоид": "crystalloid",
 });
 
 /**

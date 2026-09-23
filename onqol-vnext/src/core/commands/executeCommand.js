@@ -136,18 +136,33 @@ const HANDLERS = {
     };
   },
 
-  [COMMAND.EXAMINE]: ({ state, clockRoot, command }) => ({
-    outcome: "EXECUTED",
-    events: [
-      createEvent({
-        type: EVENT.EXAMINATION_PERFORMED,
-        atMinutes: state.clock.elapsedMinutes,
-        atIso: nowIso(clockRoot, state),
-        payload: { region: command.params.region, findingIds: [`exam.${command.params.region}`] },
-        cause: { actor: "learner", commandId: command.id },
-      }),
-    ],
-  }),
+  [COMMAND.EXAMINE]: ({ state, clockRoot, bundle, command }) => {
+    // A region may also yield a measurement (perfusion -> capillary refill);
+    // content declares which under `findings.observation_targets`.
+    const observed = observedFor(bundle, state, [command.params.region]);
+    const measured = observed && Object.keys(observed).length > 0;
+    return {
+      outcome: "EXECUTED",
+      events: [
+        createEvent({
+          type: EVENT.EXAMINATION_PERFORMED,
+          atMinutes: state.clock.elapsedMinutes,
+          atIso: nowIso(clockRoot, state),
+          payload: { region: command.params.region, findingIds: [`exam.${command.params.region}`], ...(measured ? { observed } : {}) },
+          cause: { actor: "learner", commandId: command.id },
+        }),
+        ...(measured
+          ? [createEvent({
+              type: EVENT.VITALS_OBSERVED,
+              atMinutes: state.clock.elapsedMinutes,
+              atIso: nowIso(clockRoot, state),
+              payload: { findingIds: [`vitals.${command.params.region}`], observed },
+              cause: { actor: "learner", commandId: command.id },
+            })]
+          : []),
+      ],
+    };
+  },
 
   [COMMAND.REQUEST_STATUS]: () => ({ outcome: "EXECUTED", events: [] }), // pure read; renderer handles it
 
@@ -348,25 +363,34 @@ const HANDLERS = {
     ],
   }),
 
-  [COMMAND.REASSESS]: ({ state, clockRoot, command }) => ({
-    outcome: "EXECUTED",
-    events: [
-      createEvent({
-        type: EVENT.PATIENT_REASSESSED,
-        atMinutes: state.clock.elapsedMinutes,
-        atIso: nowIso(clockRoot, state),
-        payload: { region: "reassessment", findingIds: ["reassessment"], targets: command.params.targets },
-        cause: { actor: "learner", commandId: command.id },
-      }),
-      createEvent({
-        type: EVENT.VITALS_OBSERVED,
-        atMinutes: state.clock.elapsedMinutes,
-        atIso: nowIso(clockRoot, state),
-        payload: { findingIds: ["vitals.reassessment"] },
-        cause: { actor: "learner", commandId: command.id },
-      }),
-    ],
-  }),
+  [COMMAND.REASSESS]: ({ state, clockRoot, bundle, command }) => {
+    // Content that declares `observation_targets` discloses only the fields a
+    // target actually measures; content that doesn't (appendicitis) keeps the
+    // original whole-snapshot behaviour.
+    const observed = observedFor(bundle, state, command.params.targets ?? []);
+    const targeted = observed !== undefined;
+    return {
+      outcome: "EXECUTED",
+      events: [
+        createEvent({
+          type: EVENT.PATIENT_REASSESSED,
+          atMinutes: state.clock.elapsedMinutes,
+          atIso: nowIso(clockRoot, state),
+          payload: { region: "reassessment", findingIds: ["reassessment"], targets: command.params.targets, ...(targeted ? { observed } : {}) },
+          cause: { actor: "learner", commandId: command.id },
+        }),
+        ...(!targeted || Object.keys(observed).length > 0
+          ? [createEvent({
+              type: EVENT.VITALS_OBSERVED,
+              atMinutes: state.clock.elapsedMinutes,
+              atIso: nowIso(clockRoot, state),
+              payload: { findingIds: ["vitals.reassessment"], ...(targeted ? { observed } : {}) },
+              cause: { actor: "learner", commandId: command.id },
+            })]
+          : []),
+      ],
+    };
+  },
 
   [COMMAND.STATE_REASONING]: ({ state, clockRoot, command }) => ({
     outcome: "EXECUTED",
@@ -1218,6 +1242,21 @@ function scheduleGovernedTreatmentEffect({ bundle, state, command, matchKey, mat
       dueAtMinutes: state.clock.elapsedMinutes + onsetMinutes,
     },
   ];
+}
+
+// Which physiology fields does examining/reassessing these targets actually
+// measure? `undefined` means the content declares no observation targets at
+// all (legacy: disclose the whole snapshot); `{}` means "nothing measured".
+function observedFor(bundle, state, keys) {
+  const map = bundle.findings?.observation_targets;
+  if (!map) return undefined;
+  const observed = {};
+  for (const key of keys) {
+    for (const field of map[key]?.fields ?? []) {
+      if (state.physiology[field] != null) observed[field] = state.physiology[field];
+    }
+  }
+  return observed;
 }
 
 // A response envelope declares a physiology delta as `<field>_delta` (a fixed

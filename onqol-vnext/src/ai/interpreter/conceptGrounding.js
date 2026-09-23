@@ -3,6 +3,7 @@ import {
   CHEMISTRY_ANALYTE_SYNONYMS,
   DISPOSITION_SYNONYMS,
   DRUG_SYNONYMS,
+  FLUID_SYNONYMS,
   IMAGING_CATEGORY_TERMS,
   IMAGING_MODALITY_TERMS,
   MONITORING_TARGETS,
@@ -190,7 +191,7 @@ export function conceptAnchors(item) {
   switch (kind) {
     case "test": return [...aliasesFor(TEST_SYNONYMS, id), ...(EXTRA_ALIASES.test[id] ?? [])];
     case "drug": return aliasesFor(DRUG_SYNONYMS, id);
-    case "fluid": return FIXED_ANCHORS.fluid;
+    case "fluid": return [...aliasesFor(FLUID_SYNONYMS, id), ...FIXED_ANCHORS.fluid];
     case "region": return [...aliasesFor(REGION_SYNONYMS, id), ...(EXTRA_ALIASES.region[id] ?? [])];
     case "topic": return TOPIC_ANCHORS[id] ?? [];
     case "role": return [...aliasesFor(STAFF_SYNONYMS, id), ...(EXTRA_ALIASES.role[id] ?? [])];

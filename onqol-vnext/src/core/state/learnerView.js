@@ -106,5 +106,5 @@ function currentPainObservation(state) {
 
 function latestVitalsSnapshot(state) {
   const last = state.observations.vitals.at(-1);
-  return last ? { atMinutes: last.atMinutes, values: last.values } : null;
+  return last ? { atMinutes: last.atMinutes, values: last.values, ...(last.fieldAtMinutes ? { fieldAtMinutes: last.fieldAtMinutes } : {}) } : null;
 }

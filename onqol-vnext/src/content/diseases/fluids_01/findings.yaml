@@ -2,9 +2,21 @@
 # (evaluated against CURRENT state each time the region is examined).
 #
 # Region names here are content, not a fixed appendicitis vocabulary:
-# perfusion, neck_veins, chest, abdomen, catheter.
+# perfusion, neck_veins, cardiorespiratory, abdomen, catheter.
 schema_version: "1.0"
 localisation_token: null
+
+# Which physiology fields each reassessment target / examination region
+# actually MEASURES (core/commands/executeCommand.js#observedFor). A field
+# listed under no target is never shown by an observation: lactate is a
+# laboratory value and reaches the learner only through an ordered test.
+observation_targets:
+  vitals:
+    fields: [heartRate, systolicBp, diastolicBp, respiratoryRate, spo2Percent, temperatureC]
+  urine_output:
+    fields: [urineOutputMlPerHr]
+  perfusion:
+    fields: [crtSeconds]
 
 exam_slots:
   - id: skin
@@ -29,7 +41,7 @@ exam_slots:
       flat: "вены шеи плоские лёжа"
 
   - id: heart_sounds
-    region: chest
+    region: cardiorespiratory
     group: auscultation
     title_ru: "тоны сердца"
     states:
@@ -56,7 +68,7 @@ exam_slots:
 # specifically the lung finding the case ties to volume overload.
 derived_exam_slots:
   - id: lung_auscultation
-    region: chest
+    region: cardiorespiratory
     group: auscultation
     rules:
       - when: { path: "physiology.respiratoryRate", operator: "gte", value: 24 }

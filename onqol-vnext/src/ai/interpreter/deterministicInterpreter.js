@@ -5,6 +5,7 @@ import {
   FOCUSED_HISTORY_PATTERNS,
   APPROACH_SYNONYMS,
   DRUG_SYNONYMS,
+  FLUID_SYNONYMS,
   CHEMISTRY_ANALYTE_SYNONYMS,
   STAFF_SYNONYMS,
   PREOP_PATTERNS,
@@ -615,6 +616,20 @@ function interpretFragment(fragment, idPrefix, index, turnContext) {
     }
   }
 
+  // Taking a measurement ("измеряю давление и пульс", "оцениваю диурез") is an
+  // observation of the current state: it reads the same way as a reassessment
+  // and refreshes what the learner has actually been shown. A cadence
+  // («каждый час») makes it a monitoring prescription instead, handled below.
+  if (
+    !mentionsImagingModality(normalized) &&
+    /(?:^|[^а-яё])(?:измер|замер|проверя|проверю|проверить|оцениваю|оценю|оценить|оцени|контролирую)[а-яё]*/.test(normalized) &&
+    /давлен|пульс|чсс|витальн|сатурац|диурез|перфуз|капилляр/.test(normalized) &&
+    !/кажд|через|раз в|в течени|мониторинг/.test(normalized)
+  ) {
+    const targets = extractReassessTargets(normalized);
+    if (targets.length) return [command(idPrefix, index, COMMAND.REASSESS, { targets }, fragment)];
+  }
+
   // An explicit imaging-modality word means the fragment is about a STUDY, so it
   // is never a physical examination: «осмотрите живот ультразвуком» is not a
   // palpation. The exam path is skipped and the fragment falls through to the
@@ -1126,10 +1141,10 @@ const ROUTE_PATTERN = /(?:^|\s)(в\/в|в\/м|п\/к|внутривенно|вн
 // «продолжаем капать / продолжение антибиотикотерапии»: an order that already exists, not a new one.
 const CONTINUATION = /продолж/;
 // «откапать / капать / капельно» and the abbreviated names of the same fluids the learner writes by hand.
-const INFUSION_WORDS = /прокапа|откапа|капать|капельн|инфузи|раствор|физраствор|физ\.?\s?р-р|р-р\s+(?:рингер|натри|глюкоз)|рингер|стерофундин|кристаллоид/;
+const INFUSION_WORDS = /прокапа|откапа|капать|капельн|инфузи|раствор|физраствор|физ\.?\s?р-р|р-р\s+(?:рингер|натри|глюкоз)|рингер|стерофундин|кристаллоид|хартман|гелофузин|альбумин[а-яё]*\s+\d|глюкоз[а-яё]*\s+5|болюс/;
 
 function matchInfusion(normalized) {
-  const fluidId = /кристаллоид|физраствор|физ\.?\s?р-р|физ\.\s?раствор|nacl|натрия хлорид|рингер|стерофундин/.test(normalized) ? "crystalloid" : undefined;
+  const fluidId = findSynonym(normalized, FLUID_SYNONYMS);
   const volumeMatch = /(\d{2,4})\s*мл/.exec(normalized);
   const litreMatch = volumeMatch ? null : /(\d+(?:[.,]\d+)?)\s*л(?=$|\s|[.,;])/.exec(normalized);
   const durationMatch = /за\s*(\d+)?\s*час/.exec(normalized) || /(\d+)\s*час/.exec(normalized);
@@ -1216,10 +1231,16 @@ function extractEveryMinutes(normalized) {
 }
 
 function extractReassessTargets(normalized) {
-  const known = { боль: "pain", витальн: "vitals", живот: "abdomen_exam", диурез: "urine_output", сознание: "mental_status" };
+  const known = {
+    боль: "pain", витальн: "vitals", живот: "abdomen_exam", диурез: "urine_output", сознание: "mental_status",
+    давлен: "vitals", пульс: "vitals", чсс: "vitals", сатурац: "vitals",
+    перфуз: "perfusion", капилляр: "perfusion",
+    "вены шеи": "neck_veins", "шейные вены": "neck_veins",
+    легк: "cardiorespiratory", лёгк: "cardiorespiratory", дыхан: "cardiorespiratory",
+  };
   const targets = [];
   for (const [key, value] of Object.entries(known)) {
-    if (normalized.includes(key)) targets.push(value);
+    if (normalized.includes(key) && !targets.includes(value)) targets.push(value);
   }
   return targets;
 }

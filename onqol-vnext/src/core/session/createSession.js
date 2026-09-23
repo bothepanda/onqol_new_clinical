@@ -22,6 +22,12 @@ export function createSession({ sessionId, seed, mode, realProfileId, casePreset
   const preset = (bundle.phenotypes?.case_presets ?? []).find(
     (candidate) => candidate.case_preset_id === casePresetId,
   );
+  // A case preset may declare `requires_flag` (Wave B): the case is simply
+  // unavailable to a session that did not opt in, so shipping a new case
+  // never changes what an existing flag-off session can start.
+  if (preset?.requires_flag && resolveInteractionFlags(interactionFlags)[preset.requires_flag] !== true) {
+    throw new SessionAudienceGateError("case_flag_required", { casePresetId, flag: preset.requires_flag });
+  }
   const patientTruth = inventoryPatientTruth({ bundle, casePresetId, sessionPurpose });
   const audienceDecision = assertSessionAudienceAllowed({
     sessionPurpose,
@@ -110,6 +116,7 @@ export function createSession({ sessionId, seed, mode, realProfileId, casePreset
       sessionPurpose,
       interactionFlags: resolveInteractionFlags(interactionFlags),
       audienceGate: audienceDecision.code,
+      ...(patient.presentation?.disclosesVitalsOnArrival === false ? { disclosesVitals: false } : {}),
     },
     cause: { actor: "system", source: "session_bootstrap" },
   });
@@ -117,7 +124,14 @@ export function createSession({ sessionId, seed, mode, realProfileId, casePreset
     type: EVENT.PATIENT_ARRIVED,
     atMinutes: 0,
     atIso: clock.startIso,
-    payload: { location: "emergency_department", handoffRu: buildHandoffText(patient) },
+    payload: {
+      location: patient.presentation?.initialLocation ?? "emergency_department",
+      handoffRu: patient.presentation?.arrivalHandoffRu ?? buildHandoffText(patient),
+      // A case may open with a report that carries no measurements (the fluids
+      // case opens with a nurse's phone call): measurements then reach the
+      // learner only when they are actually taken.
+      ...(patient.presentation?.disclosesVitalsOnArrival === false ? { disclosesVitals: false } : {}),
+    },
     cause: { actor: "system", source: "session_bootstrap" },
   });
 

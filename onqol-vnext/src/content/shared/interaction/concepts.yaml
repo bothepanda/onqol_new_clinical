@@ -36,12 +36,24 @@ recognized_unmodeled_tests:
 
 fluid_ids:
   - crystalloid
+  - sterofundin
+  - ringers_lactate
+  - hartmann
+  - normal_saline
+  - ringers_no_lactate
+  - gelofusine
+  - albumin
+  - glucose_5_percent
+  - sodium_bicarbonate
 
 examination_regions:
   - abdomen
   - general
   - cardiorespiratory
   - extremities
+  - perfusion
+  - neck_veins
+  - catheter
 
 patient_question_topics:
   - pain

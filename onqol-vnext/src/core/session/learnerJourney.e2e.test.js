@@ -127,7 +127,9 @@ test("«500 мл физраствора за час» carries fluid, volume and 
   const turn = say(newSession(), "500 мл физраствора за час");
   assert.deepEqual(outcomesOf(turn), ["EXECUTED"]);
   const infusion = turn.session.state.infusions.at(-1);
-  assert.equal(infusion.fluidId, "crystalloid");
+  // Wave B: fluid identity is preserved (0.9% NaCl is not "a crystalloid" -
+  // the fluids case turns on balanced vs unbalanced solutions).
+  assert.equal(infusion.fluidId, "normal_saline");
   assert.equal(infusion.volumeMl, 500);
   assert.equal(infusion.durationMinutes, 60);
 });

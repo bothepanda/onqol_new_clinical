@@ -3,21 +3,7 @@
  * current snapshot, built only from `learnerVisible` - never from
  * `state.truth` - and never expanded into a full re-examination.
  */
-// Label/unit for every physiology field any disease's content may generate.
-// Order here is display order. A field absent from `vitals` (because that
-// disease's envelope never produces it) is simply skipped, not shown blank.
-const VITALS_FIELD_RU = Object.freeze({
-  heartRate: { label: "ЧСС", unit: "/мин" },
-  systolicBp: { label: "АД сист.", unit: " мм рт.ст." },
-  diastolicBp: { label: "АД диаст.", unit: " мм рт.ст." },
-  respiratoryRate: { label: "ЧДД", unit: "/мин" },
-  temperatureC: { label: "T", unit: " °C" },
-  spo2Percent: { label: "SpO₂", unit: "%" },
-  crtSeconds: { label: "CRT", unit: " с" },
-  urineOutputMlPerHr: { label: "диурез", unit: " мл/ч" },
-  lactate: { label: "лактат", unit: " ммоль/л" },
-});
-const VITALS_FIELD_ORDER = Object.keys(VITALS_FIELD_RU);
+import { VITALS_FIELD_RU, VITALS_FIELD_ORDER } from "./vitalsLabels.js";
 
 export function renderStatusSnapshot(learnerVisible) {
   const observation = learnerVisible.physiologyKnownAt;
@@ -34,10 +20,17 @@ export function renderStatusSnapshot(learnerVisible) {
   // renderer doesn't recognise at all is silently skipped rather than shown
   // as a raw key - the renderer does not invent a label any more than it
   // invents a value (Governance Spec §2).
+  // A snapshot built from targeted observations carries a per-field time, so
+  // a value measured earlier is labelled with its own age, not the latest one.
+  const fieldAt = observation?.fieldAtMinutes ?? null;
+  const ageOf = (field) => Math.round(learnerVisible.clock.elapsedMinutes - (fieldAt?.[field] ?? observation.atMinutes));
   const vitalsRu = vitals
     ? VITALS_FIELD_ORDER.filter((field) => vitals[field] != null)
-        .map((field) => `${VITALS_FIELD_RU[field].label} ${vitals[field]}${VITALS_FIELD_RU[field].unit}`)
-        .join(", ") + (staleByMinutes >= 30 ? ` (последнее измерение ${staleByMinutes} мин назад).` : ".")
+        .map((field) => {
+          const age = fieldAt ? ageOf(field) : 0;
+          return `${VITALS_FIELD_RU[field].label} ${vitals[field]}${VITALS_FIELD_RU[field].unit}${fieldAt && age >= 30 ? ` (${age} мин назад)` : ""}`;
+        })
+        .join(", ") + (!fieldAt && staleByMinutes >= 30 ? ` (последнее измерение ${staleByMinutes} мин назад).` : ".")
     : "Витальные ещё не оценивались.";
   // Matrix PO01: once the source is controlled the pre-source-control pain is a
   // CLOSED state, and the recovery trajectory that would give the new one a
@@ -131,6 +124,8 @@ const CLARIFY_PROMPTS_RU = Object.freeze({
   analytes: "Какие показатели биохимии нужны?",
   durationMinutes_or_bolus: "За какое время или болюсом?",
   testId: "Какое исследование?",
+  fluidId: "Какой раствор?",
+  volumeMl: "Какой объём?",
   role: "Кого именно вызвать?",
 });
 

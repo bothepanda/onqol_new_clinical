@@ -65,13 +65,16 @@ export function createInitialState({ session, patient, hospital, clock }) {
     demographics: { ...patient.demographics },
 
     // ---- Where the patient is -----------------------------------------
-    location: "emergency_department",
+    location: patient.presentation?.initialLocation ?? "emergency_department",
     monitoring: { level: "ed_standard", prescribed: [] },
 
     // ---- Things that are running --------------------------------------
     investigations: {}, // id -> { id, status, orderedAt, etaMinutes, availableAt, result, preliminary }
     treatments: { active: [], administered: [] },
     infusions: [],
+    // Cumulative infused volume, so content can condition on "how much has
+    // been given" (fluid overload) without a per-disease counter.
+    fluidBalance: { infusedMl: 0, bolusMl: 0 },
 
     // ---- What the learner knows ---------------------------------------
     revealed: {
@@ -203,6 +206,7 @@ export function applyEvent(state, event) {
   switch (event.type) {
     case EVENT.SESSION_STARTED:
     case EVENT.PATIENT_ARRIVED:
+      if (event.payload?.disclosesVitals === false) break;
       next.observations = {
         ...next.observations,
         // Pain is observed at the same moment vitals are, and the learner is
@@ -311,7 +315,9 @@ export function applyEvent(state, event) {
         // when (task brief §14's PAIN row in the sidebar reads this).
         vitals: [
           ...next.observations.vitals,
-          { atMinutes: event.atMinutes, values: vitalsSnapshot(state) },
+          event.payload?.observed
+            ? mergeObservedSnapshot(state.observations.vitals.at(-1), event.payload.observed, event.atMinutes)
+            : { atMinutes: event.atMinutes, values: vitalsSnapshot(state) },
         ],
       };
       break;
@@ -378,6 +384,10 @@ export function applyEvent(state, event) {
 
     case EVENT.INFUSION_STARTED:
       next.infusions = [...state.infusions, { ...event.payload, startedAt: event.atMinutes, status: "running" }];
+      next.fluidBalance = {
+        infusedMl: (state.fluidBalance?.infusedMl ?? 0) + (Number(event.payload.volumeMl) || 0),
+        bolusMl: (state.fluidBalance?.bolusMl ?? 0) + (event.payload.bolus === true ? Number(event.payload.volumeMl) || 0 : 0),
+      };
       break;
 
     case EVENT.INFUSION_COMPLETED:
@@ -742,6 +752,16 @@ function derivePreopReady(state, completed) {
  * so a patient whose source has been controlled is never reported as still
  * having the pre-source-control pain (matrix PO01).
  */
+// A targeted observation (content-declared `observation_targets`) discloses
+// only the fields actually measured; earlier-measured fields are kept, each
+// with its own measurement time, so nothing unmeasured is ever shown.
+function mergeObservedSnapshot(previous, observed, atMinutes) {
+  const values = { ...(previous?.values ?? {}), ...observed };
+  const fieldAtMinutes = { ...(previous?.fieldAtMinutes ?? Object.fromEntries(Object.keys(previous?.values ?? {}).map((k) => [k, previous.atMinutes]))) };
+  for (const key of Object.keys(observed)) fieldAtMinutes[key] = atMinutes;
+  return { atMinutes, values, fieldAtMinutes };
+}
+
 function vitalsSnapshot(state) {
   return { ...state.physiology, painScore: activePainScore(state.symptoms), painState: state.symptoms.painState };
 }

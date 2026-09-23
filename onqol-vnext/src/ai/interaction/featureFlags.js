@@ -11,6 +11,13 @@ export const AI_INTERACTION_V2 = "AI_INTERACTION_V2";
 export const STATEFUL_GROUNDED_MENTOR_V1 = "STATEFUL_GROUNDED_MENTOR_V1";
 
 /**
+ * Case-enablement flag (Wave B): a case preset that declares
+ * `requires_flag: FLUIDS_VERTICAL_SLICE_V1` can only be started by a session
+ * that opted in. See createSession.js.
+ */
+export const FLUIDS_VERTICAL_SLICE_V1 = "FLUIDS_VERTICAL_SLICE_V1";
+
+/**
  * Explicit rollback flag for the selective interaction migration.
  * Disabled unless the session creator opts in; no environment value silently
  * changes a replay's behavior.
@@ -19,6 +26,7 @@ export function resolveInteractionFlags(overrides = {}) {
   return Object.freeze({
     [AI_INTERACTION_V2]: overrides[AI_INTERACTION_V2] === true,
     [STATEFUL_GROUNDED_MENTOR_V1]: overrides[STATEFUL_GROUNDED_MENTOR_V1] === true,
+    ...(overrides[FLUIDS_VERTICAL_SLICE_V1] === true ? { [FLUIDS_VERTICAL_SLICE_V1]: true } : {}),
   });
 }
 

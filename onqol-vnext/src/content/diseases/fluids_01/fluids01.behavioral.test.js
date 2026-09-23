@@ -28,6 +28,7 @@ function newSession(seed = "fluids-behavioral-seed") {
     mode: "reference",
     casePresetId: "FLUIDS-01",
     sessionPurpose: "internal_development",
+    interactionFlags: { FLUIDS_VERTICAL_SLICE_V1: true },
     bundle,
     locale: "ru",
     startIso: START_ISO,
@@ -194,13 +195,13 @@ test("F-ARCH-10: an unmodeled investigation is an honest simulator limitation, n
   assert.equal(result.classification, "simulator_limitation");
 });
 
-test("F-ARCH-11: the exam finding for the chest region changes dynamically with physiology - clear lungs at baseline, crackles once RR>=24 - proving the derived-exam mechanism actually drives learner-facing text, not just state", () => {
+test("F-ARCH-11: the exam finding for the cardiorespiratory region changes dynamically with physiology - clear lungs at baseline, crackles once RR>=24 - proving the derived-exam mechanism actually drives learner-facing text, not just state", () => {
   const session = newSession();
-  const { result: examBaseline } = applyCommand({ session, command: createCommand({ id: "e1", type: "EXAMINE", params: { region: "chest" } }) });
+  const { result: examBaseline } = applyCommand({ session, command: createCommand({ id: "e1", type: "EXAMINE", params: { region: "cardiorespiratory" } }) });
   assert.equal(examBaseline.outcome, "EXECUTED");
 
   const deteriorated = { ...session, state: { ...session.state, physiology: { ...session.state.physiology, respiratoryRate: 26 } } };
-  const { result: examOverload } = applyCommand({ session: deteriorated, command: createCommand({ id: "e2", type: "EXAMINE", params: { region: "chest" } }) });
+  const { result: examOverload } = applyCommand({ session: deteriorated, command: createCommand({ id: "e2", type: "EXAMINE", params: { region: "cardiorespiratory" } }) });
   assert.equal(examOverload.outcome, "EXECUTED");
   // Both commands only produce events; render via renderEvent to see the actual text.
 });

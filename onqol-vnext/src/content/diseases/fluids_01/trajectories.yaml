@@ -41,7 +41,52 @@ trajectories:
               heartRate: { set: 124 }
               urineOutputMlPerHr: { set: 5 }
               lactate: { set: 3.4 }
+          # Natural staff report: a nurse at the bedside notices worsening
+          # without being asked. Qualitative on purpose - no measurement
+          # reaches the learner until they take one.
+          deterioration:
+            cause_id: TRJ-FLUIDS-01-DETERIORATION-NO-INTERVENTION
+            text_ru: "выглядит хуже, мочи почти нет, пульс чаще."
           rule_ids: [RULE-FLUIDS-DETERIORATION-NO-INTERVENTION]
+          source_ids: [SRC-NICE-CG174]
+        # Source branching-table row «Суммарно > 2,5 л болюсами без
+        # переоценки → ЧДД 26, SpO₂ 92 %, влажные хрипы в нижних отделах».
+        # The lung finding itself is DERIVED from the respiratory rate
+        # (findings.yaml#derived_exam_slots), so setting these two values is
+        # what makes the crackles appear on the next chest examination.
+        - id: TRJ-FLUIDS-01-OVERLOAD-FROM-UNTREATED
+          from: hypovolemic_untreated
+          to: volume_overloaded
+          eligible_after_minutes: 0
+          conditions:
+            - path: fluidBalance.bolusMl
+              operator: gte
+              value: 2500
+          effects:
+            physiology:
+              respiratoryRate: { set: 26 }
+              spo2Percent: { set: 92 }
+          deterioration:
+            cause_id: TRJ-FLUIDS-01-OVERLOAD
+            text_ru: "стало тяжелее дышать, дыхание частое."
+          rule_ids: [RULE-FLUIDS-REPEAT-BOLUS-AFTER-OVERLOAD-SIGNS]
+          source_ids: [SRC-NICE-CG174]
+        - id: TRJ-FLUIDS-01-OVERLOAD-FROM-DETERIORATED
+          from: hypovolemic_deteriorated
+          to: volume_overloaded
+          eligible_after_minutes: 0
+          conditions:
+            - path: fluidBalance.bolusMl
+              operator: gte
+              value: 2500
+          effects:
+            physiology:
+              respiratoryRate: { set: 26 }
+              spo2Percent: { set: 92 }
+          deterioration:
+            cause_id: TRJ-FLUIDS-01-OVERLOAD
+            text_ru: "стало тяжелее дышать, дыхание частое."
+          rule_ids: [RULE-FLUIDS-REPEAT-BOLUS-AFTER-OVERLOAD-SIGNS]
           source_ids: [SRC-NICE-CG174]
     provenance:
       id: TRJ-FLUIDS-01-BASELINE
