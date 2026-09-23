@@ -143,3 +143,9 @@ Commitment-scope rulings implemented (question mark vs explicit action, `сна�
 
 Holdout regenerated clean (41 synthetic rows, `24b3409e…d1d0`, not run, not frozen; old `3427c699…` not preserved). Rows derived from a raw resident export removed (ids retired). Participant-grouped collection tooling, label v2 and alias-only blind review built. **Closed: the raw export was removed from all Git history (branch rewritten, one Codex checkpoint ref deleted, whole object database scanned clean); the clean holdout fingerprint is frozen, not run.** See `docs/RESIDENT_COLLECTION_READINESS_2026-09-20.md`.
 
+
+## Wave B — fluids-01 second disease (2026-09-23)
+
+`fluids_01` is the second disease bundle `content:build` has ever compiled — the "second-disease acceptance test" this doc's Architecture section flagged as unexercised. Foundation built and unit-tested (675/675 tests, 13 new); **not pilot-ready and not claimed to be**. Full report: [WAVE_B_FLUIDS_VALIDATION_REPORT.md](./WAVE_B_FLUIDS_VALIDATION_REPORT.md); gaps in detail: [WAVE_B_FLUIDS_CLINICAL_REVIEW_GAPS.md](./WAVE_B_FLUIDS_CLINICAL_REVIEW_GAPS.md).
+
+The single biggest remaining item: `src/ai/mentor/cardRetrieval.js` (Wave A's grounded-mentor card selection) is still hand-keyed to appendicitis's issue ids and Russian keyword patterns against one hardcoded card library file. fluids-01's deterministic core (patient truth, treatment effects from the branching table, governance, two safety rules, dynamic exam findings) works and is tested; the LLM-phrased grounded teaching layer has no fluids-01 cards to draw on yet. No live-provider session has been run (requires spend approval, not sought yet). No lab/ABG/CBC panel is orderable (`investigation_timing` empty) — the values exist in content, just unwired.
