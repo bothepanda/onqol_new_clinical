@@ -1,77 +1,80 @@
-# Wave B — Fluids Validation Report
+# Wave B — fluids_01 validation report (Mentor + Evidence Integration)
 
-**Status: FOUNDATION BUILT AND TESTED. NOT a full Wave B PASS against the ТЗ's own §62 acceptance gate.** This report says exactly which parts of that gate are met and which are not, rather than rounding up.
+**Verdict: `PARTIAL`.** Wave B is not promoted. The deterministic system is complete and tested; what is *not* demonstrated is live grounded teaching (0 of 9 live grounded drafts were accepted by the independent verifier) and reliable free-language understanding for compound live phrasing. Details, evidence and the explicit answer are below.
 
-## Base state
+Branch `feat/stateful-grounded-mentor-wave-b`. Donor `onqol-trainer` was read-only throughout: the frozen case `cases/2026-09-25-fluids-01.md` still hashes to `b4d1351e…c01a` (v1.2) and the donor working tree has no tracked modifications by this work (its HEAD moved from `4a8c17b` to `93d594a` through the owner's own later commits; nothing here touched it).
 
-- Base commit: `733eca5` (Stateful Grounded Mentor Wave A.1, tip of `feat/stateful-grounded-mentor` at kickoff)
-- Branch: `feat/stateful-grounded-mentor-wave-b`
-- Baseline preflight (recorded before any change): 662/662 tests, lint clean, build clean
-- Final state: `9237d99` (10 commits)
+## 1. Validation gate
 
-## Source
+| Gate item | Result | Evidence |
+|---|---|---|
+| fluids_01 playable end-to-end | **Yes, in the engine and the scripted/live harness.** No browser route: `useSession.js` still hardcodes the appendicitis bundle (a `?case=FLUIDS-01` switch was judged out of scope — "no UI redesign") | `fluids01.sessions.test.js`, `scripts/liveFluidsSession.mjs` |
+| Generic card retrieval for ≥ 2 bundles | **Yes.** One `cardRetrieval.js`, driven by each library's own `retrieval` metadata; appendicitis (`app004-library.json`) and fluids (`fluids01-library.json`) selected by session scope | `cardRetrieval.generic.test.js` |
+| No fluids-specific mentor implementation | **Yes.** Static check that no code under `src/ai`, `src/core`, `src/app` names the case; issues, cards, thresholds, labs, findings live in `src/content` | `noCaseSpecificMentor.test.js` |
+| F01–F14 | **Pass** | `fluids01.behavior.test.js` (+ F10 in `fluids01.grounded.test.js`) |
+| 5 scripted resident trajectories | **Pass** (A strong, B average, C vague, D stuck, E adaptive, + E2 non-adapting) | `fluids01.sessions.test.js` |
+| 3 live-provider sessions reviewed | **Done: 4 sessions (L1–L4), 43 turns.** Reviewed; findings below | `docs/evidence/WAVE_B_FLUIDS_LIVE_SESSIONS.md` (summary), raw in gitignored `private/wave-b-live/` |
+| 0 hidden-truth leaks | **0 observed** — all lab/ABG values and exam findings appeared only after being ordered/performed; static disclosure tests | `fluids01.disclosure.test.js`; live scan of all visible text |
+| 0 unsupported clinical numbers reaching the learner | **0** (deterministic verbatim-number policy; 0 grounded drafts accepted live so nothing model-authored reached the learner) | `fluids01.grounded.test.js` F10 |
+| 0 unsupported management recommendation | **0** — verifier + `noNewManagement`; live: none reached the learner | same |
+| Patient progression responds to actions/reassessment | **Yes.** Effects with source-row bounds, untreated deterioration, overload at cumulative 2500 mL, furosemide, dosed vital disclosure; live L3 reproduced overload (RR↑, SpO₂ 92 %, crackles) after 2500 mL | `fluids01.behavior.test.js`, L3 |
+| Mentor conversation meets the V1-like behavioural target | **Partly** — see §4 | live sessions |
+| All previous tests | **743 / 743 pass** | `npm test` |
+| lint / build / content / governance | clean / clean / OK / no violations | `npm run lint`, `build`, `content:check`, `governance:check` |
+| Donor unchanged | **Yes** (see header) | git + SHA-256 |
 
-- Repo: `/Users/botagozkaukenova/onqol-trainer` (branch `prototype/study-sessions`, HEAD `4a8c17b7...`) — see [`WAVE_B_FLUIDS_SOURCE_MANIFEST.md`](./WAVE_B_FLUIDS_SOURCE_MANIFEST.md) for the full discovery trail (the path named in the original ТЗ did not exist; two other `onqol-trainer` copies were checked and ruled out before the user supplied the correct path)
-- Case: `cases/2026-09-25-fluids-01.md` v1.2, frozen 2026-09-21
-- **Source integrity check (ТЗ §56):** donor repo HEAD unchanged (`4a8c17b7...`), no tracked file modified. Untracked items present (`.DS_Store`, `.claude/`, `MVP-akselerator.md`, `PRD-onqol-trainer.md`, `corpus/`, `demo/`, `dist/`) are pre-existing and were never touched — confirmed identical to the manifest's baseline listing.
+## 2. What was built this wave (all generic; content lives in `src/content`)
 
-## Files added / changed
+- **Content-driven retrieval** (`cardRetrieval.js`, `libraryRegistry.js`): per-library retrieval metadata (issue map, text patterns, `applies_when` / `exceptions_when` over learner-visible state only, `case_scope`, limit); only `approved_for_training` cards are retrievable; a bounded subset is offered, never the library.
+- **fluids_01 clinical-card package**: 34 atomic cards (33 approved, `FLU-RESUS-002` pending_review and unretrievable). Every card carries verbatim `source_quotes` that are substrings of the pinned source; card numbers must be a subset of its quotes; any new content stem not in the quote must be a declared `glue_terms`. Proof: `docs/evidence/WAVE_B_FLUIDS_CARD_FAITHFULNESS.json` (34 cards, 0 failing, source SHA pinned = observed), `scripts/verifyMentorCardFaithfulness.mjs`, `fluids01.cards.governance.test.js`.
+- **Teaching candidates from real state** (`teachingCandidates.js`, `rules.yaml#teaching_issues`): six issues (reassessment plan, fluid choice, diuretic before volume, continuing after overload, overload unaddressed, consult ownership) detected from learner actions and *learner-visible* state, with priority, once-only, follow-through, scaffold ladders whose top rung quotes approved cards verbatim.
+- **Mentor input** (this session): the deterministic decision (`intent`: question, scaffold level, expected answer domains) is now given to both grounded draft and verifier, so the model rephrases a decision instead of inventing one; the resident's own numbers may be restated only in a conversational sentence; a refused draft records a categorical reason code; a library may declare `grounded_min_scaffold` to reserve the model rewrite for the rungs that actually teach card content (fluids: 3).
+- **Disease-agnostic wiring for labs/ABG**: content-declared lab results with `{lab.*}`/`{physiology.*}` tokens, result variants keyed to fluid choice, absolute ETA; only tests the case declares are orderable.
+- **Debrief from real history** (`teachingIssueTimeline.js`, `buildDebrief.js`): teaching-issue timeline; separates simulator limitation from learner omission; no numeric score.
 
-**New content** (`src/content/diseases/fluids_01/`): `disease.yaml`, `phenotypes.yaml`, `trajectories.yaml`, `findings.yaml`, `rules.yaml`, `operative.yaml`, `complications.yaml`, `fluids01.behavioral.test.js` (13 tests).
+## 3. Live findings (L1–L4)
 
-**Shared content (additive):** `src/content/shared/medications/formulary.yaml` — 9 fluids + furosemide, each with its own provenance; `crystalloid` placeholder and every existing appendicitis medication untouched.
+Aggregate over 43 live turns: mentor spoke on 9, was silent on 34 (a strong resident, L1, drew no mentor speech at all — correct). Of 9 grounded attempts (draft + independent verifier, one regeneration), **0 accepted, 9 safe deterministic fallbacks**.
 
-**Core generalizations (all disease-agnostic; each has a comment explaining why it's generic, not fluids-specific):**
-- `executeCommand.js` — treatment-effect delta sampling reads any `<field>_delta`/`<field>_delta_range` content declares, not a hardcoded 3-field list
-- `advanceTime.js` — `DECIMAL_PHYSIOLOGY_FIELDS` set replaces a `key === "temperatureC"` special case
-- `patientGenerator.js` — new `fixed_patient` phenotype shape (a scripted, non-generated patient) alongside the existing draw pipeline
-- `conditions.js` — two new rule-condition evaluators: `noResuscitationBolusGiven` (tag-based, over `state.infusions`), `learnerVisibleVitalGte` (threshold over what the learner has actually been shown)
-- `renderEvent.js` — exam findings may declare a `region` (default `"abdomen"`, so appendicitis is unaffected) and a `derived_exam_slots` block evaluated against live state, not a fixed snapshot
-- `renderStatus.js` — vitals line is now generic over whatever physiology fields a disease's content produces, instead of 4 hardcoded fields
+Why grounded drafts failed (from raw records; codes/reasons only):
+1. Early drafts: echoed learner numbers, wrong `factId`s, symbols like `<15` (now: echo allowed in conversation only; instructions tightened).
+2. Drafts ignored the "ask only the question at scaffold 1–2" rule and recited cards (now given `intent`; the verifier enforces it and did, in L2/L4).
+3. The verifier (gpt-5-mini) is inconsistent: it rejected a sentence restating a nurse-confirmed "Введено: фуросемид 40 мг" as "no fact that the drug was given", and flagged card-derived text as "hidden diagnosis" while its own reasoning said the text was acceptable. Strictness is correct in direction (nothing unsupported reaches the learner) but the acceptance rate is ~0. This needs a stronger verifier model or a calibrated rubric — a spend/model decision, not attempted (see gaps).
 
-**Docs:** this file, `WAVE_B_FLUIDS_SOURCE_MANIFEST.md`, `WAVE_B_FLUIDS_MIGRATION_MAP.md`, `WAVE_B_FLUIDS_CLINICAL_REVIEW_GAPS.md`.
+Practical effect on the resident: the visible reply was always the deterministic reviewed question or scaffold, which is short, on-topic and safe. It is *not* the fluent, learner-word-reactive grounded teaching that was intended.
 
-## Tests
+Interpreter findings (live semantic-first, gpt-5-mini) — fixed in this session unless noted:
+- `STOP_INFUSION` for «останавливаю инфузию» was rejected for lack of a lexical anchor (stem «останавл») — fixed + test.
+- «струйно/быстро» not bound to a bolus; only the first of several reassess targets kept; whole-sentence evidence span turned a plan («потом…») into withholding the whole order; a fluid name read as a lactate test; spurious «не распознано» for list items — all fixed earlier.
+- **Open:** «рингера» without «лактат» is (rightly) not grounded as lactated Ringer and is dropped with a generic "unrecognised" notice instead of a clarification; «оцениваю лёгкие и шейные вены» is returned by the model as one REASSESS with region ids and rejected (works when phrased as separate examine/measure clauses); «через 15 минут переоцениваю…» (future plan) is not executed; «кислород» produces a spurious drug-clarification (oxygen not modeled); statements of reasoning («это перегрузка объёмом») are reported as "unrecognised" noise.
 
-- Before: 662/662
-- After: 675/675 (662 pre-wave, unmodified, + 13 new `F-ARCH-*` tests)
-- Lint: clean
-- Build: `content:build` produces 2 disease bundles (`appendicitis`, `fluids_01`) + shared; `vite build` succeeds
+## 4. Manual inspection (ТЗ §13)
 
-## Clinical cards
+1. **Managing a patient or a quiz?** Managing a patient in the strong path (L1: measure, examine, labs, bolus, reassess, monitor; no mentor speech). Quiz-like when the mentor speaks: the deterministic questions are direct ("Как ты поймёшь, что болюс подействовал?"). Acceptable, not yet natural.
+2. **Reacts to what the resident said?** The *decision* to speak is driven by real actions (diuretic with low output → C1; bolus without follow-up → reassessment issue). The *wording* reacts to the resident only through the deterministic phrase, because no grounded draft passed.
+3. **Knows when not to intervene?** Yes: 34/43 silent; L1 silent throughout; issues closed by the resident's own reassessment stayed closed; once-only issues did not repeat.
+4. **«не знаю» → progressive teaching?** Yes (L2, L4): scaffold 1→2→3→4 on the *same* issue, never the same question repeated; level 3 offers options, level 4 quotes the approved card and hands the decision back. Quality of level-4 text is the card's own wording (see item 9).
+5. **Decision ownership returned?** Yes — every rung ends with a question to the resident; level 4 ends "Как ты изменишь план?".
+6. **Patient state changes with treatment?** Yes (L1 BP/HR/perfusion improved after boluses; L3 overload after 2500 mL with RR↑, SpO₂ 92 %, crackles, nurse alert; UO changed 80 → 35 mL/h with timing).
+7. **Can the resident revise the plan after reassessment?** Yes (L2: diuretic → examine catheter/perfusion → issue closed → bolus; L3: stop infusion, furosemide, senior called — the resident acted on the overload).
+8. **Alternate reasoning path survives?** Yes in the engine (scripted C, E). Live, the resident reached the same actions by different orders/phrasings; but only if each clause survives the interpreter (§3 open items).
+9. **Any medical statement not traceable to approved content?** None model-authored reached the learner. One item for clinical review: the deterministic scaffold-4 text (a verbatim approved card quote) says «диуретик, назначенный до оценки… подозреваемой гиповолемии, — критическая ошибка кейса», i.e. it uses the source's own evaluative label and names hypovolaemia before the resident did. It *is* traceable (card FLU-OLIGURIA-001 quote) but conflicts with the addendum given to the model ("no evaluative labels, don't name the interpretation"). Logged in the clinical review gaps.
 
-- Rules wired to runtime: 2 `approved_for_training` (C1: diuretic-before-volume-correction; C2: repeat-bolus-after-disclosed-overload) + 1 deliberately `pending_review` (the source's own unconfirmed NICE citation)
-- Treatment effects wired: 4 `approved_for_training` (balanced bolus, unbalanced bolus, colloid bolus, furosemide) + 1 natural-course deterioration transition
-- Stateful-mentor clinical-card library (the ~20-25 candidate cards in the migration map §D, for LLM-grounded teaching wording): **not authored, not wired** — `cardRetrieval.js` remains appendicitis-keyed. See [`WAVE_B_FLUIDS_CLINICAL_REVIEW_GAPS.md`](./WAVE_B_FLUIDS_CLINICAL_REVIEW_GAPS.md) §6.
+## 5. The question
 
-## Automated behavioral results (F-ARCH-01 through 12, all passing)
+> Can a resident now complete fluids_01 naturally, in their own clinical language, with patient consequences and selective grounded teaching, without discovering a hidden expected phrase sequence?
 
-Proves: exact baseline vitals load; a balanced bolus reproduces the branching table's row-1 numbers after onset + reassessment; two boluses compound to row-2; NS/unbalanced-Ringer's give the source's own claimed identical hemodynamic effect; untreated deterioration fires at 60 minutes with the source's exact numbers and is pre-empted by a real bolus; C1 fires/doesn't-fire correctly around whether a bolus was given first, with its own worsening consequence; C2 fires only once the learner has actually seen RR≥24; the pending rule is governance-blocked and never eligible; an unmodeled investigation fails honestly; the dynamic chest exam finding actually changes with physiology through a full command; the audit export works for a second disease.
+**Not clearly yes → `PARTIAL`.**
 
-These are **not** the ТЗ §48 F01-F14 catalogue verbatim — they're a different, narrower set (`F-ARCH-*`) proving the architecture claims this wave actually built. No end-to-end scripted resident-session fixtures (§49) exist yet.
+- *Own clinical language, no hidden phrase sequence:* mostly. Actions are read by a lexicon plus a live semantic layer; L1–L4 completed with natural wording, and every case that failed did so with a visible "unrecognised" notice rather than a wrong action. But several ordinary phrasings still need rewording (list in §3), so a resident can sometimes have to rediscover a phrasing.
+- *Patient consequences:* yes.
+- *Selective:* yes (silent by default, issues once, follow-through).
+- *Grounded teaching:* **not demonstrated live** — the deterministic reviewed text is what is shown.
 
-## Live provider results
+## 6. Recommended next steps (not done; need decisions)
 
-**None run.** This requires a real Anthropic API key and incurs cost; per this project's standing rule (spend caps are the user's to lift), that was not run without asking first. Not attempted, not simulated, not claimed.
-
-## Known failures
-
-None — every test that exists passes. The honest failure mode here is *scope*, not *broken code*: see gaps below.
-
-## Known limitations (full list: [`WAVE_B_FLUIDS_CLINICAL_REVIEW_GAPS.md`](./WAVE_B_FLUIDS_CLINICAL_REVIEW_GAPS.md))
-
-1. No individually-orderable chemistry/ABG/CBC/urinalysis panel (`investigation_timing` is empty) — all values are authored in content, just not wired to `ORDER_TEST`.
-2. Fluid-choice ABG chloride divergence not modeled.
-3. Mental-status change ("сознание яснее") not modeled — no discrete field exists.
-4. **Stateful grounded mentor / clinical-card retrieval not extended to fluids-01** — the largest remaining item.
-5. Teaching-objective/rubric→debrief mapping is a categorization (migration map), not wired into `buildDebrief.js` for fluids-01-shaped events.
-6. No end-to-end scripted resident-session fixtures (§49), no live-provider sessions (§50), no human conversation review table (§51).
-7. `KNOWN_GAPS.md` updated with a pointer to this report (see below) rather than restating everything inline.
-
-## §63's own question — answered honestly against what exists today
-
-> Can a resident manage this fluids case in their own clinical language, receive realistic consequences, get selective teaching when needed, and complete the case without discovering the simulator's hidden expected phrase sequence?
-
-**Partially, and only proven at the deterministic-mechanism level, not through an actual session.** What is proven by test: the domain core (patient truth, treatment effects, governance, dynamic exam findings, the two safety rules) behaves correctly and deterministically for real clinical actions expressed as commands (bolus, reassess, furosemide, etc.) — none of it depends on a hidden phrase sequence, and it reuses the same generic interpreter/command pipeline appendicitis uses, so free-text clinical language should reach these commands the same way it already does for appendicitis. What is **not** proven, because it has not been run: an actual resident typing free Russian sentences into the interpreter for this specific case's vocabulary (bolus volumes, fluid names, "переоцени"), the LLM-phrased mentor responding with fluids-01-relevant grounded teaching (it currently has no fluids-01 cards to ground in), and a real debrief reading a real fluids-01 transcript. Those three are exactly what a live-provider session run would answer, and none has been run yet.
-
-**Recommendation:** do not treat this as pilot-ready. Treat it as a verified, tested foundation — the "second disease acceptance test" ARCHITECTURE.md flagged as unexercised is now exercised — with a clear, scoped follow-up list (card-retrieval generalization + fluids-01 card authoring + lab-panel wiring + live-provider smoke session) before any resident sees it.
+1. Verifier: try a stronger model or a calibrated rubric for `noNewManagement`/`noHiddenDiagnosis` on card-derived text (spend decision — the per-session ledger stayed intact; nothing was lifted).
+2. Clarification instead of a generic notice when a model-proposed fluid/concept is not literally grounded («рингера»).
+3. Interpreter: examine-vs-reassess routing for lungs/neck veins; future-plan («через 15 минут переоцениваю») as a recorded plan.
+4. Optional `?case=FLUIDS-01` browser route behind the flag.
+5. Clinical review of the items in `WAVE_B_FLUIDS_CLINICAL_REVIEW_GAPS.md`.
