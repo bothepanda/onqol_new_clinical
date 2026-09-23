@@ -90,6 +90,9 @@ function bindExplicitParameters(type, text) {
     if (interval != null) params.intervalMinutes = interval;
   }
 
+  // "жду результаты": waiting for what is already in flight, no duration named.
+  if (type === COMMAND.WAIT && /(?:жду|дожд[а-яё]*|ожида[а-яё]*)\s+(?:\S+\s+)?(?:результат|анализ|ответ|лаборатор|данные)/i.test(text)) params.untilNextPending = true;
+
   if (type === COMMAND.REASSESS || type === COMMAND.WAIT) {
     const after = extractDurationMinutes(text, { requiresTemporalCue: false });
     if (after != null) params.afterMinutes = after;

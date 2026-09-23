@@ -158,7 +158,11 @@ function mergeLiteralReassessTargets(commands, deterministicCommands) {
   if (!literal.length) return commands;
   return commands.map((command) => {
     if (command.type !== COMMAND.REASSESS) return command;
-    const targets = [...new Set([...(command.params?.targets ?? []), ...literal])];
+    const own = command.params?.targets ?? [];
+    // The generic "vitals" (everything) is not added on top of specific targets the
+    // model already named: the learner asked for pressure and pulse, not for all vitals.
+    const specific = own.some((id) => ["blood_pressure", "heart_rate", "spo2", "temperature"].includes(id));
+    const targets = [...new Set([...own, ...literal.filter((id) => !(specific && id === "vitals"))])];
     return targets.length === (command.params?.targets ?? []).length ? command : createCommand({ id: command.id, type: command.type, params: { ...command.params, targets }, sourceText: command.sourceText });
   });
 }
