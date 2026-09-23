@@ -34,17 +34,17 @@ export function renderEvent({ event, bundle, patient, state }) {
     case EVENT.TEST_ORDERED:
       return {
         speakerRu: "Система",
-        textRu: `Назначено: ${labelForTest(event.payload.testId)}. Ожидаемое время результата — ${event.payload.etaMinutes} мин.`,
+        textRu: `Назначено: ${labelForTest(event.payload.testId, bundle)}. Ожидаемое время результата — ${event.payload.etaMinutes} мин.`,
       };
 
     case EVENT.TEST_PRELIMINARY_REPORTED:
       return {
         speakerRu: staffForTest(event.payload.investigationId),
-        textRu: `Предварительно: ${formatResult(event.payload.preliminary, event.payload.investigationId)}`,
+        textRu: `Предварительно: ${formatResult(event.payload.preliminary, event.payload.investigationId, bundle)}`,
       };
 
     case EVENT.TEST_RESULTED:
-      return { speakerRu: "Лаборатория/Диагностика", textRu: renderTestResult(event) };
+      return { speakerRu: "Лаборатория/Диагностика", textRu: renderTestResult(event, bundle) };
 
     case EVENT.MEDICATION_ADMINISTERED:
       return { speakerRu: "Медсестра", textRu: renderMedicationAdministered(event, bundle) };
@@ -314,9 +314,9 @@ function renderSlotExam(bundle, patient, state, region) {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-function renderTestResult(event) {
+function renderTestResult(event, bundle) {
   const { investigationId, result } = event.payload;
-  return formatResult(result, investigationId);
+  return formatResult(result, investigationId, bundle);
 }
 
 /**
@@ -330,9 +330,9 @@ function renderTestResult(event) {
  * leaves that number NEEDS SOURCE - and no appendicolith or incidental finding,
  * because none exists in content to print.
  */
-function formatResult(result, investigationId) {
-  if (result == null) return `${labelForTest(investigationId)}: результат получен.`;
-  if (typeof result === "string") return `${labelForTest(investigationId)}: ${result}`;
+function formatResult(result, investigationId, bundle = null) {
+  if (result == null) return `${labelForTest(investigationId, bundle)}: результат получен.`;
+  if (typeof result === "string") return `${labelForTest(investigationId, bundle)}: ${result}`;
 
   if (result.kind === "structured_report") {
     return [result.modalityRu ? `${result.modalityRu}.` : null, ...(result.sectionsRu ?? []), result.conclusionRu]
@@ -342,10 +342,10 @@ function formatResult(result, investigationId) {
 
   // Biochemistry: only the analytes the learner asked for (matrix V07).
   if (Array.isArray(result.linesRu)) {
-    return `${labelForTest(investigationId)} — ${result.linesRu.join("; ")}.`;
+    return `${labelForTest(investigationId, bundle)} — ${result.linesRu.join("; ")}.`;
   }
 
-  if (typeof result.note === "string") return `${labelForTest(investigationId)}: ${result.note}`;
+  if (typeof result.note === "string") return `${labelForTest(investigationId, bundle)}: ${result.note}`;
 
   // Named in Russian, not by the internal field name (PBC-13). The learner
   // used to read «ОАК — wbc: 15.6, neutrophilPercent: 81» - English
@@ -357,7 +357,7 @@ function formatResult(result, investigationId) {
   // physiology envelope does not carry one (see the vitals/labs review table).
   // An unmapped field falls back to its own key rather than being dropped.
   const entries = Object.entries(result);
-  const testLabel = labelForTest(investigationId);
+  const testLabel = labelForTest(investigationId, bundle);
 
   // A single-field result whose field IS the test («СРБ — СРБ: 44») reads as a
   // stutter; print the value once.
@@ -463,7 +463,9 @@ function renderOperativeFinding(event, bundle, patient) {
   return step.description_ru.replace("{pelvic_fluid_note}", "") + " " + step.decision_prompt_ru;
 }
 
-function labelForTest(testId) {
+function labelForTest(testId, bundle = null) {
+  const declared = bundle?.trajectories?.investigation_timing?.[testId]?.label_ru;
+  if (declared) return declared;
   const labels = {
     cbc: "ОАК",
     chemistry: "БХАК",

@@ -184,4 +184,83 @@ treatment_effects:
       id: TE-FLUIDS-01-FUROSEMIDE
       notes: "Diuretic-driven output rise with hemodynamic/perfusion worsening - the case's own illustration of why oliguria here is not a diuretic-responsive problem."
 
-investigation_timing: {}
+# Laboratory results (Wave B). Values are the patient's authored laboratory
+# truth (phenotypes.yaml#fixed_patient.laboratory) or live physiology, filled
+# into the wording at ORDER time - the sample is drawn when it is ordered, so a
+# result never reflects a treatment effect that has not landed yet. The source
+# gives every result "через 20 минут после заказа". Nothing is reported that
+# the source does not state: the source's interpretive comments (e.g. "after
+# NaCl", "hyperchloremic component") are NOT results and are not printed.
+investigation_timing:
+  cbc:
+    etaMinutes: 20
+    absolute_eta: true
+    label_ru: "ОАК"
+    result_ru: "Hb {lab.hemoglobin_g_l.current} г/л (до операции {lab.hemoglobin_g_l.preop} г/л)"
+  chemistry:
+    etaMinutes: 20
+    absolute_eta: true
+    requires_parameter: analytes
+    clarify_prompt_ru: "Какие показатели биохимии нужны?"
+  lactate:
+    etaMinutes: 20
+    absolute_eta: true
+    label_ru: "лактат"
+    result_ru: "{physiology.lactate} ммоль/л"
+  abg:
+    etaMinutes: 20
+    absolute_eta: true
+    label_ru: "КЩС"
+    result_variants:
+      # Source: "0,9 % NaCl вместо сбалансированного - при повторе КЩС Cl 114,
+      # HCO3- 16" (and the non-lactate Ringer's row: "Как 0,9 % NaCl"). Only
+      # the two stated values are reported; pH / pCO2 / BE for the repeat are
+      # not in the source and are not invented.
+      - when:
+          - { path: investigations.abg.status, operator: equals, value: resulted }
+          - { path: fluidBalance.fluidIds, operator: includes, value: normal_saline }
+        result_ru: "Cl 114 ммоль/л, HCO₃⁻ 16 ммоль/л"
+      - when:
+          - { path: investigations.abg.status, operator: equals, value: resulted }
+          - { path: fluidBalance.fluidIds, operator: includes, value: ringers_no_lactate }
+        result_ru: "Cl 114 ммоль/л, HCO₃⁻ 16 ммоль/л"
+      - result_ru: "pH {lab.abg.ph}, pCO₂ {lab.abg.pco2_mm_hg} мм рт. ст., HCO₃⁻ {lab.abg.hco3_mmol_l} ммоль/л, BE {lab.abg.be_mmol_l} ммоль/л"
+  urinalysis:
+    etaMinutes: 20
+    absolute_eta: true
+    label_ru: "ОАМ"
+    result_ru: "удельный вес мочи {lab.urine_specific_gravity}"
+  troponin:
+    etaMinutes: 20
+    absolute_eta: true
+    label_ru: "тропонин"
+    result_ru: "{lab.troponin_ru}"
+
+chemistry_analytes:
+  creatinine:
+    label_ru: "креатинин"
+    result_ru: "креатинин {lab.chemistry.creatinine_umol_l.current} мкмоль/л (исходно {lab.chemistry.creatinine_umol_l.baseline} мкмоль/л)"
+  urea:
+    label_ru: "мочевина"
+    result_ru: "мочевина {lab.chemistry.urea_mmol_l} ммоль/л"
+  electrolytes:
+    label_ru: "электролиты"
+    result_ru: "Na {lab.chemistry.sodium_mmol_l}, K {lab.chemistry.potassium_mmol_l}, Cl {lab.chemistry.chloride_mmol_l} ммоль/л"
+  glucose:
+    label_ru: "глюкоза"
+    result_ru: "глюкоза {lab.glucose_mmol_l} ммоль/л"
+provenance_chemistry_analytes:
+  id: CHEM-ANALYTES-FLUIDS-01
+  authority_layer: patient_truth
+  jurisdiction: international
+  source: "onqol-trainer cases/2026-09-25-fluids-01.md v1.2, Часть B «Лабораторные данные»"
+  source_version_or_date: "1.2 / 2026-09-21"
+  evidence_strength: expert_consensus
+  review_status: approved_for_training
+  reviewed_by: ["Botagoz Kaukenova — Clinical Lead"]
+  reviewed_at: "2026-09-21"
+  second_review_required: false
+  second_reviewed_by: null
+  second_reviewed_at: null
+  next_review_due: null
+  notes: "Values verbatim from the case's laboratory table; interpretive comment column deliberately not reproduced."

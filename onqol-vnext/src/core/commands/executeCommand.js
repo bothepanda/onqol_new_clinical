@@ -251,7 +251,9 @@ const HANDLERS = {
       };
     }
 
-    const etaMinutes = timing.etaMinutes + resolution.etaMinutes;
+    // A case whose source states the turnaround itself (fluids: "через 20 минут")
+    // marks it `absolute_eta`; the hospital profile's lab delay is not added on top.
+    const etaMinutes = timing.absolute_eta === true ? timing.etaMinutes : timing.etaMinutes + resolution.etaMinutes;
     const scheduledPending = [
       ...buildTestSchedule(command, timing, state, patient, bundle, etaMinutes, resolution.etaMinutes),
       // A preoperative requirement that IS an investigation (the KZ ABO/Rh and
@@ -1034,7 +1036,7 @@ function buildTestSchedule(command, timing, state, patient, bundle, etaMinutes, 
   const isImaging = testId === "ultrasound_abdomen" || testId === "ct_abdomen";
   const result = isImaging
     ? imagingResultFor(testId, patient)
-    : labResultFor(testId, state.physiology, patient, bundle, command.params);
+    : declaredLabResult(timing, state, patient) ?? labResultFor(testId, state.physiology, patient, bundle, command.params);
   const preliminary = isImaging ? imagingPreliminaryFor(testId, patient) ?? result : result;
   const orderedAt = state.clock.elapsedMinutes;
 
@@ -1107,6 +1109,40 @@ function buildCtReport(patient) {
 }
 
 /**
+ * A result declared by the investigation's own content (Wave B): the first
+ * `result_variants` entry whose content conditions hold at ORDER time (the
+ * sample is drawn when it is ordered), or a plain `result_ru`. Tokens
+ * `{lab.<path>}` (the patient's authored laboratory truth) and
+ * `{physiology.<field>}` (current physiology) are filled in; a token that
+ * cannot be resolved makes the whole result absent - a result is never
+ * assembled from something the case does not contain. Returns `undefined`
+ * when the content declares nothing, leaving the original per-test switch in
+ * charge (appendicitis).
+ */
+function declaredLabResult(timing, state, patient) {
+  const variants = timing?.result_variants ?? (timing?.result_ru ? [{ result_ru: timing.result_ru }] : null);
+  if (!variants) return undefined;
+  const variant = variants.find((candidate) => contentConditionsMet(candidate.when, state));
+  if (!variant) return null;
+  const text = fillLabTemplate(variant.result_ru, patient, state.physiology);
+  return text == null ? null : { note: text };
+}
+
+/** `{lab.<path>}` / `{physiology.<field>}` tokens -> values; `null` if any token cannot be resolved. */
+function fillLabTemplate(template, patient, physiology) {
+  let unresolved = false;
+  const text = template.replace(/\{(lab|physiology)\.([A-Za-z0-9_.]+)\}/g, (_, root, path) => {
+    const value = path.split(".").reduce((node, key) => node?.[key], root === "lab" ? patient?.laboratory : physiology);
+    if (value === undefined || value === null || typeof value === "object") {
+      unresolved = true;
+      return "";
+    }
+    return String(value).replace(".", ",");
+  });
+  return unresolved ? null : text;
+}
+
+/**
  * Laboratory results.
  *
  * BIOCHEMISTRY (matrix V07, task §8): only the analytes the learner NAMED are
@@ -1132,7 +1168,7 @@ function labResultFor(testId, physiology, patient, bundle, params) {
       const requested = params.analytes ?? [];
       return {
         analytes: requested,
-        linesRu: requested.map((id) => catalogue[id]?.result_ru ?? `${id}: результат не смоделирован`),
+        linesRu: requested.map((id) => (catalogue[id]?.result_ru ? fillLabTemplate(catalogue[id].result_ru, patient, physiology) : null) ?? `${id}: результат не смоделирован`),
       };
     }
     case "crp":

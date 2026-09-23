@@ -100,9 +100,9 @@ phenotypes:
           ph: 7.32
           pco2_mm_hg: 36
           hco3_mmol_l: 18
-          be_mmol_l: -7
+          be_mmol_l: "−7"
           anion_gap_approx: 10
-        urine_specific_gravity: 1.030
+        urine_specific_gravity: "1,030"
         ecg_ru: "синусовая тахикардия 110, ишемии нет"
         troponin_ru: "отрицательный"
 

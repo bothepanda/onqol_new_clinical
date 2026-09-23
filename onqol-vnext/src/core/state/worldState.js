@@ -74,7 +74,7 @@ export function createInitialState({ session, patient, hospital, clock }) {
     infusions: [],
     // Cumulative infused volume, so content can condition on "how much has
     // been given" (fluid overload) without a per-disease counter.
-    fluidBalance: { infusedMl: 0, bolusMl: 0 },
+    fluidBalance: { infusedMl: 0, bolusMl: 0, fluidIds: [] },
 
     // ---- What the learner knows ---------------------------------------
     revealed: {
@@ -387,6 +387,7 @@ export function applyEvent(state, event) {
       next.fluidBalance = {
         infusedMl: (state.fluidBalance?.infusedMl ?? 0) + (Number(event.payload.volumeMl) || 0),
         bolusMl: (state.fluidBalance?.bolusMl ?? 0) + (event.payload.bolus === true ? Number(event.payload.volumeMl) || 0 : 0),
+        fluidIds: [...new Set([...(state.fluidBalance?.fluidIds ?? []), event.payload.fluidId])],
       };
       break;
 
