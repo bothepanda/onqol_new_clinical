@@ -20,6 +20,12 @@ import { selectCardsForIssue } from "./cardRetrieval.js";
  * @param {string|null} [args.deterministicFallbackText]  `mentorEngine.js`'s own reviewed text for this decision - the "verified safety fallback" ТЗ §5/§19 explicitly still allow deterministic authorship for
  */
 export async function renderGroundedMentorText({ provider, context, issueId, library, visibleState = null, concepts = [], intent = null, timeoutMs, deterministicFallbackText = null }) {
+  // A library may reserve the (costly, fallible) grounded rewrite for the rungs
+  // where card content is actually taught; the lower rungs are one reviewed
+  // question the deterministic engine already words safely.
+  if (deterministicFallbackText && intent && Number.isInteger(library.grounded_min_scaffold) && (intent.scaffolding ?? 1) < library.grounded_min_scaffold) {
+    return { text: deterministicFallbackText, question: null, audit: { status: "fallback", errorCode: "deterministic_by_policy", calls: [], regenerations: 0, reasons: [], cardIds: [], context } };
+  }
   const scopedLibrary = { ...library, cards: selectCardsForIssue({ issueId, learnerText: context.text, library, visibleState, concepts, casePresetId: context.casePresetId }) };
   const result = await runGroundedDialogue({ provider, context, library: scopedLibrary, intent, timeoutMs, maxRegenerations: 1 });
   if (result.audit.status === "accepted") return result;

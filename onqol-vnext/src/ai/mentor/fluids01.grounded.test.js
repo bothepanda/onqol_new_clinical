@@ -154,3 +154,30 @@ test("the library-level policy addendum reaches BOTH the author and the verifier
   await renderGroundedMentorText({ provider: p, ...args });
   for (const call of p.calls) assert.match(call.messages[0].content, /ДОПОЛНЕНИЕ ДЛЯ ЭТОЙ БИБЛИОТЕКИ/);
 });
+
+test("the resident's own number may be restated in a conversational sentence, never in a clinical one or the question", async () => {
+  const { args } = scene();
+  const ok = provider({ drafts: [draft([sentence("Вводишь 500 мл болюсом.", "conversation", []), sentence(STATEMENT)])] });
+  assert.equal((await renderGroundedMentorText({ provider: ok, ...args })).audit.status, "accepted");
+  // A number that is neither in the cited card/fact nor in the resident's words is not:
+  const invented = provider({ drafts: [draft([sentence("Вводишь 700 мл болюсом.", "conversation", [])])] });
+  assert.equal((await renderGroundedMentorText({ provider: invented, ...args })).audit.status, "fallback");
+});
+
+test("a refused draft records a categorical reason code, never content", async () => {
+  const { args } = scene();
+  const p = provider({ drafts: [draft([sentence("При ресусцитации вводят 750 мл.")])] });
+  const result = await renderGroundedMentorText({ provider: p, ...args });
+  assert.deepEqual(result.audit.reasons, ["unsupported_number"]);
+});
+
+test("a library may reserve the grounded rewrite for higher scaffold rungs: below it, no provider call is made", async () => {
+  const { args } = scene();
+  const p = provider({ drafts: [draft([sentence(STATEMENT)])] });
+  const low = await renderGroundedMentorText({ provider: p, ...args, intent: { mode: "PROBE", scaffolding: 1, expects: [], questionRu: "Как поймёшь, что болюс подействовал?" } });
+  assert.equal(p.calls.length, 0);
+  assert.equal(low.audit.errorCode, "deterministic_by_policy");
+  assert.equal(low.text, args.deterministicFallbackText);
+  const high = await renderGroundedMentorText({ provider: p, ...args, intent: { mode: "TEACH", scaffolding: 3, expects: [], questionRu: "x" } });
+  assert.ok(p.calls.length > 0 && high.audit.status === "accepted");
+});

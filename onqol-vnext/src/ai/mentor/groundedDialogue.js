@@ -36,24 +36,30 @@ export function validateContext(context, library) {
 const NUMBER = /\d+(?:[.,]\d+)?/g;
 const numbersIn = (text) => (String(text).match(NUMBER) ?? []).map((n) => n.replace(",", "."));
 
-export function validateCandidate(candidate, context, library) {
+export function validateCandidate(candidate, context, library, report = []) {
   const cards = new Map(library.cards.map((x) => [x.id, x]));
   const factText = new Map(context.facts.map((x) => [x.id, x.text]));
   const facts = new Set(context.facts.map((x) => x.id));
   const clinicalKinds = library.clinical_kinds ?? ["background_reference"];
   const verbatimNumbers = library.numeric_policy === "verbatim_from_cited_sources";
-  if (!candidate || Object.keys(candidate).sort().join() !== "mode,question,sentences" || !MODES.includes(candidate.mode)) return false;
-  if (!Array.isArray(candidate.sentences) || candidate.sentences.length > 5) return false;
+  // Categorical code only (never content) so metrics can tell WHY a draft was refused.
+  const no = (code) => { report.push(code); return false; };
+  if (!candidate || Object.keys(candidate).sort().join() !== "mode,question,sentences" || !MODES.includes(candidate.mode)) return no("bad_shape");
+  if (!Array.isArray(candidate.sentences) || candidate.sentences.length > 5) return no("bad_shape");
+  // The resident's own numbers may be repeated back in a plain conversational
+  // restatement of what they just said; they can never appear in a clinical claim.
+  const echoable = new Set(numbersIn(context.text ?? ""));
   for (const s of candidate.sentences) {
-    if (!s || Object.keys(s).sort().join() !== "cardIds,factIds,kind,text" || typeof s.text !== "string" || !s.text.trim()) return false;
-    if (!["clinical", "patient_fact", "conversation"].includes(s.kind) || !Array.isArray(s.cardIds) || !Array.isArray(s.factIds)) return false;
-    if (s.cardIds.some((id) => !cards.has(id)) || s.factIds.some((id) => !facts.has(id))) return false;
-    if (s.kind === "clinical" && !s.cardIds.some((id) => clinicalKinds.includes(cards.get(id).kind))) return false;
-    if (s.kind === "patient_fact" && !s.factIds.length) return false;
-    if (s.text.includes("?")) return false; // Questions have one explicit contract below.
+    if (!s || Object.keys(s).sort().join() !== "cardIds,factIds,kind,text" || typeof s.text !== "string" || !s.text.trim()) return no("bad_shape");
+    if (!["clinical", "patient_fact", "conversation"].includes(s.kind) || !Array.isArray(s.cardIds) || !Array.isArray(s.factIds)) return no("bad_shape");
+    if (s.cardIds.some((id) => !cards.has(id))) return no("unknown_card_id");
+    if (s.factIds.some((id) => !facts.has(id))) return no("unknown_fact_id");
+    if (s.kind === "clinical" && !s.cardIds.some((id) => clinicalKinds.includes(cards.get(id).kind))) return no("clinical_without_clinical_card");
+    if (s.kind === "patient_fact" && !s.factIds.length) return no("patient_fact_without_fact");
+    if (s.text.includes("?")) return no("question_in_sentence"); // Questions have one explicit contract below.
     if (verbatimNumbers) {
-      const allowed = new Set([...s.cardIds.flatMap((id) => numbersIn(cards.get(id).statement)), ...s.factIds.flatMap((id) => numbersIn(factText.get(id)))]);
-      if (numbersIn(s.text).some((n) => !allowed.has(n))) return false;
+      const allowed = new Set([...s.cardIds.flatMap((id) => numbersIn(cards.get(id).statement)), ...s.factIds.flatMap((id) => numbersIn(factText.get(id))), ...(s.kind === "conversation" ? echoable : [])]);
+      if (numbersIn(s.text).some((n) => !allowed.has(n))) return no("unsupported_number");
     }
   }
   const q = candidate.question;
@@ -66,12 +72,12 @@ export function validateCandidate(candidate, context, library) {
   // is no longer load-bearing. More than one "?" is still rejected: that is
   // a real sign of a compound/multi-question dump, which the single-question
   // contract below (§19) exists to prevent.
-  if (q !== null && (!q || Object.keys(q).sort().join() !== "expects,text" || typeof q.text !== "string" || !q.text.trim() || typeof q.expects !== "string" || !q.expects.trim() || q.expects.length > 200 || (q.text.match(/\?/g) ?? []).length > 1)) return false;
+  if (q !== null && (!q || Object.keys(q).sort().join() !== "expects,text" || typeof q.text !== "string" || !q.text.trim() || typeof q.expects !== "string" || !q.expects.trim() || q.expects.length > 200 || (q.text.match(/\?/g) ?? []).length > 1)) return no("bad_question");
   const text = candidateText(candidate);
   // This library authorizes no numeric clinical teaching, prescriptions or doses.
-  if (!text.trim() || text.length > 1100) return false;
-  if (verbatimNumbers ? q && numbersIn(q.text).length > 0 : /\p{Number}/u.test(text)) return false;
-  if (q && context.history.filter((x) => x.role === "mentor").some((x) => x.text.includes(q.text))) return false;
+  if (!text.trim() || text.length > 1100) return no("bad_length");
+  if (verbatimNumbers ? q && numbersIn(q.text).length > 0 : /\p{Number}/u.test(text)) return no("number_in_text");
+  if (q && context.history.filter((x) => x.role === "mentor").some((x) => x.text.includes(q.text))) return no("question_repeated");
   return true;
 }
 
@@ -166,7 +172,8 @@ export async function runGroundedDialogue({ provider, context, library, intent =
     const rawDraft = await call("mentor_draft", withAddendum(POLICY, library), { context, cards: library.cards, ...(intent ? { intent } : {}), ...(repairHint ? { repairHint } : {}) }, DIALOGUE_SCHEMA);
     const repaired = repairQuestionPlacement(rawDraft);
     const draft = repaired.candidate;
-    if (!validateCandidate(draft, context, library)) throw new Error("candidate_rejected");
+    const report = [];
+    if (!validateCandidate(draft, context, library, report)) { const error = new Error("candidate_rejected"); error.reasons = report; throw error; }
     return { draft, repairs: repaired.repairs };
   }
 
