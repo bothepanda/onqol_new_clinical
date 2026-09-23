@@ -39,7 +39,7 @@ export async function renderMentorResponse({ session, mentor, messages, text, fe
     const response = await fetchImpl("/api/mentor/stateful-response", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId: session.sessionId, context, issueId, concepts: mentor.concepts ?? [], visibleState: buildRetrievalView(buildLearnerVisibleState(session.state)), deterministicFallbackText: mentor.textRu }),
+      body: JSON.stringify({ sessionId: session.sessionId, context, issueId, concepts: mentor.concepts ?? [], intent: { mode: mentor.mode, scaffolding: mentor.scaffolding ?? 1, expects: mentor.openQuestion?.expects ?? [], questionRu: mentor.textRu }, visibleState: buildRetrievalView(buildLearnerVisibleState(session.state)), deterministicFallbackText: mentor.textRu }),
       signal: controller.signal,
     });
     if (!response.ok) throw new Error(`mentor_http_${response.status}`);

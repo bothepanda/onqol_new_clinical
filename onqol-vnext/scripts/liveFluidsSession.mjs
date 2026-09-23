@@ -161,6 +161,7 @@ const record = {
   text,
   atMinutes: after.state.clock.elapsedMinutes,
   interpreted: JSON.parse(JSON.stringify({ ...turn.interpreted, semanticTelemetry: undefined })),
+  candidateTrace: (turn.interpreted.semanticTelemetry?.candidateDecisions ?? []).map((d) => ({ type: d.candidate?.type, params: d.candidate?.params, spans: d.evidenceSpans, decision: d.decision, reasons: d.reasonCodes, arbitration: d.arbitration })),
   actions: turn.interpreted.commands.map((c) => ({ type: c.type, params: c.params })),
   reasoning: turn.interpreted.mentorSignal ? { mentorSignal: turn.interpreted.mentorSignal } : null,
   interpreterMode: turn.interpreted.mode ?? "deterministic",

@@ -74,9 +74,20 @@ export function createMentorGateway({ env, fetchImpl, budgetStore = fileBudgetSt
       // Learner-visible slice only (cardRetrieval.js#buildRetrievalView); a
       // plain bounded object used solely to evaluate card conditions.
       const visibleState = body.visibleState && typeof body.visibleState === "object" && JSON.stringify(body.visibleState).length <= 4000 ? body.visibleState : null;
+      // What the deterministic mentor already decided (question, scaffold level, expected
+      // answer domains): bounded plain values, content-authored, carries no claims.
+      const i = body.intent;
+      const intent = i && typeof i === "object"
+        ? {
+          mode: String(i.mode ?? "").slice(0, 20),
+          scaffolding: Number.isInteger(i.scaffolding) ? Math.min(4, Math.max(0, i.scaffolding)) : 1,
+          expects: Array.isArray(i.expects) ? i.expects.filter((x) => typeof x === "string").slice(0, 6).map((x) => x.slice(0, 60)) : [],
+          questionRu: typeof i.questionRu === "string" ? i.questionRu.slice(0, 1200) : "",
+        }
+        : null;
       const library = selectLibrary(libraries, context) ?? libraries[0];
       const provider = { complete: (request) => invokeGateway(gateway, request, body.sessionId, req) };
-      const result = await renderGroundedMentorText({ provider, context, issueId, library, visibleState, concepts, deterministicFallbackText });
+      const result = await renderGroundedMentorText({ provider, context, issueId, library, visibleState, concepts, intent, deterministicFallbackText });
       res.end(JSON.stringify(result));
     }
   }
