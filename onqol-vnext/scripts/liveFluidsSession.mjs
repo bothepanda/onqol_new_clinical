@@ -150,7 +150,7 @@ if (grounded) {
 }
 const rendered = renderTurnMessages({ turn, bundle, learnerVisibleBefore, interpreted: turn.interpreted, mentorTextRu: null }).filter(Boolean);
 if (mentorTextRu) rendered.push({ role: "mentor", speakerRu: "Наставник", textRu: mentorTextRu });
-const stamp = rendered.map((m, i) => ({ id: `m${messages.length + i * 1 + 1}-${store.turns.length}`, role: m.role, speakerRu: m.speakerRu ?? null, textRu: m.textRu }));
+const stamp = rendered.map((m, i) => ({ id: `m${messages.length + i * 1 + 1}-${store.turns.length}`, role: m.role, speakerRu: m.speakerRu ?? null, textRu: m.textRu, ...(m.kind ? { kind: m.kind } : {}) }));
 const learnerMsg = { id: `l${store.turns.length}`, role: "learner", speakerRu: null, textRu: text };
 
 const calls = grounded?.audit?.calls ?? [];

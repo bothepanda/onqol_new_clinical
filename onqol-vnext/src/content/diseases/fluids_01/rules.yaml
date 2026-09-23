@@ -163,6 +163,7 @@ teaching_issues:
         tag: resuscitation_fluid
         monitoring_targets: [vitals, blood_pressure, heart_rate, urine_output, spo2]
         only_if_never_demonstrated: true
+        plan_types: [REASSESS, PRESCRIBE_MONITORING]
     prompt_ru: "Как ты поймёшь, что болюс подействовал?"
     explains: [FLU-RESUS-001]
     follow_through:

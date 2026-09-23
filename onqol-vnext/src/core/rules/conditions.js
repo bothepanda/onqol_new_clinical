@@ -124,6 +124,7 @@ export const RULE_CONDITION = Object.freeze({
       const demonstrated = tagged.some((infusion, index) => index < tagged.length - 1 && (tagged[index + 1].observationsAtStart ?? -1) > (infusion.observationsAtStart ?? Infinity));
       if (demonstrated) return false;
     }
+    if ((ctx.turn?.statedPlans ?? []).some((type) => (condition.plan_types ?? []).includes(type))) return false;
     const last = tagged.at(-1);
     const observedSince = (ctx.state.observations?.vitals?.length ?? 0) > (last.observationsAtStart ?? Infinity);
     const monitored = (ctx.state.monitoring?.prescribed ?? []).some((target) => (condition.monitoring_targets ?? []).includes(target));

@@ -56,9 +56,12 @@ export function buildIssueDefinitions(bundle) {
  * @param {Array}  args.results            this turn's command results
  * @returns {Array} candidates, most urgent first
  */
-export function detectTeachingCandidates({ bundle, state, learnerVisible, results }) {
+export function detectTeachingCandidates({ bundle, state, learnerVisible, results, interpreted = null }) {
   const executed = results.filter((r) => r.outcome === "EXECUTED" && r.command);
-  const turn = { commands: executed.map((r) => ({ type: r.command.type, params: r.command.params })) };
+  // What the learner STATED as a plan for later ("потом переоценю…") is not
+  // executed, but it is a plan - for "is there a follow-up plan?" it counts.
+  const statedPlans = (interpreted?.withheldCommands ?? []).filter((c) => c.commitment?.status === "FUTURE_PLAN").map((c) => c.type);
+  const turn = { commands: executed.map((r) => ({ type: r.command.type, params: r.command.params })), statedPlans };
   const deferred = new Set(state.mentor.deferredMentorIssues ?? []);
   const pending = state.mentor.pendingMentorQuestion ?? null;
   const definitions = buildIssueDefinitions(bundle);

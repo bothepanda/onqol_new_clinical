@@ -24,7 +24,7 @@ import {
  */
 export function renderTurnMessages({ turn, bundle, learnerVisibleBefore, interpreted, route = null, mentorTextRu = null }) {
   const rendered = [];
-  if (interpreted?.interpretationNotice) rendered.push(toMessage("env", { speakerRu: "Система", textRu: interpreted.interpretationNotice }));
+  if (interpreted?.interpretationNotice) rendered.push(notice(toMessage("env", { speakerRu: "Система", textRu: interpreted.interpretationNotice })));
 
   // Events produced by time passing during a stated wait are narrated in
   // the order they actually happened, before the action that waited for
@@ -63,11 +63,11 @@ export function renderTurnMessages({ turn, bundle, learnerVisibleBefore, interpr
   }
 
   if (!route?.discuss && turn.interpreted.withheldCommands?.length) {
-    rendered.push(toMessage("env", renderNotCommitted()));
+    rendered.push(notice(toMessage("env", renderNotCommitted())));
   }
 
   if (!route?.discuss && !interpreted?.interpretationNotice && turn.interpreted.unmatchedFragments?.length) {
-    rendered.push(toMessage("env", renderUnrecognizedFragments(turn.interpreted.unmatchedFragments)));
+    rendered.push(notice(toMessage("env", renderUnrecognizedFragments(turn.interpreted.unmatchedFragments))));
   }
 
   if (!route?.discuss && mentorTextRu) {
@@ -75,6 +75,10 @@ export function renderTurnMessages({ turn, bundle, learnerVisibleBefore, interpr
   }
   return rendered;
 }
+
+// Interpreter/parser notices are about the SIMULATOR, not the patient or the
+// world: they are shown to the learner but never given to the mentor as facts.
+const notice = (message) => (message ? { ...message, kind: "system_notice" } : message);
 
 export function toMessage(role, rendered) {
   if (!rendered) return null;

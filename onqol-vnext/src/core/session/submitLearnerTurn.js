@@ -273,7 +273,7 @@ export function submitLearnerTurn({ session, text, shadowProvider, interpreted: 
   const turnResultForMentor = results.at(-1);
   const mentor = enrichMentorWithMemory({
     session: working,
-    mentor: decideMentorResponse({ state: working.state, turnResult: turnResultForMentor, mentorSignal: interpreted.mentorSignal, ...mentorContentInputs(working, results) }),
+    mentor: decideMentorResponse({ state: working.state, turnResult: turnResultForMentor, mentorSignal: interpreted.mentorSignal, ...mentorContentInputs(working, results, interpreted) }),
     interpreted,
     turnResult: turnResultForMentor,
     text,
@@ -290,12 +290,12 @@ export function submitLearnerTurn({ session, text, shadowProvider, interpreted: 
  * no candidates and no policy override, so its behaviour is unchanged even
  * with the flag on.
  */
-function mentorContentInputs(session, results) {
+function mentorContentInputs(session, results, interpreted = null) {
   if (!isStatefulGroundedMentorEnabled(session.state.session)) return {};
   const bundle = session.bundle;
   const issueDefinitions = buildIssueDefinitions(bundle);
   const teachingCandidates = results.length
-    ? detectTeachingCandidates({ bundle, state: session.state, learnerVisible: buildLearnerVisibleState(session.state), results })
+    ? detectTeachingCandidates({ bundle, state: session.state, learnerVisible: buildLearnerVisibleState(session.state), results, interpreted })
     : [];
   return { teachingCandidates, issueDefinitions, policy: bundle.rules?.mentor_policy ?? {} };
 }

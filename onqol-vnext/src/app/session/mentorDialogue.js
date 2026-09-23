@@ -1,7 +1,7 @@
 // Only already displayed environment text can become factual context. The model
 // never receives session.state, patient, content bundle or undisclosed results.
 export function buildDialogueContext({ session, messages, text }) {
-  const display = messages.filter((x) => typeof x.textRu === "string");
+  const display = messages.filter((x) => typeof x.textRu === "string" && x.kind !== "system_notice");
   const facts = display.filter((x) => x.role === "env").slice(-80)
     .map((x) => ({ id: x.id, text: x.textRu.slice(0, 4000) }));
   return {
