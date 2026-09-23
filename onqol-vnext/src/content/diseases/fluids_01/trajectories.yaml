@@ -114,6 +114,15 @@ treatment_effects:
       diastolic_bp_delta: 6
       crt_seconds_delta: -0.5
       urine_output_ml_per_hr_delta: 20
+      # The improved state the source describes after the repeat bolus (HR 96,
+      # BP 122/74, CRT 2 s, urine output 55 mL/h). The source models no further
+      # improvement, so a third bolus does not create one.
+      bounds:
+        heartRate: { min: 96 }
+        systolicBp: { max: 122 }
+        diastolicBp: { max: 74 }
+        crtSeconds: { min: 2.0 }
+        urineOutputMlPerHr: { max: 55 }
     source_ids: [SRC-NICE-CG174, SRC-ASCRS-SAGES-ERAS-2023]
     provenance: &fluids_treatment_effect_provenance
       id: TE-FLUIDS-01-BOLUS-BALANCED
@@ -145,6 +154,15 @@ treatment_effects:
       diastolic_bp_delta: 6
       crt_seconds_delta: -0.5
       urine_output_ml_per_hr_delta: 20
+      # The improved state the source describes after the repeat bolus (HR 96,
+      # BP 122/74, CRT 2 s, urine output 55 mL/h). The source models no further
+      # improvement, so a third bolus does not create one.
+      bounds:
+        heartRate: { min: 96 }
+        systolicBp: { max: 122 }
+        diastolicBp: { max: 74 }
+        crtSeconds: { min: 2.0 }
+        urineOutputMlPerHr: { max: 55 }
     source_ids: [SRC-NICE-CG174]
     provenance:
       <<: *fluids_treatment_effect_provenance
@@ -158,6 +176,10 @@ treatment_effects:
       heart_rate_delta: -12
       systolic_bp_delta: 10
       diastolic_bp_delta: 6
+      bounds:
+        heartRate: { min: 100 }
+        systolicBp: { max: 114 }
+        diastolicBp: { max: 68 }
     source_ids: [SRC-ASCRS-SAGES-ERAS-2023]
     provenance:
       <<: *fluids_treatment_effect_provenance

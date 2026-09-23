@@ -52,7 +52,7 @@ export function advanceTime({ state, clockRoot, bundle, rng, targetMinutes, caus
   // precede closure and anaesthetic emergence.
   const progressionEvents = afterPending.operative.completed
     ? buildPostoperativeRecoveryEvents({ state: afterPending, clockRoot, bundle, rng, targetMinutes, cause })
-    : buildProgressionEvents({ state: afterPending, clockRoot, bundle, rng, targetMinutes, cause });
+    : buildProgressionEvents({ state: afterPending, clockRoot, bundle, rng, targetMinutes, cause, fromMinutes: state.clock.elapsedMinutes });
 
   const timeEvent = createEvent({
     type: EVENT.TIME_ADVANCED,
@@ -72,12 +72,17 @@ export function advanceTime({ state, clockRoot, bundle, rng, targetMinutes, caus
  * both are gated by that object's single review status - a trajectory is
  * approved as a whole natural history or not at all.
  */
-function buildProgressionEvents({ state, clockRoot, bundle, rng, targetMinutes, cause }) {
+function buildProgressionEvents({ state, clockRoot, bundle, rng, targetMinutes, cause, fromMinutes = state.clock.elapsedMinutes }) {
   const trajectoryId = state.truth.trajectoryId ?? "TRJ-STABLE";
   const trajectory = bundle.trajectories.trajectories[trajectoryId];
   if (!trajectory) return [];
 
-  if (targetMinutes <= state.clock.elapsedMinutes) return [];
+  // Compared with where the clock was BEFORE this advance drained its pending
+  // work: `state` is already folded through those events, so a treatment effect
+  // due exactly at the target would otherwise make the interval look empty and
+  // silently skip the natural course (found in Wave B: overload never
+  // triggered when the last bolus landed at the wait's end).
+  if (targetMinutes <= fromMinutes) return [];
 
   const atIso = hospitalIso(clockRoot, targetMinutes);
 
@@ -331,7 +336,9 @@ function runPendingItem({ state, clockRoot, bundle, rng, item, cause }) {
       const physiology = {};
       for (const [key, delta] of Object.entries(item.deltas ?? {})) {
         if (delta == null) continue;
-        physiology[key] = DECIMAL_PHYSIOLOGY_FIELDS.has(key) ? round1(state.physiology[key] + delta) : Math.round(state.physiology[key] + delta);
+        const previous = state.physiology[key];
+        const raw = DECIMAL_PHYSIOLOGY_FIELDS.has(key) ? round1(previous + delta) : Math.round(previous + delta);
+        physiology[key] = clampToBound(previous, delta, raw, item.bounds?.[key]);
       }
       const symptoms = {};
       // Analgesia acts on whichever pain state is active; it can never write
@@ -486,6 +493,15 @@ function complicationCheckEvents({ bundle, rng, item, atIso }) {
 // diseases - a content author naming a new decimal field here is a one-line
 // registration, not a new core branch.
 const DECIMAL_PHYSIOLOGY_FIELDS = new Set(["temperatureC", "crtSeconds", "lactate"]);
+
+// Content-declared saturation (`response_envelope.bounds`): a delta may move a
+// value toward its bound but never past it, and never back the other way.
+function clampToBound(previous, delta, next, bound) {
+  if (!bound) return next;
+  if (delta < 0 && bound.min != null) return Math.min(previous, Math.max(next, bound.min));
+  if (delta > 0 && bound.max != null) return Math.max(previous, Math.min(next, bound.max));
+  return next;
+}
 
 function round1(value) {
   return Math.round(value * 10) / 10;

@@ -1,6 +1,7 @@
 // Test / live-runner harness for fluids_01: the SAME pipeline the app runs
 // (submitLearnerTurn -> renderTurnMessages), driven by a scripted or live
 // "resident". Nothing here decides clinical behaviour.
+import { createCommand } from "../../../core/commands/commandTypes.js";
 import { createSession } from "../../../core/session/createSession.js";
 import { submitLearnerTurn } from "../../../core/session/submitLearnerTurn.js";
 import { buildLearnerVisibleState } from "../../../core/state/learnerView.js";
@@ -61,3 +62,32 @@ export function resident({ seed, stateful = true, interpretWith = null } = {}) {
 
 export const mentorIssue = (record) => record.mentor?.openQuestion?.issueId ?? null;
 export const silent = (record) => !record.mentor?.textRu;
+
+/**
+ * A structured interpretation, as the semantic interpreter would hand
+ * `submitLearnerTurn` (`interpreted` override). Used only where the
+ * DETERMINISTIC lexicon cannot parse a compound clause; the resulting turn
+ * still goes through the identical execution, mentor and rendering path.
+ */
+export function interp(text, commands) {
+  return {
+    intent: "CLINICAL_ACTION",
+    commands: commands.map(([type, params], index) => createCommand({ id: `sem-${index}`, type, params: params ?? {}, sourceText: text })),
+    rawText: text,
+    withheldCommands: [],
+    unmatchedFragments: [],
+  };
+}
+
+export function dialogueContext(r, record) {
+  const messages = r.transcript.map((m, index) => ({ id: `m${index}`, role: m.role, textRu: m.textRu }));
+  return {
+    casePresetId: r.state.session.casePresetId,
+    sessionPurpose: r.state.session.purpose,
+    locale: r.state.session.locale,
+    text: record.text,
+    history: messages.slice(-24).map((m) => ({ role: m.role, text: m.textRu })),
+    facts: messages.filter((m) => m.role === "env").slice(-80).map((m) => ({ id: m.id, text: m.textRu })),
+    historyTruncated: false,
+  };
+}

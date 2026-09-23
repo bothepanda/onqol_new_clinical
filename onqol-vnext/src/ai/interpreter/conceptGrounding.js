@@ -139,7 +139,7 @@ const COMPOSITE_GROUNDING = Object.freeze({
 
 /** A qualifier that contradicts the chosen concept: "малого таза" is never the abdominal study. */
 const EXCLUSIONS = Object.freeze({
-  test: { ultrasound_abdomen: ["таз", "омт"], ct_abdomen: ["омт", "огк", "таз", "грудн", "голов"] },
+  test: { ultrasound_abdomen: ["таз", "омт"], ct_abdomen: ["омт", "огк", "таз", "грудн", "голов"], lactate: ["рингер", "хартман"] },
 });
 /**
  * Concepts whose exclusion leaves NO modeled alternative: «КТ ОМТ» is a pelvic CT, which the registry does not model

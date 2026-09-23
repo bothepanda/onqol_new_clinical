@@ -1300,6 +1300,10 @@ function scheduleGovernedTreatmentEffect({ bundle, state, command, matchKey, mat
       commandId: command.id,
       ruleId: effect.provenance?.id ?? effectId,
       sourceIds: effect.source_ids ?? [],
+      // A response cannot improve the patient past the state the source
+      // describes (content `bounds`); without it a flat per-bolus delta would keep
+      // "improving" the patient with every further bolus.
+      bounds: envelope.bounds ?? null,
       durationMinutes: envelope.duration_minutes ?? null,
       dueAtMinutes: state.clock.elapsedMinutes + onsetMinutes,
     },

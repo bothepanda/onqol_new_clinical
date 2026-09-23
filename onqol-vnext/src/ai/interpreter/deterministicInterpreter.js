@@ -1309,7 +1309,13 @@ function findSynonym(normalized, table) {
  * space- or "+"-separated fragment ("оак оам узи обп", "узи обп + узи омт") produce
  * several independent orders instead of only the first match.
  */
-function collectTestIds(normalized) {
+function collectTestIds(rawNormalized) {
+  // «рингер-лактат» is a solution, not a lactate test: fluid names are masked
+  // before test names are looked for.
+  let normalized = rawNormalized;
+  for (const phrase of Object.keys(FLUID_SYNONYMS).sort((a, b) => b.length - a.length)) {
+    if (normalized.includes(phrase)) normalized = normalized.split(phrase).join(" ".repeat(phrase.length));
+  }
   const entries = Object.entries(TEST_SYNONYMS).sort((a, b) => b[0].length - a[0].length);
   const claimed = []; // [start, end) spans already consumed by a longer phrase
   const hits = []; // { testId, start }
