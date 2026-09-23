@@ -126,7 +126,10 @@ export async function interpretSemanticFirst({
     intent: clinicalCommands.length === 1 && clinicalCommands[0].type === COMMAND.REQUEST_STATUS && commands.length === 1
       ? "REQUEST_CURRENT_STATUS" : clinicalCommands.length ? "CLINICAL_ACTION" : base.intent,
     commandSequence: arbitration.commandSequence,
-    unmatchedFragments: [...new Set([...arbitration.unmatchedFragments, ...issues, ...rejected])],
+    // A list item the deterministic clause splitter left unresolved («пульс», «диурез»
+    // in «переоценю давление, пульс и диурез») is not "unrecognised" when it sits
+    // inside the words of an action that WAS understood (executed or withheld).
+    unmatchedFragments: withoutUnderstoodSpans([...new Set([...arbitration.unmatchedFragments, ...issues, ...rejected])], [...commands, ...arbitration.withheldCommands]),
     withheldCommands: [...(deterministic.withheldCommands ?? []), ...arbitration.withheldCommands],
     semanticTelemetry: {
       ...audit, status: "valid", called: true, elapsedMs: Date.now() - started,
@@ -136,4 +139,12 @@ export async function interpretSemanticFirst({
       conceptErrors: semantic.conceptErrors,
     },
   };
+}
+
+function withoutUnderstoodSpans(fragments, commands) {
+  const understood = commands.map((command) => normalizeText(command.sourceText ?? "")).filter(Boolean);
+  return fragments.filter((fragment) => {
+    const words = normalizeText(fragment);
+    return !understood.some((span) => span.length > words.length && span.includes(words));
+  });
 }
