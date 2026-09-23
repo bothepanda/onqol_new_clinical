@@ -314,6 +314,15 @@ export const MONITORING_TARGETS = Object.freeze({
   "боль": "pain",
   "дренаж": "drain_output",
   "сатурац": "spo2",
+  // Wave B: things a reassessment may observe (shared clinical vocabulary).
+  "пульс": "heart_rate",
+  "перфуз": "perfusion",
+  "капилляр": "perfusion",
+  "вены шеи": "neck_veins",
+  "шейные вены": "neck_veins",
+  "легк": "cardiorespiratory",
+  "лёгк": "cardiorespiratory",
+  "дыхан": "cardiorespiratory",
 });
 
 /**
