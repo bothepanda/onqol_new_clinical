@@ -2,7 +2,7 @@
 
 Source: `onqol-trainer/cases/2026-09-25-fluids-01.md` v1.2 (see [`WAVE_B_FLUIDS_SOURCE_MANIFEST.md`](./WAVE_B_FLUIDS_SOURCE_MANIFEST.md)).
 
-**Status: DRAFT.** `review_status` and `runtime authority` columns marked `OPEN` below are blocked on the governance question in the accompanying chat message — nothing in this table has been promoted to `approved_for_training`, and nothing will be until that question is answered. This map is the skeleton the user asked to argue with, not a finished decision record.
+**Status: governance resolved 2026-09-23.** User decided (via AskUserQuestion during kickoff, recorded in memory `wave-b-fluids-governance-decision`): the frozen v1.2 case is promoted directly to `approved_for_training` on migration (case-specific decision, not a change to the standing pending-review-first default for other content). Patient engine: modeled as a phenotype library with exactly one phenotype, for architectural consistency with `appendicitis`. Card-level `review_status` below should now read `approved_for_training` except where the source itself flags a provenance gap (the repeat-bolus/"2000mL→call senior" threshold, explicitly not found in the NICE PDF the case checked) — that one item stays `pending_review` per the manifest's own honesty requirement, not because of the general default.
 
 ## A. Patient truth (hidden, `state.truth` — mentor/interpreter never see it directly)
 
