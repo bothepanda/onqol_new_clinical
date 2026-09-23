@@ -49,7 +49,7 @@ const SCAFFOLD_PROMPTS_RU = Object.freeze({
  * @param {object} args.turnResult      the executeCommand result for this turn (or last of several)
  * @param {string} [args.mentorSignal]  "STUCK" | "ATTEMPT" | undefined, from the interpreter
  */
-export function decideMentorResponse({ state, turnResult, mentorSignal }) {
+export function decideMentorResponse({ state, turnResult, mentorSignal, teachingCandidates = [], issueDefinitions = {}, policy = {} }) {
   // Safety outranks everything else (Mentor Spec §5.6, §20).
   if (turnResult?.outcome === "SAFETY_STOP") {
     return {
@@ -60,8 +60,29 @@ export function decideMentorResponse({ state, turnResult, mentorSignal }) {
     };
   }
 
+  // Teaching candidates (Wave B, generic: content-declared issues and rules,
+  // see teachingCandidates.js). A safety-critical current problem (priority 1)
+  // outranks even a learner who is stuck on something older; every other
+  // candidate waits until the "не знаю" handling below has had its turn.
+  const candidate = teachingCandidates[0] ?? null;
+  const fromCandidate = (c) => ({
+    mode: c.mode,
+    textRu: c.textRu,
+    ...(c.ruleId ? { ruleId: c.ruleId } : {}),
+    concepts: c.concepts ?? [],
+    scaffolding: c.scaffolding ?? 1,
+    openQuestion: { issueId: c.issueId, expects: c.expects ?? ["reasoning"], scaffolding: c.scaffolding ?? 1 },
+  });
+  if (candidate && candidate.priority <= 1) return fromCandidate(candidate);
+
   if (mentorSignal === "STUCK") {
-    const nextLevel = Math.min(4, (state.mentor.scaffolding ?? 0) + 1);
+    // Progressive scaffolding follows the PENDING issue's own level when there
+    // is one (a different issue raised in between must not reset or skip it).
+    // Content that declares its own no-issue ladder (`mentor_policy.generic_scaffold_ru`)
+    // starts that ladder from 0 - the shared ladder below is a diagnostic-workup
+    // script and would misread a "не знаю" in a different kind of case.
+    const priorLevel = state.mentor.pendingMentorQuestion?.scaffoldingLevel ?? (policy.generic_scaffold_ru ? 0 : state.mentor.scaffolding ?? 0);
+    const nextLevel = Math.min(4, priorLevel + 1);
     // `state.mentor.openQuestion` is cleared on every LEARNER_TURN_RECEIVED
     // (worldState.js), so by the turn AFTER the one that opened it, it is
     // already null - "не знаю" one full turn later would otherwise read as a
@@ -71,13 +92,19 @@ export function decideMentorResponse({ state, turnResult, mentorSignal }) {
     // falls through to the original `openQuestion` read (and then "generic")
     // unchanged for a flag-off session (ТЗ §8).
     const issueId = state.mentor.pendingMentorQuestion?.issueId ?? state.mentor.openQuestion?.issueId ?? "generic";
+    // An issue that declares its own ladder speaks in its own terms; anything
+    // else keeps the shared reasoning-scaffold wording exactly as before.
+    const definition = issueDefinitions[issueId] ?? null;
     return {
       mode: MENTOR_MODE.TEACH,
-      textRu: SCAFFOLD_PROMPTS_RU[nextLevel] ?? SCAFFOLD_PROMPTS_RU[4],
+      textRu: definition?.scaffold_ru?.[nextLevel] ?? (!definition && policy.generic_scaffold_ru?.[nextLevel]) ?? SCAFFOLD_PROMPTS_RU[nextLevel] ?? SCAFFOLD_PROMPTS_RU[4],
       scaffolding: nextLevel,
-      openQuestion: { issueId, expects: ["reasoning"], scaffolding: nextLevel },
+      ...(definition?.concepts ? { concepts: definition.concepts } : {}),
+      openQuestion: { issueId, expects: definition?.expects ?? ["reasoning"], scaffolding: nextLevel },
     };
   }
+
+  if (candidate) return fromCandidate(candidate);
 
   // Committing to an operation is the one moment the contract explicitly
   // asks the mentor to speak (Contract §16, task brief §7.5): the decision
@@ -148,7 +175,10 @@ export function decideMentorResponse({ state, turnResult, mentorSignal }) {
   // A competent turn with nothing to flag: silence is a valid teaching
   // decision (Mentor Spec §6.1) - the mentor does not comment on every turn.
   const silentStreak = (state.mentor.silentTurns ?? 0) + 1;
-  const shouldReinforce = silentStreak > 0 && silentStreak % 6 === 0; // occasional, not every turn
+  // Content may switch reinforcement off (`mentor_policy.reinforce_every_silent_turns: null`):
+  // the fluids case forbids evaluative wording toward the learner.
+  const reinforceEvery = policy.reinforce_every_silent_turns === undefined ? 6 : policy.reinforce_every_silent_turns;
+  const shouldReinforce = reinforceEvery != null && silentStreak > 0 && silentStreak % reinforceEvery === 0; // occasional, not every turn
   if (shouldReinforce) {
     return { mode: MENTOR_MODE.REINFORCE, textRu: "Разумно, продолжай.", openQuestion: null };
   }

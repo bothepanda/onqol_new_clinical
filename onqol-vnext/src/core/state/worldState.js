@@ -383,7 +383,7 @@ export function applyEvent(state, event) {
       break;
 
     case EVENT.INFUSION_STARTED:
-      next.infusions = [...state.infusions, { ...event.payload, startedAt: event.atMinutes, status: "running" }];
+      next.infusions = [...state.infusions, { ...event.payload, startedAt: event.atMinutes, status: "running", observationsAtStart: state.observations.vitals.length }];
       next.fluidBalance = {
         infusedMl: (state.fluidBalance?.infusedMl ?? 0) + (Number(event.payload.volumeMl) || 0),
         bolusMl: (state.fluidBalance?.bolusMl ?? 0) + (event.payload.bolus === true ? Number(event.payload.volumeMl) || 0 : 0),

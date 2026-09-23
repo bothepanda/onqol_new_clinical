@@ -10,6 +10,8 @@
  * what to SHOW the learner; it never mutates `session.state`.
  */
 import { buildDialogueContext } from "./mentorDialogue.js";
+import { buildRetrievalView } from "../../ai/mentor/cardRetrieval.js";
+import { buildLearnerVisibleState } from "../../core/state/learnerView.js";
 
 const TIMEOUT_MS = 35000;
 
@@ -37,7 +39,7 @@ export async function renderMentorResponse({ session, mentor, messages, text, fe
     const response = await fetchImpl("/api/mentor/stateful-response", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId: session.sessionId, context, issueId, deterministicFallbackText: mentor.textRu }),
+      body: JSON.stringify({ sessionId: session.sessionId, context, issueId, concepts: mentor.concepts ?? [], visibleState: buildRetrievalView(buildLearnerVisibleState(session.state)), deterministicFallbackText: mentor.textRu }),
       signal: controller.signal,
     });
     if (!response.ok) throw new Error(`mentor_http_${response.status}`);

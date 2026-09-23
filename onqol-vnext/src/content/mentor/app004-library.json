@@ -55,7 +55,12 @@
       "sourceIds": [
         "CAM14",
         "DV3"
-      ]
+      ],
+      "retrieval": {
+        "learner_text_patterns": [
+          "миграц|переход.*боли|около.*пуп"
+        ]
+      }
     },
     {
       "id": "K02",
@@ -72,7 +77,12 @@
       "sourceIds": [
         "CAM14",
         "OX3"
-      ]
+      ],
+      "retrieval": {
+        "learner_text_patterns": [
+          "призна[кц]|симптом|осмотр"
+        ]
+      }
     },
     {
       "id": "K03",
@@ -89,7 +99,12 @@
       "sourceIds": [
         "CAM14",
         "OX3"
-      ]
+      ],
+      "retrieval": {
+        "learner_text_patterns": [
+          "лейкоцит|crp|соэ|анализ\\s+крови"
+        ]
+      }
     },
     {
       "id": "K04",
@@ -106,7 +121,12 @@
       "sourceIds": [
         "CAM14",
         "DV3"
-      ]
+      ],
+      "retrieval": {
+        "learner_text_patterns": [
+          "моч[аи]|пиури"
+        ]
+      }
     },
     {
       "id": "K05",
@@ -123,7 +143,15 @@
       "sourceIds": [
         "DV3",
         "OX3"
-      ]
+      ],
+      "retrieval": {
+        "issue_ids": [
+          "open_approach_rationale"
+        ],
+        "learner_text_patterns": [
+          "дифференциал|альтернатив"
+        ]
+      }
     },
     {
       "id": "K06",
@@ -140,7 +168,12 @@
       "sourceIds": [
         "DV3",
         "OX3"
-      ]
+      ],
+      "retrieval": {
+        "learner_text_patterns": [
+          "узи|ультразвук"
+        ]
+      }
     },
     {
       "id": "K12",
@@ -156,7 +189,12 @@
       "reviewed_at": "2026-09-21",
       "sourceIds": [
         "OX3"
-      ]
+      ],
+      "retrieval": {
+        "learner_text_patterns": [
+          "зачем.*исследован|зачем.*анализ|какой смысл"
+        ]
+      }
     }
   ]
 }

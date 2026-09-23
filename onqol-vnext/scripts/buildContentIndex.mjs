@@ -106,6 +106,39 @@ function validateRule(rule, diseaseId) {
   return errors.map((message) => `[${diseaseId}] ${message}`);
 }
 
+/**
+ * `rules.yaml#teaching_issues` (mentor behaviour, Wave B). An issue is timing
+ * and wording, never a clinical claim, so it may only be `not_a_clinical_rule`
+ * with authority_layer mentor_behavior, or approved with a recorded reviewer.
+ * Anything else would let unreviewed content read as clinical authority.
+ */
+function validateTeachingIssues(rules, diseaseId) {
+  const errors = [];
+  const ruleIds = new Set((rules.rules ?? []).map((rule) => rule.id));
+  const seen = new Set();
+  for (const issue of rules.teaching_issues ?? []) {
+    const label = `teaching_issue ${issue.id}`;
+    if (!issue.id) errors.push("teaching_issue missing id");
+    if (seen.has(issue.id)) errors.push(`${label} is a duplicate id`);
+    seen.add(issue.id);
+    if (!["rule", "command", "turn"].includes(issue.scope)) errors.push(`${label} has unknown scope "${issue.scope}"`);
+    if (issue.scope === "rule" && !ruleIds.has(issue.rule_id)) errors.push(`${label} references unknown rule "${issue.rule_id}"`);
+    if (issue.scope !== "rule") {
+      if (!issue.trigger?.length) errors.push(`${label} needs a trigger`);
+      for (const condition of issue.trigger ?? []) if (!RULE_CONDITION[condition.type]) errors.push(`${label} uses unknown condition type "${condition.type}"`);
+    }
+    if (!Number.isInteger(issue.priority) || issue.priority < 1 || issue.priority > 6) errors.push(`${label} priority must be 1-6`);
+    if (typeof issue.prompt_ru !== "string" || !issue.prompt_ru.trim()) errors.push(`${label} missing prompt_ru`);
+    for (const level of [1, 2, 3, 4]) if (typeof issue.scaffold_ru?.[level] !== "string") errors.push(`${label} missing scaffold_ru level ${level}`);
+    errors.push(...validateProvenance(issue, label));
+    const status = issue.provenance?.review_status;
+    if (status !== "approved_for_training" && !(status === "not_a_clinical_rule" && issue.provenance?.authority_layer === "mentor_behavior")) {
+      errors.push(`${label} must be approved_for_training or not_a_clinical_rule/mentor_behavior (got "${status}")`);
+    }
+  }
+  return errors.map((message) => `[${diseaseId}] ${message}`);
+}
+
 function buildDisease(diseaseId, shared) {
   const dir = path.join(DISEASES_DIR, diseaseId);
   const entries = readdirSync(dir);
@@ -125,6 +158,7 @@ function buildDisease(diseaseId, shared) {
 
   const errors = [
     ...(bundle.rules.rules ?? []).flatMap((rule) => validateRule(rule, diseaseId)),
+    ...validateTeachingIssues(bundle.rules, diseaseId),
     ...validateGeneratingContent(bundle, diseaseId),
     ...validateCrossReferences(bundle, shared, diseaseId),
   ];

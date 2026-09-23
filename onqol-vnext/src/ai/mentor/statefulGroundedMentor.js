@@ -13,12 +13,14 @@ import { selectCardsForIssue } from "./cardRetrieval.js";
  * @param {object} args.provider                  a ProviderClient (see providerClient.js)
  * @param {object} args.context                    `{casePresetId, sessionPurpose, locale, text, history, facts, historyTruncated}` - same shape `groundedDialogue.validateContext` expects
  * @param {string|null} args.issueId                the deterministic engine's current issue, for card scoping (cardRetrieval.js)
+ * @param {object|null} [args.visibleState]         `buildRetrievalView(learnerVisible)` - what card conditions may read
+ * @param {string[]} [args.concepts]                concepts of the active teaching issue
  * @param {object} args.library                     the full approved card library
  * @param {number} [args.timeoutMs]
  * @param {string|null} [args.deterministicFallbackText]  `mentorEngine.js`'s own reviewed text for this decision - the "verified safety fallback" ТЗ §5/§19 explicitly still allow deterministic authorship for
  */
-export async function renderGroundedMentorText({ provider, context, issueId, library, timeoutMs, deterministicFallbackText = null }) {
-  const scopedLibrary = { ...library, cards: selectCardsForIssue({ issueId, learnerText: context.text, library }) };
+export async function renderGroundedMentorText({ provider, context, issueId, library, visibleState = null, concepts = [], timeoutMs, deterministicFallbackText = null }) {
+  const scopedLibrary = { ...library, cards: selectCardsForIssue({ issueId, learnerText: context.text, library, visibleState, concepts, casePresetId: context.casePresetId }) };
   const result = await runGroundedDialogue({ provider, context, library: scopedLibrary, timeoutMs, maxRegenerations: 1 });
   if (result.audit.status === "accepted") return result;
   // Bounded regeneration (inside runGroundedDialogue) already failed once and

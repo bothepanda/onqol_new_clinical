@@ -8,7 +8,7 @@
  * field isn't in the learner-visible projection, it isn't in the brief.
  */
 import { buildLearnerVisibleState } from "../../core/state/learnerView.js";
-import { selectCardsForIssue } from "./cardRetrieval.js";
+import { selectCardsForIssue, buildRetrievalView } from "./cardRetrieval.js";
 
 const RECENT_DIALOGUE_TURNS = 12;
 
@@ -47,6 +47,8 @@ export function buildMentorBrief({ session, turn, history = [], text, library = 
     probingStreak: visible.mentor.probingStreak,
     recentMentorQuestions: visible.mentor.recentMentorQuestions,
     deferredMentorIssues: visible.mentor.deferredMentorIssues,
-    approvedClinicalCards: library ? selectCardsForIssue({ issueId, learnerText: text, library }) : [],
+    approvedClinicalCards: library
+      ? selectCardsForIssue({ issueId, learnerText: text, library, visibleState: buildRetrievalView(visible), concepts: mentor.concepts ?? [], casePresetId: session.state.session.casePresetId })
+      : [],
   });
 }

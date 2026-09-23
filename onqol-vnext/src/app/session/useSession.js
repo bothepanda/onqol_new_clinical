@@ -4,22 +4,6 @@ import { submitLearnerTurn, recordGroundedMentorResponse } from "../../core/sess
 import { hospitalIso } from "../../core/time/clock.js";
 import { buildLearnerVisibleState } from "../../core/state/learnerView.js";
 import { renderEvent } from "../../ai/renderer/renderEvent.js";
-import {
-  renderStatusSnapshot,
-  renderClarification,
-  renderUnsupported,
-  renderNotCommitted,
-  renderOrderValidationFailure,
-  renderAlreadyPending,
-  renderUnavailableResource,
-  renderPreopNotReady,
-  renderDischargeNotReady,
-  renderDispositionNotReady,
-  renderHospitalPolicyBlock,
-  renderOptionNotModeled,
-  renderNoPendingWork,
-  renderUnrecognizedFragments,
-} from "../../ai/renderer/renderStatus.js";
 import { exportSession } from "../../core/replay/exportSession.js";
 import { buildDebrief } from "../../core/replay/buildDebrief.js";
 import { withShared } from "../../core/content/loadBundle.js";
@@ -28,6 +12,7 @@ import diseaseBundle from "../../content/generated/appendicitis.json";
 import sharedBundle from "../../content/generated/shared.json";
 import { AI_INTERACTION_V2, STATEFUL_GROUNDED_MENTOR_V1, resolveInterpreterMode, INTERPRETER_MODE, isStatefulGroundedMentorEnabled } from "../../ai/interaction/featureFlags.js";
 import { renderMentorResponse } from "./renderMentorResponse.js";
+import { renderTurnMessages, toMessage } from "./renderTurn.js";
 import { createGatewayProviderClient } from "../../ai/providerClient.js";
 import { interpretHybrid } from "../../ai/interpreter/hybridInterpreter.js";
 import { interpretSemanticFirst } from "../../ai/interpreter/semanticFirstInterpreter.js";
@@ -182,56 +167,7 @@ export function useSession() {
           );
         }
       }
-      const rendered = [];
-      if (interpreted?.interpretationNotice) rendered.push(toMessage("env", { speakerRu: "Система", textRu: interpreted.interpretationNotice }));
-
-      // Events produced by time passing during a stated wait are narrated in
-      // the order they actually happened, before the action that waited for
-      // them (Contract §7.3 - results arrive when ready, not when asked for).
-      for (const event of turn.timeEvents ?? []) {
-        rendered.push(toMessage("env", renderEvent({ event, bundle, patient: turn.session.patient, state: turn.session.state })));
-      }
-
-      for (const result of turn.outcomes) {
-        if (result.outcome === "STATUS_SNAPSHOT" || (result.outcome === "EXECUTED" && result.command?.type === "REQUEST_STATUS")) rendered.push(toMessage("env", renderStatusSnapshot(learnerVisibleBefore)));
-        else if (result.outcome === "CLARIFY")
-          rendered.push(toMessage("env", renderClarification(result.missing, { promptRu: result.clarifyPromptRu, by: result.clarifyBy })));
-        else if (result.outcome === "UNSUPPORTED_CONTENT") rendered.push(toMessage("env", renderUnsupported(result)));
-        else if (result.outcome === "ORDER_VALIDATION_FAILED") rendered.push(toMessage("env", renderOrderValidationFailure(result)));
-        else if (result.outcome === "ALREADY_PENDING") rendered.push(toMessage("env", renderAlreadyPending(result)));
-        else if (result.outcome === "NO_PENDING_WORK") rendered.push(toMessage("env", renderNoPendingWork()));
-        else if (result.outcome === "UNAVAILABLE_RESOURCE") rendered.push(toMessage("env", renderUnavailableResource(result.reasonKey)));
-        else if (result.outcome === "PREOP_NOT_READY") rendered.push(toMessage("env", renderPreopNotReady(result.missingItems, bundle)));
-        else if (result.outcome === "DISCHARGE_NOT_READY") rendered.push(toMessage("env", renderDischargeNotReady(result.blockers)));
-        else if (result.outcome === "DISPOSITION_NOT_READY") rendered.push(toMessage("env", renderDispositionNotReady(result.blockers)));
-        else if (result.outcome === "HOSPITAL_POLICY_BLOCK") rendered.push(toMessage("env", renderHospitalPolicyBlock(result)));
-        else if (result.outcome === "OPTION_NOT_MODELED") rendered.push(toMessage("env", renderOptionNotModeled(result)));
-        else if (result.outcome === "SAFETY_STOP") {
-          rendered.push({ id: `${Date.now()}-safety`, role: "mentor", speakerRu: "Наставник", textRu: result.teachingPointRu });
-        } else {
-          for (const event of result.events ?? []) {
-            rendered.push(toMessage("env", renderEvent({ event, bundle, patient: turn.session.patient, state: turn.session.state })));
-          }
-        }
-      }
-
-      // Time consumed BY an action (interfacility transport) is narrated after
-      // the action itself - the ambulance leaves, then it arrives (Contract §7.1).
-      for (const event of turn.afterEvents ?? []) {
-        rendered.push(toMessage("env", renderEvent({ event, bundle, patient: turn.session.patient, state: turn.session.state })));
-      }
-
-      if (!route?.discuss && turn.interpreted.withheldCommands?.length) {
-        rendered.push(toMessage("env", renderNotCommitted()));
-      }
-
-      if (!route?.discuss && !interpreted?.interpretationNotice && turn.interpreted.unmatchedFragments?.length) {
-        rendered.push(toMessage("env", renderUnrecognizedFragments(turn.interpreted.unmatchedFragments)));
-      }
-
-      if (!route?.discuss && mentorTextRu) {
-        rendered.push({ id: `${Date.now()}-mentor`, role: "mentor", speakerRu: "Наставник", textRu: mentorTextRu });
-      }
+      const rendered = renderTurnMessages({ turn, bundle, learnerVisibleBefore, interpreted, route, mentorTextRu });
 
       let completedSession = sessionAfterMentorRender;
       if (route?.discuss && turn.session.state.session.status !== "complete" && !turn.outcomes.some((x) => x.outcome === "SAFETY_STOP")) {
@@ -286,11 +222,6 @@ export function useSession() {
     discardPersistedSession, submitTurn, downloadExport, learnerVisible, bundle,
     mentorEnabled,
   };
-}
-
-function toMessage(role, rendered) {
-  if (!rendered) return null;
-  return { id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, role, speakerRu: rendered.speakerRu, textRu: rendered.textRu };
 }
 
 function appendDialogue(session, result, route, interpreted = null) {

@@ -1,0 +1,350 @@
+{
+  "libraryId": "FLUIDS01-MENTOR-2026-09-24",
+  "sourceId": "FLU-CASE-V1.2",
+  "sourceSha256Pinned": "b4d1351e02847468f2e5c23a7e9b5b1a0c3121ae2e617d19b6b726188588c01a",
+  "sourceSha256Observed": "b4d1351e02847468f2e5c23a7e9b5b1a0c3121ae2e617d19b6b726188588c01a",
+  "cards": [
+    {
+      "id": "FLU-ASSESS-001",
+      "hasQuotes": true,
+      "quotesFound": true,
+      "newNumbers": [],
+      "unexplainedTerms": [],
+      "ok": true,
+      "statementSha256": "f79f493575e29e23430621897656ea16a20103270db9e9c36d11279b99bad5e7",
+      "quotesSha256": "3d4e7d4bcfa890162d6f634d7dde75c0dae8004fe49cc44962978eb29248c39a"
+    },
+    {
+      "id": "FLU-ASSESS-002",
+      "hasQuotes": true,
+      "quotesFound": true,
+      "newNumbers": [],
+      "unexplainedTerms": [],
+      "ok": true,
+      "statementSha256": "e61b3184e73ed9f3d064c5ad8ebe0f689f8e2c4de3141bf44ac549bfe1604742",
+      "quotesSha256": "73085a030b178bc8e242d9f83e05aabcf2efb2d01586033823510d84ab2d70cf"
+    },
+    {
+      "id": "FLU-ASSESS-003",
+      "hasQuotes": true,
+      "quotesFound": true,
+      "newNumbers": [],
+      "unexplainedTerms": [],
+      "ok": true,
+      "statementSha256": "1dc48f11f65678543b0e844f49ca3e5a98062ee9f5ed1fd58abdd8036c9438c1",
+      "quotesSha256": "ab251fd76ed2dcdf5269823029fdcba8b40b0c08cbc87bc03cf987378a52991e"
+    },
+    {
+      "id": "FLU-ASSESS-004",
+      "hasQuotes": true,
+      "quotesFound": true,
+      "newNumbers": [],
+      "unexplainedTerms": [],
+      "ok": true,
+      "statementSha256": "895b91b7ff245644d219ceffb28ec72855a5d85c28772932f0d7a65c00cda996",
+      "quotesSha256": "5bfb8ea9dfa8988e45ff8aeff2853b39dfca6829214feca8d24df9a95ffed29b"
+    },
+    {
+      "id": "FLU-ASSESS-005",
+      "hasQuotes": true,
+      "quotesFound": true,
+      "newNumbers": [],
+      "unexplainedTerms": [],
+      "ok": true,
+      "statementSha256": "70fbfaaa835da89a06f78b342ee950c308a36f30df4bda608f11cdbe67c84cd4",
+      "quotesSha256": "dbd3455766aa37897aac5d579b188574d53043a3fa2b74a09fee8e87e3988e45"
+    },
+    {
+      "id": "FLU-ASSESS-006",
+      "hasQuotes": true,
+      "quotesFound": true,
+      "newNumbers": [],
+      "unexplainedTerms": [],
+      "ok": true,
+      "statementSha256": "945f2b1ed9a54c0bef658503d5ac6fae6e3a9c2e8caa8b1bfa3c72e13c62c27f",
+      "quotesSha256": "15a4cd4e08e8ce9953bc668346a556f645bf18a109ab12b9592298da6056039e"
+    },
+    {
+      "id": "FLU-CAUSES-001",
+      "hasQuotes": true,
+      "quotesFound": true,
+      "newNumbers": [],
+      "unexplainedTerms": [],
+      "ok": true,
+      "statementSha256": "67e6578fd67518cf8557a09022eba28cf09076bc61e9af805b1e0555287e04d3",
+      "quotesSha256": "9e3ac5fc9a9c77e81ee54fad3c85b7003c3f8d9b20d9247eec39d27788c92243"
+    },
+    {
+      "id": "FLU-TASKS-001",
+      "hasQuotes": true,
+      "quotesFound": true,
+      "newNumbers": [],
+      "unexplainedTerms": [],
+      "ok": true,
+      "statementSha256": "17a751d308d1a7abe4adbd9db4469f8753358ebe2bd3343f4f6827ea1e218bd3",
+      "quotesSha256": "218501c77f027beda8e00ec39bc719b5dc8b239387fa22bea047054de30c82f0"
+    },
+    {
+      "id": "FLU-RESUS-001",
+      "hasQuotes": true,
+      "quotesFound": true,
+      "newNumbers": [],
+      "unexplainedTerms": [],
+      "ok": true,
+      "statementSha256": "a28400298d0bf1f7c48f9dc4f6b5a83eba4f0b39c22961c67a990334672078f5",
+      "quotesSha256": "263cbc78273c5f1d1e4d53cc409a211a93a9e355fba843900aa1bf6911d867a8"
+    },
+    {
+      "id": "FLU-RESUS-002",
+      "hasQuotes": true,
+      "quotesFound": true,
+      "newNumbers": [],
+      "unexplainedTerms": [],
+      "ok": true,
+      "statementSha256": "95da830ae675bd3c219dbabdfd944b601449ef58d970a25337b3cea55301b524",
+      "quotesSha256": "b4899120019cbf17e6b901a99fb89640a860e3d963d033b39344865ce3c191a3"
+    },
+    {
+      "id": "FLU-RESUS-003",
+      "hasQuotes": true,
+      "quotesFound": true,
+      "newNumbers": [],
+      "unexplainedTerms": [],
+      "ok": true,
+      "statementSha256": "79bc422ceda8432eb182b812efe7472ba2330a9559e217562a962e673b8a4a76",
+      "quotesSha256": "8dcbc363f317c00a099522f72d11a9570ee9f7a6cc9c44926606fdd587132385"
+    },
+    {
+      "id": "FLU-ESCALATE-001",
+      "hasQuotes": true,
+      "quotesFound": true,
+      "newNumbers": [],
+      "unexplainedTerms": [],
+      "ok": true,
+      "statementSha256": "c52098a6f8ab0d31447814917c46d04b83b57980157ff584bbf4e61c1040bf13",
+      "quotesSha256": "ef157b118493782d2b9d61068af29abffeb5f8d34f8dfe21a13581a249a6bc59"
+    },
+    {
+      "id": "FLU-BLEED-001",
+      "hasQuotes": true,
+      "quotesFound": true,
+      "newNumbers": [],
+      "unexplainedTerms": [],
+      "ok": true,
+      "statementSha256": "c7ec501088c905d62507d5079ae1a91a4adca30d573fe7577f0259292effd956",
+      "quotesSha256": "f918874e19c5078e15c47b15df2108fc1a57b8f5f3546514c60bcdc3c0cbbaec"
+    },
+    {
+      "id": "FLU-CHOICE-001",
+      "hasQuotes": true,
+      "quotesFound": true,
+      "newNumbers": [],
+      "unexplainedTerms": [],
+      "ok": true,
+      "statementSha256": "95b56ce4d7ffab0479f416215f4b9295bee350a275f37fba10a7fd04cd03defb",
+      "quotesSha256": "afbd27ccebafb19592b58b2883f30ff0bcd31de74af116fe392527830d4f3b0e"
+    },
+    {
+      "id": "FLU-CHOICE-002",
+      "hasQuotes": true,
+      "quotesFound": true,
+      "newNumbers": [],
+      "unexplainedTerms": [],
+      "ok": true,
+      "statementSha256": "2cb70a108d102afde3ccbf1e5b47eae5c82dc84131bc6eb7ac4d772c9a133ccc",
+      "quotesSha256": "e87cf69407032b0e36b414e0e3deba7174ed35d79622bb193aff4e2db0a763ad"
+    },
+    {
+      "id": "FLU-CHOICE-003",
+      "hasQuotes": true,
+      "quotesFound": true,
+      "newNumbers": [],
+      "unexplainedTerms": [],
+      "ok": true,
+      "statementSha256": "2450906231320ec5c3592a86cf87485213f4de3f83023b335b1a033866cdf037",
+      "quotesSha256": "a42a30d467761d3c02bd2562dcfc5df121e6e1061daac2d0e283d3979d378673"
+    },
+    {
+      "id": "FLU-CHOICE-004",
+      "hasQuotes": true,
+      "quotesFound": true,
+      "newNumbers": [],
+      "unexplainedTerms": [],
+      "ok": true,
+      "statementSha256": "e8234ba179a70aaf73fd0cae9ec8c0e2315212db30371ede767f0d74c0e13141",
+      "quotesSha256": "7674fb232ee822e274e70ca66d60993061b5d5260ef2e08709bef622dda79181"
+    },
+    {
+      "id": "FLU-CHOICE-005",
+      "hasQuotes": true,
+      "quotesFound": true,
+      "newNumbers": [],
+      "unexplainedTerms": [],
+      "ok": true,
+      "statementSha256": "233d32f7dbf37aca00c4e89786e1a9dc62884ac85dcee267fda293d7d450630d",
+      "quotesSha256": "fef2dc9242ddc7d636b23a58d9fd21a6cf52fd9b522d7551d08ecb3567c361ad"
+    },
+    {
+      "id": "FLU-CHOICE-006",
+      "hasQuotes": true,
+      "quotesFound": true,
+      "newNumbers": [],
+      "unexplainedTerms": [],
+      "ok": true,
+      "statementSha256": "b921a32796f364a6a531649eee29dd9e25184912b8e64a8155cbfded6b913125",
+      "quotesSha256": "b921a32796f364a6a531649eee29dd9e25184912b8e64a8155cbfded6b913125"
+    },
+    {
+      "id": "FLU-CHOICE-007",
+      "hasQuotes": true,
+      "quotesFound": true,
+      "newNumbers": [],
+      "unexplainedTerms": [],
+      "ok": true,
+      "statementSha256": "1faee23799d252d796dee4c8939458cc9bb8e669ffed1eff06eeca0cf627a415",
+      "quotesSha256": "14b4e92b8d873a61311c0cb40b8e127e895b107a09273882c9c114a268c8f0f4"
+    },
+    {
+      "id": "FLU-MAINT-001",
+      "hasQuotes": true,
+      "quotesFound": true,
+      "newNumbers": [],
+      "unexplainedTerms": [],
+      "ok": true,
+      "statementSha256": "88f2306aabaf3c4103e205458790f77fe0718e378c420de0a93811c77adfed38",
+      "quotesSha256": "851138c4dd4506fad7dec289e269550bf258743260e7c4072812764ec51b30af"
+    },
+    {
+      "id": "FLU-MAINT-002",
+      "hasQuotes": true,
+      "quotesFound": true,
+      "newNumbers": [],
+      "unexplainedTerms": [],
+      "ok": true,
+      "statementSha256": "f732edf3d7291d016beb68575a26f9442271463a177ab4f55431f0c785a3d50f",
+      "quotesSha256": "221a161ab2d8846a12aba7ee4390648c38a8aa0cd24d8a4d4a1f0b386a9b7265"
+    },
+    {
+      "id": "FLU-MAINT-003",
+      "hasQuotes": true,
+      "quotesFound": true,
+      "newNumbers": [],
+      "unexplainedTerms": [],
+      "ok": true,
+      "statementSha256": "939cea780179a59a863c336c0ad124e94c5cf1b35dce5b78213fc9e1ae4ceca0",
+      "quotesSha256": "193178513e7532d3de92f3dc505a61c448e9d08793396111ea33f18c0fc1f3ae"
+    },
+    {
+      "id": "FLU-REPLACE-001",
+      "hasQuotes": true,
+      "quotesFound": true,
+      "newNumbers": [],
+      "unexplainedTerms": [],
+      "ok": true,
+      "statementSha256": "90ecd2737a005d99ad6e02671b112c1a9117283688834e4a1775168291d5c8ad",
+      "quotesSha256": "3cc20ffb5420ac81cbd8103f0bbc15517f99f260e925869259edc82b01493cff"
+    },
+    {
+      "id": "FLU-K-001",
+      "hasQuotes": true,
+      "quotesFound": true,
+      "newNumbers": [],
+      "unexplainedTerms": [],
+      "ok": true,
+      "statementSha256": "b013fc7c7e73a18c1208f9fc509ed88beb07f4f9c63ccf1ae3f4718321b604dd",
+      "quotesSha256": "f8e74811e3ecef377cbfaa2116728291b4c5e34f9730f03583bfcf3e7e6c0165"
+    },
+    {
+      "id": "FLU-K-002",
+      "hasQuotes": true,
+      "quotesFound": true,
+      "newNumbers": [],
+      "unexplainedTerms": [],
+      "ok": true,
+      "statementSha256": "a0bd397409302e818b4c408a3694017f63e2bd7f161730b7c6f4e432c70a16f5",
+      "quotesSha256": "0c4190951f8bcbe30c994781fa0ab4dcc7940f0f2b0178425e8a5b006d56e052"
+    },
+    {
+      "id": "FLU-CL-001",
+      "hasQuotes": true,
+      "quotesFound": true,
+      "newNumbers": [],
+      "unexplainedTerms": [],
+      "ok": true,
+      "statementSha256": "3c2d591187de322be85ea9bf44e0ecd412bf6b008f5c6250c49b9bca059d2c77",
+      "quotesSha256": "dc25dbd4ab996dab67ea840a42bcc909e580b6f668110c087d5d3ebb0fbdf0ed"
+    },
+    {
+      "id": "FLU-MON-001",
+      "hasQuotes": true,
+      "quotesFound": true,
+      "newNumbers": [],
+      "unexplainedTerms": [],
+      "ok": true,
+      "statementSha256": "517a4c1b3c7526451b38c0cdc89bce9fe0a0169d255bccffb525c01bbecb7ce0",
+      "quotesSha256": "0c9f6cf6dc8b5c44755a0dd05c7aaff29a676f8d2136520c51df2e794c61cab8"
+    },
+    {
+      "id": "FLU-AKI-001",
+      "hasQuotes": true,
+      "quotesFound": true,
+      "newNumbers": [],
+      "unexplainedTerms": [],
+      "ok": true,
+      "statementSha256": "bb273d47955a9d857862ecf23363ecbcc6ca47ef2ef235361bbf352d123074ad",
+      "quotesSha256": "b83cb8179a8fdb1c6d06b90e715e34f67a0aa7f543a10c26bf69ff945d3866ac"
+    },
+    {
+      "id": "FLU-OLIGURIA-001",
+      "hasQuotes": true,
+      "quotesFound": true,
+      "newNumbers": [],
+      "unexplainedTerms": [],
+      "ok": true,
+      "statementSha256": "488c73e40a2c6ad8945daa6dac7223a1c62d0807f13b566b6be73d3507853bd7",
+      "quotesSha256": "96ea6ed0c65c86119bdadff2935df2179ec8973dab74a3a74eb46abbf075bd8f"
+    },
+    {
+      "id": "FLU-CATH-001",
+      "hasQuotes": true,
+      "quotesFound": true,
+      "newNumbers": [],
+      "unexplainedTerms": [],
+      "ok": true,
+      "statementSha256": "cd9ab380f9f52865d1f647bd2b1f59fe1560be4ed4f4665dd60a31965e67eeee",
+      "quotesSha256": "d902c21f2784563523e9beebb2035c2122762c175ec492f163eb9ef9a7f89e1c"
+    },
+    {
+      "id": "FLU-BP-001",
+      "hasQuotes": true,
+      "quotesFound": true,
+      "newNumbers": [],
+      "unexplainedTerms": [],
+      "ok": true,
+      "statementSha256": "2b0fca8ff68228390c37c6c1ac3a6dc1fa12f61453470c58159f914cfa4d1467",
+      "quotesSha256": "3b15aa156f7262c0bd52ada6eae7755e0f847305bf1503142277d159a675eb95"
+    },
+    {
+      "id": "FLU-PLAN-001",
+      "hasQuotes": true,
+      "quotesFound": true,
+      "newNumbers": [],
+      "unexplainedTerms": [],
+      "ok": true,
+      "statementSha256": "f7eaf4af73a22f26423512c29a7aa1f32c52c12fbb26a6d20d435c000db41db6",
+      "quotesSha256": "c087f2ee9b005f3fa81779458d561ff442372426b3b8cedb13faf39407da816e"
+    },
+    {
+      "id": "FLU-PED-001",
+      "hasQuotes": true,
+      "quotesFound": true,
+      "newNumbers": [],
+      "unexplainedTerms": [],
+      "ok": true,
+      "statementSha256": "ba28d59f215c549ed931bb25dabc5fba775faf1cdc6bda07ca1ce72d15102887",
+      "quotesSha256": "4fbd03fe53026912dbae84dd86e813630013229e05caffbb94f3921524d963e7"
+    }
+  ],
+  "verifiedAt": "2026-09-23",
+  "sourcePath": "onqol-trainer/onqol-trainer/cases/2026-09-25-fluids-01.md (read-only donor)"
+}

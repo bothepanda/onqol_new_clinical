@@ -1,14 +1,23 @@
 import { Readable } from "node:stream";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 import { createAiGateway } from "./aiGateway.mjs";
 import { fileBudgetStore } from "./budgetStore.mjs";
 import { runGroundedDialogue } from "../src/ai/mentor/groundedDialogue.js";
 import { renderGroundedMentorText } from "../src/ai/mentor/statefulGroundedMentor.js";
+import { selectLibrary } from "../src/ai/mentor/libraryRegistry.js";
 
-const libraryText = readFileSync(new URL("../src/content/mentor/app004-library.json", import.meta.url), "utf8");
-const library = { ...JSON.parse(libraryText), sha256: createHash("sha256").update(libraryText).digest("hex") };
+// Every approved library under src/content/mentor/*-library.json. The library
+// for a request is chosen by the session's own scope (libraryRegistry.js) -
+// adding a case adds a file, not a branch here.
+const libraryDir = new URL("../src/content/mentor/", import.meta.url);
+const libraries = readdirSync(libraryDir)
+  .filter((name) => name.endsWith("-library.json"))
+  .map((name) => {
+    const text = readFileSync(new URL(name, libraryDir), "utf8");
+    return { ...JSON.parse(text), sha256: createHash("sha256").update(text).digest("hex") };
+  });
 
 // Reuse the provider adapter, timeout, rate and cost caps with a separate ledger.
 // Request prompts and approved knowledge are constructed server-side.
@@ -33,6 +42,10 @@ export function createMentorGateway({ env, fetchImpl, budgetStore = fileBudgetSt
       if (!/^[A-Za-z0-9_-]{1,100}$/.test(body.sessionId ?? "")) throw new Error("invalid_request");
       const context = parseContext(body.context);
       const provider = { complete: (request) => invokeGateway(gateway, request, body.sessionId, req) };
+      // No library for this scope: the first one is used only so the scope
+      // check inside runGroundedDialogue rejects it (scope_not_approved) - no
+      // provider call is made.
+      const library = selectLibrary(libraries, context) ?? libraries[0];
       const result = await runGroundedDialogue({ provider, context, library });
       res.end(JSON.stringify(result));
     }
@@ -57,8 +70,13 @@ export function createMentorGateway({ env, fetchImpl, budgetStore = fileBudgetSt
       // offered (cardRetrieval.js) - never trusted as clinical content.
       const issueId = typeof body.issueId === "string" && body.issueId.length <= 200 ? body.issueId : null;
       const deterministicFallbackText = typeof body.deterministicFallbackText === "string" ? body.deterministicFallbackText.slice(0, 2000) : null;
+      const concepts = Array.isArray(body.concepts) ? body.concepts.filter((c) => typeof c === "string" && c.length <= 100).slice(0, 10) : [];
+      // Learner-visible slice only (cardRetrieval.js#buildRetrievalView); a
+      // plain bounded object used solely to evaluate card conditions.
+      const visibleState = body.visibleState && typeof body.visibleState === "object" && JSON.stringify(body.visibleState).length <= 4000 ? body.visibleState : null;
+      const library = selectLibrary(libraries, context) ?? libraries[0];
       const provider = { complete: (request) => invokeGateway(gateway, request, body.sessionId, req) };
-      const result = await renderGroundedMentorText({ provider, context, issueId, library, deterministicFallbackText });
+      const result = await renderGroundedMentorText({ provider, context, issueId, library, visibleState, concepts, deterministicFallbackText });
       res.end(JSON.stringify(result));
     }
   }

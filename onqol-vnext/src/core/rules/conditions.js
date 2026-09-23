@@ -8,6 +8,12 @@
  * fact needs to become a disclosed finding first, not that this file should
  * reach past the boundary.
  */
+// Drugs and infusion fluids carry tags in different formulary sections; a
+// param naming either resolves here.
+function tagEntry(bundle, id) {
+  return bundle?.shared?.medications?.medications?.[id] ?? bundle?.shared?.medications?.fluids?.[id];
+}
+
 export const RULE_CONDITION = Object.freeze({
   findingRevealed: (condition, ctx) => ctx.learnerVisible.revealedFindings.includes(condition.findingId),
 
@@ -70,9 +76,70 @@ export const RULE_CONDITION = Object.freeze({
   commandParamHasTag: (condition, ctx) => {
     const value = ctx.command?.params?.[condition.param];
     if (value == null) return undefined;
-    const entry = ctx.bundle?.shared?.medications?.medications?.[value];
+    const entry = tagEntry(ctx.bundle, value);
     if (!entry) return undefined;
     return (entry.tags ?? []).includes(condition.tag);
+  },
+
+  /** The negative form of `commandParamHasTag` (an unknown id is still UNKNOWN, never "lacks"). */
+  commandParamLacksTag: (condition, ctx) => {
+    const value = ctx.command?.params?.[condition.param];
+    if (value == null) return undefined;
+    const entry = tagEntry(ctx.bundle, value);
+    if (!entry) return undefined;
+    return !(entry.tags ?? []).includes(condition.tag);
+  },
+
+  /**
+   * Turn-scoped conditions (teaching-issue detection, `ctx.turn` =
+   * `{ commands: [{type, params}] }`, the commands EXECUTED this turn). Absent
+   * `ctx.turn` is UNKNOWN, so a rule evaluated outside a turn never fires on them.
+   */
+  turnHasCommand: (condition, ctx) => {
+    if (!ctx.turn) return undefined;
+    const types = condition.commandTypes ?? [condition.commandType];
+    return ctx.turn.commands.some((c) => types.includes(c.type));
+  },
+  turnLacksCommand: (condition, ctx) => {
+    if (!ctx.turn) return undefined;
+    return !ctx.turn.commands.some((c) => condition.commandTypes.includes(c.type));
+  },
+
+  /**
+   * A `condition.tag`-tagged bolus was given and the learner has neither
+   * observed the patient since (`state.observations.vitals` grew past the
+   * count recorded when the infusion started) nor prescribed monitoring of a
+   * `condition.monitoring_targets` parameter. Generic "intervention without a
+   * follow-up plan"; content names the tag and the targets.
+   */
+  noFollowUpAfterTaggedIntervention: (condition, ctx) => {
+    const fluids = ctx.bundle?.shared?.medications?.fluids ?? {};
+    const tag = condition.tag ?? "resuscitation_fluid";
+    const tagged = (ctx.state.infusions ?? []).filter((infusion) => infusion.bolus === true && fluids[infusion.fluidId]?.tags?.includes(tag));
+    if (!tagged.length) return false;
+    // A learner who already followed an EARLIER tagged intervention up (observed
+    // the patient before the next one started) has shown the behaviour; asking
+    // again about the same plan would be nagging, not teaching.
+    if (condition.only_if_never_demonstrated === true) {
+      const demonstrated = tagged.some((infusion, index) => index < tagged.length - 1 && (tagged[index + 1].observationsAtStart ?? -1) > (infusion.observationsAtStart ?? Infinity));
+      if (demonstrated) return false;
+    }
+    const last = tagged.at(-1);
+    const observedSince = (ctx.state.observations?.vitals?.length ?? 0) > (last.observationsAtStart ?? Infinity);
+    const monitored = (ctx.state.monitoring?.prescribed ?? []).some((target) => (condition.monitoring_targets ?? []).includes(target));
+    return !(observedSince || monitored);
+  },
+
+  /**
+   * Has a vital the LEARNER has actually seen (via `learnerVisible.physiologyKnownAt`,
+   * refreshed on REASSESS/arrival - never `state.physiology` directly) crossed a
+   * threshold? Generic across diseases and fields. Introduced for fluids-01's C2
+   * flag ("repeat bolus after overload signs were shown"): the rule must fire on
+   * what the learner was told, not on hidden state they never asked about.
+   */
+  learnerVisibleVitalGte: (condition, ctx) => {
+    const value = ctx.learnerVisible.physiologyKnownAt?.values?.[condition.field];
+    return typeof value === "number" ? value >= condition.value : undefined;
   },
 
   /**
@@ -86,18 +153,6 @@ export const RULE_CONDITION = Object.freeze({
    * `procedureNotStarted` naming convention rather than adding a generic NOT
    * operator to the (deliberately AND-only) rule engine.
    */
-  /**
-   * Has a vital the LEARNER has actually seen (via `learnerVisible.physiologyKnownAt`,
-   * refreshed on REASSESS/arrival - never `state.physiology` directly) crossed a
-   * threshold? Generic across diseases and fields. Introduced for fluids-01's C2
-   * flag ("repeat bolus after overload signs were shown"): the rule must fire on
-   * what the learner was told, not on hidden state they never asked about.
-   */
-  learnerVisibleVitalGte: (condition, ctx) => {
-    const value = ctx.learnerVisible.physiologyKnownAt?.values?.[condition.field];
-    return typeof value === "number" ? value >= condition.value : undefined;
-  },
-
   noResuscitationBolusGiven: (condition, ctx) => {
     const fluids = ctx.bundle?.shared?.medications?.fluids ?? {};
     const tag = condition.tag ?? "resuscitation_fluid";

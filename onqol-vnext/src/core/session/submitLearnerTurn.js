@@ -12,6 +12,8 @@ import { runSplitSemanticShadow } from "../../ai/interpreter/splitSemanticInterp
 import { createNullProviderClient } from "../../ai/providerClient.js";
 import { classifyAdequacy } from "../../ai/mentor/mentorAdequacy.js";
 import { advanceMentorMemory } from "../../ai/mentor/mentorMemory.js";
+import { detectTeachingCandidates, buildIssueDefinitions } from "../../ai/mentor/teachingCandidates.js";
+import { buildLearnerVisibleState } from "../state/learnerView.js";
 
 /**
  * One complete learner turn: raw text in, `{ session, outcomes, mentor }` out.
@@ -102,7 +104,7 @@ export function submitLearnerTurn({ session, text, shadowProvider, interpreted: 
     const turnResultForMentor = { outcome: "EXECUTED" };
     const mentor = enrichMentorWithMemory({
       session: working,
-      mentor: decideMentorResponse({ state: working.state, turnResult: turnResultForMentor, mentorSignal: interpreted.mentorSignal }),
+      mentor: decideMentorResponse({ state: working.state, turnResult: turnResultForMentor, mentorSignal: interpreted.mentorSignal, ...mentorContentInputs(working, []) }),
       interpreted,
       turnResult: turnResultForMentor,
       text,
@@ -136,6 +138,20 @@ export function submitLearnerTurn({ session, text, shadowProvider, interpreted: 
   );
   let timeEvents = [];
   let waitTargetMinutes = null;
+  // "Болюс, переоценю через 15 минут": an order that starts a treatment is
+  // carried out NOW, and only then does the stated wait pass - otherwise the
+  // order would be placed at the END of the wait and the reassessment would
+  // observe a patient the treatment has not yet reached. Only orders that can
+  // start an effect (infusion / medication) are moved ahead of the wait.
+  const startedBeforeWait = waitCommand
+    ? interpreted.commands.filter((c) => c !== waitCommand && ["ORDER_INFUSION", "ORDER_MEDICATION"].includes(c.type) && c.params.afterMinutes == null && validateCommand(c).outcome !== "CLARIFY")
+    : [];
+  let preWaitResults = [];
+  if (startedBeforeWait.length) {
+    const started = applyCommands({ session: working, commands: startedBeforeWait, turnContext: { waitTargetMinutes: null } });
+    working = started.session;
+    preWaitResults = started.results;
+  }
   if (waitCommand) {
     waitTargetMinutes = waitCommand.params.afterMinutes != null
       ? working.state.clock.elapsedMinutes + waitCommand.params.afterMinutes
@@ -171,12 +187,13 @@ export function submitLearnerTurn({ session, text, shadowProvider, interpreted: 
     }
   }
 
-  const { session: afterCommands, results } = applyCommands({
+  const { session: afterCommands, results: laterResults } = applyCommands({
     session: working,
-    commands: interpreted.commands,
+    commands: interpreted.commands.filter((c) => !startedBeforeWait.includes(c)),
     turnContext: { waitTargetMinutes },
   });
   working = afterCommands;
+  const results = [...preWaitResults, ...laterResults];
 
   // An action that itself takes clinical time (Contract §7.1: "clinical time
   // advances according to actions, investigations, treatment, TRANSPORT,
@@ -256,7 +273,7 @@ export function submitLearnerTurn({ session, text, shadowProvider, interpreted: 
   const turnResultForMentor = results.at(-1);
   const mentor = enrichMentorWithMemory({
     session: working,
-    mentor: decideMentorResponse({ state: working.state, turnResult: turnResultForMentor, mentorSignal: interpreted.mentorSignal }),
+    mentor: decideMentorResponse({ state: working.state, turnResult: turnResultForMentor, mentorSignal: interpreted.mentorSignal, ...mentorContentInputs(working, results) }),
     interpreted,
     turnResult: turnResultForMentor,
     text,
@@ -264,6 +281,23 @@ export function submitLearnerTurn({ session, text, shadowProvider, interpreted: 
   working = recordMentorIntervention(working, mentor, atIso);
 
   return { session: working, interpreted, outcomes: results, mentor, timeEvents, afterEvents, shadowTelemetryPromise };
+}
+
+/**
+ * Content-declared mentor inputs (Wave B). Only when the stateful mentor is on
+ * for the session: a flag-off session gets exactly the arguments it always did.
+ * A bundle with no `teaching_issues` / `mentor_policy` (appendicitis) yields
+ * no candidates and no policy override, so its behaviour is unchanged even
+ * with the flag on.
+ */
+function mentorContentInputs(session, results) {
+  if (!isStatefulGroundedMentorEnabled(session.state.session)) return {};
+  const bundle = session.bundle;
+  const issueDefinitions = buildIssueDefinitions(bundle);
+  const teachingCandidates = results.length
+    ? detectTeachingCandidates({ bundle, state: session.state, learnerVisible: buildLearnerVisibleState(session.state), results })
+    : [];
+  return { teachingCandidates, issueDefinitions, policy: bundle.rules?.mentor_policy ?? {} };
 }
 
 /**

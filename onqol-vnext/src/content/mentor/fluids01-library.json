@@ -1,0 +1,1839 @@
+{
+  "id": "FLUIDS01-MENTOR-2026-09-24",
+  "version": "0.1",
+  "scope": {
+    "casePresetId": "FLUIDS-01",
+    "sessionPurpose": "internal_development",
+    "locale": "ru"
+  },
+  "approval": "Frozen case v1.2 (approved and frozen by the Clinical Lead 2026-09-21); promoted directly to approved_for_training for this case by explicit Clinical Lead decision 2026-09-23. Each card is a verbatim-quote extraction (see source_quotes / docs/evidence/WAVE_B_FLUIDS_CARD_FAITHFULNESS.json). Card FLU-RESUS-002 stays pending_review and is runtime-inert. Not resident-pilot approval.",
+  "numeric_policy": "verbatim_from_cited_sources",
+  "clinical_kinds": [
+    "background_reference",
+    "clinical_guidance"
+  ],
+  "retrieval_limit": 4,
+  "policy_addendum": "ДОПОЛНЕНИЕ ДЛЯ ЭТОЙ БИБЛИОТЕКИ (fluids-01). Карточки kind=clinical_guidance содержат утверждённые положения по ведению из зафиксированного учебного кейса: их МОЖНО пересказывать как подход из кейса, только в тех условиях и с теми оговорками, которые указаны в statement/constraints/exceptions карточки, и только когда резидент сам назвал решение или прямо спросил. Числа (объёмы, скорости, пороги) разрешено повторять ТОЛЬКО дословно из процитированной карточки или из уже показанных facts; не вычисляй и не пересчитывай числа за резидента. Не называй за резидента диагноз или интерпретацию (гиповолемия, ОПП, гиперхлоремический ацидоз, перегрузка): обсуждай их, только если резидент назвал их сам. Не оценивай ответы словами «верно», «правильно», «хорошо». Не приписывай утверждения руководствам, если карточка этого не говорит; сохраняй атрибуцию карточки (например, «клиническое соображение, не из NICE»). Не предлагай новый болюс, дозу или препарат. Одно действие резидента и его данные пациента различай: не утверждай результат, которого нет в facts.",
+  "sources": [
+    {
+      "source_id": "FLU-CASE-V1.2",
+      "title": "Кейс fluids-01, версия 1.2 (утверждена и заморожена 2026-09-21)",
+      "artifact_id": "sha256:b4d1351e02847468f2e5c23a7e9b5b1a0c3121ae2e617d19b6b726188588c01a",
+      "sha256": "b4d1351e02847468f2e5c23a7e9b5b1a0c3121ae2e617d19b6b726188588c01a",
+      "url": "onqol-trainer/onqol-trainer/cases/2026-09-25-fluids-01.md@4a8c17b"
+    },
+    {
+      "source_id": "SSC-2026",
+      "title": "Surviving Sepsis Campaign 2026 (ориентир по типу раствора; руководство по сепсису)"
+    },
+    {
+      "source_id": "KDIGO-2012",
+      "title": "KDIGO Clinical Practice Guideline for Acute Kidney Injury (2012)"
+    }
+  ],
+  "cards": [
+    {
+      "id": "FLU-ASSESS-001",
+      "title": "Гипоперфузия: кожа и CRT",
+      "kind": "background_reference",
+      "statement": "Признаки гипоперфузии: холодная бледная кожа, капиллярное наполнение (CRT) больше 2 с.",
+      "case_scope": [
+        "FLUIDS-01"
+      ],
+      "topic": "initial_fluid_assessment",
+      "concepts": [
+        "perfusion",
+        "hypoperfusion_signs"
+      ],
+      "source_artifact": "onqol-trainer cases/2026-09-25-fluids-01.md v1.2",
+      "source_locator": "Часть A, «Быстрая оценка перфузии»; NICE CG174 1.2.1 (проверено по PDF)",
+      "source_quotes": [
+        "| Кожа | холодная, бледная; капиллярное наполнение (CRT) **> 2 с**",
+        "| Признак | Гипоперфузия |"
+      ],
+      "glue_terms": [
+        "бледная",
+        "больше",
+        "признаки"
+      ],
+      "constraints": "CRT — вспомогательный маркер, не единственный; не выставлять диагноз за резидента.",
+      "exceptions": [],
+      "allowed_uses": {
+        "mentor_teaching": true,
+        "safety": false,
+        "scoring": false,
+        "patient_effect": false
+      },
+      "risk_class": "medium",
+      "retrieval": {
+        "issue_ids": [
+          "fluids.initial_assessment"
+        ],
+        "learner_text_patterns": [
+          "перфуз|капилляр|crt|холодн"
+        ]
+      },
+      "review_status": "approved_for_training",
+      "sourceIds": [
+        "FLU-CASE-V1.2"
+      ],
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead"
+      ],
+      "reviewed_at": "2026-09-21",
+      "promotion_note": "Frozen case v1.2 promoted directly to approved_for_training by Clinical Lead decision 2026-09-23 (see docs/WAVE_B_FLUIDS_SOURCE_MANIFEST.md)."
+    },
+    {
+      "id": "FLU-ASSESS-002",
+      "title": "Диурез как признак перфузии",
+      "kind": "background_reference",
+      "statement": "Диурез менее 0,5 мл/кг/ч — признак гипоперфузии.",
+      "case_scope": [
+        "FLUIDS-01"
+      ],
+      "topic": "urine_output_interpretation",
+      "concepts": [
+        "urine_output",
+        "hypoperfusion_signs"
+      ],
+      "source_artifact": "onqol-trainer cases/2026-09-25-fluids-01.md v1.2",
+      "source_locator": "Часть A, «Быстрая оценка перфузии»",
+      "source_quotes": [
+        "| Диурез | < 0,5 мл/кг/ч |",
+        "| Признак | Гипоперфузия |"
+      ],
+      "glue_terms": [
+        "менее",
+        "признак"
+      ],
+      "constraints": "Порог относится к диурезу на кг массы за час; не пересчитывать за резидента.",
+      "exceptions": [],
+      "allowed_uses": {
+        "mentor_teaching": true,
+        "safety": false,
+        "scoring": false,
+        "patient_effect": false
+      },
+      "risk_class": "high",
+      "retrieval": {
+        "issue_ids": [
+          "fluids.diuretic_before_volume",
+          "fluids.initial_assessment"
+        ],
+        "learner_text_patterns": [
+          "диурез|мочи|олигур"
+        ]
+      },
+      "review_status": "approved_for_training",
+      "sourceIds": [
+        "FLU-CASE-V1.2"
+      ],
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead"
+      ],
+      "reviewed_at": "2026-09-21",
+      "promotion_note": "Frozen case v1.2 promoted directly to approved_for_training by Clinical Lead decision 2026-09-23 (see docs/WAVE_B_FLUIDS_SOURCE_MANIFEST.md)."
+    },
+    {
+      "id": "FLU-ASSESS-003",
+      "title": "β-блокатор и тахикардия",
+      "kind": "background_reference",
+      "statement": "β-блокатор может притупить тахикардический ответ, поэтому нормальная или умеренно повышенная ЧСС не исключает гипоперфузию.",
+      "case_scope": [
+        "FLUIDS-01"
+      ],
+      "topic": "hemodynamic_interpretation",
+      "concepts": [
+        "beta_blocker",
+        "tachycardia"
+      ],
+      "source_artifact": "onqol-trainer cases/2026-09-25-fluids-01.md v1.2",
+      "source_locator": "Часть A, «Ограничения»",
+      "source_quotes": [
+        "**β-блокатор может притупить тахикардический ответ**, поэтому нормальная или умеренно повышенная ЧСС не исключает гипоперфузию"
+      ],
+      "glue_terms": [],
+      "constraints": "Применять, если резидент трактует пульс как признак того, что объёма достаточно/недостаточно.",
+      "exceptions": [],
+      "allowed_uses": {
+        "mentor_teaching": true,
+        "safety": false,
+        "scoring": false,
+        "patient_effect": false
+      },
+      "risk_class": "medium",
+      "retrieval": {
+        "issue_ids": [
+          "fluids.hemodynamic_interpretation"
+        ],
+        "learner_text_patterns": [
+          "чсс|пульс|тахикард|β|бета"
+        ]
+      },
+      "review_status": "approved_for_training",
+      "sourceIds": [
+        "FLU-CASE-V1.2"
+      ],
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead"
+      ],
+      "reviewed_at": "2026-09-21",
+      "promotion_note": "Frozen case v1.2 promoted directly to approved_for_training by Clinical Lead decision 2026-09-23 (see docs/WAVE_B_FLUIDS_SOURCE_MANIFEST.md)."
+    },
+    {
+      "id": "FLU-ASSESS-004",
+      "title": "Баланс «введено/выведено»",
+      "kind": "background_reference",
+      "statement": "Видимый баланс «введено/выведено» неточен: неощутимые потери и перераспределение жидкости в него не входят.",
+      "case_scope": [
+        "FLUIDS-01"
+      ],
+      "topic": "fluid_balance",
+      "concepts": [
+        "fluid_balance"
+      ],
+      "source_artifact": "onqol-trainer cases/2026-09-25-fluids-01.md v1.2",
+      "source_locator": "Часть A, «Ограничения»; Часть B, «Баланс»",
+      "source_quotes": [
+        "баланс «введено/выведено» неточен",
+        "Неощутимые потери после лапаротомии и лихорадки плюс перераспределение жидкости в этот баланс не входят."
+      ],
+      "glue_terms": [
+        "видимый",
+        "него"
+      ],
+      "constraints": "",
+      "exceptions": [],
+      "allowed_uses": {
+        "mentor_teaching": true,
+        "safety": false,
+        "scoring": false,
+        "patient_effect": false
+      },
+      "risk_class": "medium",
+      "retrieval": {
+        "issue_ids": [
+          "fluids.balance_limits"
+        ],
+        "learner_text_patterns": [
+          "баланс|введено|выведено|плюсов"
+        ]
+      },
+      "review_status": "approved_for_training",
+      "sourceIds": [
+        "FLU-CASE-V1.2"
+      ],
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead"
+      ],
+      "reviewed_at": "2026-09-21",
+      "promotion_note": "Frozen case v1.2 promoted directly to approved_for_training by Clinical Lead decision 2026-09-23 (see docs/WAVE_B_FLUIDS_SOURCE_MANIFEST.md)."
+    },
+    {
+      "id": "FLU-ASSESS-005",
+      "title": "Пассивный подъём ног и POCUS",
+      "kind": "background_reference",
+      "statement": "Пассивный подъём ног: улучшение гемодинамики через 30–90 с говорит о потребности в объёме, ухудшение — прежде всего одышка — о перегрузке; POCUS — если доступно.",
+      "case_scope": [
+        "FLUIDS-01"
+      ],
+      "topic": "initial_fluid_assessment",
+      "concepts": [
+        "passive_leg_raise",
+        "pocus"
+      ],
+      "source_artifact": "onqol-trainer cases/2026-09-25-fluids-01.md v1.2",
+      "source_locator": "Часть A, «Быстрая оценка перфузии»; NICE CG174 1.2.1",
+      "source_quotes": [
+        "пассивный подъём ног (NICE 1.2.1: улучшение гемодинамики через 30–90 с говорит о потребности в объёме, ухудшение — прежде всего одышка — о перегрузке), POCUS, если доступно"
+      ],
+      "glue_terms": [
+        "говорит",
+        "доступно",
+        "если",
+        "пассивный"
+      ],
+      "constraints": "",
+      "exceptions": [],
+      "allowed_uses": {
+        "mentor_teaching": true,
+        "safety": false,
+        "scoring": false,
+        "patient_effect": false
+      },
+      "risk_class": "medium",
+      "retrieval": {
+        "issue_ids": [
+          "fluids.initial_assessment"
+        ],
+        "learner_text_patterns": [
+          "подъ[её]м ног|pocus|узи"
+        ]
+      },
+      "review_status": "approved_for_training",
+      "sourceIds": [
+        "FLU-CASE-V1.2"
+      ],
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead"
+      ],
+      "reviewed_at": "2026-09-21",
+      "promotion_note": "Frozen case v1.2 promoted directly to approved_for_training by Clinical Lead decision 2026-09-23 (see docs/WAVE_B_FLUIDS_SOURCE_MANIFEST.md)."
+    },
+    {
+      "id": "FLU-ASSESS-006",
+      "title": "Другие признаки гипоперфузии по NICE",
+      "kind": "background_reference",
+      "statement": "Другие признаки гипоперфузии по NICE: САД менее 100, ЧСС более 90, ЧДД более 20, NEWS 5 и выше, положительный тест пассивного подъёма ног.",
+      "case_scope": [
+        "FLUIDS-01"
+      ],
+      "topic": "initial_fluid_assessment",
+      "concepts": [
+        "hypoperfusion_signs"
+      ],
+      "source_artifact": "onqol-trainer cases/2026-09-25-fluids-01.md v1.2",
+      "source_locator": "Часть A, «Быстрая оценка перфузии»; NICE CG174 1.2.1",
+      "source_quotes": [
+        "Другие признаки NICE: САД < 100, ЧСС > 90, ЧДД > 20, NEWS ≥ 5, положительный тест пассивного подъёма ног"
+      ],
+      "glue_terms": [
+        "5",
+        "более",
+        "выше",
+        "гипоперфузии",
+        "других",
+        "менее",
+        "признаки"
+      ],
+      "constraints": "Пороги NICE называть только если резидент спросил о критериях; не применять как диагноз к конкретному пациенту.",
+      "exceptions": [],
+      "allowed_uses": {
+        "mentor_teaching": true,
+        "safety": false,
+        "scoring": false,
+        "patient_effect": false
+      },
+      "risk_class": "high",
+      "retrieval": {
+        "issue_ids": [
+          "fluids.initial_assessment"
+        ],
+        "learner_text_patterns": [
+          "news|сад|признаки гипоперфуз"
+        ]
+      },
+      "review_status": "approved_for_training",
+      "sourceIds": [
+        "FLU-CASE-V1.2"
+      ],
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead"
+      ],
+      "reviewed_at": "2026-09-21",
+      "promotion_note": "Frozen case v1.2 promoted directly to approved_for_training by Clinical Lead decision 2026-09-23 (see docs/WAVE_B_FLUIDS_SOURCE_MANIFEST.md)."
+    },
+    {
+      "id": "FLU-CAUSES-001",
+      "title": "Причины нехватки объёма",
+      "kind": "background_reference",
+      "statement": "Причины нехватки объёма: потери из ЖКТ (рвота, НГ-зонд, диарея), мочевые потери (диуретики, гипергликемия), неощутимые потери (лихорадка, раны), перераспределение жидкости, кровопотеря, недостаточное замещение.",
+      "case_scope": [
+        "FLUIDS-01"
+      ],
+      "topic": "cause_search",
+      "concepts": [
+        "cause_search",
+        "losses"
+      ],
+      "source_artifact": "onqol-trainer cases/2026-09-25-fluids-01.md v1.2",
+      "source_locator": "Часть A, «Причины»",
+      "source_quotes": [
+        "ЖКТ-потери (рвота, НГ-зонд, диарея) · мочевые (диуретики, гипергликемия) · неощутимые (лихорадка, раны) · **перераспределение жидкости**",
+        "кровопотеря · недостаточное замещение"
+      ],
+      "glue_terms": [
+        "мочевые",
+        "неощутимые",
+        "нехватки",
+        "объёма",
+        "потери",
+        "причины"
+      ],
+      "constraints": "",
+      "exceptions": [],
+      "allowed_uses": {
+        "mentor_teaching": true,
+        "safety": false,
+        "scoring": false,
+        "patient_effect": false
+      },
+      "risk_class": "low",
+      "retrieval": {
+        "issue_ids": [
+          "fluids.cause_search"
+        ],
+        "learner_text_patterns": [
+          "причин|откуда|почему.*(мало|потер)"
+        ]
+      },
+      "review_status": "approved_for_training",
+      "sourceIds": [
+        "FLU-CASE-V1.2"
+      ],
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead"
+      ],
+      "reviewed_at": "2026-09-21",
+      "promotion_note": "Frozen case v1.2 promoted directly to approved_for_training by Clinical Lead decision 2026-09-23 (see docs/WAVE_B_FLUIDS_SOURCE_MANIFEST.md)."
+    },
+    {
+      "id": "FLU-TASKS-001",
+      "title": "Три задачи инфузионной терапии",
+      "kind": "background_reference",
+      "statement": "Различай три задачи: ресусцитацию, поддерживающую инфузию и замещение потерь.",
+      "case_scope": [
+        "FLUIDS-01"
+      ],
+      "topic": "fluid_tasks",
+      "concepts": [
+        "resuscitation",
+        "maintenance",
+        "replacement"
+      ],
+      "source_artifact": "onqol-trainer cases/2026-09-25-fluids-01.md v1.2",
+      "source_locator": "Часть A, «Что должен уметь резидент после кейса», п. 2",
+      "source_quotes": [
+        "различать три разные задачи: **ресусцитация**, **поддерживающая инфузия** и **замещение потерь**"
+      ],
+      "glue_terms": [
+        "задачи",
+        "замещение",
+        "инфузию",
+        "поддерживающую",
+        "потерь",
+        "различай",
+        "ресусцитацию",
+        "три"
+      ],
+      "constraints": "",
+      "exceptions": [],
+      "allowed_uses": {
+        "mentor_teaching": true,
+        "safety": false,
+        "scoring": false,
+        "patient_effect": false
+      },
+      "risk_class": "low",
+      "retrieval": {
+        "issue_ids": [
+          "fluids.overall_plan"
+        ],
+        "learner_text_patterns": [
+          "план.*(жидкост|инфуз)|maintenance|поддерживающ"
+        ]
+      },
+      "review_status": "approved_for_training",
+      "sourceIds": [
+        "FLU-CASE-V1.2"
+      ],
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead"
+      ],
+      "reviewed_at": "2026-09-21",
+      "promotion_note": "Frozen case v1.2 promoted directly to approved_for_training by Clinical Lead decision 2026-09-23 (see docs/WAVE_B_FLUIDS_SOURCE_MANIFEST.md)."
+    },
+    {
+      "id": "FLU-RESUS-001",
+      "title": "Болюс и немедленная переоценка",
+      "kind": "clinical_guidance",
+      "statement": "При ресусцитации вводят 500 мл кристаллоида за менее чем 15 минут и сразу переоценивают ЧСС, АД, CRT, диурез и лёгкие.",
+      "case_scope": [
+        "FLUIDS-01"
+      ],
+      "topic": "fluid_response_reassessment",
+      "concepts": [
+        "bolus",
+        "reassessment"
+      ],
+      "source_artifact": "onqol-trainer cases/2026-09-25-fluids-01.md v1.2",
+      "source_locator": "Часть A, «Тактика. Ресусцитация»; NICE CG174 1.3.1 (проверено по PDF)",
+      "source_quotes": [
+        "500 мл кристаллоида за < 15 мин → немедленная переоценка (ЧСС, АД, CRT, диурез, лёгкие)",
+        "Болюс 500 мл за < 15 мин, кристаллоид с Na 130–154 ммоль/л — NICE 1.3.1 (проверено)"
+      ],
+      "glue_terms": [
+        "вводят",
+        "менее",
+        "минут",
+        "переоценивают",
+        "ресусцитации",
+        "сразу",
+        "чем"
+      ],
+      "constraints": "Только как описание подхода из кейса; количество и темп не предлагать резиденту как приказ, пока он не назвал собственное решение.",
+      "exceptions": [
+        "Не применять как побуждение к новому болюсу, если уже видны признаки перегрузки."
+      ],
+      "allowed_uses": {
+        "mentor_teaching": true,
+        "safety": false,
+        "scoring": false,
+        "patient_effect": false
+      },
+      "risk_class": "high",
+      "retrieval": {
+        "issue_ids": [
+          "fluids.reassessment_plan",
+          "fluids.initial_assessment",
+          "fluids.consult_ownership"
+        ],
+        "learner_text_patterns": [
+          "болюс|ресусцитац"
+        ]
+      },
+      "review_status": "approved_for_training",
+      "sourceIds": [
+        "FLU-CASE-V1.2"
+      ],
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead"
+      ],
+      "reviewed_at": "2026-09-21",
+      "promotion_note": "Frozen case v1.2 promoted directly to approved_for_training by Clinical Lead decision 2026-09-23 (see docs/WAVE_B_FLUIDS_SOURCE_MANIFEST.md).",
+      "exceptions_when": [
+        {
+          "path": "physiologyKnownAt.values.respiratoryRate",
+          "operator": "gte",
+          "value": 24
+        }
+      ]
+    },
+    {
+      "id": "FLU-RESUS-002",
+      "title": "Повторный болюс 250–500 мл",
+      "kind": "clinical_guidance",
+      "statement": "При сохраняющейся потребности вводят ещё 250–500 мл и снова переоценивают.",
+      "case_scope": [
+        "FLUIDS-01"
+      ],
+      "topic": "fluid_response_reassessment",
+      "concepts": [
+        "repeat_bolus"
+      ],
+      "source_artifact": "onqol-trainer cases/2026-09-25-fluids-01.md v1.2",
+      "source_locator": "Часть A, «Тактика. Ресусцитация»; источник сам отмечает: в PDF NICE не найдено",
+      "source_quotes": [
+        "при сохраняющейся потребности ещё 250–500 мл и снова переоценка",
+        "Повторный болюс 250–500 мл — по алгоритму NICE (в PDF не найдено)"
+      ],
+      "glue_terms": [
+        "вводят",
+        "переоценивают",
+        "потребности",
+        "сохраняющейся"
+      ],
+      "constraints": "INERT: не использовать до подтверждения источника.",
+      "exceptions": [],
+      "allowed_uses": {
+        "mentor_teaching": true,
+        "safety": false,
+        "scoring": false,
+        "patient_effect": false
+      },
+      "risk_class": "high",
+      "retrieval": {
+        "issue_ids": [
+          "fluids.reassessment_plan"
+        ],
+        "learner_text_patterns": [
+          "повторн.*болюс"
+        ]
+      },
+      "review_status": "pending_review",
+      "sourceIds": [
+        "FLU-CASE-V1.2"
+      ],
+      "reviewed_by": [],
+      "reviewed_at": null,
+      "pending_reason": "The source itself records this figure as NOT found in the NICE CG174 PDF it checked; kept runtime-inert."
+    },
+    {
+      "id": "FLU-RESUS-003",
+      "title": "Признаки перегрузки — сигнал остановиться",
+      "kind": "clinical_guidance",
+      "statement": "Признаки перегрузки — тахипноэ, гипоксия, хрипы, S3, отёки, полные вены шеи; их проверяют при каждой переоценке после болюса, и они — сигнал остановиться.",
+      "case_scope": [
+        "FLUIDS-01"
+      ],
+      "topic": "fluid_overload_recognition",
+      "concepts": [
+        "fluid_overload",
+        "reassessment"
+      ],
+      "source_artifact": "onqol-trainer cases/2026-09-25-fluids-01.md v1.2",
+      "source_locator": "Часть A, «Перегрузка»",
+      "source_quotes": [
+        "Тахипноэ, гипоксия, хрипы, S3, отёки, полные вены шеи. Признаки перегрузки проверяются при каждой переоценке после болюса и являются сигналом остановиться."
+      ],
+      "glue_terms": [
+        "каждой",
+        "они",
+        "остановиться",
+        "признаки",
+        "проверяют",
+        "сигнал"
+      ],
+      "constraints": "",
+      "exceptions": [],
+      "allowed_uses": {
+        "mentor_teaching": true,
+        "safety": false,
+        "scoring": false,
+        "patient_effect": false
+      },
+      "risk_class": "high",
+      "retrieval": {
+        "issue_ids": [
+          "fluids.reassessment_plan",
+          "fluids.continue_after_overload",
+          "fluids.overload_unaddressed",
+          "RULE-FLUIDS-REPEAT-BOLUS-AFTER-OVERLOAD-SIGNS"
+        ],
+        "learner_text_patterns": [
+          "перегруз|хрип|одышк|отёк лёгк|отек легк"
+        ]
+      },
+      "review_status": "approved_for_training",
+      "sourceIds": [
+        "FLU-CASE-V1.2"
+      ],
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead"
+      ],
+      "reviewed_at": "2026-09-21",
+      "promotion_note": "Frozen case v1.2 promoted directly to approved_for_training by Clinical Lead decision 2026-09-23 (see docs/WAVE_B_FLUIDS_SOURCE_MANIFEST.md)."
+    },
+    {
+      "id": "FLU-ESCALATE-001",
+      "title": "Нет ответа на ресусцитацию: эскалация и пересмотр диагноза",
+      "kind": "clinical_guidance",
+      "statement": "Если ответа на ресусцитацию нет, не наращивай объём автоматически: параллельно зови старшего и пересматривай диагноз (кровотечение, сепсис, несостоятельность, кардиальный или обструктивный компонент), POCUS — при наличии.",
+      "case_scope": [
+        "FLUIDS-01"
+      ],
+      "topic": "strategy_change",
+      "concepts": [
+        "escalation",
+        "diagnosis_revision"
+      ],
+      "source_artifact": "onqol-trainer cases/2026-09-25-fluids-01.md v1.2",
+      "source_locator": "Часть A, «Тактика»; Часть B, «Вопросы преподавателя», п. 1 (проба эскалации)",
+      "source_quotes": [
+        "При отсутствии ответа не наращивать объём автоматически, а пересмотреть диагноз и позвать старшего.",
+        "параллельно позвать старшего, пересмотреть диагноз (кровотечение, сепсис, несостоятельность, кардиальный или обструктивный компонент), POCUS при наличии"
+      ],
+      "glue_terms": [
+        "автоматически",
+        "если",
+        "зови",
+        "наличии",
+        "наращивай",
+        "объём",
+        "ответа",
+        "параллельно",
+        "пересматривай",
+        "при",
+        "ресусцитацию",
+        "старшего"
+      ],
+      "constraints": "Не называть конкретный диагноз за резидента; спрашивать, что он пересмотрит.",
+      "exceptions": [],
+      "allowed_uses": {
+        "mentor_teaching": true,
+        "safety": false,
+        "scoring": false,
+        "patient_effect": false
+      },
+      "risk_class": "high",
+      "retrieval": {
+        "issue_ids": [
+          "fluids.no_response_escalation",
+          "fluids.continue_after_overload",
+          "fluids.overload_unaddressed",
+          "fluids.consult_ownership"
+        ],
+        "learner_text_patterns": [
+          "нет ответа|не помогает|эскалац|позвать старшего|звать старшего"
+        ]
+      },
+      "review_status": "approved_for_training",
+      "sourceIds": [
+        "FLU-CASE-V1.2"
+      ],
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead"
+      ],
+      "reviewed_at": "2026-09-21",
+      "promotion_note": "Frozen case v1.2 promoted directly to approved_for_training by Clinical Lead decision 2026-09-23 (see docs/WAVE_B_FLUIDS_SOURCE_MANIFEST.md)."
+    },
+    {
+      "id": "FLU-BLEED-001",
+      "title": "Стабильный Hb и серозный дренаж не исключают кровотечение",
+      "kind": "clinical_guidance",
+      "statement": "Отсутствие явных признаков кровотечения (серозный дренаж, живот без перитонита, стабильный Hb) не исключает диагноз; при плохом ответе на ресусцитацию его нужно пересмотреть.",
+      "case_scope": [
+        "FLUIDS-01"
+      ],
+      "topic": "strategy_change",
+      "concepts": [
+        "bleeding",
+        "diagnosis_revision"
+      ],
+      "source_artifact": "onqol-trainer cases/2026-09-25-fluids-01.md v1.2",
+      "source_locator": "Часть B, «Ответы на действия резидента»",
+      "source_quotes": [
+        "Явных признаков продолжающегося кровотечения нет: дренаж серозный, живот без перитонита, Hb стабилен. Но это **не исключает** диагноз; при плохом ответе на ресусцитацию его нужно пересмотреть."
+      ],
+      "glue_terms": [
+        "кровотечения",
+        "нужно",
+        "ответе",
+        "отсутствие",
+        "пересмотреть",
+        "плохом",
+        "признаков",
+        "ресусцитацию",
+        "серозный",
+        "стабильный",
+        "явных"
+      ],
+      "constraints": "",
+      "exceptions": [],
+      "allowed_uses": {
+        "mentor_teaching": true,
+        "safety": false,
+        "scoring": false,
+        "patient_effect": false
+      },
+      "risk_class": "high",
+      "retrieval": {
+        "issue_ids": [
+          "fluids.no_response_escalation"
+        ],
+        "learner_text_patterns": [
+          "кровотеч|hb|гемоглобин|несостоятельн"
+        ]
+      },
+      "review_status": "approved_for_training",
+      "sourceIds": [
+        "FLU-CASE-V1.2"
+      ],
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead"
+      ],
+      "reviewed_at": "2026-09-21",
+      "promotion_note": "Frozen case v1.2 promoted directly to approved_for_training by Clinical Lead decision 2026-09-23 (see docs/WAVE_B_FLUIDS_SOURCE_MANIFEST.md)."
+    },
+    {
+      "id": "FLU-CHOICE-001",
+      "title": "Сбалансированный кристаллоид предпочтителен",
+      "kind": "clinical_guidance",
+      "statement": "Для болюсов и поддерживающей инфузии предпочтителен сбалансированный кристаллоид с ограничением хлорида (ASCRS, рекомендация 14, сильная, 1B).",
+      "case_scope": [
+        "FLUIDS-01"
+      ],
+      "topic": "crystalloid_choice",
+      "concepts": [
+        "balanced_crystalloid",
+        "fluid_choice"
+      ],
+      "source_artifact": "onqol-trainer cases/2026-09-25-fluids-01.md v1.2",
+      "source_locator": "Часть A, «Выбор раствора»; ASCRS/SAGES ERAS 2023 рек. 14 (проверено по PDF)",
+      "source_quotes": [
+        "Сбалансированный кристаллоид с ограничением хлорида для болюсов и поддерживающей инфузии: ASCRS рек. 14, **сильная, 1B**"
+      ],
+      "glue_terms": [
+        "болюсов",
+        "инфузии",
+        "поддерживающей",
+        "предпочтителен",
+        "рекомендация"
+      ],
+      "constraints": "",
+      "exceptions": [],
+      "allowed_uses": {
+        "mentor_teaching": true,
+        "safety": false,
+        "scoring": false,
+        "patient_effect": false
+      },
+      "risk_class": "medium",
+      "retrieval": {
+        "issue_ids": [
+          "fluids.fluid_choice"
+        ],
+        "learner_text_patterns": [
+          "сбалансирован|какой раствор|стерофундин|лактат|хартман"
+        ]
+      },
+      "review_status": "approved_for_training",
+      "sourceIds": [
+        "FLU-CASE-V1.2"
+      ],
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead"
+      ],
+      "reviewed_at": "2026-09-21",
+      "promotion_note": "Frozen case v1.2 promoted directly to approved_for_training by Clinical Lead decision 2026-09-23 (see docs/WAVE_B_FLUIDS_SOURCE_MANIFEST.md)."
+    },
+    {
+      "id": "FLU-CHOICE-002",
+      "title": "В клинике сбалансированными считаются",
+      "kind": "background_reference",
+      "statement": "В кейсе сбалансированными считаются Стерофундин и Рингер-лактат / Хартмана.",
+      "case_scope": [
+        "FLUIDS-01"
+      ],
+      "topic": "crystalloid_choice",
+      "concepts": [
+        "balanced_crystalloid",
+        "formulary"
+      ],
+      "source_artifact": "onqol-trainer cases/2026-09-25-fluids-01.md v1.2",
+      "source_locator": "Часть A, «Формуляр вашей клиники»",
+      "source_quotes": [
+        "в кейсе «сбалансированные» = **Стерофундин** и **Рингер-лактат / Хартмана**"
+      ],
+      "glue_terms": [
+        "считаются"
+      ],
+      "constraints": "",
+      "exceptions": [],
+      "allowed_uses": {
+        "mentor_teaching": true,
+        "safety": false,
+        "scoring": false,
+        "patient_effect": false
+      },
+      "risk_class": "low",
+      "retrieval": {
+        "issue_ids": [
+          "fluids.fluid_choice"
+        ],
+        "learner_text_patterns": [
+          "стерофундин|хартман|рингер"
+        ]
+      },
+      "review_status": "approved_for_training",
+      "sourceIds": [
+        "FLU-CASE-V1.2"
+      ],
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead"
+      ],
+      "reviewed_at": "2026-09-21",
+      "promotion_note": "Frozen case v1.2 promoted directly to approved_for_training by Clinical Lead decision 2026-09-23 (see docs/WAVE_B_FLUIDS_SOURCE_MANIFEST.md)."
+    },
+    {
+      "id": "FLU-CHOICE-003",
+      "title": "«Рингера» без лактата не сбалансирован",
+      "kind": "background_reference",
+      "statement": "Раствор Рингера без лактата не сбалансирован: он богат хлоридом, буфера нет; название легко перепутать с Рингер-лактатом.",
+      "case_scope": [
+        "FLUIDS-01"
+      ],
+      "topic": "crystalloid_choice",
+      "concepts": [
+        "unbalanced_crystalloid",
+        "name_confusion"
+      ],
+      "source_artifact": "onqol-trainer cases/2026-09-25-fluids-01.md v1.2",
+      "source_locator": "Часть B, «Формуляр вашей клиники»",
+      "source_quotes": [
+        "**Не сбалансирован**: раствор Рингера богат хлоридом, буфера нет. В клинике есть и Рингера, и Рингер-лактат, название легко перепутать"
+      ],
+      "glue_terms": [
+        "без",
+        "богат",
+        "лактата",
+        "раствор",
+        "рингер-лактатом",
+        "сбалансирован",
+        "хлоридом"
+      ],
+      "constraints": "",
+      "exceptions": [],
+      "allowed_uses": {
+        "mentor_teaching": true,
+        "safety": false,
+        "scoring": false,
+        "patient_effect": false
+      },
+      "risk_class": "medium",
+      "retrieval": {
+        "issue_ids": [
+          "fluids.fluid_choice"
+        ],
+        "learner_text_patterns": [
+          "рингера|рингер\\b"
+        ]
+      },
+      "review_status": "approved_for_training",
+      "sourceIds": [
+        "FLU-CASE-V1.2"
+      ],
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead"
+      ],
+      "reviewed_at": "2026-09-21",
+      "promotion_note": "Frozen case v1.2 promoted directly to approved_for_training by Clinical Lead decision 2026-09-23 (see docs/WAVE_B_FLUIDS_SOURCE_MANIFEST.md)."
+    },
+    {
+      "id": "FLU-CHOICE-004",
+      "title": "0,9 % NaCl — допустим как стартовый, но не предпочтителен",
+      "kind": "clinical_guidance",
+      "statement": "0,9 % NaCl — несбалансированный раствор: допустим как стартовый, но не предпочтительный.",
+      "case_scope": [
+        "FLUIDS-01"
+      ],
+      "topic": "crystalloid_choice",
+      "concepts": [
+        "normal_saline",
+        "unbalanced_crystalloid"
+      ],
+      "source_artifact": "onqol-trainer cases/2026-09-25-fluids-01.md v1.2",
+      "source_locator": "Часть B, «Формуляр вашей клиники»",
+      "source_quotes": [
+        "0,9 % NaCl | Несбалансированный, допустим как стартовый, но не предпочтительный"
+      ],
+      "glue_terms": [
+        "допустим",
+        "несбалансированный",
+        "предпочтительный",
+        "раствор",
+        "стартовый"
+      ],
+      "constraints": "",
+      "exceptions": [],
+      "allowed_uses": {
+        "mentor_teaching": true,
+        "safety": false,
+        "scoring": false,
+        "patient_effect": false
+      },
+      "risk_class": "medium",
+      "retrieval": {
+        "issue_ids": [
+          "fluids.fluid_choice"
+        ],
+        "learner_text_patterns": [
+          "физраствор|nacl|натрия хлорид|0,9"
+        ]
+      },
+      "review_status": "approved_for_training",
+      "sourceIds": [
+        "FLU-CASE-V1.2"
+      ],
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead"
+      ],
+      "reviewed_at": "2026-09-21",
+      "promotion_note": "Frozen case v1.2 promoted directly to approved_for_training by Clinical Lead decision 2026-09-23 (see docs/WAVE_B_FLUIDS_SOURCE_MANIFEST.md)."
+    },
+    {
+      "id": "FLU-CHOICE-005",
+      "title": "Коллоиды для болюсов пользы не дают",
+      "kind": "clinical_guidance",
+      "statement": "Рутинное применение коллоидов для болюсов пользы не даёт.",
+      "case_scope": [
+        "FLUIDS-01"
+      ],
+      "topic": "crystalloid_choice",
+      "concepts": [
+        "colloid"
+      ],
+      "source_artifact": "onqol-trainer cases/2026-09-25-fluids-01.md v1.2",
+      "source_locator": "Часть A, «Выбор раствора»; ASCRS/SAGES ERAS 2023 рек. 14",
+      "source_quotes": [
+        "там же: рутинное применение коллоидов для болюсов пользы не даёт"
+      ],
+      "glue_terms": [
+        "даёт"
+      ],
+      "constraints": "",
+      "exceptions": [],
+      "allowed_uses": {
+        "mentor_teaching": true,
+        "safety": false,
+        "scoring": false,
+        "patient_effect": false
+      },
+      "risk_class": "medium",
+      "retrieval": {
+        "issue_ids": [
+          "fluids.fluid_choice"
+        ],
+        "learner_text_patterns": [
+          "коллоид|гелофузин"
+        ]
+      },
+      "review_status": "approved_for_training",
+      "sourceIds": [
+        "FLU-CASE-V1.2"
+      ],
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead"
+      ],
+      "reviewed_at": "2026-09-21",
+      "promotion_note": "Frozen case v1.2 promoted directly to approved_for_training by Clinical Lead decision 2026-09-23 (see docs/WAVE_B_FLUIDS_SOURCE_MANIFEST.md)."
+    },
+    {
+      "id": "FLU-CHOICE-006",
+      "title": "Крахмалы не применять",
+      "kind": "clinical_guidance",
+      "statement": "Крахмалы не применять (SSC 2026, сильная).",
+      "case_scope": [
+        "FLUIDS-01"
+      ],
+      "topic": "crystalloid_choice",
+      "concepts": [
+        "starch"
+      ],
+      "source_artifact": "onqol-trainer cases/2026-09-25-fluids-01.md v1.2",
+      "source_locator": "Часть A, «Выбор раствора»; SSC 2026",
+      "source_quotes": [
+        "Крахмалы не применять (SSC 2026, сильная)."
+      ],
+      "glue_terms": [],
+      "constraints": "SSC — руководство по сепсису; здесь используется как ориентир по типу раствора, не как прямое руководство по этому пациенту.",
+      "exceptions": [],
+      "allowed_uses": {
+        "mentor_teaching": true,
+        "safety": false,
+        "scoring": false,
+        "patient_effect": false
+      },
+      "risk_class": "high",
+      "retrieval": {
+        "issue_ids": [
+          "fluids.fluid_choice"
+        ],
+        "learner_text_patterns": [
+          "крахмал|гэк"
+        ]
+      },
+      "review_status": "approved_for_training",
+      "sourceIds": [
+        "FLU-CASE-V1.2",
+        "SSC-2026"
+      ],
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead"
+      ],
+      "reviewed_at": "2026-09-21",
+      "promotion_note": "Frozen case v1.2 promoted directly to approved_for_training by Clinical Lead decision 2026-09-23 (see docs/WAVE_B_FLUIDS_SOURCE_MANIFEST.md)."
+    },
+    {
+      "id": "FLU-CHOICE-007",
+      "title": "Альбумин — не первая линия",
+      "kind": "clinical_guidance",
+      "statement": "Кристаллоиды без добавления альбумина (SSC 2026, условно; исключения — большие объёмы и цирроз).",
+      "case_scope": [
+        "FLUIDS-01"
+      ],
+      "topic": "crystalloid_choice",
+      "concepts": [
+        "albumin"
+      ],
+      "source_artifact": "onqol-trainer cases/2026-09-25-fluids-01.md v1.2",
+      "source_locator": "Часть A, «Выбор раствора»; SSC 2026",
+      "source_quotes": [
+        "Кристаллоиды без добавления альбумина (SSC 2026, условно; исключения — большие объёмы и цирроз)"
+      ],
+      "glue_terms": [
+        "большие",
+        "добавления",
+        "исключения",
+        "объёмы",
+        "условно",
+        "цирроз"
+      ],
+      "constraints": "SSC — руководство по сепсису; только ориентир.",
+      "exceptions": [],
+      "allowed_uses": {
+        "mentor_teaching": true,
+        "safety": false,
+        "scoring": false,
+        "patient_effect": false
+      },
+      "risk_class": "medium",
+      "retrieval": {
+        "issue_ids": [
+          "fluids.fluid_choice"
+        ],
+        "learner_text_patterns": [
+          "альбумин"
+        ]
+      },
+      "review_status": "approved_for_training",
+      "sourceIds": [
+        "FLU-CASE-V1.2",
+        "SSC-2026"
+      ],
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead"
+      ],
+      "reviewed_at": "2026-09-21",
+      "promotion_note": "Frozen case v1.2 promoted directly to approved_for_training by Clinical Lead decision 2026-09-23 (see docs/WAVE_B_FLUIDS_SOURCE_MANIFEST.md)."
+    },
+    {
+      "id": "FLU-MAINT-001",
+      "title": "Поддерживающая инфузия: исходная потребность",
+      "kind": "clinical_guidance",
+      "statement": "Исходная потребность в поддерживающей инфузии — 25–30 мл/кг/сут воды и около 1 ммоль/кг/сут натрия, калия и хлора.",
+      "case_scope": [
+        "FLUIDS-01"
+      ],
+      "topic": "maintenance_plan",
+      "concepts": [
+        "maintenance"
+      ],
+      "source_artifact": "onqol-trainer cases/2026-09-25-fluids-01.md v1.2",
+      "source_locator": "Часть A, «Тактика. Поддерживающая инфузия»; NICE CG174 1.4.1 (проверено по PDF)",
+      "source_quotes": [
+        "25–30 мл/кг/сут воды и ≈ 1 ммоль/кг/сут Na, K, Cl",
+        "Это исходная потребность"
+      ],
+      "glue_terms": [
+        "воды",
+        "инфузии",
+        "исходная",
+        "калия",
+        "натрия",
+        "около",
+        "поддерживающей",
+        "потребность",
+        "хлора"
+      ],
+      "constraints": "Называть цифры только если резидент сам спросил о поддерживающей потребности; расчёт на конкретного пациента не выполнять за него.",
+      "exceptions": [],
+      "allowed_uses": {
+        "mentor_teaching": true,
+        "safety": false,
+        "scoring": false,
+        "patient_effect": false
+      },
+      "risk_class": "high",
+      "retrieval": {
+        "issue_ids": [
+          "fluids.overall_plan"
+        ],
+        "learner_text_patterns": [
+          "maintenance|поддерживающ|мл/кг"
+        ]
+      },
+      "review_status": "approved_for_training",
+      "sourceIds": [
+        "FLU-CASE-V1.2"
+      ],
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead"
+      ],
+      "reviewed_at": "2026-09-21",
+      "promotion_note": "Frozen case v1.2 promoted directly to approved_for_training by Clinical Lead decision 2026-09-23 (see docs/WAVE_B_FLUIDS_SOURCE_MANIFEST.md)."
+    },
+    {
+      "id": "FLU-MAINT-002",
+      "title": "Меньший объём при почечной или сердечной недостаточности",
+      "kind": "clinical_guidance",
+      "statement": "При почечной или сердечной недостаточности NICE предлагает рассмотреть меньший объём — 20–25 мл/кг/сут.",
+      "case_scope": [
+        "FLUIDS-01"
+      ],
+      "topic": "maintenance_plan",
+      "concepts": [
+        "maintenance",
+        "renal_dysfunction"
+      ],
+      "source_artifact": "onqol-trainer cases/2026-09-25-fluids-01.md v1.2",
+      "source_locator": "Часть A, «Тактика. Поддерживающая инфузия»; NICE CG174 1.4.3 (проверено по PDF)",
+      "source_quotes": [
+        "**При почечной недостаточности или сердечной недостаточности NICE предлагает рассмотреть меньший объём, 20–25 мл/кг/сут (1.4.3)**"
+      ],
+      "glue_terms": [
+        "меньший",
+        "недостаточности",
+        "объём",
+        "почечной",
+        "предлагает",
+        "рассмотреть",
+        "сердечной"
+      ],
+      "constraints": "",
+      "exceptions": [],
+      "allowed_uses": {
+        "mentor_teaching": true,
+        "safety": false,
+        "scoring": false,
+        "patient_effect": false
+      },
+      "risk_class": "high",
+      "retrieval": {
+        "issue_ids": [
+          "fluids.overall_plan"
+        ],
+        "learner_text_patterns": [
+          "почечн|опп|креатинин"
+        ]
+      },
+      "review_status": "approved_for_training",
+      "sourceIds": [
+        "FLU-CASE-V1.2"
+      ],
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead"
+      ],
+      "reviewed_at": "2026-09-21",
+      "promotion_note": "Frozen case v1.2 promoted directly to approved_for_training by Clinical Lead decision 2026-09-23 (see docs/WAVE_B_FLUIDS_SOURCE_MANIFEST.md)."
+    },
+    {
+      "id": "FLU-MAINT-003",
+      "title": "План корректируется по измеренным потерям и ответу",
+      "kind": "clinical_guidance",
+      "statement": "При аномальных потерях план корректируется по измеренным потерям, уже введённому объёму, лабораторным данным и клиническому ответу.",
+      "case_scope": [
+        "FLUIDS-01"
+      ],
+      "topic": "maintenance_plan",
+      "concepts": [
+        "maintenance",
+        "losses",
+        "monitoring"
+      ],
+      "source_artifact": "onqol-trainer cases/2026-09-25-fluids-01.md v1.2",
+      "source_locator": "Часть A, «Тактика. Поддерживающая инфузия»",
+      "source_quotes": [
+        "при аномальных потерях план корректируется по измеренным потерям, уже введённому объёму, лабораторным данным и клиническому ответу"
+      ],
+      "glue_terms": [],
+      "constraints": "",
+      "exceptions": [],
+      "allowed_uses": {
+        "mentor_teaching": true,
+        "safety": false,
+        "scoring": false,
+        "patient_effect": false
+      },
+      "risk_class": "medium",
+      "retrieval": {
+        "issue_ids": [
+          "fluids.overall_plan",
+          "fluids.monitoring_plan"
+        ],
+        "learner_text_patterns": [
+          "план на ночь|общий план|потери"
+        ]
+      },
+      "review_status": "approved_for_training",
+      "sourceIds": [
+        "FLU-CASE-V1.2"
+      ],
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead"
+      ],
+      "reviewed_at": "2026-09-21",
+      "promotion_note": "Frozen case v1.2 promoted directly to approved_for_training by Clinical Lead decision 2026-09-23 (see docs/WAVE_B_FLUIDS_SOURCE_MANIFEST.md)."
+    },
+    {
+      "id": "FLU-REPLACE-001",
+      "title": "НГ-зонд и дренаж",
+      "kind": "clinical_guidance",
+      "statement": "НГ-зонд — существенная потеря (сотни мл); дренаж 100–150 мл серозного отделяемого обычно отдельного замещения не требует.",
+      "case_scope": [
+        "FLUIDS-01"
+      ],
+      "topic": "maintenance_plan",
+      "concepts": [
+        "losses",
+        "ng_tube",
+        "drain"
+      ],
+      "source_artifact": "onqol-trainer cases/2026-09-25-fluids-01.md v1.2",
+      "source_locator": "Часть A, «Тактика. Замещение потерь»",
+      "source_quotes": [
+        "НГ-зонд — существенная потеря (сотни мл), дренаж 100–150 мл серозного отделяемого обычно отдельного замещения не требует."
+      ],
+      "glue_terms": [
+        "потеря",
+        "существенная"
+      ],
+      "constraints": "",
+      "exceptions": [],
+      "allowed_uses": {
+        "mentor_teaching": true,
+        "safety": false,
+        "scoring": false,
+        "patient_effect": false
+      },
+      "risk_class": "medium",
+      "retrieval": {
+        "issue_ids": [
+          "fluids.overall_plan"
+        ],
+        "learner_text_patterns": [
+          "зонд|дренаж"
+        ]
+      },
+      "review_status": "approved_for_training",
+      "sourceIds": [
+        "FLU-CASE-V1.2"
+      ],
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead"
+      ],
+      "reviewed_at": "2026-09-21",
+      "promotion_note": "Frozen case v1.2 promoted directly to approved_for_training by Clinical Lead decision 2026-09-23 (see docs/WAVE_B_FLUIDS_SOURCE_MANIFEST.md)."
+    },
+    {
+      "id": "FLU-K-001",
+      "title": "Калий не добавляют в мешки с инфузией",
+      "kind": "clinical_guidance",
+      "statement": "Калий нельзя добавлять в мешки с инфузией — это опасно; назначают готовые растворы с калием.",
+      "case_scope": [
+        "FLUIDS-01"
+      ],
+      "topic": "potassium",
+      "concepts": [
+        "potassium"
+      ],
+      "source_artifact": "onqol-trainer cases/2026-09-25-fluids-01.md v1.2",
+      "source_locator": "Часть A, «Тактика. Замещение потерь. Калий»; NICE CG174 1.4.1 (проверено по PDF)",
+      "source_quotes": [
+        "калий **нельзя добавлять в мешки с инфузией, это опасно**; назначать готовые растворы с калием"
+      ],
+      "glue_terms": [
+        "готовые",
+        "калием",
+        "назначают",
+        "опасно",
+        "растворы",
+        "это"
+      ],
+      "constraints": "",
+      "exceptions": [],
+      "allowed_uses": {
+        "mentor_teaching": true,
+        "safety": false,
+        "scoring": false,
+        "patient_effect": false
+      },
+      "risk_class": "high",
+      "retrieval": {
+        "issue_ids": [
+          "fluids.overall_plan"
+        ],
+        "learner_text_patterns": [
+          "калий|kcl"
+        ]
+      },
+      "review_status": "approved_for_training",
+      "sourceIds": [
+        "FLU-CASE-V1.2"
+      ],
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead"
+      ],
+      "reviewed_at": "2026-09-21",
+      "promotion_note": "Frozen case v1.2 promoted directly to approved_for_training by Clinical Lead decision 2026-09-23 (see docs/WAVE_B_FLUIDS_SOURCE_MANIFEST.md)."
+    },
+    {
+      "id": "FLU-K-002",
+      "title": "Калий при ОПП — клиническое соображение, не из NICE",
+      "kind": "clinical_guidance",
+      "statement": "При ОПП калий не добавляют механически: сначала восстанавливают перфузию, подтверждают диурез и контролируют K и креатинин в динамике. Это клиническое соображение, не из NICE.",
+      "case_scope": [
+        "FLUIDS-01"
+      ],
+      "topic": "potassium",
+      "concepts": [
+        "potassium",
+        "renal_dysfunction"
+      ],
+      "source_artifact": "onqol-trainer cases/2026-09-25-fluids-01.md v1.2",
+      "source_locator": "Часть A, «Тактика. Замещение потерь. Калий»",
+      "source_quotes": [
+        "**клиническое соображение, не из NICE**: при ОПП калий не добавлять механически; сначала восстановить перфузию, подтвердить диурез и контролировать K и креатинин в динамике."
+      ],
+      "glue_terms": [
+        "восстанавливают",
+        "динамике",
+        "добавляют",
+        "контролируют",
+        "механически",
+        "подтверждают",
+        "сначала",
+        "соображение",
+        "это"
+      ],
+      "constraints": "Обязательно сохранять атрибуцию: это клиническое соображение автора кейса, а не рекомендация NICE.",
+      "exceptions": [],
+      "allowed_uses": {
+        "mentor_teaching": true,
+        "safety": false,
+        "scoring": false,
+        "patient_effect": false
+      },
+      "risk_class": "high",
+      "retrieval": {
+        "issue_ids": [
+          "fluids.overall_plan"
+        ],
+        "learner_text_patterns": [
+          "калий.*опп|опп.*калий"
+        ]
+      },
+      "review_status": "approved_for_training",
+      "sourceIds": [
+        "FLU-CASE-V1.2"
+      ],
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead"
+      ],
+      "reviewed_at": "2026-09-21",
+      "promotion_note": "Frozen case v1.2 promoted directly to approved_for_training by Clinical Lead decision 2026-09-23 (see docs/WAVE_B_FLUIDS_SOURCE_MANIFEST.md)."
+    },
+    {
+      "id": "FLU-CL-001",
+      "title": "Контроль хлорида при хлоридных растворах",
+      "kind": "clinical_guidance",
+      "statement": "Если пациент получал растворы с Cl больше 120 ммоль/л (например, 0,9 % NaCl), хлорид контролируют ежедневно; при гиперхлоремии или ацидемии назначения пересматривают (NICE 1.2.5).",
+      "case_scope": [
+        "FLUIDS-01"
+      ],
+      "topic": "chloride_monitoring",
+      "concepts": [
+        "chloride",
+        "monitoring"
+      ],
+      "source_artifact": "onqol-trainer cases/2026-09-25-fluids-01.md v1.2",
+      "source_locator": "Часть A, «Тактика. Замещение потерь»; NICE CG174 1.2.5 (проверено по PDF)",
+      "source_quotes": [
+        "Если пациент получал растворы с Cl > 120 ммоль/л (например, 0,9 % NaCl), контролировать хлорид ежедневно; при гиперхлоремии или ацидемии пересмотреть назначения (NICE 1.2.5)"
+      ],
+      "glue_terms": [
+        "больше",
+        "ежедневно",
+        "контролируют",
+        "назначения",
+        "пересматривают",
+        "хлорид"
+      ],
+      "constraints": "",
+      "exceptions": [],
+      "allowed_uses": {
+        "mentor_teaching": true,
+        "safety": false,
+        "scoring": false,
+        "patient_effect": false
+      },
+      "risk_class": "high",
+      "retrieval": {
+        "issue_ids": [
+          "fluids.fluid_choice",
+          "fluids.monitoring_plan"
+        ],
+        "learner_text_patterns": [
+          "хлорид|гиперхлор|ацидоз|кщс"
+        ]
+      },
+      "review_status": "approved_for_training",
+      "sourceIds": [
+        "FLU-CASE-V1.2"
+      ],
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead"
+      ],
+      "reviewed_at": "2026-09-21",
+      "promotion_note": "Frozen case v1.2 promoted directly to approved_for_training by Clinical Lead decision 2026-09-23 (see docs/WAVE_B_FLUIDS_SOURCE_MANIFEST.md)."
+    },
+    {
+      "id": "FLU-MON-001",
+      "title": "Что оценивают при переоценке ресусцитации",
+      "kind": "clinical_guidance",
+      "statement": "Переоценка при ресусцитации: ABCDE, непрерывный мониторинг ЧДД, пульса, АД и перфузии, лактат и/или pH и BE (NICE 1.2.3).",
+      "case_scope": [
+        "FLUIDS-01"
+      ],
+      "topic": "monitoring_after_intervention",
+      "concepts": [
+        "monitoring",
+        "reassessment"
+      ],
+      "source_artifact": "onqol-trainer cases/2026-09-25-fluids-01.md v1.2",
+      "source_locator": "Часть A, «Тактика. Ресусцитация»; NICE CG174 1.2.3 (проверено по PDF)",
+      "source_quotes": [
+        "Переоценка при ресусцитации: ABCDE, непрерывный мониторинг ЧДД, пульса, АД и перфузии, лактат и/или pH и BE (NICE 1.2.3, проверено)."
+      ],
+      "glue_terms": [],
+      "constraints": "",
+      "exceptions": [],
+      "allowed_uses": {
+        "mentor_teaching": true,
+        "safety": false,
+        "scoring": false,
+        "patient_effect": false
+      },
+      "risk_class": "high",
+      "retrieval": {
+        "issue_ids": [
+          "fluids.reassessment_plan",
+          "fluids.monitoring_plan"
+        ],
+        "learner_text_patterns": [
+          "мониторинг|что мониторировать|как часто"
+        ]
+      },
+      "review_status": "approved_for_training",
+      "sourceIds": [
+        "FLU-CASE-V1.2"
+      ],
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead"
+      ],
+      "reviewed_at": "2026-09-21",
+      "promotion_note": "Frozen case v1.2 promoted directly to approved_for_training by Clinical Lead decision 2026-09-23 (see docs/WAVE_B_FLUIDS_SOURCE_MANIFEST.md)."
+    },
+    {
+      "id": "FLU-AKI-001",
+      "title": "Мочевой критерий KDIGO требует полных 6 часов",
+      "kind": "clinical_guidance",
+      "statement": "Мочевой критерий ОПП по KDIGO — диурез менее 0,5 мл/кг/ч не менее 6 часов; пока эти 6 часов не набраны, нельзя утверждать «ОПП по диурезу».",
+      "case_scope": [
+        "FLUIDS-01"
+      ],
+      "topic": "aki_interpretation",
+      "concepts": [
+        "aki",
+        "urine_output"
+      ],
+      "source_artifact": "onqol-trainer cases/2026-09-25-fluids-01.md v1.2",
+      "source_locator": "Часть B, «Как формулировать ОПП в кейсе»; KDIGO 2012",
+      "source_quotes": [
+        "6-часовой мочевой критерий KDIGO (< 0,5 мл/кг/ч ≥ 6 ч) пока не набран. Нельзя утверждать «ОПП по диурезу»."
+      ],
+      "glue_terms": [
+        "диурез",
+        "критерий",
+        "менее",
+        "мочевой",
+        "набраны",
+        "не",
+        "нельзя",
+        "по",
+        "пока",
+        "утверждать",
+        "часов",
+        "эти"
+      ],
+      "constraints": "Не считать и не трактовать за резидента: сначала спросить, как он понимает данные.",
+      "exceptions": [],
+      "allowed_uses": {
+        "mentor_teaching": true,
+        "safety": false,
+        "scoring": false,
+        "patient_effect": false
+      },
+      "risk_class": "high",
+      "retrieval": {
+        "issue_ids": [
+          "fluids.aki_claim"
+        ],
+        "learner_text_patterns": [
+          "опп|острое повреждение почек|aki"
+        ]
+      },
+      "review_status": "approved_for_training",
+      "sourceIds": [
+        "FLU-CASE-V1.2",
+        "KDIGO-2012"
+      ],
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead"
+      ],
+      "reviewed_at": "2026-09-21",
+      "promotion_note": "Frozen case v1.2 promoted directly to approved_for_training by Clinical Lead decision 2026-09-23 (see docs/WAVE_B_FLUIDS_SOURCE_MANIFEST.md)."
+    },
+    {
+      "id": "FLU-OLIGURIA-001",
+      "title": "Олигурия не повод сразу давать диуретик",
+      "kind": "clinical_guidance",
+      "statement": "Олигурия — не показание сразу давать фуросемид; диуретик, назначенный до оценки или коррекции подозреваемой гиповолемии, — критическая ошибка кейса.",
+      "case_scope": [
+        "FLUIDS-01"
+      ],
+      "topic": "diuretic_error",
+      "concepts": [
+        "diuretic",
+        "oliguria"
+      ],
+      "source_artifact": "onqol-trainer cases/2026-09-25-fluids-01.md v1.2",
+      "source_locator": "Часть A, «Типичные ошибки резидентов» п. 1; «Флаги критических ошибок» C1",
+      "source_quotes": [
+        "1. Олигурия → сразу фуросемид.",
+        "Диуретик назначен до оценки или коррекции подозреваемой гиповолемии."
+      ],
+      "glue_terms": [
+        "гиповолемии",
+        "давать",
+        "до",
+        "кейса",
+        "коррекции",
+        "критическая",
+        "назначенный",
+        "олигурия",
+        "оценки",
+        "ошибка",
+        "подозреваемой",
+        "показание",
+        "сразу",
+        "фуросемид"
+      ],
+      "constraints": "Гиповолемию, ОПП и механизм не называть за резидента; сначала спросить, что низкий диурез говорит о перфузии.",
+      "exceptions": [],
+      "allowed_uses": {
+        "mentor_teaching": true,
+        "safety": false,
+        "scoring": false,
+        "patient_effect": false
+      },
+      "risk_class": "high",
+      "retrieval": {
+        "issue_ids": [
+          "fluids.diuretic_before_volume",
+          "RULE-FLUIDS-DIURETIC-BEFORE-VOLUME-CORRECTION"
+        ],
+        "learner_text_patterns": [
+          "фуросемид|лазикс|диуретик|мочегонн"
+        ]
+      },
+      "review_status": "approved_for_training",
+      "sourceIds": [
+        "FLU-CASE-V1.2"
+      ],
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead"
+      ],
+      "reviewed_at": "2026-09-21",
+      "promotion_note": "Frozen case v1.2 promoted directly to approved_for_training by Clinical Lead decision 2026-09-23 (see docs/WAVE_B_FLUIDS_SOURCE_MANIFEST.md)."
+    },
+    {
+      "id": "FLU-CATH-001",
+      "title": "Механическая причина олигурии",
+      "kind": "clinical_guidance",
+      "statement": "При олигурии проверяют катетер и механическую причину.",
+      "case_scope": [
+        "FLUIDS-01"
+      ],
+      "topic": "urine_output_interpretation",
+      "concepts": [
+        "catheter",
+        "oliguria"
+      ],
+      "source_artifact": "onqol-trainer cases/2026-09-25-fluids-01.md v1.2",
+      "source_locator": "Часть C, рубрика п. 2; Часть A, «Типичные ошибки» п. 2",
+      "source_quotes": [
+        "Проверил катетер / механическую причину олигурии"
+      ],
+      "glue_terms": [
+        "олигурии",
+        "проверяют"
+      ],
+      "constraints": "",
+      "exceptions": [],
+      "allowed_uses": {
+        "mentor_teaching": true,
+        "safety": false,
+        "scoring": false,
+        "patient_effect": false
+      },
+      "risk_class": "low",
+      "retrieval": {
+        "issue_ids": [
+          "fluids.diuretic_before_volume",
+          "fluids.initial_assessment"
+        ],
+        "learner_text_patterns": [
+          "катетер|проходим"
+        ]
+      },
+      "review_status": "approved_for_training",
+      "sourceIds": [
+        "FLU-CASE-V1.2"
+      ],
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead"
+      ],
+      "reviewed_at": "2026-09-21",
+      "promotion_note": "Frozen case v1.2 promoted directly to approved_for_training by Clinical Lead decision 2026-09-23 (see docs/WAVE_B_FLUIDS_SOURCE_MANIFEST.md)."
+    },
+    {
+      "id": "FLU-BP-001",
+      "title": "Гемодинамика относительно исходного АД и лекарств",
+      "kind": "clinical_guidance",
+      "statement": "Гемодинамику интерпретируют относительно исходного АД и принимаемых лекарств, включая β-блокатор.",
+      "case_scope": [
+        "FLUIDS-01"
+      ],
+      "topic": "hemodynamic_interpretation",
+      "concepts": [
+        "baseline_bp",
+        "beta_blocker"
+      ],
+      "source_artifact": "onqol-trainer cases/2026-09-25-fluids-01.md v1.2",
+      "source_locator": "Часть C, рубрика п. 4; Часть A, «Типичные ошибки» п. 3",
+      "source_quotes": [
+        "Интерпретировал гемодинамику относительно исходного АД и лекарств (β-блокатор)"
+      ],
+      "glue_terms": [
+        "включая",
+        "гемодинамику",
+        "интерпретируют",
+        "принимаемых"
+      ],
+      "constraints": "",
+      "exceptions": [],
+      "allowed_uses": {
+        "mentor_teaching": true,
+        "safety": false,
+        "scoring": false,
+        "patient_effect": false
+      },
+      "risk_class": "medium",
+      "retrieval": {
+        "issue_ids": [
+          "fluids.hemodynamic_interpretation"
+        ],
+        "learner_text_patterns": [
+          "исходн.*ад|базов.*ад|давлени"
+        ]
+      },
+      "review_status": "approved_for_training",
+      "sourceIds": [
+        "FLU-CASE-V1.2"
+      ],
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead"
+      ],
+      "reviewed_at": "2026-09-21",
+      "promotion_note": "Frozen case v1.2 promoted directly to approved_for_training by Clinical Lead decision 2026-09-23 (see docs/WAVE_B_FLUIDS_SOURCE_MANIFEST.md)."
+    },
+    {
+      "id": "FLU-PLAN-001",
+      "title": "Общий план жидкости и электролитов на ночь",
+      "kind": "clinical_guidance",
+      "statement": "Общий план жидкости и электролитов на ночь учитывает уже введённый объём, поддерживающую инфузию, измеренные потери и функцию почек.",
+      "case_scope": [
+        "FLUIDS-01"
+      ],
+      "topic": "maintenance_plan",
+      "concepts": [
+        "overall_plan"
+      ],
+      "source_artifact": "onqol-trainer cases/2026-09-25-fluids-01.md v1.2",
+      "source_locator": "Часть B, «Вопросы преподавателя», п. 2",
+      "source_quotes": [
+        "Составьте **общий план жидкости и электролитов на ночь** с учётом уже введённого объёма, maintenance, измеренных ongoing losses и функции почек."
+      ],
+      "glue_terms": [
+        "введённый",
+        "измеренные",
+        "инфузию",
+        "объём",
+        "поддерживающую",
+        "потери",
+        "почек",
+        "учитывает",
+        "функцию"
+      ],
+      "constraints": "",
+      "exceptions": [],
+      "allowed_uses": {
+        "mentor_teaching": true,
+        "safety": false,
+        "scoring": false,
+        "patient_effect": false
+      },
+      "risk_class": "medium",
+      "retrieval": {
+        "issue_ids": [
+          "fluids.overall_plan"
+        ],
+        "learner_text_patterns": [
+          "план на ночь|общий план"
+        ]
+      },
+      "review_status": "approved_for_training",
+      "sourceIds": [
+        "FLU-CASE-V1.2"
+      ],
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead"
+      ],
+      "reviewed_at": "2026-09-21",
+      "promotion_note": "Frozen case v1.2 promoted directly to approved_for_training by Clinical Lead decision 2026-09-23 (see docs/WAVE_B_FLUIDS_SOURCE_MANIFEST.md)."
+    },
+    {
+      "id": "FLU-PED-001",
+      "title": "Как вести разговор: ступени подсказки",
+      "kind": "pedagogical",
+      "statement": "Сократический стиль: сначала общий наводящий вопрос, потом прямой вопрос о пропущенном элементе, прямой ответ — в последнюю очередь.",
+      "case_scope": [
+        "FLUIDS-01"
+      ],
+      "topic": "pedagogy",
+      "concepts": [
+        "scaffolding"
+      ],
+      "source_artifact": "onqol-trainer cases/2026-09-25-fluids-01.md v1.2",
+      "source_locator": "Часть D, «Обучающий режим»",
+      "source_quotes": [
+        "Сократический стиль. Данные выдаёт только по запросу. Подсказки трёх уровней: (1) наводящая, (2) прямой вопрос, (3) прямой ответ."
+      ],
+      "glue_terms": [
+        "вопрос",
+        "наводящий",
+        "общий",
+        "очередь",
+        "последнюю",
+        "потом",
+        "пропущенном",
+        "сначала",
+        "элементе"
+      ],
+      "constraints": "",
+      "exceptions": [],
+      "allowed_uses": {
+        "mentor_teaching": true,
+        "safety": false,
+        "scoring": false,
+        "patient_effect": false
+      },
+      "risk_class": "low",
+      "retrieval": {
+        "learner_text_patterns": [
+          "не знаю|подскажи|помоги"
+        ]
+      },
+      "review_status": "approved_for_training",
+      "sourceIds": [
+        "FLU-CASE-V1.2"
+      ],
+      "reviewed_by": [
+        "Botagoz Kaukenova — Clinical Lead"
+      ],
+      "reviewed_at": "2026-09-21",
+      "promotion_note": "Frozen case v1.2 promoted directly to approved_for_training by Clinical Lead decision 2026-09-23 (see docs/WAVE_B_FLUIDS_SOURCE_MANIFEST.md)."
+    }
+  ]
+}
