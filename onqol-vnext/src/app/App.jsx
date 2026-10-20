@@ -8,18 +8,26 @@ import { DebriefPanel } from "../ui/components/DebriefPanel.jsx";
 import { t } from "../ui/i18n/strings.js";
 import { useSession } from "./session/useSession.js";
 import { FlexiblePatientApp } from "./FlexiblePatientApp.jsx";
+import { resolveCaseId, DEFAULT_CASE_ID } from "../content/caseCatalog.js";
+import { DevDiagnosticsPanel } from "./dev/DevDiagnosticsPanel.jsx";
+import { diagnosticsEnabled } from "./dev/devDiagnostics.js";
 import "../ui/styles/base.css";
 import "../ui/styles/shell.css";
+
+const PILOT_BUILD = import.meta.env.VITE_ONQOL_PILOT === "true";
+const CASE_ID = resolveCaseId(globalThis.location?.search, { pilot: PILOT_BUILD });
+const SHOW_DIAGNOSTICS = diagnosticsEnabled({ dev: import.meta.env.DEV, pilot: PILOT_BUILD, search: globalThis.location?.search });
 
 export default function App() {
   const [locale, setLocale] = useState("ru");
   const [flexible, setFlexible] = useState(false);
-  const flexibleAvailable = import.meta.env.VITE_ONQOL_FLEXIBLE_PATIENT === "true" && import.meta.env.VITE_ONQOL_PILOT !== "true";
+  // The flexible patient prototype is APP-004 only.
+  const flexibleAvailable = import.meta.env.VITE_ONQOL_FLEXIBLE_PATIENT === "true" && !PILOT_BUILD && CASE_ID === DEFAULT_CASE_ID;
   const {
     session, messages, busy, debrief, resumeCandidate, startSession, resumeSession,
     discardPersistedSession, submitTurn, downloadExport, learnerVisible,
-    mentorEnabled,
-  } = useSession();
+    mentorEnabled, presentationRu,
+  } = useSession({ caseId: CASE_ID });
 
   const handleSelectMode = (choice) => startSession({ ...choice, locale });
   const handleBrandClick = () => {
@@ -45,7 +53,7 @@ export default function App() {
         <div className="onqol-session-shell" data-turn={session.state.turn}>
           <div className="onqol-case-bar">
             <div>
-              <span className="onqol-mono-label">{t(locale, "caseBar.presentation")}</span>
+              <span className="onqol-mono-label">{(locale === "ru" && presentationRu) || t(locale, "caseBar.presentation")}</span>
               <strong>{t(locale, `caseBar.mode.${session.state.session.mode}`)}</strong>
             </div>
           </div>
@@ -76,6 +84,7 @@ export default function App() {
               onDownload={downloadExport}
             />
           </div>
+          {SHOW_DIAGNOSTICS && <DevDiagnosticsPanel session={session} />}
         </div>
       )}
     </div>

@@ -138,3 +138,19 @@
   .onqol-locale-switch button { padding: 7px 9px; font-size: 11px; }
   .onqol-account-button { padding: 6px 10px; }
 }
+
+/* Development-only diagnostics panel (?diag=1 in a dev build). */
+.onqol-dev-panel {
+  margin: 12px 16px;
+  padding: 8px 12px;
+  border: 1px dashed var(--onqol-line);
+  font-size: 12px;
+  max-width: 100%;
+  overflow-x: auto;
+}
+.onqol-dev-panel pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 320px;
+  overflow: auto;
+}

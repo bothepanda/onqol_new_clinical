@@ -4,6 +4,14 @@ import { submitLearnerTurn } from "../../core/session/submitLearnerTurn.js";
 export const SESSION_STORAGE_KEY = "onqol.session.v1";
 export const SESSION_PERSISTENCE_VERSION = 1;
 
+/**
+ * One saved session per case. The default case keeps the original key, so a
+ * session saved before cases were selectable is still offered for resume.
+ */
+export function caseStorageKey(casePresetId, defaultCaseId = "APP-004") {
+  return casePresetId === defaultCaseId ? SESSION_STORAGE_KEY : `${SESSION_STORAGE_KEY}.${casePresetId}`;
+}
+
 export function createPersistedSession({ session, messages }) {
   return {
     schemaVersion: SESSION_PERSISTENCE_VERSION,

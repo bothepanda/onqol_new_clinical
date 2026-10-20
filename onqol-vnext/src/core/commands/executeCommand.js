@@ -621,6 +621,10 @@ const HANDLERS = {
   }),
 
   [COMMAND.START_PROCEDURE]: ({ state, clockRoot, bundle, command }) => {
+    // The operating room is a hospital resource like a scanner: occupied or
+    // absent, the operation cannot start, and the learner learns why now.
+    const blocked = unavailableCapability({ state, clockRoot, capabilityKey: "operatingRoom", command });
+    if (blocked) return blocked;
     const firstStep = bundle.operative.operative_sequence[0];
     return {
       outcome: "EXECUTED",
@@ -740,18 +744,23 @@ const HANDLERS = {
     return { outcome: "EXECUTED", events, decisionOptions: decision?.options };
   },
 
-  [COMMAND.DISPOSITION]: ({ state, clockRoot, command }) => ({
-    outcome: "EXECUTED",
-    events: [
-      createEvent({
-        type: EVENT.PATIENT_MOVED,
-        atMinutes: state.clock.elapsedMinutes,
-        atIso: nowIso(clockRoot, state),
-        payload: { to: command.params.destination, monitoringLevel: command.params.monitoringLevel },
-        cause: { actor: "learner", commandId: command.id },
-      }),
-    ],
-  }),
+  [COMMAND.DISPOSITION]: ({ state, clockRoot, command }) => {
+    const capabilityKey = DESTINATION_CAPABILITY[command.params.destination];
+    const blocked = capabilityKey ? unavailableCapability({ state, clockRoot, capabilityKey, command }) : null;
+    if (blocked) return blocked;
+    return {
+      outcome: "EXECUTED",
+      events: [
+        createEvent({
+          type: EVENT.PATIENT_MOVED,
+          atMinutes: state.clock.elapsedMinutes,
+          atIso: nowIso(clockRoot, state),
+          payload: { to: command.params.destination, monitoringLevel: command.params.monitoringLevel },
+          cause: { actor: "learner", commandId: command.id },
+        }),
+      ],
+    };
+  },
 
   // Safe transfer to another facility is a valid terminal state (Core
   // Core Runtime Spec §56), tracked distinctly from an in-hospital DISPOSITION
@@ -1211,6 +1220,30 @@ function labResultFor(testId, physiology, patient, bundle, params) {
     default:
       return null;
   }
+}
+
+/** Destinations that occupy a counted hospital resource. */
+const DESTINATION_CAPABILITY = Object.freeze({ icu: "icuBed" });
+
+/**
+ * UNAVAILABLE_RESOURCE (with on-contact disclosure) when the hospital lacks
+ * the capability right now; null when it is available. A profile that does
+ * not declare the capability does not gate the action.
+ */
+function unavailableCapability({ state, clockRoot, capabilityKey, command }) {
+  if (!state.hospital.capabilities?.[capabilityKey]) return null;
+  const resolution = resolveResource({
+    hospital: state.hospital,
+    capabilityKey,
+    clock: { hospitalHour: hospitalHour(clockRoot, state.clock.elapsedMinutes) },
+  });
+  if (resolution.status !== "unavailable_resource") return null;
+  return {
+    outcome: "UNAVAILABLE_RESOURCE",
+    reasonKey: resolution.reasonKey,
+    capabilityKey,
+    events: buildConstraintDisclosure({ state, clockRoot, capabilityKey, reasonKey: resolution.reasonKey, command }),
+  };
 }
 
 /**

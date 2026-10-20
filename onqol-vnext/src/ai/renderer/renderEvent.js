@@ -1,6 +1,7 @@
 import { EVENT } from "../../core/events/eventTypes.js";
 import { evaluateContentCondition } from "../../core/rules/contentConditions.js";
 import { formatObserved, sentence } from "./vitalsLabels.js";
+import { postopPainStageRu } from "./renderStatus.js";
 
 /**
  * Turning one domain event into learner-facing Russian text.
@@ -140,10 +141,16 @@ export function renderEvent({ event, bundle, patient, state }) {
       return { speakerRu: "Диспетчер", textRu: `${staffLabelRu(event.payload.role)} вызван(а), ожидаемое время — ${event.payload.etaMinutes} мин.` };
 
     case EVENT.STAFF_ARRIVED:
-      return { speakerRu: staffLabelRu(event.payload.role), textRu: "Я на месте. Что уже сделано?" };
+      return { speakerRu: staffLabelRu(event.payload.role), textRu: STAFF_ARRIVAL_RU[event.payload.role] ?? "Я на месте. Что уже сделано?" };
 
     case EVENT.RESOURCE_CONSTRAINT_REVEALED:
       return { speakerRu: "Система", textRu: event.payload.constraint?.textRu ?? "Ресурс временно недоступен." };
+
+    // A constraint the learner never ran into ends silently: announcing it
+    // would disclose that it existed (task brief §12.3).
+    case EVENT.RESOURCE_BECAME_AVAILABLE:
+      if (!(state?.hospital?.dynamicConstraints ?? []).some((item) => item.id === event.payload.constraintId && item.disclosedBeforeResolution)) return null;
+      return { speakerRu: "Система", textRu: event.payload.textRu ?? "Ресурс снова доступен." };
 
     case EVENT.OPERATIVE_FINDING_REVEALED:
       return { speakerRu: "Операционная", textRu: renderOperativeFinding(event, bundle, patient) };
@@ -181,7 +188,7 @@ function renderHistoryBundle(bundle, patient) {
     ...(patient.presentation.historyVariantsRu ?? []),
   ].join(", ");
   const sexConditional = (patient.presentation.sexConditionalHistoryRu ?? []).join("; ");
-  return template
+  return agreeHours(template
     .replace("{onset_hours}", String(Math.round(patient.presentation.onsetHours)))
     .replace("{onset_description}", "постепенно")
     .replace("{phenotype_history}", phenotypeHistory || "без дополнительных уточнений")
@@ -189,7 +196,7 @@ function renderHistoryBundle(bundle, patient) {
     .replace("{self_treatment}", patient.presentation.selfTreatmentRu ? `${capitalise(patient.presentation.selfTreatmentRu)}.` : "")
     .replace("{sex_conditional}", sexConditional ? `${capitalise(sexConditional)}.` : "")
     .replace(/\s{2,}/g, " ")
-    .trim();
+    .trim());
 }
 
 /**
@@ -233,9 +240,14 @@ function renderReassessment(event, bundle, patient, state) {
   // actually reassessed. Content without observation targets keeps the old
   // "see current values" pointer.
   const observedText = formatObserved(event.payload.observed);
+  // After the operation, pain is a qualitative stage (TRJ-POSTOP-RECOVERY);
+  // reassessing pain is the moment the learner hears which stage it is.
+  const postopPain = remainingTargets.includes("pain") && state?.symptoms?.painState === "post_source_control"
+    ? postopPainStageRu(state.symptoms.postopPainStage) : null;
+  if (postopPain) parts.push(postopPain);
   if (observedText) parts.push(sentence(`Измерено: ${observedText}`));
   else if (event.payload.observed === undefined) {
-    const named = remainingTargets.filter((target) => REASSESS_TARGET_LABEL_RU[target]).map((target) => REASSESS_TARGET_LABEL_RU[target]);
+    const named = remainingTargets.filter((target) => REASSESS_TARGET_LABEL_RU[target] && !(target === "pain" && postopPain)).map((target) => REASSESS_TARGET_LABEL_RU[target]);
     if (named.length) parts.push(`Переоценены: ${named.join(", ")} — см. текущие показатели.`);
   }
 
@@ -434,6 +446,20 @@ const ORAL_INTAKE_RU = Object.freeze({
   diet_as_tolerated: "Разрешена диета по переносимости.",
 });
 
+/**
+ * Content templates write «{n} часов»; Russian agrees the noun with the
+ * number (1 час, 2 часа, 5 часов, 21 час). Only integers are rewritten.
+ */
+export function agreeHours(text) {
+  return String(text).replace(/(^|[^\d,.])(\d+) часов(?![а-яё])/g, (match, lead, digits) => {
+    const n = Number(digits);
+    const last = n % 10;
+    const lastTwo = n % 100;
+    const form = lastTwo >= 11 && lastTwo <= 14 ? "часов" : last === 1 ? "час" : last >= 2 && last <= 4 ? "часа" : "часов";
+    return `${lead}${digits} ${form}`;
+  });
+}
+
 function renderFastingHistory(event, bundle) {
   const content = bundle.findings?.fasting_history;
   const fasting = event.payload.fasting;
@@ -442,9 +468,9 @@ function renderFastingHistory(event, bundle) {
   const template = byAnesthesiologist ? content.anesthesia_discovery_ru : content.answer_template_ru;
   return {
     speakerRu: byAnesthesiologist ? "Анестезиолог" : "Пациент",
-    textRu: template
+    textRu: agreeHours(template
       .replace("{solid}", String(Math.round(fasting.lastSolidFoodHoursAgo)))
-      .replace("{liquid}", String(Math.round(fasting.lastClearLiquidHoursAgo))),
+      .replace("{liquid}", String(Math.round(fasting.lastClearLiquidHoursAgo)))),
   };
 }
 
@@ -525,6 +551,16 @@ function locationLabelRu(location) {
   return labels[location] ?? location;
 }
 
+// Each consultant arrives in their own voice and asks for what THEY need
+// from the resident. Workflow speech only: no clinical claim, no hint.
+const STAFF_ARRIVAL_RU = Object.freeze({
+  surgeon: "Я на месте. Доложи пациента: что нашёл и что предлагаешь?",
+  anesthesiologist: "Анестезиолог на месте. Коротко: кто пациент, что планируется и что уже сделано?",
+  icuPhysician: "Реаниматолог здесь. Что с пациентом и что ты от меня ждёшь?",
+  radiologist: "Рентгенолог на месте. Какой клинический вопрос к исследованию?",
+  gynecologist: "Гинеколог на месте. Какой вопрос ко мне?",
+});
+
 function staffLabelRu(role) {
   const labels = {
     nurse: "Медсестра",
@@ -532,6 +568,7 @@ function staffLabelRu(role) {
     anesthesiologist: "Анестезиолог",
     surgeon: "Хирург",
     icuPhysician: "Реаниматолог",
+    gynecologist: "Гинеколог",
   };
   return labels[role] ?? role;
 }

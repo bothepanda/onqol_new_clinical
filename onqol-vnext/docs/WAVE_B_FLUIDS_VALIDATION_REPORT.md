@@ -78,3 +78,7 @@ Interpreter findings (live semantic-first, gpt-5-mini) — fixed in this session
 3. Interpreter: examine-vs-reassess routing for lungs/neck veins; future-plan («через 15 минут переоцениваю») as a recorded plan.
 4. Optional `?case=FLUIDS-01` browser route behind the flag.
 5. Clinical review of the items in `WAVE_B_FLUIDS_CLINICAL_REVIEW_GAPS.md`.
+
+## 7. Follow-up 2026-10-20 (engineering only)
+
+Done: item 2 (a semantic «рингера» naming another Ringer solution now becomes a which-solution clarification; «болюс», «струйно» evidence an infusion), item 3 in part («оцениваю лёгкие и шейные вены» examines both; «через 15 минут переоцениваю…» already executes deterministically), item 4 (`/?case=FLUIDS-01`, internal builds only). Also: «кислород» is reported as a recognised simulator limitation instead of a drug clarification or «не распознано»; a stated hypothesis is recorded as reasoning. Still open: item 1 (verifier model/spend decision) and item 5 (clinical review).

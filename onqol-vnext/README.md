@@ -27,6 +27,16 @@ The ordinary learner download contains only shown dialogue. Reviewers may save t
 local persistence object and run `node scripts/reviewFlexiblePatient.mjs input.json review.json`
 for raw attempts, verifier decisions and causal-event references (reviewer-only).
 
+### Internal links (2026-10-20)
+
+- `/?case=FLUIDS-01` opens the second case (post-operative oliguria, Wave B) in the
+  normal UI. Internal builds only: a pilot build (`VITE_ONQOL_PILOT=true`) ignores
+  it and starts APP-004. Each case keeps its own saved session.
+- `/?diag=1` in a dev build (`npm run dev`) shows a development diagnostics panel
+  under the session: seed, hidden truth, physiology, scheduler queue, hospital
+  constraints, simulator limitations, mentor state and recent events. It is never
+  mounted in a production or pilot build.
+
 ## Verify it
 
 ```bash

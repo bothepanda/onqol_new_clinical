@@ -14,6 +14,8 @@ import { classifyAdequacy } from "../../ai/mentor/mentorAdequacy.js";
 import { advanceMentorMemory } from "../../ai/mentor/mentorMemory.js";
 import { detectTeachingCandidates, buildIssueDefinitions } from "../../ai/mentor/teachingCandidates.js";
 import { buildLearnerVisibleState } from "../state/learnerView.js";
+import { separateRecognizedUnmodeled } from "../../ai/interpreter/unmodeledInterventions.js";
+import { simulatorLimitation, LIMITATION_REASON_NOT_MODELED } from "../rules/governance.js";
 
 /**
  * One complete learner turn: raw text in, `{ session, outcomes, mentor }` out.
@@ -40,12 +42,12 @@ export function submitLearnerTurn({ session, text, shadowProvider, interpreted: 
   // The hybrid path is async, so `useSession` resolves the interpretation
   // first and passes it in. New turns record the complete structured result,
   // including deterministic turns, so restore never needs today's parser.
-  const interpreted = interpretedOverride ?? interpretTurn({
+  const interpreted = separateRecognizedUnmodeled(interpretedOverride ?? interpretTurn({
     text,
     turnContext,
     bundle: session.bundle,
     idPrefix: `t${session.state.turn}`,
-  });
+  }), session.bundle, text);
   // Shadow output has no authority and is deliberately kept outside the
   // domain event log. This promise is never awaited by the clinical path.
   const shadowTelemetryPromise = isInteractionV2Enabled(session.state.session)
@@ -75,6 +77,7 @@ export function submitLearnerTurn({ session, text, shadowProvider, interpreted: 
       recordedInterpretation: structuredClone(interpreted),
       mentorSignal: interpreted.mentorSignal ?? null,
       unmatchedFragments: interpreted.unmatchedFragments ?? [],
+      ...(interpreted.recognizedUnmodeled?.length ? { recognizedUnmodeled: interpreted.recognizedUnmodeled } : {}),
       // Every command here passed the commitment gate: it is a decision, not a
       // hedge, condition, question, deferral or refusal. Those are recorded in
       // `withheldCommands` with the reason and were not executed.
@@ -87,10 +90,20 @@ export function submitLearnerTurn({ session, text, shadowProvider, interpreted: 
     cause: { actor: "learner", source: "interpreter" },
   });
 
+  // A named but unmodeled intervention is a simulator limitation, recorded
+  // at the moment it was asked for; it moves no clock and changes no patient.
+  const limitationEvents = (interpreted.recognizedUnmodeled ?? []).map((item) => createEvent({
+    type: EVENT.SIMULATOR_LIMITATION_NOTED,
+    atMinutes: session.state.clock.elapsedMinutes,
+    atIso: atIso(session.state),
+    payload: { ...simulatorLimitation({ kind: "intervention_not_modeled", id: item.id, reviewStatus: null, reason: LIMITATION_REASON_NOT_MODELED }), labelRu: item.labelRu },
+    cause: { actor: "system", source: "content_coverage" },
+  }));
+
   let working = {
     ...session,
-    state: reduceEvents(session.state, [turnEvent]),
-    events: appendEvents(session.events, [turnEvent]),
+    state: reduceEvents(session.state, [turnEvent, ...limitationEvents]),
+    events: appendEvents(session.events, [turnEvent, ...limitationEvents]),
   };
 
   // A pure read (status request) or a turn addressed to the mentor produces

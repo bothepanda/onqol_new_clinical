@@ -7,6 +7,7 @@ import { isRuntimeAuthoritative, simulatorLimitation } from "../rules/governance
 import { reviewStatusOf } from "../rules/contentProvenance.js";
 import { activePainField } from "../state/painState.js";
 import { reduceEvents } from "../state/worldState.js";
+import { constraintResolutionsBetween } from "../hospital/dynamicConstraints.js";
 import { evaluateBoundedStateTransition } from "./boundedStateTransitions.js";
 
 /**
@@ -45,7 +46,18 @@ export function advanceTime({ state, clockRoot, bundle, rng, targetMinutes, caus
   if (targetMinutes <= state.clock.elapsedMinutes) return { events: [] };
 
   const runItem = (currentState, item) => runPendingItem({ state: currentState, clockRoot, bundle, rng, item, cause });
-  const { events } = drainPendingWork(state, targetMinutes, runItem);
+  const drained = drainPendingWork(state, targetMinutes, runItem).events;
+  // A dynamic hospital constraint that ends inside this window (operational,
+  // not clinical) is merged into the log at its own minute.
+  const resolutions = constraintResolutionsBetween(state.hospital.dynamicConstraints, state.clock.elapsedMinutes, targetMinutes)
+    .map(({ atMinutes, payload }) => createEvent({
+      type: EVENT.RESOURCE_BECAME_AVAILABLE,
+      atMinutes,
+      atIso: hospitalIso(clockRoot, atMinutes),
+      payload,
+      cause: { ...cause, source: "hospital_constraint_resolution" },
+    }));
+  const events = mergeByMinute(drained, resolutions);
   const afterPending = reduceEvents(state, events);
   // Second Clinical Reviewer Decision, 2026-09-01 (Sarina T.T.): the
   // postoperative recovery course starts once the OPERATION is complete
@@ -64,6 +76,18 @@ export function advanceTime({ state, clockRoot, bundle, rng, targetMinutes, caus
   });
 
   return { events: [...events, ...progressionEvents, timeEvent] };
+}
+
+/** Stable merge: `extra` events go after any `events` at the same minute. */
+function mergeByMinute(events, extra) {
+  if (extra.length === 0) return events;
+  const merged = [];
+  let i = 0;
+  for (const event of events) {
+    while (i < extra.length && extra[i].atMinutes < event.atMinutes) merged.push(extra[i++]);
+    merged.push(event);
+  }
+  return [...merged, ...extra.slice(i)];
 }
 
 /**

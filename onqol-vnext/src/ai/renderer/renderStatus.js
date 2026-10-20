@@ -74,6 +74,11 @@ const POSTOP_PAIN_STAGE_RU = Object.freeze({
   controlled_on_oral_analgesia: "Послеоперационная боль контролируется пероральными анальгетиками.",
 });
 
+/** The reviewed line for a postoperative pain stage, or null. */
+export function postopPainStageRu(stage) {
+  return POSTOP_PAIN_STAGE_RU[stage] ?? null;
+}
+
 function painLineRu(learnerVisible) {
   if (learnerVisible.painScore != null) return `Боль ${learnerVisible.painScore}/10.`;
   if (learnerVisible.painState === "post_source_control") {
@@ -234,6 +239,15 @@ export function renderAlreadyPending(result) {
 
 export function renderNoPendingWork() {
   return { speakerRu: "Система", textRu: "Сейчас нет назначенных исследований или действий, результатов которых можно ждать." };
+}
+
+/** Named interventions the platform recognises but does not model (concepts.yaml). */
+export function renderRecognizedUnmodeled(items) {
+  const labels = [...new Set((items ?? []).map((item) => item.labelRu).filter(Boolean))];
+  return {
+    speakerRu: "Система",
+    textRu: `${labels.join(", ")} — в этой версии симуляции не моделируется, на пациента это не повлияет. Это ограничение платформы, а не ошибка. Продолжай с тем, что доступно.`,
+  };
 }
 
 export function renderUnrecognizedFragments(fragments) {

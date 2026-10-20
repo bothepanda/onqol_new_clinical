@@ -12,11 +12,13 @@ export function VitalsStrip({ snapshot }) {
   // has no diastolic range, so rather than print a plausible invented number
   // this labels the value for what it actually is (Governance Spec §2).
   const bp = values.diastolicBp != null ? `${values.systolicBp}/${values.diastolicBp}` : `${values.systolicBp} сист.`;
+  // Physiology names the field `spo2Percent`; `spo2` is kept for older snapshots.
+  const spo2 = values.spo2Percent ?? values.spo2 ?? null;
   const entries = [
     ["HR", values.heartRate, "/мин"],
     ["BP", bp, ""],
     ["RR", values.respiratoryRate, "/мин"],
-    ["SpO2", values.spo2 ?? "—", values.spo2 != null ? "%" : ""],
+    ["SpO2", spo2 ?? "—", spo2 != null ? "%" : ""],
     ["T", values.temperatureC, "°C"],
     ["PAIN", values.painScore ?? "—", values.painScore != null ? "/10" : ""],
   ];

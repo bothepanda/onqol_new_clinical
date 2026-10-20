@@ -192,7 +192,12 @@ function interpretRaw({ text, turnContext = {}, idPrefix = "cmd", bundle = null 
   const read = readTurnByClauses({ raw, turnContext, idPrefix, frame });
   const commands = dropRedundantAnalgesiaIntent(compactCommands(reasoningCommand, ...read.committedByGroup.flat()));
   const withheldCommands = summarizeWithheld(read.withheld);
-  const unmatchedFragments = read.unmatched;
+  // The clause that stated a recognised hypothesis IS the reasoning just
+  // recorded, not an unread request.
+  const statedConcepts = reasoningCommand ? conceptMentions(normalized, bundle) : [];
+  const unmatchedFragments = statedConcepts.length
+    ? read.unmatched.filter((fragment) => conceptMentions(normalize(fragment), bundle).length === 0)
+    : read.unmatched;
 
   // An open STAFF clarification is answered by the answer (Contract §8.2,
   // §10, PBC-8).
@@ -486,7 +491,9 @@ function buildReasoningCommand({ raw, normalized, turnContext, idPrefix, bundle 
     stated = true;
   }
 
-  const workingCue = /рабоч[а-яё]* диагноз|думаю|наиболее вероят|вероятнее всего|подозреваю|считаю/.test(normalized);
+  // «это перегрузка объёмом», «похоже на гиповолемию»: a plain assertion
+  // naming a recognised hypothesis is a stated working diagnosis too.
+  const workingCue = /рабоч[а-яе]* диагноз|думаю|наиболее вероят|вероятнее всего|подозреваю|считаю|(?:^|[^а-яе])это |похоже на|похоже,|картина /.test(normalized);
   const working = mentions.find((item) => !isNegatedConcept(normalized, item.start));
   if (workingCue && working && !differentialCue) {
     delta.workingDiagnosis = {
@@ -632,7 +639,12 @@ function interpretFragment(fragment, idPrefix, index, turnContext) {
   const imaging = mentionsImagingModality(normalized);
 
   // "осмотрю пациента" (no region) vs "живот" / "оосмотрю живот" (region named).
-  if (!imaging && (/осмотр|смотрю|пальцев[а-яё]* исследов|ректальн[а-яё]* исследов|неврологическ[а-яё]* (?:статус|состояни)/.test(normalized) || Object.keys(REGION_SYNONYMS).some((k) => normalized.replace(/[.!?]+$/, "") === k))) {
+  // A generic examining verb («осматриваю», «оцениваю», «выслушиваю»,
+  // «пальпирую») counts only together with a named body region, so
+  // «оцениваю лёгкие» is an examination while «оцениваю ситуацию» is not.
+  const namedRegion = findSynonym(normalized, REGION_SYNONYMS);
+  const examVerbWithRegion = namedRegion != null && /осматр|аускульт|выслуш|пальп|перкут|оцени|оценю|провер/.test(normalized);
+  if (!imaging && (examVerbWithRegion || /осмотр|смотрю|пальцев[а-яё]* исследов|ректальн[а-яё]* исследов|неврологическ[а-яё]* (?:статус|состояни)/.test(normalized) || Object.keys(REGION_SYNONYMS).some((k) => normalized.replace(/[.!?]+$/, "") === k))) {
     // "осмотр анестезиолога" is a preop consult request, not a physical exam
     // the learner performs - checked before the region lookup so it is not
     // mis-read as an examination with a missing region.
@@ -640,7 +652,7 @@ function interpretFragment(fragment, idPrefix, index, turnContext) {
       results.push(command(idPrefix, index, COMMAND.REQUEST_ANESTHESIA_REVIEW, {}, fragment));
       return results;
     }
-    const region = findSynonym(normalized, REGION_SYNONYMS);
+    const region = namedRegion;
     results.push(command(idPrefix, index, COMMAND.EXAMINE, region ? { region } : {}, fragment));
     return results;
   }

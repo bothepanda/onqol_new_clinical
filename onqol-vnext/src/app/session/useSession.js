@@ -7,10 +7,8 @@ import { buildLearnerVisibleState } from "../../core/state/learnerView.js";
 import { renderEvent } from "../../ai/renderer/renderEvent.js";
 import { exportSession } from "../../core/replay/exportSession.js";
 import { buildDebrief } from "../../core/replay/buildDebrief.js";
-import { withShared } from "../../core/content/loadBundle.js";
 import { seededStartIso } from "./seededStart.js";
-import diseaseBundle from "../../content/generated/appendicitis.json";
-import sharedBundle from "../../content/generated/shared.json";
+import { caseEntry, DEFAULT_CASE_ID } from "../../content/caseCatalog.js";
 import { AI_INTERACTION_V2, STATEFUL_GROUNDED_MENTOR_V1, resolveInterpreterMode, INTERPRETER_MODE, isStatefulGroundedMentorEnabled } from "../../ai/interaction/featureFlags.js";
 import { renderMentorResponse } from "./renderMentorResponse.js";
 import { renderTurnMessages, toMessage } from "./renderTurn.js";
@@ -27,10 +25,9 @@ import {
   createPersistedSession,
   loadPersistedSession,
   savePersistedSession,
+  caseStorageKey,
 } from "./sessionPersistence.js";
 
-const bundle = withShared(diseaseBundle, sharedBundle);
-const CASE_PRESET_ID = "APP-004";
 const shadowProvider = createGatewayProviderClient();
 // Internal sessions default to semantic-first. Resolve against the persisted
 // session purpose below, so resuming a pilot cannot promote the new contract.
@@ -56,7 +53,10 @@ function randomSeed() {
  * the app has no path to (task brief §17). This hook only turns the result
  * into `{ role, speakerRu, textRu }` messages for `ChatShell`.
  */
-export function useSession({ patientDialogue = false, storageKey } = {}) {
+export function useSession({ patientDialogue = false, storageKey: storageKeyOverride, caseId = DEFAULT_CASE_ID } = {}) {
+  const selectedCase = caseEntry(caseId);
+  const { bundle } = selectedCase;
+  const storageKey = storageKeyOverride ?? caseStorageKey(selectedCase.casePresetId, DEFAULT_CASE_ID);
   const [session, setSession] = useState(null);
   const [messages, setMessages] = useState([]);
   const [busy, setBusy] = useState(false);
@@ -78,7 +78,7 @@ export function useSession({ patientDialogue = false, storageKey } = {}) {
       seed,
       mode,
       realProfileId,
-      casePresetId: CASE_PRESET_ID,
+      casePresetId: selectedCase.casePresetId,
       ...(patientDialogue ? { clinicalContentPolicy: "approved_only" } : {}),
       // Default build stays internal_development (development route, patient
       // truth not approved -> debrief carries the "не для пилота" note). The
@@ -89,10 +89,11 @@ export function useSession({ patientDialogue = false, storageKey } = {}) {
       interactionFlags: {
         [AI_INTERACTION_V2]: import.meta.env.VITE_AI_INTERACTION_V2 === "true",
         [STATEFUL_GROUNDED_MENTOR_V1]: import.meta.env.VITE_STATEFUL_GROUNDED_MENTOR_V1 === "true",
+        ...selectedCase.interactionFlags,
       },
       bundle,
       locale,
-      startIso: seededStartIso(seed),
+      startIso: selectedCase.fixedStartIso ?? seededStartIso(seed),
     });
     setSession(next);
     setDebrief(null);
@@ -101,7 +102,7 @@ export function useSession({ patientDialogue = false, storageKey } = {}) {
     setMessages(initialMessages);
     persist(next, initialMessages);
     setResumeCandidate(null);
-  }, [storageKey, patientDialogue, persist]);
+  }, [storageKey, patientDialogue, persist, bundle, selectedCase]);
 
   const resumeSession = useCallback(() => {
     if (!resumeCandidate) return;
@@ -109,7 +110,7 @@ export function useSession({ patientDialogue = false, storageKey } = {}) {
     setMessages(resumeCandidate.messages);
     setDebrief(resumeCandidate.completed ? buildDebrief({ session: resumeCandidate.session, bundle }) : null);
     setResumeCandidate(null);
-  }, [resumeCandidate]);
+  }, [resumeCandidate, bundle]);
 
   const discardPersistedSession = useCallback(() => {
     clearPersistedSession(globalThis.localStorage, storageKey);
@@ -212,7 +213,7 @@ export function useSession({ patientDialogue = false, storageKey } = {}) {
         setBusy(false);
       }
     },
-    [messages, session, mentorEnabled, patientDialogue, persist],
+    [messages, session, mentorEnabled, patientDialogue, persist, bundle],
   );
 
   const downloadExport = useCallback(() => {
@@ -232,7 +233,7 @@ export function useSession({ patientDialogue = false, storageKey } = {}) {
   return {
     session, messages, busy, debrief, resumeCandidate, startSession, resumeSession,
     discardPersistedSession, submitTurn, downloadExport, learnerVisible, bundle,
-    mentorEnabled, persistenceError,
+    mentorEnabled, persistenceError, casePresetId: selectedCase.casePresetId, presentationRu: selectedCase.presentationRu,
   };
 }
 

@@ -77,3 +77,66 @@ test("the learner view exposes disclosed constraints only, never the full active
   assert.equal("dynamicConstraints" in visible, false);
   assert.equal(JSON.stringify(visible).includes("dynamicConstraints"), false);
 });
+
+// ---- Resolution (KNOWN_GAPS §7): constraints end during a case ----------
+
+function seedFor(constraintId) {
+  for (let i = 0; i < 500; i += 1) {
+    const rolled = rollDynamicConstraints({ mode: "real", rng: createRng(`resolve-${i}`) });
+    if (rolled[0]?.id === constraintId) return `resolve-${i}`;
+  }
+  throw new Error(`no seed rolls ${constraintId}`);
+}
+
+test("a resolvable constraint gets a seeded end time inside its authored window; CT repair and the delayed surgeon have none", () => {
+  for (let i = 0; i < 200; i += 1) {
+    const [rolled] = rollDynamicConstraints({ mode: "real", rng: createRng(`window-${i}`) });
+    if (!rolled) continue;
+    if (rolled.resolvesAfterMinutes) {
+      assert.ok(rolled.resolvesAtMinutes >= rolled.resolvesAfterMinutes[0] && rolled.resolvesAtMinutes <= rolled.resolvesAfterMinutes[1]);
+    } else {
+      assert.equal(rolled.resolvesAtMinutes, null);
+      assert.ok(["ct_scanner_down", "senior_surgeon_delayed"].includes(rolled.id));
+    }
+  }
+});
+
+test("no ICU bed: the transfer is refused and disclosed, the bed frees at its seeded minute, then the transfer succeeds", () => {
+  let session = newSession({ seed: seedFor("icu_no_bed") });
+  const resolvesAt = session.state.hospital.dynamicConstraints[0].resolvesAtMinutes;
+  let turn = submitLearnerTurn({ session, text: "перевожу в ОРИТ" });
+  assert.equal(turn.outcomes[0].outcome, "UNAVAILABLE_RESOURCE");
+  session = turn.session;
+  assert.deepEqual(buildLearnerVisibleState(session.state).revealedConstraints.map((c) => c.id), ["icu_no_bed"]);
+  session = submitLearnerTurn({ session, text: "жду 6 часов" }).session;
+  const resolved = session.events.find((e) => e.type === "RESOURCE_BECAME_AVAILABLE");
+  assert.equal(resolved.atMinutes, resolvesAt);
+  assert.equal(resolved.payload.constraintId, "icu_no_bed");
+  assert.deepEqual(buildLearnerVisibleState(session.state).revealedConstraints, []);
+  assert.equal(session.state.hospital.capabilities.icuBed.available, true);
+  turn = submitLearnerTurn({ session, text: "перевожу в ОРИТ" });
+  assert.equal(turn.outcomes[0].outcome, "EXECUTED");
+});
+
+test("an operating room occupied by another patient blocks the operation until it frees", () => {
+  const session = newSession({ seed: seedFor("or_occupied") });
+  assert.equal(session.state.hospital.capabilities.operatingRoom.available, false);
+  const resolvesAt = session.state.hospital.dynamicConstraints[0].resolvesAtMinutes;
+  const later = submitLearnerTurn({ session, text: "жду 3 часа" }).session;
+  assert.ok(later.state.clock.elapsedMinutes >= resolvesAt);
+  assert.equal(later.state.hospital.capabilities.operatingRoom.available, true);
+  assert.equal(later.state.hospital.capabilities.operatingRoom.etaMinutes, 50, "back to the profile baseline");
+});
+
+test("a constraint the learner never met ends silently, so its existence is not disclosed", async () => {
+  const { renderEvent } = await import("../../ai/renderer/renderEvent.js");
+  const session = submitLearnerTurn({ session: newSession({ seed: seedFor("icu_no_bed") }), text: "жду 6 часов" }).session;
+  const resolved = session.events.find((e) => e.type === "RESOURCE_BECAME_AVAILABLE");
+  assert.ok(resolved);
+  assert.equal(renderEvent({ event: resolved, bundle, patient: session.patient, state: session.state }), null);
+});
+
+test("Russian hour agreement in content templates", async () => {
+  const { agreeHours } = await import("../../ai/renderer/renderEvent.js");
+  assert.equal(agreeHours("воды — 1 часов назад, еды — 22 часов, 12 часов, 5 часов"), "воды — 1 час назад, еды — 22 часа, 12 часов, 5 часов");
+});

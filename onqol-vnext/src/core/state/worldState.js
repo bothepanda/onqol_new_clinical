@@ -7,6 +7,7 @@ import {
   mergeReasoningState,
 } from "../reasoning/reasoningState.js";
 import { isInteractionV2Enabled } from "../../ai/interaction/featureFlags.js";
+import { resolveHospitalProfile } from "../hospital/hospitalProfiles.js";
 
 /**
  * The world, as independent dimensions.
@@ -550,12 +551,30 @@ export function applyEvent(state, event) {
       };
       break;
 
-    case EVENT.RESOURCE_BECAME_AVAILABLE:
+    case EVENT.RESOURCE_BECAME_AVAILABLE: {
+      // The constraint ends: the capability returns to this hospital's own
+      // baseline, and a delayed staff member who has not been called yet is
+      // no longer delayed. A call already in flight keeps its arrival time.
+      const { capabilityKey, staffRole, addedEtaMinutes, constraintId } = event.payload;
+      const baseline = state.hospital.profileId ? resolveHospitalProfile(state.session.mode, state.hospital.profileId) : null;
+      const capabilities = capabilityKey && baseline?.capabilities?.[capabilityKey]
+        ? { ...state.hospital.capabilities, [capabilityKey]: { ...baseline.capabilities[capabilityKey] } }
+        : state.hospital.capabilities;
+      const member = staffRole ? state.hospital.staff[staffRole] : null;
+      const staff = member && !member.called && addedEtaMinutes
+        ? { ...state.hospital.staff, [staffRole]: { ...member, etaMinutes: Math.max(0, (member.etaMinutes ?? 0) - addedEtaMinutes) } }
+        : state.hospital.staff;
       next.hospital = {
         ...state.hospital,
-        constraints: state.hospital.constraints.filter((item) => item.id !== event.payload.constraintId),
+        capabilities,
+        staff,
+        constraints: state.hospital.constraints.filter((item) => item.id !== constraintId),
+        dynamicConstraints: (state.hospital.dynamicConstraints ?? []).map((item) => (item.id === constraintId
+          ? { ...item, active: false, resolvedAtMinutes: event.atMinutes, disclosedBeforeResolution: state.hospital.constraints.some((known) => known.id === constraintId) }
+          : item)),
       };
       break;
+    }
 
     case EVENT.STAFF_CALLED:
       next.hospital = {
@@ -599,7 +618,7 @@ export function applyEvent(state, event) {
     case EVENT.SIMULATOR_LIMITATION_NOTED:
       next.simulatorLimitations = [
         ...state.simulatorLimitations,
-        { atMinutes: event.atMinutes, kind: event.payload.kind, id: event.payload.id, reviewStatus: event.payload.reviewStatus, reason: event.payload.reason ?? "not_approved_for_training" },
+        { atMinutes: event.atMinutes, kind: event.payload.kind, id: event.payload.id, reviewStatus: event.payload.reviewStatus, reason: event.payload.reason ?? "not_approved_for_training", ...(event.payload.labelRu ? { labelRu: event.payload.labelRu } : {}) },
       ];
       break;
 

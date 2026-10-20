@@ -272,11 +272,15 @@ function buildReferenceComparison(bundle) {
 }
 
 function buildResourceLimitations(events) {
+  const resolvedAt = new Map(events
+    .filter((event) => event.type === EVENT.RESOURCE_BECAME_AVAILABLE)
+    .map((event) => [event.payload.constraintId, event.atMinutes]));
   return events
     .filter((event) => event.type === EVENT.RESOURCE_CONSTRAINT_REVEALED)
     .map((event) => ({
       atMinutes: event.atMinutes,
       constraintId: event.payload.constraint?.id ?? null,
+      resolvedAtMinutes: resolvedAt.get(event.payload.constraint?.id) ?? null,
       textRu: event.payload.constraint?.textRu ?? null,
       noteRu: "Ограничение ресурса стационара. Не является ошибкой обучающегося.",
     }));
@@ -301,7 +305,7 @@ function buildSimulatorLimitations(state) {
         reviewStatus: entry.reviewStatus,
         reason: entry.reason,
         occurrences: entry.occurrences,
-        pointRu: `${NOT_MODELED_LABEL_RU[entry.id] ?? entry.id}: в этой версии симуляции результат не моделируется.`,
+        pointRu: `${entry.labelRu ?? NOT_MODELED_LABEL_RU[entry.id] ?? entry.id}: в этой версии симуляции результат не моделируется.`,
         noteRu:
           "Назначение распознано, но в текущей версии симуляции для него нет утверждённого результата, поэтому оно ничего не изменило. Это ограничение платформы, а не ошибка или пропуск обучающегося.",
       }

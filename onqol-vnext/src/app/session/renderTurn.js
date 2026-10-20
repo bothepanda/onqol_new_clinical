@@ -14,6 +14,7 @@ import {
   renderOptionNotModeled,
   renderNoPendingWork,
   renderUnrecognizedFragments,
+  renderRecognizedUnmodeled,
 } from "../../ai/renderer/renderStatus.js";
 
 /**
@@ -64,6 +65,10 @@ export function renderTurnMessages({ turn, bundle, learnerVisibleBefore, interpr
 
   if (!route?.discuss && turn.interpreted.withheldCommands?.length) {
     rendered.push(notice(toMessage("env", renderNotCommitted())));
+  }
+
+  if (!route?.discuss && turn.interpreted.recognizedUnmodeled?.length) {
+    rendered.push(notice(toMessage("env", renderRecognizedUnmodeled(turn.interpreted.recognizedUnmodeled))));
   }
 
   if (!route?.discuss && !interpreted?.interpretationNotice && turn.interpreted.unmatchedFragments?.length) {

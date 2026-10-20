@@ -24,7 +24,7 @@
   "deterministicBaselineVsGold": {
     "metrics": {
       "runs": 52,
-      "commandPrecision": 0.9111,
+      "commandPrecision": 0.8913,
       "commandRecall": 0.7593,
       "canonicalExactTurnAgreement": 0.7308,
       "parameterFidelity": 0.7317,
@@ -60,7 +60,7 @@
       "counts": {
         "runs": 52,
         "goldCommands": 54,
-        "actualCommands": 45,
+        "actualCommands": 46,
         "matchedCommands": 41,
         "exactTurns": 38,
         "parameterizedGoldCommands": 41,
@@ -299,9 +299,9 @@
       "examination": {
         "runs": 5,
         "commandPrecision": 1,
-        "commandRecall": 0.5,
-        "canonicalExactTurnAgreement": 0.4,
-        "parameterFidelity": 0.25,
+        "commandRecall": 0.6667,
+        "canonicalExactTurnAgreement": 0.6,
+        "parameterFidelity": 0.5,
         "unsupportedActionFalsePositiveRate": null,
         "ambiguityDetectionRecall": 0,
         "unresolvedFragmentRecall": null,
@@ -334,11 +334,11 @@
         "counts": {
           "runs": 5,
           "goldCommands": 6,
-          "actualCommands": 3,
-          "matchedCommands": 3,
-          "exactTurns": 2,
+          "actualCommands": 4,
+          "matchedCommands": 4,
+          "exactTurns": 3,
           "parameterizedGoldCommands": 4,
-          "parameterMatches": 1,
+          "parameterMatches": 2,
           "unsupportedTurns": 0,
           "unsupportedFalsePositives": 0,
           "reasoningGold": 0,
@@ -571,10 +571,10 @@
       },
       "medication": {
         "runs": 6,
-        "commandPrecision": 1,
-        "commandRecall": 1,
-        "canonicalExactTurnAgreement": 1,
-        "parameterFidelity": 1,
+        "commandPrecision": 0.8333,
+        "commandRecall": 0.8333,
+        "canonicalExactTurnAgreement": 0.8333,
+        "parameterFidelity": 0.8,
         "unsupportedActionFalsePositiveRate": null,
         "ambiguityDetectionRecall": 0,
         "unresolvedFragmentRecall": null,
@@ -608,10 +608,10 @@
           "runs": 6,
           "goldCommands": 6,
           "actualCommands": 6,
-          "matchedCommands": 6,
-          "exactTurns": 6,
+          "matchedCommands": 5,
+          "exactTurns": 5,
           "parameterizedGoldCommands": 5,
-          "parameterMatches": 5,
+          "parameterMatches": 4,
           "unsupportedTurns": 0,
           "unsupportedFalsePositives": 0,
           "reasoningGold": 0,
@@ -1763,12 +1763,20 @@
         },
         "rawDeterministicOutput": {
           "mode": "deterministic",
-          "intent": "CLINICAL_REASONING",
-          "commands": [],
-          "rawText": "пальпирую живот",
-          "unmatchedFragments": [
-            "пальпирую живот"
+          "intent": "CLINICAL_ACTION",
+          "commands": [
+            {
+              "id": "E02-c0",
+              "type": "EXAMINE",
+              "params": {
+                "region": "abdomen"
+              },
+              "sourceText": "пальпирую живот"
+            }
           ],
+          "rawText": "пальпирую живот",
+          "unmatchedFragments": [],
+          "answeredMentorQuestion": false,
           "clauses": [
             {
               "id": "k0",
@@ -1779,11 +1787,17 @@
                 2
               ],
               "sentence": 0,
-              "channel": "unresolved",
-              "commitment": null,
-              "commandIds": [],
+              "channel": "clinical_action",
+              "commitment": {
+                "status": "COMMITTED",
+                "cues": [],
+                "scope": "clause"
+              },
+              "commandIds": [
+                "E02-c0"
+              ],
               "withheldIds": [],
-              "unresolved": true,
+              "unresolved": false,
               "structural": false
             }
           ]
@@ -1797,11 +1811,18 @@
               }
             }
           ],
-          "actualCommands": [],
-          "matchedCommands": 0,
-          "exactTurn": false,
+          "actualCommands": [
+            {
+              "type": "examine",
+              "params": {
+                "region": "abdomen"
+              }
+            }
+          ],
+          "matchedCommands": 1,
+          "exactTurn": true,
           "parameterizedGoldCommands": 1,
-          "parameterMatches": 0,
+          "parameterMatches": 1,
           "reasoning": {
             "gold": 0,
             "actual": 0,
@@ -1824,7 +1845,7 @@
           },
           "unresolved": {
             "gold": 0,
-            "actual": 1,
+            "actual": 0,
             "matched": 0
           },
           "unsupportedFalsePositive": false,
@@ -6115,7 +6136,7 @@
               "id": "M06-c0",
               "type": "ORDER_INFUSION",
               "params": {
-                "fluidId": "crystalloid",
+                "fluidId": "normal_saline",
                 "volumeMl": 500,
                 "durationMinutes": 60
               },
@@ -6166,15 +6187,15 @@
               "type": "order_infusion",
               "params": {
                 "durationMinutes": 60,
-                "fluidId": "crystalloid",
+                "fluidId": "normal_saline",
                 "volumeMl": 500
               }
             }
           ],
-          "matchedCommands": 1,
-          "exactTurn": true,
+          "matchedCommands": 0,
+          "exactTurn": false,
           "parameterizedGoldCommands": 1,
-          "parameterMatches": 1,
+          "parameterMatches": 0,
           "reasoning": {
             "gold": 0,
             "actual": 0,
@@ -8627,7 +8648,7 @@
         },
         "telemetry": {
           "status": "concept_validation_failure",
-          "elapsedMs": 3,
+          "elapsedMs": 5,
           "schemaErrors": [],
           "conceptErrors": [
             "clinicalActions[0].invented_dose_unit",
@@ -8901,7 +8922,7 @@
         },
         "telemetry": {
           "status": "concept_validation_failure",
-          "elapsedMs": 0,
+          "elapsedMs": 1,
           "schemaErrors": [],
           "conceptErrors": [
             "clinicalActions[0].tentative_not_committed"
@@ -9154,7 +9175,7 @@
         },
         "telemetry": {
           "status": "provider_timeout",
-          "elapsedMs": 0,
+          "elapsedMs": 1,
           "schemaErrors": [],
           "conceptErrors": [],
           "commandValidation": [],
@@ -9260,7 +9281,7 @@
         },
         "telemetry": {
           "status": "schema_validation_failure",
-          "elapsedMs": 0,
+          "elapsedMs": 1,
           "schemaErrors": [
             "patientQuestions_must_be_array",
             "ambiguities_must_be_array",

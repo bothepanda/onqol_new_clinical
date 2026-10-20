@@ -33,9 +33,12 @@ const CANDIDATES = Object.freeze([
     id: "or_occupied",
     capabilityKey: "operatingRoom",
     weight: 1,
-    addedEtaMinutes: 90,
+    // Occupied until it frees up (resolution below), rather than a fixed
+    // delay nobody read: the operation simply cannot start before then.
     reasonKey: "resource.or.occupied",
     textRu: "Единственная операционная занята другим экстренным пациентом.",
+    resolvesAfterMinutes: [60, 120],
+    resolvedTextRu: "Операционная освободилась.",
   },
   {
     id: "icu_no_bed",
@@ -43,6 +46,8 @@ const CANDIDATES = Object.freeze([
     weight: 1,
     reasonKey: "resource.icu.no_bed",
     textRu: "Свободных коек в ОРИТ сейчас нет.",
+    resolvesAfterMinutes: [120, 360],
+    resolvedTextRu: "В ОРИТ освободилась койка.",
   },
   {
     id: "senior_surgeon_delayed",
@@ -53,6 +58,13 @@ const CANDIDATES = Object.freeze([
     textRu: "Старший хирург задерживается: выехал из дома.",
   },
 ]);
+
+// RESOLUTION. A candidate with `resolvesAfterMinutes: [min, max]` ends at a
+// minute drawn from the seed (its own stream, so earlier draws are unchanged)
+// and the world emits RESOURCE_BECAME_AVAILABLE. The broken CT ("срок
+// восстановления неизвестен") and the delayed surgeon (who simply arrives
+// later once called) declare none. The intervals are operational
+// scaffolding with the same `pending_owner_review` status as the profiles.
 
 /** Probability that a Real-world session has any dynamic constraint at all. */
 const CONSTRAINT_CHANCE = 0.5;
@@ -67,7 +79,30 @@ export function rollDynamicConstraints({ mode, rng }) {
   const stream = rng.stream("hospital_constraints");
   if (!stream.chance(CONSTRAINT_CHANCE)) return [];
   const picked = stream.pick(CANDIDATES);
-  return [{ ...picked, active: true, disclosed: false }];
+  const window = picked.resolvesAfterMinutes;
+  const resolvesAtMinutes = window ? rng.stream("hospital_constraint_resolution").int(window[0], window[1]) : null;
+  return [{ ...picked, active: true, disclosed: false, resolvesAtMinutes }];
+}
+
+/**
+ * RESOURCE_BECAME_AVAILABLE payloads for every active constraint whose
+ * resolution time falls in (fromMinutes, toMinutes], in time order.
+ */
+export function constraintResolutionsBetween(constraints, fromMinutes, toMinutes) {
+  return (constraints ?? [])
+    .filter((constraint) => constraint.active && constraint.resolvesAtMinutes != null
+      && constraint.resolvesAtMinutes > fromMinutes && constraint.resolvesAtMinutes <= toMinutes)
+    .sort((a, b) => a.resolvesAtMinutes - b.resolvesAtMinutes)
+    .map((constraint) => ({
+      atMinutes: constraint.resolvesAtMinutes,
+      payload: {
+        constraintId: constraint.id,
+        capabilityKey: constraint.capabilityKey ?? null,
+        staffRole: constraint.staffRole ?? null,
+        addedEtaMinutes: constraint.addedEtaMinutes ?? null,
+        textRu: constraint.resolvedTextRu ?? null,
+      },
+    }));
 }
 
 /**

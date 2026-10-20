@@ -9,6 +9,12 @@ reasoning_concept_ids:
   - gastroenteritis
   - acute_prostatitis
   - prostatic_abscess
+  # Postoperative volume-assessment hypotheses (second case). Recognition only.
+  - hypovolaemia
+  - volume_overload
+  - postoperative_bleeding
+  - sepsis
+  - acute_kidney_injury
 
 reasoning_concept_synonyms_ru:
   аппендицит: acute_appendicitis
@@ -23,6 +29,18 @@ reasoning_concept_synonyms_ru:
   гастроэнтерит: gastroenteritis
   острый простатит: acute_prostatitis
   абсцесс простаты: prostatic_abscess
+  # Normalised forms (ё written as е): the matcher compares normalised text.
+  гиповолеми: hypovolaemia
+  дефицит объема: hypovolaemia
+  перегрузка объемом: volume_overload
+  перегрузку объемом: volume_overload
+  перегрузки объемом: volume_overload
+  гиперволеми: volume_overload
+  кровотечени: postoperative_bleeding
+  сепсис: sepsis
+  септическ: sepsis
+  острое почечное повреждение: acute_kidney_injury
+  острого почечного повреждения: acute_kidney_injury
 
 # Investigations the platform RECOGNISES but has no approved modeled result for
 # in the case set (case allowlist = `investigation_timing` keys; anything listed
@@ -33,6 +51,21 @@ reasoning_concept_synonyms_ru:
 recognized_unmodeled_tests:
   - id: pelvic_ultrasound
     label_ru: "УЗИ органов малого таза"
+
+# Interventions the platform RECOGNISES but does not model in the case set.
+# Naming one is reported as a SIMULATOR LIMITATION (not "unrecognised", not a
+# learner error) and changes nothing in the patient. Matching is by normalised
+# word stem at a word start. Modelling any of them is a clinical-review item.
+recognized_unmodeled_interventions:
+  - id: oxygen_therapy
+    label_ru: "Кислородотерапия"
+    stems_ru: ["кислород", "оксигенотерап", "оксигенац", "носовые канюли", "маска с резервуаром"]
+  - id: vasopressor
+    label_ru: "Вазопрессорная поддержка"
+    stems_ru: ["вазопрессор", "норадреналин", "норэпинефрин", "дофамин", "допамин", "адреналин", "эпинефрин", "мезатон", "фенилэфрин"]
+  - id: blood_transfusion
+    label_ru: "Трансфузия компонентов крови"
+    stems_ru: ["трансфуз", "переливани", "эритроцитарн", "свежезамороженн", "сзп"]
 
 fluid_ids:
   - crystalloid
