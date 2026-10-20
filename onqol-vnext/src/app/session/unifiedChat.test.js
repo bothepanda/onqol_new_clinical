@@ -48,3 +48,11 @@ test("an unrecognised fragment is reported by the environment, not sent to the m
   const onlyUnknown = routeUnifiedChat("анамнещз", { commands: [], unmatchedFragments: ["анамнещз"] });
   assert.deepEqual(onlyUnknown, { kind: "unrecognized", execute: true, discuss: false });
 });
+
+test("an explicit conversational correction remains mentor dialogue", () => {
+  const { route } = read("Я это уже объяснил");
+  assert.deepEqual(route, { kind: "discussion", execute: false, discuss: true });
+});
+test("an identified answer to a displayed mentor question is not an unrecognized command", () => {
+  assert.deepEqual(routeUnifiedChat("ОАК", { commands: [], answeredMentorQuestion: true, unmatchedFragments: ["ОАК"] }), { kind: "discussion", execute: false, discuss: true });
+});

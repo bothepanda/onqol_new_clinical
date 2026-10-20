@@ -122,6 +122,7 @@ export async function interpretSemanticFirst({
   const clinicalCommands = commands.filter((command) => !BOOKKEEPING.has(command.type));
   return {
     ...base, commands, mode: "semantic_first",
+    ...(expectationAnswer ? { answeredMentorQuestion: true } : {}),
     ...(discussion && candidates.some((candidate) => candidate.reasonCodes.includes("discussion_not_execution")) ? { interpretationNotice: INTENT_CLARIFICATION } : {}),
     intent: clinicalCommands.length === 1 && clinicalCommands[0].type === COMMAND.REQUEST_STATUS && commands.length === 1
       ? "REQUEST_CURRENT_STATUS" : clinicalCommands.length ? "CLINICAL_ACTION" : base.intent,

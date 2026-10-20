@@ -36,6 +36,7 @@ export function createInitialState({ session, patient, hospital, clock }) {
       locale: session.locale,
       jurisdictionContext: session.jurisdictionContext ?? null,
       purpose: session.purpose,
+      ...(session.clinicalContentPolicy ? { clinicalContentPolicy: session.clinicalContentPolicy } : {}),
       casePresetId: session.casePresetId ?? null,
       interactionFlags: { ...(session.interactionFlags ?? {}) },
       presetRuntimeStatus: session.presetRuntimeStatus ?? null,
@@ -676,6 +677,15 @@ export function applyEvent(state, event) {
       ...next.pending,
       ...event.payload.scheduledPending.map((item) => ({ ...item, seq: seq++ })),
     ];
+  }
+
+  // Calibration application history is derived from the same causal event,
+  // needed for explicit once/no-overlap policies; never a second event log.
+  if (event.type === EVENT.TREATMENT_EFFECT_APPLIED && event.payload.calibration?.interaction &&
+      event.payload.calibration.interaction !== "legacy_authored_additive") {
+    const id = event.payload.effectId;
+    next.calibrationApplications = { ...state.calibrationApplications,
+      [id]: [...(state.calibrationApplications?.[id] ?? []), { atMinutes: event.atMinutes, commandId: event.cause.commandId }] };
   }
 
   // The other half of the same mechanism: an event that RESOLVES a pending

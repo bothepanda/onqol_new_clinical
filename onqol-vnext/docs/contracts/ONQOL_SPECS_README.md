@@ -14,6 +14,15 @@ This folder contains the current product contracts for ON QOL. These documents a
 | `ONQOL_CLINICAL_GOVERNANCE_SPEC_v1.1_2026-08-30.md` | 1.1 | Clinical authority, evidence hierarchy, provenance, review states, source conflicts, high-risk content, release gates | UI behavior, runtime architecture except where needed for safety boundaries |
 | `ONQOL_MENTOR_SPEC_v1.1_2026-08-30.md` | 1.1 | Mentor intervention, adequacy states, scaffolding, learner ownership, live teaching behavior, mentor evidence boundary | Patient truth, hospital truth, clinical rule creation |
 
+## Historical owner amendment — superseded 2026-09-25
+
+[Flexible Patient Addendum](./ONQOL_FLEXIBLE_PATIENT_ADDENDUM_2026-09-24.md)
+is retained as a historical record. The owner's explicit **Flexible Patient V2:
+Governed Clinical Variability** task of 2026-09-25 withdraws that exception.
+The four base specifications govern all V2 execution and rendering; no clinical
+fact-generation exception remains. This notice records the new user instruction,
+not an implementation-driven change to the four specifications.
+
 ## Superseded documents
 
 The following documents are superseded by this set and should not remain active sources of truth:

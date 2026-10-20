@@ -8,6 +8,7 @@
   "type": "module",
   "scripts": {
     "dev": "npm run content:build && vite",
+    "dev:flexible": "ONQOL_FLEXIBLE_PATIENT=true VITE_ONQOL_FLEXIBLE_PATIENT=true VITE_ONQOL_PILOT=false npm run dev -- --host 127.0.0.1",
     "build": "npm run content:build && vite build",
     "preview": "vite preview",
     "build:hybrid": "VITE_ONQOL_INTERPRETER=hybrid VITE_ONQOL_PILOT=true npm run build",
@@ -29,6 +30,7 @@
     "wave23:bakeoff": "node scripts/runWave23Bakeoff.mjs --suite all",
     "test": "npm run content:build && node --test \"src/**/*.test.js\" \"scripts/**/*.test.js\"",
     "test:e2e": "playwright test",
+    "test:e2e:flexible": "playwright test --config playwright.flexible.config.js",
     "test:e2e:hybrid": "playwright test --config playwright.hybrid.config.js",
     "hybrid:smoke": "node scripts/smokeHybridInterpreter.mjs",
     "stage2:prepare": "node scripts/prepareStage2.mjs",

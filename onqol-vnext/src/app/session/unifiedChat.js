@@ -3,7 +3,7 @@ import { DISCUSSION_FRAME } from "../../ai/interpreter/discussionFrame.js";
 export { INTENT_CLARIFICATION } from "../../ai/interpreter/discussionFrame.js";
 
 const BOOKKEEPING = new Set([COMMAND.STATE_REASONING, COMMAND.ANSWER_MENTOR]);
-const MENTOR_DIALOGUE_CUE = /(?:^|[\s,.!?])(?:не знаю|не уверен[аы]?|не помню|объясни|почему|зачем|что думаешь|давай обсудим)(?=$|[\s,.!?])/iu;
+const MENTOR_DIALOGUE_CUE = /(?:^|[\s,.!?])(?:я это уже объяснил[а]?|не знаю|не уверен[аы]?|не помню|объясни|почему|зачем|что думаешь|давай обсудим)(?=$|[\s,.!?])/iu;
 // Conversation cues can conflict with an otherwise literal committed order.
 // Do not let a request to discuss an example execute that example.
 

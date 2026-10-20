@@ -1,3 +1,4 @@
+import { renderPatientDialogue, exportPatientTranscript } from "./renderPatientDialogue.js";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { createSession } from "../../core/session/createSession.js";
 import { submitLearnerTurn, recordGroundedMentorResponse } from "../../core/session/submitLearnerTurn.js";
@@ -55,18 +56,22 @@ function randomSeed() {
  * the app has no path to (task brief §17). This hook only turns the result
  * into `{ role, speakerRu, textRu }` messages for `ChatShell`.
  */
-export function useSession() {
+export function useSession({ patientDialogue = false, storageKey } = {}) {
   const [session, setSession] = useState(null);
   const [messages, setMessages] = useState([]);
   const [busy, setBusy] = useState(false);
+  const [persistenceError, setPersistenceError] = useState(false);
+  const persist = useCallback((next, nextMessages) => {
+    setPersistenceError(!savePersistedSession(globalThis.localStorage, createPersistedSession({ session: next, messages: nextMessages }), storageKey));
+  }, [storageKey]);
   const submitting = useRef(false);
   const [debrief, setDebrief] = useState(null);
   const [resumeCandidate, setResumeCandidate] = useState(() =>
-    loadPersistedSession(globalThis.localStorage, bundle),
+    loadPersistedSession(globalThis.localStorage, bundle, storageKey),
   );
 
   const startSession = useCallback(({ mode, realProfileId, locale = "ru" }) => {
-    clearPersistedSession(globalThis.localStorage);
+    clearPersistedSession(globalThis.localStorage, storageKey);
     const seed = randomSeed();
     const next = createSession({
       sessionId: `session-${Date.now()}`,
@@ -74,6 +79,7 @@ export function useSession() {
       mode,
       realProfileId,
       casePresetId: CASE_PRESET_ID,
+      ...(patientDialogue ? { clinicalContentPolicy: "approved_only" } : {}),
       // Default build stays internal_development (development route, patient
       // truth not approved -> debrief carries the "не для пилота" note). The
       // NU resident-pilot build sets VITE_ONQOL_PILOT=true so APP-004 runs on
@@ -91,9 +97,11 @@ export function useSession() {
     setSession(next);
     setDebrief(null);
     const arrival = next.events.find((e) => e.type === "PATIENT_ARRIVED");
-    setMessages([toMessage("env", renderEvent({ event: arrival, bundle, patient: next.patient, state: next.state }))]);
+    const initialMessages = [toMessage("env", renderEvent({ event: arrival, bundle, patient: next.patient, state: next.state }))];
+    setMessages(initialMessages);
+    persist(next, initialMessages);
     setResumeCandidate(null);
-  }, []);
+  }, [storageKey, patientDialogue, persist]);
 
   const resumeSession = useCallback(() => {
     if (!resumeCandidate) return;
@@ -104,9 +112,9 @@ export function useSession() {
   }, [resumeCandidate]);
 
   const discardPersistedSession = useCallback(() => {
-    clearPersistedSession(globalThis.localStorage);
+    clearPersistedSession(globalThis.localStorage, storageKey);
     setResumeCandidate(null);
-  }, []);
+  }, [storageKey]);
 
   const mentorEnabled = MENTOR_EXPERIMENT && session?.state.session.purpose === "internal_development" && session?.state.session.locale === "ru";
   const submitTurn = useCallback(
@@ -144,7 +152,7 @@ export function useSession() {
         const next = appendDialogue(session, result, route, interpreted);
         const nextMessages = [...messages, learnerMessage, dialogueMessage(result)];
         setSession(next); setMessages(nextMessages);
-        savePersistedSession(globalThis.localStorage, createPersistedSession({ session: next, messages: nextMessages }));
+        persist(next, nextMessages);
         return;
       }
       const turn = submitLearnerTurn({ session, text, shadowProvider, interpreted });
@@ -167,7 +175,7 @@ export function useSession() {
           );
         }
       }
-      const rendered = renderTurnMessages({ turn, bundle, learnerVisibleBefore, interpreted, route, mentorTextRu });
+      let rendered = renderTurnMessages({ turn, bundle, learnerVisibleBefore, interpreted, route, mentorTextRu });
 
       let completedSession = sessionAfterMentorRender;
       if (route?.discuss && turn.session.state.session.status !== "complete" && !turn.outcomes.some((x) => x.outcome === "SAFETY_STOP")) {
@@ -175,6 +183,10 @@ export function useSession() {
         const result = await requestMentorDialogue({ session: turn.session, messages: [...messages, ...rendered.filter(Boolean)], text });
         completedSession = appendDialogue(turn.session, result, route);
         rendered.push(dialogueMessage(result));
+      }
+      if (patientDialogue) {
+        const speech = await renderPatientDialogue({ session: completedSession, rendered, messages });
+        rendered = speech.messages; completedSession = speech.session;
       }
       setSession(completedSession);
       void turn.shadowTelemetryPromise.then((telemetry) => {
@@ -187,7 +199,7 @@ export function useSession() {
       });
       const nextMessages = [...messages, { id: `${Date.now()}-learner-persisted`, role: "learner", speakerRu: null, textRu: text }, ...rendered.filter(Boolean)];
       setMessages(nextMessages);
-      savePersistedSession(globalThis.localStorage, createPersistedSession({ session: completedSession, messages: nextMessages }));
+      persist(completedSession, nextMessages);
 
       // A case ends when the patient reaches a terminal state, not when the
       // learner stops typing (Core Runtime Spec §56) - that is when the
@@ -200,12 +212,12 @@ export function useSession() {
         setBusy(false);
       }
     },
-    [messages, session, mentorEnabled],
+    [messages, session, mentorEnabled, patientDialogue, persist],
   );
 
   const downloadExport = useCallback(() => {
     if (!session) return;
-    const bundleExport = exportSession({ session, generatedAtIso: nowIso() });
+    const bundleExport = patientDialogue ? exportPatientTranscript({ session, messages }) : exportSession({ session, generatedAtIso: nowIso() });
     const blob = new Blob([JSON.stringify(bundleExport, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -213,14 +225,14 @@ export function useSession() {
     a.download = `onqol-session-${session.sessionId}.json`;
     a.click();
     URL.revokeObjectURL(url);
-  }, [session]);
+  }, [session, messages, patientDialogue]);
 
   const learnerVisible = useMemo(() => (session ? buildLearnerVisibleState(session.state) : null), [session]);
 
   return {
     session, messages, busy, debrief, resumeCandidate, startSession, resumeSession,
     discardPersistedSession, submitTurn, downloadExport, learnerVisible, bundle,
-    mentorEnabled,
+    mentorEnabled, persistenceError,
   };
 }
 

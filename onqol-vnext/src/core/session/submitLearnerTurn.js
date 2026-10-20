@@ -38,9 +38,8 @@ export function submitLearnerTurn({ session, text, shadowProvider, interpreted: 
   const turnContext = buildTurnContext(session);
 
   // The hybrid path is async, so `useSession` resolves the interpretation
-  // first and passes it in. Everything else - tests, replay - uses the
-  // synchronous deterministic interpreter directly. Either way the structured
-  // result is recorded in LEARNER_TURN_RECEIVED, so replay never re-interprets.
+  // first and passes it in. New turns record the complete structured result,
+  // including deterministic turns, so restore never needs today's parser.
   const interpreted = interpretedOverride ?? interpretTurn({
     text,
     turnContext,
@@ -71,9 +70,9 @@ export function submitLearnerTurn({ session, text, shadowProvider, interpreted: 
       // (Stage 2) "hybrid" / "hybrid_fallback_deterministic".
       interpreterMode: interpreted.mode ?? "deterministic",
       semanticTelemetry: interpreted.semanticTelemetry ?? null,
-      // Preserve the async interpretation for resume. Re-parsing its text with
-      // today's dictionary or provider would change the historical decision.
-      ...(interpretedOverride ? { recordedInterpretation: structuredClone(interpreted) } : {}),
+      // Preserve all new interpretations for resume. Earlier deterministic
+      // artifacts lack this field and retain the strict causal-log comparison.
+      recordedInterpretation: structuredClone(interpreted),
       mentorSignal: interpreted.mentorSignal ?? null,
       unmatchedFragments: interpreted.unmatchedFragments ?? [],
       // Every command here passed the commitment gate: it is a decision, not a

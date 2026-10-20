@@ -2,6 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createSession } from "../../core/session/createSession.js";
 import { submitLearnerTurn } from "../../core/session/submitLearnerTurn.js";
+import { interpretTurn } from "../../ai/interpreter/interpretTurn.js";
+import { buildTurnContext } from "../../core/session/submitLearnerTurn.js";
 import { withShared } from "../../core/content/loadBundle.js";
 import diseaseBundle from "../../content/generated/appendicitis.json" with { type: "json" };
 import sharedBundle from "../../content/generated/shared.json" with { type: "json" };
@@ -35,5 +37,35 @@ test("corrupt and incompatible artifacts fail closed", () => {
   storage.value = "{broken";
   assert.equal(loadPersistedSession(storage, bundle), null);
   storage.value = JSON.stringify({ schemaVersion: 999 });
+  assert.equal(loadPersistedSession(storage, bundle), null);
+});
+
+test("new deterministic turns persist the full interpretation and restore without reinterpreting prose", () => {
+  const start = make();
+  const interpreted = interpretTurn({ text: "опрошу пациента", turnContext: buildTurnContext(start), bundle, idPrefix: `t${start.state.turn}` });
+  // Deliberately different prose proves restore uses the stored structured
+  // interpretation, then checks the exact resulting causal event log.
+  const original = submitLearnerTurn({ session: start, text: "исторический текст", interpreted }).session;
+  const recorded = original.events.find((event) => event.type === "LEARNER_TURN_RECEIVED");
+  assert.deepEqual(recorded.payload.recordedInterpretation, interpreted);
+  const storage = memoryStorage();
+  savePersistedSession(storage, createPersistedSession({ session: original, messages: [] }));
+  const restored = loadPersistedSession(storage, bundle);
+  assert.ok(restored);
+  assert.deepEqual(restored.session.events, original.events);
+  assert.deepEqual(restored.session.state, original.state);
+});
+
+test("older deterministic artifact without a full interpretation restores only after exact clinical replay", () => {
+  const original = submitLearnerTurn({ session: make(), text: "опрошу пациента" }).session;
+  const artifact = structuredClone(createPersistedSession({ session: original, messages: [] }));
+  for (const event of artifact.expectedEvents) if (event.type === "LEARNER_TURN_RECEIVED") delete event.payload.recordedInterpretation;
+  const storage = memoryStorage();
+  savePersistedSession(storage, artifact);
+  const restored = loadPersistedSession(storage, bundle);
+  assert.equal(restored?.session.persistenceMigration, "additive_recorded_interpretation");
+  const damaged = structuredClone(artifact);
+  damaged.expectedEvents.find((event) => event.type === "LEARNER_TURN_RECEIVED").payload.interpretedCommands = [];
+  savePersistedSession(storage, damaged);
   assert.equal(loadPersistedSession(storage, bundle), null);
 });

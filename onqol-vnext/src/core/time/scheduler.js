@@ -1,3 +1,4 @@
+import { reduceEvents } from "../state/worldState.js";
 import { EVENT } from "../events/eventTypes.js";
 
 /**
@@ -33,6 +34,7 @@ export function drainPendingWork(state, targetMinutes, runItem) {
     // The handler is responsible for producing the event that actually
     // resolves the item (e.g. TEST_RESULTED); this loop only removes it from
     // the queue once that has happened, so nothing can be drained twice.
+    cursor = reduceEvents(cursor, result.events);
     cursor = { ...cursor, pending: cursor.pending.filter((entry) => entry.id !== item.id) };
   }
 

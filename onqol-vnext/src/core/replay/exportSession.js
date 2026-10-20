@@ -42,6 +42,7 @@ export function exportSession({ session, generatedAtIso }) {
     // session's turns; `byTurn` is the per-turn record.
     interpreter: summarizeInterpreter(session.events),
     ai_telemetry: session.aiTelemetry ?? [],
+    ...(session.patientDialogue?.length ? { patient_dialogue_review: session.patientDialogue } : {}),
     ...(session.mentorDialogue?.length ? { mentor_dialogue: session.mentorDialogue } : {}),
   };
 }

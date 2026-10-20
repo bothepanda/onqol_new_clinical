@@ -34,7 +34,7 @@ export function renderTurnMessages({ turn, bundle, learnerVisibleBefore, interpr
   }
 
   for (const result of turn.outcomes) {
-    if (result.outcome === "STATUS_SNAPSHOT" || (result.outcome === "EXECUTED" && result.command?.type === "REQUEST_STATUS")) rendered.push(toMessage("env", renderStatusSnapshot(learnerVisibleBefore)));
+    if (result.outcome === "STATUS_SNAPSHOT" || (result.outcome === "EXECUTED" && result.command?.type === "REQUEST_STATUS")) rendered.push(toMessage("env", renderStatusSnapshot(result.visibleSnapshot ?? learnerVisibleBefore)));
     else if (result.outcome === "CLARIFY")
       rendered.push(toMessage("env", renderClarification(result.missing, { promptRu: result.clarifyPromptRu, by: result.clarifyBy })));
     else if (result.outcome === "UNSUPPORTED_CONTENT") rendered.push(toMessage("env", renderUnsupported(result)));

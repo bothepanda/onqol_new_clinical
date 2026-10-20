@@ -1,3 +1,4 @@
+import { scheduleGovernedTreatmentEffect } from "../calibration/treatmentCalibration.js";
 import { COMMAND, validateCommand } from "./commandTypes.js";
 import { EVENT } from "../events/eventTypes.js";
 import { createEvent } from "../events/eventLog.js";
@@ -164,7 +165,7 @@ const HANDLERS = {
     };
   },
 
-  [COMMAND.REQUEST_STATUS]: () => ({ outcome: "EXECUTED", events: [] }), // pure read; renderer handles it
+  [COMMAND.REQUEST_STATUS]: ({ state }) => ({ outcome: "EXECUTED", events: [], visibleSnapshot: buildLearnerVisibleState(state) }), // pure read; renderer handles it
 
   [COMMAND.WAIT]: ({ command, turnContext }) => ({
     outcome: command.params.untilNextPending === true && turnContext.waitTargetMinutes == null ? "NO_PENDING_WORK" : "EXECUTED",
@@ -1262,54 +1263,6 @@ function buildConstraintDisclosure({ state, clockRoot, capabilityKey, reasonKey,
  * medication is genuinely GIVEN and recorded, and nothing pretends to know
  * what happens next.
  */
-function scheduleGovernedTreatmentEffect({ bundle, state, command, matchKey, matchValue, route, rng }) {
-  const effects = bundle.trajectories?.treatment_effects ?? {};
-  const entry = Object.entries(effects).find(([, effect]) => {
-    const routeMatches = !effect.applies_to_routes || (route != null && effect.applies_to_routes.includes(route));
-    if (!routeMatches) return false;
-    if (matchKey === "drugId") return effect.applies_to?.includes(matchValue);
-    if (matchKey === "fluidId") return effect.applies_to_fluid?.includes(matchValue);
-    return false;
-  });
-  if (!entry) return [];
-  const [effectId, effect] = entry;
-  if (!isRuntimeAuthoritative(reviewStatusOf(effect))) return [];
-
-  const envelope = effect.response_envelope;
-  if (envelope == null) return [];
-
-  // Matrix M09: a fluid effect is conditional on an actual volume state, which
-  // base APP-004 does not have and this pass does not model.
-  if (effect.requires_patient_state && state.truth?.[effect.requires_patient_state] !== true) return [];
-
-  const onsetMinutes = envelope.onset_minutes ?? 0;
-  const sample = (value, name) => {
-    if (Number.isFinite(value)) return value;
-    if (Array.isArray(value) && value.length === 2 && value.every(Number.isFinite)) {
-      return rng.stream(`treatment_effect:${effectId}:${command.id}:${name}`).range(value[0], value[1], 1);
-    }
-    return undefined;
-  };
-  return [
-    {
-      id: `${command.id}::effect::${effectId}`,
-      kind: "treatment_effect",
-      effectId,
-      deltas: samplePhysiologyDeltas(envelope, sample),
-      symptomDeltas: { painScore: sample(envelope.pain_score_delta ?? envelope.pain_score_delta_range, "painScore") },
-      commandId: command.id,
-      ruleId: effect.provenance?.id ?? effectId,
-      sourceIds: effect.source_ids ?? [],
-      // A response cannot improve the patient past the state the source
-      // describes (content `bounds`); without it a flat per-bolus delta would keep
-      // "improving" the patient with every further bolus.
-      bounds: envelope.bounds ?? null,
-      durationMinutes: envelope.duration_minutes ?? null,
-      dueAtMinutes: state.clock.elapsedMinutes + onsetMinutes,
-    },
-  ];
-}
-
 // Which physiology fields does examining/reassessing these targets actually
 // measure? `undefined` means the content declares no observation targets at
 // all (legacy: disclose the whole snapshot); `{}` means "nothing measured".
@@ -1325,34 +1278,6 @@ function observedFor(bundle, state, keys) {
   return observed;
 }
 
-// A response envelope declares a physiology delta as `<field>_delta` (a fixed
-// number) or `<field>_delta_range` (sampled). This reads whichever fields are
-// actually present, generically - a content author adding `crt_seconds_delta`
-// or `urine_output_ml_per_hr_delta` for a new disease needs no code change
-// here (Wave B / ТЗ §14 generalization: the physiology-delta mechanism was
-// previously hardcoded to heart_rate/systolic_bp/temperature_c only).
-const DELTA_SUFFIX = "_delta";
-const DELTA_RANGE_SUFFIX = "_delta_range";
-
-function toCamelCase(snakeCase) {
-  return snakeCase.replace(/_([a-z0-9])/g, (_, char) => char.toUpperCase());
-}
-
-function samplePhysiologyDeltas(envelope, sample) {
-  const fields = new Set();
-  for (const key of Object.keys(envelope ?? {})) {
-    if (key.endsWith(DELTA_RANGE_SUFFIX)) fields.add(key.slice(0, -DELTA_RANGE_SUFFIX.length));
-    else if (key.endsWith(DELTA_SUFFIX)) fields.add(key.slice(0, -DELTA_SUFFIX.length));
-  }
-  const deltas = {};
-  for (const field of fields) {
-    const physiologyKey = toCamelCase(field);
-    const raw = envelope[`${field}_delta`] ?? envelope[`${field}_delta_range`];
-    deltas[physiologyKey] = sample(raw, physiologyKey);
-  }
-  return deltas;
-}
-
 /**
  * Governed postoperative complication scheduling (task brief P0-6/P1-4).
  *
@@ -1366,11 +1291,11 @@ function samplePhysiologyDeltas(envelope, sample) {
  */
 function scheduleGovernedComplicationChecks({ bundle, state, command }) {
   const complications = bundle.complications?.postoperative_course?.complications ?? [];
-  return complications.map((complication) => ({
+  return complications.filter((complication) => Number.isFinite(complication.earliest_onset_hours) && complication.earliest_onset_hours >= 0).map((complication) => ({
     id: `${command.id}::${complication.id}`,
     kind: "complication_check",
     complicationId: complication.id,
-    dueAtMinutes: state.clock.elapsedMinutes + (complication.earliest_onset_hours ?? 48) * 60,
+    dueAtMinutes: state.clock.elapsedMinutes + complication.earliest_onset_hours * 60,
   }));
 }
 

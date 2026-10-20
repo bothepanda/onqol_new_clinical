@@ -9,6 +9,24 @@ npm install
 npm run dev
 ```
 
+### Flexible patient V2 (2026-09-25)
+
+`npm run dev:flexible` adds **Гибкий клинический диалог** to the start screen.
+It reuses the existing interpreter, governed Patient Engine, scheduler and replay.
+The provider only renders disclosed patient/staff speech through protected clinical
+clauses; neither generator nor verifier can create facts or alter time/state.
+Missing reviewed treatment responses remain simulator limitations. This is an
+internal Russian APP-004/Reference Hospital prototype, not clinical validation.
+V1 saved data is retained but cannot be resumed as V2 truth.
+
+See [implementation report](docs/review/FLEXIBLE_PATIENT_V2_GOVERNED_VARIABILITY_2026-09-25.md),
+[calibration extension](docs/REVIEWED_SIMULATION_CALIBRATION_V2.md) and
+[proposed validation plan](docs/review/CLINICAL_RELIABILITY_VALIDATION_PLAN_v0.1_2026-09-25.md).
+Run `npm run test:e2e:flexible` for desktop/mobile fixtures; tests make no paid calls.
+The ordinary learner download contains only shown dialogue. Reviewers may save the
+local persistence object and run `node scripts/reviewFlexiblePatient.mjs input.json review.json`
+for raw attempts, verifier decisions and causal-event references (reviewer-only).
+
 ## Verify it
 
 ```bash

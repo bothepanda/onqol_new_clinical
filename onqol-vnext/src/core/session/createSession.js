@@ -17,7 +17,7 @@ import { resolveInteractionFlags } from "../../ai/interaction/featureFlags.js";
  * This is the one place `createInitialState` is called from application code
  * - everything after this point is `applyEvent` folded over the log.
  */
-export function createSession({ sessionId, seed, mode, realProfileId, casePresetId, bundle, locale, startIso, sessionPurpose, interactionFlags, jurisdictionContext = "KZ" }) {
+export function createSession({ sessionId, seed, mode, realProfileId, casePresetId, bundle, locale, startIso, sessionPurpose, interactionFlags, jurisdictionContext = "KZ", clinicalContentPolicy }) {
   const rng = createRng(seed);
   const preset = (bundle.phenotypes?.case_presets ?? []).find(
     (candidate) => candidate.case_preset_id === casePresetId,
@@ -28,7 +28,11 @@ export function createSession({ sessionId, seed, mode, realProfileId, casePreset
   if (preset?.requires_flag && resolveInteractionFlags(interactionFlags)[preset.requires_flag] !== true) {
     throw new SessionAudienceGateError("case_flag_required", { casePresetId, flag: preset.requires_flag });
   }
-  const patientTruth = inventoryPatientTruth({ bundle, casePresetId, sessionPurpose });
+  const patientTruth = inventoryPatientTruth({ bundle, casePresetId,
+    sessionPurpose: clinicalContentPolicy === "approved_only" ? SESSION_PURPOSE.LEARNER_PILOT : sessionPurpose });
+  if (clinicalContentPolicy === "approved_only" && !patientTruth.approved) {
+    throw new SessionAudienceGateError("approved_patient_truth_required", { casePresetId });
+  }
   const audienceDecision = assertSessionAudienceAllowed({
     sessionPurpose,
     preset,
@@ -41,7 +45,7 @@ export function createSession({ sessionId, seed, mode, realProfileId, casePreset
   // envelope once the linked inflammatory profiles are the reviewed path. If
   // the profile calibration is not enabled + approved + valid, fail here
   // rather than let `generatePatient` fall back to the union ranges.
-  if (sessionPurpose === SESSION_PURPOSE.LEARNER_PILOT || sessionPurpose === SESSION_PURPOSE.PRODUCTION) {
+  if (clinicalContentPolicy === "approved_only" || sessionPurpose === SESSION_PURPOSE.LEARNER_PILOT || sessionPurpose === SESSION_PURPOSE.PRODUCTION) {
     const calibration = evaluateInflammatoryCalibrationForPilot({
       inflammatoryProfiles: bundle.disease?.inflammatory_profiles,
     });
@@ -82,6 +86,7 @@ export function createSession({ sessionId, seed, mode, realProfileId, casePreset
       locale,
       jurisdictionContext,
       purpose: sessionPurpose,
+      ...(clinicalContentPolicy ? { clinicalContentPolicy } : {}),
       casePresetId,
       interactionFlags: resolveInteractionFlags(interactionFlags),
       presetRuntimeStatus: preset.runtime_status,
@@ -114,6 +119,7 @@ export function createSession({ sessionId, seed, mode, realProfileId, casePreset
       casePresetId,
       presentationCategory: bundle.disease.presentation_category,
       sessionPurpose,
+      ...(clinicalContentPolicy ? { clinicalContentPolicy } : {}),
       interactionFlags: resolveInteractionFlags(interactionFlags),
       audienceGate: audienceDecision.code,
       ...(patient.presentation?.disclosesVitalsOnArrival === false ? { disclosesVitals: false } : {}),

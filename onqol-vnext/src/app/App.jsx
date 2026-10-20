@@ -7,11 +7,14 @@ import { SessionSidebar } from "../ui/components/SessionSidebar.jsx";
 import { DebriefPanel } from "../ui/components/DebriefPanel.jsx";
 import { t } from "../ui/i18n/strings.js";
 import { useSession } from "./session/useSession.js";
+import { FlexiblePatientApp } from "./FlexiblePatientApp.jsx";
 import "../ui/styles/base.css";
 import "../ui/styles/shell.css";
 
 export default function App() {
   const [locale, setLocale] = useState("ru");
+  const [flexible, setFlexible] = useState(false);
+  const flexibleAvailable = import.meta.env.VITE_ONQOL_FLEXIBLE_PATIENT === "true" && import.meta.env.VITE_ONQOL_PILOT !== "true";
   const {
     session, messages, busy, debrief, resumeCandidate, startSession, resumeSession,
     discardPersistedSession, submitTurn, downloadExport, learnerVisible,
@@ -29,13 +32,14 @@ export default function App() {
     <div className="onqol-shell">
       <AppHeader locale={locale} onLocaleChange={setLocale} onBrandClick={handleBrandClick} />
 
-      {!session ? (
+      {flexible && flexibleAvailable ? <FlexiblePatientApp onExit={() => setFlexible(false)} /> : !session ? (
         <ModeSelection
           locale={locale}
           onSelect={handleSelectMode}
           resumeCandidate={resumeCandidate}
           onResume={resumeSession}
           onDiscard={discardPersistedSession}
+          onFlexible={flexibleAvailable ? () => setFlexible(true) : null}
         />
       ) : (
         <div className="onqol-session-shell" data-turn={session.state.turn}>

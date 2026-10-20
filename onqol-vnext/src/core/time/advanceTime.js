@@ -1,3 +1,4 @@
+import { calibrationIdentity, causalPatch, materializeTreatmentSpecs } from "../calibration/treatmentCalibration.js";
 import { EVENT } from "../events/eventTypes.js";
 import { createEvent } from "../events/eventLog.js";
 import { drainPendingWork } from "./scheduler.js";
@@ -137,6 +138,7 @@ function buildProgressionEvents({ state, clockRoot, bundle, rng, targetMinutes, 
   return courseEvents({
     eventType: EVENT.DISEASE_PROGRESSED,
     step,
+    state, calibration: calibrationIdentity(trajectory, trajectoryId, bundle, rng),
     atMinutes: targetMinutes,
     atIso,
     cause: { ...cause, source: cause?.source ?? `trajectory:${trajectoryId}` },
@@ -190,6 +192,7 @@ function buildPostoperativeRecoveryEvents({ state, clockRoot, bundle, rng, targe
           atMinutes: targetMinutes,
           atIso,
           payload: {
+            calibration: causalPatch(state, { symptoms: { postopPainStage: initialState.postop_pain_state }, truth: { recoveryPhase: initialStateId } }, calibrationIdentity(course, "post_source_control_course", bundle, rng)),
             symptoms: { postopPainStage: initialState.postop_pain_state },
             truth: { recoveryPhase: initialStateId },
             transition: {
@@ -211,13 +214,14 @@ function buildPostoperativeRecoveryEvents({ state, clockRoot, bundle, rng, targe
   return courseEvents({
     eventType: EVENT.POSTOPERATIVE_RECOVERY_UPDATED,
     step,
+    state, calibration: calibrationIdentity(course, "post_source_control_course", bundle, rng),
     atMinutes: targetMinutes,
     atIso,
     cause: { ...cause, source: cause?.source ?? "postoperative_recovery" },
   });
 }
 
-function courseEvents({ eventType, step, atMinutes, atIso, cause }) {
+function courseEvents({ eventType, step, state, calibration, atMinutes, atIso, cause }) {
   const events = [
     createEvent({
       type: eventType,
@@ -225,6 +229,7 @@ function courseEvents({ eventType, step, atMinutes, atIso, cause }) {
       atIso,
       payload: {
         ...step.effects,
+        calibration: causalPatch(state, step.effects, { ...calibration, rng: step.rng }),
         transition: {
           id: step.transitionId,
           from: step.from,
@@ -332,15 +337,21 @@ function runPendingItem({ state, clockRoot, bundle, rng, item, cause }) {
     // AND carries a reviewed response envelope (`scheduleGovernedTreatmentEffect`
     // in executeCommand.js). Reaching here means both are true, so the
     // envelope's deltas may touch patient truth.
+    case "treatment_effect_unavailable":
+      return { events: [createEvent({ type: EVENT.SIMULATOR_LIMITATION_NOTED, atMinutes: item.dueAtMinutes, atIso,
+        payload: { ...simulatorLimitation({ kind: "treatment_effect", id: item.effectId, reviewStatus: "invalid_calibration" }), resolvedPendingId: item.id, reason: item.reason },
+        cause: { actor: "system", commandId: item.commandId, source: "governance_gate" } })] };
     case "treatment_effect": {
-      const physiology = {};
+      const constrained = materializeTreatmentSpecs(item, state);
+      if (!constrained) return runPendingItem({ state, clockRoot, bundle, rng, item: { ...item, kind: "treatment_effect_unavailable", reason: "constraint_rejected" }, cause });
+      const physiology = { ...constrained.physiology };
       for (const [key, delta] of Object.entries(item.deltas ?? {})) {
-        if (delta == null) continue;
+        if (!Number.isFinite(delta) || !Number.isFinite(state.physiology[key])) continue;
         const previous = state.physiology[key];
         const raw = DECIMAL_PHYSIOLOGY_FIELDS.has(key) ? round1(previous + delta) : Math.round(previous + delta);
         physiology[key] = clampToBound(previous, delta, raw, item.bounds?.[key]);
       }
-      const symptoms = {};
+      const symptoms = { ...constrained.symptoms };
       // Analgesia acts on whichever pain state is active; it can never write
       // the pre-source-control pain of a patient whose source is already
       // controlled (matrix PO01).
@@ -355,7 +366,8 @@ function runPendingItem({ state, clockRoot, bundle, rng, item, cause }) {
             type: EVENT.TREATMENT_EFFECT_APPLIED,
             atMinutes: item.dueAtMinutes,
             atIso,
-            payload: { effectId: item.effectId, physiology, symptoms, resolvedPendingId: item.id },
+            payload: { effectId: item.effectId, physiology, symptoms, resolvedPendingId: item.id,
+              calibration: causalPatch(state, { physiology, symptoms }, item.calibration ?? { id: item.effectId, version: "historical" }) },
             cause: {
               actor: "system",
               commandId: item.commandId,
@@ -435,7 +447,7 @@ function complicationCheckEvents({ bundle, rng, item, atIso }) {
   // content. An unapproved rate is NOT rolled and NOT quietly treated as
   // "cleared" - clearing it would assert, falsely, that a reviewed
   // probability had been evaluated and came out negative.
-  if (!isRuntimeAuthoritative(reviewStatusOf(complication))) {
+  if (!isRuntimeAuthoritative(reviewStatusOf(complication)) || !Number.isFinite(complication.base_probability) || complication.base_probability < 0 || complication.base_probability > 1) {
     return [
       createEvent({
         type: EVENT.SIMULATOR_LIMITATION_NOTED,
@@ -462,6 +474,7 @@ function complicationCheckEvents({ bundle, rng, item, atIso }) {
   const probability = complication.base_probability;
   const fires = rng.stream("complications").chance(probability);
   const cause = { actor: "system", source: "complication_check", ruleIds: [complication.id] };
+  const calibration = { ...calibrationIdentity(complication, complication.id, bundle, rng), stream: "complications", probability, selected: fires };
 
   if (!fires) {
     // A negative check is itself an auditable fact (Core Runtime Spec
@@ -472,7 +485,7 @@ function complicationCheckEvents({ bundle, rng, item, atIso }) {
         type: EVENT.COMPLICATION_CHECK_CLEARED,
         atMinutes: item.dueAtMinutes,
         atIso,
-        payload: { complicationId: complication.id, probability, resolvedPendingId: item.id },
+        payload: { complicationId: complication.id, probability, calibration, resolvedPendingId: item.id },
         cause,
       }),
     ];
@@ -482,7 +495,7 @@ function complicationCheckEvents({ bundle, rng, item, atIso }) {
       type: EVENT.COMPLICATION_OCCURRED,
       atMinutes: item.dueAtMinutes,
       atIso,
-      payload: { complicationId: complication.id, presentationRu: complication.presentation_ru, resolvedPendingId: item.id },
+      payload: { complicationId: complication.id, presentationRu: complication.presentation_ru, calibration, resolvedPendingId: item.id },
       cause,
     }),
   ];

@@ -6,7 +6,7 @@ import { t } from "../i18n/strings.js";
  * exposed here - that is deliberately out of scope for the default
  * unknown-patient game (Core Runtime Spec §4).
  */
-export function ModeSelection({ locale, onSelect, resumeCandidate, onResume, onDiscard }) {
+export function ModeSelection({ locale, onSelect, resumeCandidate, onResume, onDiscard, onFlexible }) {
   return (
     <div className="onqol-mode-screen">
       <h1>{t(locale, "mode.title")}</h1>
@@ -35,6 +35,10 @@ export function ModeSelection({ locale, onSelect, resumeCandidate, onResume, onD
           <span>{t(locale, "mode.realDesc")}</span>
         </button>
       </div>
+      {onFlexible && <button type="button" className="onqol-mode-card" onClick={onFlexible}>
+        <strong>Гибкий клинический диалог</strong>
+        <span>Естественные ответы пациента и персонала · прототип</span>
+      </button>}
     </div>
   );
 }

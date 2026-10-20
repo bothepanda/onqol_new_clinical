@@ -13,8 +13,10 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse as parseYaml } from "yaml";
+import { validEnvelope } from "../src/core/calibration/treatmentCalibration.js";
 import { RULE_CONDITION } from "../src/core/rules/conditions.js";
 import { isKnownContentOperator } from "../src/core/rules/contentConditions.js";
+import { validateCalibrationProposals } from "../src/content/review/validateCalibrationProposals.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -163,6 +165,14 @@ function buildDisease(diseaseId, shared) {
     ...validateGeneratingContent(bundle, diseaseId),
     ...validateCrossReferences(bundle, shared, diseaseId),
   ];
+  // Review-only calibration lives beside authored content, outside REQUIRED_FILES
+  // and rawParts. Validate it during content:check/build without granting it a
+  // content version, runtime bundle field, or treatment-effect selection path.
+  if (diseaseId === "appendicitis") {
+    const reviewPath = path.join(dir, "review", "calibration-proposals-v1.json");
+    const review = JSON.parse(readFileSync(reviewPath, "utf8"));
+    errors.push(...validateCalibrationProposals(review, (bundle.disease.sources ?? []).map((source) => source.id)));
+  }
   if (errors.length) {
     throw new Error(`Content validation failed:\n${errors.join("\n")}`);
   }
@@ -262,6 +272,10 @@ function validateGeneratingContent(bundle, diseaseId) {
   }
   for (const [id, effect] of Object.entries(bundle.trajectories?.treatment_effects ?? {})) {
     errors.push(...validateProvenance(effect, `treatment_effect ${id}`));
+    if (effect.response_envelope != null && (!Number.isFinite(effect.response_envelope.onset_minutes) || effect.response_envelope.onset_minutes < 0 || !validEnvelope(effect.response_envelope))) {
+      errors.push(`treatment_effect ${id} has an invalid response_envelope`);
+    }
+    if (effect.provenance?.review_status === "approved_for_training" && !effect.response_envelope) errors.push(`treatment_effect ${id} has no approved response_envelope`);
   }
   for (const complication of bundle.complications?.postoperative_course?.complications ?? []) {
     errors.push(...validateProvenance(complication, `complication ${complication.id}`));

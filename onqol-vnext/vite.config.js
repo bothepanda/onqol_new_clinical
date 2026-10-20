@@ -3,6 +3,7 @@ import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import { createAiGateway } from "./server/aiGateway.mjs";
 import { createMentorGateway } from "./server/mentorGateway.mjs";
+import { createFlexiblePatientGateway } from "./server/flexiblePatientGateway.mjs";
 
 // The gateway is mounted as dev middleware so a developer running `npm run dev`
 // gets the same server-side key boundary the deployed app has: the browser
@@ -11,6 +12,7 @@ export default defineConfig(({ mode }) => {
   const env = { ...process.env, ...loadEnv(mode, process.cwd(), "") };
   const gateway = createAiGateway({ env });
   const mentorGateway = createMentorGateway({ env });
+  const flexibleGateway = createFlexiblePatientGateway({ env });
 
   return {
     plugins: [
@@ -18,10 +20,12 @@ export default defineConfig(({ mode }) => {
       {
         name: "onqol-ai-gateway",
         configureServer(server) {
+          server.middlewares.use(flexibleGateway);
           server.middlewares.use(mentorGateway);
           server.middlewares.use(gateway);
         },
         configurePreviewServer(server) {
+          server.middlewares.use(flexibleGateway);
           server.middlewares.use(mentorGateway);
           server.middlewares.use(gateway);
         },

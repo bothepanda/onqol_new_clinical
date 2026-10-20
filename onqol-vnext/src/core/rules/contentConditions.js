@@ -2,7 +2,9 @@ const OPERATORS = new Set(["equals", "not_equals", "gte", "lte", "includes", "no
 
 /** Disease-neutral conditions for reviewed runtime content. Unknown input fails closed. */
 export function contentConditionsMet(conditions, state) {
-  if (!Array.isArray(conditions) || conditions.length === 0) return true;
+  if (conditions === undefined || conditions === null) return true;
+  if (!Array.isArray(conditions)) return false;
+  if (conditions.length === 0) return true;
   return conditions.every((condition) => evaluateContentCondition(condition, state) === true);
 }
 
@@ -10,13 +12,14 @@ export function evaluateContentCondition(condition, state) {
   if (!condition || typeof condition.path !== "string" || !OPERATORS.has(condition.operator)) return false;
   const actual = readStatePath(state, condition.path);
   if (actual === undefined) return false;
+  const expected = condition.value_path !== undefined ? readStatePath(state, condition.value_path) : condition.value;
   switch (condition.operator) {
-    case "equals": return actual === condition.value;
-    case "not_equals": return actual !== condition.value;
-    case "gte": return Number.isFinite(actual) && Number.isFinite(condition.value) && actual >= condition.value;
-    case "lte": return Number.isFinite(actual) && Number.isFinite(condition.value) && actual <= condition.value;
-    case "includes": return Array.isArray(actual) && actual.includes(condition.value);
-    case "not_includes": return Array.isArray(actual) && !actual.includes(condition.value);
+    case "equals": return actual === expected;
+    case "not_equals": return actual !== expected;
+    case "gte": return Number.isFinite(actual) && Number.isFinite(expected) && actual >= expected;
+    case "lte": return Number.isFinite(actual) && Number.isFinite(expected) && actual <= expected;
+    case "includes": return Array.isArray(actual) && actual.includes(expected);
+    case "not_includes": return Array.isArray(actual) && !actual.includes(expected);
     case "truthy": return actual === true;
     case "falsy": return actual === false;
     default: return false;
