@@ -3,7 +3,7 @@ import { renderFlexibleSpeech } from "../src/ai/patient/flexiblePatient.js";
 const key = "onqol-flexible-patient-v2";
 const enter = async (page, text) => { await page.getByRole("textbox").fill(text); await page.getByRole("textbox").press("Enter"); await expect(page.getByRole("textbox")).toBeEnabled(); };
 
-test("governed dialogue: disclosure, immutable truth, restore, safe export and stop", async ({ page }) => {
+test("governed dialogue: disclosure, immutable truth, restore, safe export and stop", async ({ page }, testInfo) => {
   let calls = 0;
   await page.route("**/api/**", async (route) => {
     if (!route.request().url().endsWith("/api/flexible/turn")) return route.fulfill({ status: 503, json: { error: "fixture_only" } });
@@ -42,10 +42,10 @@ test("governed dialogue: disclosure, immutable truth, restore, safe export and s
   await page.getByRole("button", { name: "Остановить сессию" }).click();
   await expect(page.getByText(/Кейс не завершён/)).toBeVisible();
   await expect(page.getByRole("textbox")).toHaveCount(0);
-  await page.screenshot({ path: "/private/tmp/onqol-flexible-v2-desktop.png", fullPage: true });
+  await page.screenshot({ path: testInfo.outputPath("onqol-flexible-v2-desktop.png"), fullPage: true });
 });
 
-test("mobile renderer failure does not undo executed action; V1 is retained without migration", async ({ page }) => {
+test("mobile renderer failure does not undo executed action; V1 is retained without migration", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.route("**/api/**", (route) => route.fulfill({ status: 503, json: { error: "offline-fixture" } }));
   await page.goto("/");
@@ -59,5 +59,5 @@ test("mobile renderer failure does not undo executed action; V1 is retained with
   expect(JSON.stringify(stored)).not.toContain("invented");
   expect(await page.evaluate(() => localStorage.getItem("onqol-flexible-patient-v1"))).toContain("invented");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.screenshot({ path: "/private/tmp/onqol-flexible-v2-mobile.png", fullPage: true });
+  await page.screenshot({ path: testInfo.outputPath("onqol-flexible-v2-mobile.png"), fullPage: true });
 });
