@@ -37,10 +37,28 @@ for raw attempts, verifier decisions and causal-event references (reviewer-only)
   constraints, simulator limitations, mentor state and recent events. It is never
   mounted in a production or pilot build.
 
+### Pilot build
+
+```bash
+npm run build:pilot   # learner_pilot route, deterministic interpreter, no provider calls
+npm run start:pilot   # serves dist/ on 127.0.0.1:4180; reads no .env.local
+```
+
+`build:hybrid` / `start:hybrid` are diagnostic builds with the hybrid interpreter
+(verdict NO-GO, see `docs/KNOWN_GAPS.md` §3) and load provider keys from `.env.local`;
+they are not the pilot. Note that a plain `npm run dev` / `npm run build` uses the
+**semantic-first** interpreter, which calls the model through `/api/ai/*` when a key
+is configured and otherwise falls back to the deterministic reading.
+
+The pilot server has no authentication and binds to localhost only. Its rate limit
+is keyed by the socket address, so behind a reverse proxy every learner shares one
+limit, and the `ONQOL_ALLOWED_ORIGIN` check is skipped for requests without an
+`Origin` header. Decide hosting and access control before exposing it.
+
 ## Verify it
 
 ```bash
-npm run verify   # content:check + test + lint + build, in that order
+npm run verify   # content:check + governance:check + test + offline corpus + lint + build
 ```
 
 Individually: `npm run content:build` (compiles `src/content/**/*.yaml` into `src/content/generated/`, required before `test`/`build`/`dev` — already wired into those scripts), `npm test`, `npm run lint`, `npm run build`.

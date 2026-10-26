@@ -1,3 +1,5 @@
+> **Исторический документ (09.08.2026).** Описывает V3.5 и папку `onqol-trainer/`, которой в этом репозитории нет. Актуальное состояние — [`onqol-vnext/README.md`](onqol-vnext/README.md) и [`onqol-vnext/docs/KNOWN_GAPS.md`](onqol-vnext/docs/KNOWN_GAPS.md). Команды ниже здесь не работают.
+
 # HANDOFF — ON QOL V3.5 (scaffold)
 
 Состояние на 09.08.2026. **232 теста зелёные**, lint и build чистые.
