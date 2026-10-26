@@ -5,6 +5,8 @@ import { createEvent } from "../../core/events/eventLog.js";
 import { EVENT } from "../../core/events/eventTypes.js";
 import { generatePatient } from "../../core/patient/patientGenerator.js";
 import { withShared } from "../../core/content/loadBundle.js";
+import { createSession } from "../../core/session/createSession.js";
+import { submitLearnerTurn } from "../../core/session/submitLearnerTurn.js";
 import diseaseBundle from "../../content/generated/appendicitis.json" with { type: "json" };
 import sharedBundle from "../../content/generated/shared.json" with { type: "json" };
 
@@ -78,4 +80,36 @@ test("a reassessment names the parameters the learner actually asked for", () =>
   });
   assert.match(rendered.textRu, /боль/);
   assert.match(rendered.textRu, /витальные показатели/);
+});
+
+test("every sentence of an abdominal exam starts with a capital letter", () => {
+  const event = createEvent({ type: EVENT.EXAMINATION_PERFORMED, atMinutes: 10, atIso: "x", payload: { region: "abdomen" } });
+  const { textRu } = renderEvent({ event, bundle, patient });
+  for (const sentence of textRu.split(/(?<=\.)\s+/)) assert.match(sentence, /^[А-ЯЁA-Z]/, sentence);
+});
+
+test("a gender-neutral verb form is resolved from the patient's sex", () => {
+  const event = createEvent({ type: EVENT.FASTING_HISTORY_OBTAINED, atMinutes: 5, atIso: "x", payload: { fasting: { lastSolidFoodHoursAgo: 9, lastClearLiquidHoursAgo: 1 } } });
+  const female = renderEvent({ event, bundle, patient: { ...patient, demographics: { ...patient.demographics, sex: "female" } } }).textRu;
+  const male = renderEvent({ event, bundle, patient: { ...patient, demographics: { ...patient.demographics, sex: "male" } } }).textRu;
+  assert.match(female, /ела .* пила/);
+  assert.match(male, /ел .* пил /);
+  assert.doesNotMatch(female + male, /\(а\)/);
+});
+
+test("a reassessment names the values measured at that moment, not a pointer", () => {
+  const session = createSession({ sessionId: "reassess-values", seed: "reassess-values", mode: "reference", casePresetId: "APP-004", bundle, locale: "ru", startIso: "2026-10-01T10:00:00+05:00", sessionPurpose: "internal_development" });
+  const turn = submitLearnerTurn({ session, text: "переоценю боль и витальные через 30 минут" });
+  const event = [...(turn.timeEvents ?? []), ...turn.outcomes.flatMap((o) => o.events ?? [])].find((e) => e.type === EVENT.PATIENT_REASSESSED);
+  const { state } = turn.session;
+  const snapshot = state.observations.vitals.at(-1);
+  assert.equal(snapshot.atMinutes, event.atMinutes);
+
+  const text = renderEvent({ event, bundle, patient: turn.session.patient, state }).textRu;
+  assert.ok(text.includes(`Боль ${snapshot.values.painScore}/10.`), text);
+  assert.match(text, new RegExp(`ЧСС ${snapshot.values.heartRate}`));
+  assert.doesNotMatch(text, /см\. текущие показатели/);
+
+  const elsewhere = renderEvent({ event: { ...event, atMinutes: event.atMinutes + 1 }, bundle, patient: turn.session.patient, state }).textRu;
+  assert.match(elsewhere, /см\. текущие показатели/, "a snapshot from another moment is never reported as this reassessment");
 });

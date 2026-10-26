@@ -258,9 +258,9 @@ test("PBC-5 «осмотрю пациента» asks what is examined; «жив�
   assert.deepEqual(outcomesOf(done.turn), ["EXECUTED"]);
   // One turn produced inspection, palpation, peritoneal signs and auscultation.
   assert.match(done.text, /участвует в акте дыхания/, "inspection");
-  assert.match(done.text, /при пальпации/, "palpation");
+  assert.match(done.text, /при пальпации/i, "palpation");
   assert.match(done.text, /раздражения брюшины/, "peritoneal signs");
-  assert.match(done.text, /перистальтика/, "auscultation");
+  assert.match(done.text, /перистальтика/i, "auscultation");
 });
 
 test("PBC-5 the universal normal layer answers unrelated examinations without overwriting the abdomen", () => {
@@ -478,7 +478,7 @@ test("PBC-10 a stated reassessment advances time and reports the named parameter
   const waited = learnerVisibleText(base, "переоценю боль и живот через 30 минут");
   assert.deepEqual(outcomesOf(waited.turn), ["EXECUTED"]);
   assert.equal(waited.session.state.clock.elapsedMinutes - clockBefore, 30, "the stated 30-minute interval is what elapses");
-  assert.match(waited.text, /при пальпации/, "an abdominal reassessment re-examines the abdomen");
+  assert.match(waited.text, /при пальпации/i, "an abdominal reassessment re-examines the abdomen");
   assert.equal(/Клинически значимых изменений нет/.test(waited.text), false, "not the generic normal layer");
 });
 
@@ -487,7 +487,7 @@ test("PBC-10 a later abdominal examination is never suppressed as a duplicate of
   const session = saying(newSession("pbc-repeat"), ["живот"]);
   const again = learnerVisibleText(session, "живот");
   assert.deepEqual(outcomesOf(again.turn), ["EXECUTED"]);
-  assert.match(again.text, /при пальпации/);
+  assert.match(again.text, /при пальпации/i);
   assert.equal(again.session.state.observations.examinations.length, 2);
 });
 

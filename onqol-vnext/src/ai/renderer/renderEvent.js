@@ -2,6 +2,7 @@ import { EVENT } from "../../core/events/eventTypes.js";
 import { evaluateContentCondition } from "../../core/rules/contentConditions.js";
 import { formatObserved, sentence } from "./vitalsLabels.js";
 import { postopPainStageRu } from "./renderStatus.js";
+import { buildLearnerVisibleState } from "../../core/state/learnerView.js";
 
 /**
  * Turning one domain event into learner-facing Russian text.
@@ -98,7 +99,7 @@ export function renderEvent({ event, bundle, patient, state }) {
 
     // Matrix PR02: the fasting history, spoken by whoever obtained it.
     case EVENT.FASTING_HISTORY_OBTAINED:
-      return renderFastingHistory(event, bundle);
+      return renderFastingHistory(event, bundle, patient);
 
     case EVENT.ORAL_INTAKE_PRESCRIBED:
       return { speakerRu: "Медсестра", textRu: ORAL_INTAKE_RU[event.payload.level] ?? "Режим питания назначен." };
@@ -191,8 +192,8 @@ function renderHistoryBundle(bundle, patient) {
   return agreeHours(template
     .replace("{onset_hours}", String(Math.round(patient.presentation.onsetHours)))
     .replace("{onset_description}", "постепенно")
-    .replace("{phenotype_history}", phenotypeHistory || "без дополнительных уточнений")
-    .replace("{nausea_vomiting}", patient.presentation.nauseaVomitingRu ?? "тошноты и рвоты нет")
+    .replace("{phenotype_history}", capitalise(phenotypeHistory || "без дополнительных уточнений"))
+    .replace("{nausea_vomiting}", capitalise(patient.presentation.nauseaVomitingRu ?? "тошноты и рвоты нет"))
     .replace("{self_treatment}", patient.presentation.selfTreatmentRu ? `${capitalise(patient.presentation.selfTreatmentRu)}.` : "")
     .replace("{sex_conditional}", sexConditional ? `${capitalise(sexConditional)}.` : "")
     .replace(/\s{2,}/g, " ")
@@ -247,7 +248,17 @@ function renderReassessment(event, bundle, patient, state) {
   if (postopPain) parts.push(postopPain);
   if (observedText) parts.push(sentence(`Измерено: ${observedText}`));
   else if (event.payload.observed === undefined) {
-    const named = remainingTargets.filter((target) => REASSESS_TARGET_LABEL_RU[target] && !(target === "pain" && postopPain)).map((target) => REASSESS_TARGET_LABEL_RU[target]);
+    // Untargeted content (appendicitis) records a whole vitals snapshot at the
+    // moment of reassessment; name the values from THAT snapshot only, never a
+    // later or earlier one, and only through the learner-visible projection.
+    const measured = measuredAtReassessment(event, state);
+    const named = [];
+    for (const target of remainingTargets) {
+      if (!REASSESS_TARGET_LABEL_RU[target] || (target === "pain" && postopPain)) continue;
+      if (target === "pain" && measured?.painScore != null) parts.push(`Боль ${measured.painScore}/10.`);
+      else if (target === "vitals" && measured && formatObserved(measured.values)) parts.push(sentence(`Витальные: ${formatObserved(measured.values)}`));
+      else named.push(REASSESS_TARGET_LABEL_RU[target]);
+    }
     if (named.length) parts.push(`Переоценены: ${named.join(", ")} — см. текущие показатели.`);
   }
 
@@ -256,6 +267,15 @@ function renderReassessment(event, bundle, patient, state) {
     parts.push(event.payload.observed !== undefined ? "Ничего не измерено: уточни, какие показатели или какую область осмотреть." : "Пациент осмотрен повторно. Клинически значимых изменений нет.");
   }
   return parts.join(" ");
+}
+
+/** The vitals snapshot recorded by THIS reassessment, as the learner sees it, or null. */
+function measuredAtReassessment(event, state) {
+  if (!state) return null;
+  const visible = buildLearnerVisibleState(state);
+  const snapshot = visible.physiologyKnownAt;
+  if (!snapshot || snapshot.atMinutes !== event.atMinutes) return null;
+  return { values: snapshot.values, painScore: visible.painScore };
 }
 
 // Wave B generalization: an exam slot may declare which body region it
@@ -326,7 +346,7 @@ function renderSlotExam(bundle, patient, state, region) {
   }
 
   const text = [
-    ...[...grouped.values()].map((sentences) => sentences.join(", ") + "."),
+    ...[...grouped.values()].map((sentences) => capitalise(sentences.join(", ")) + "."),
     ...(region === "abdomen" ? patient.presentation?.examinationExtraRu ?? [] : []),
   ].join(" ");
   return text.charAt(0).toUpperCase() + text.slice(1);
@@ -460,7 +480,7 @@ export function agreeHours(text) {
   });
 }
 
-function renderFastingHistory(event, bundle) {
+function renderFastingHistory(event, bundle, patient) {
   const content = bundle.findings?.fasting_history;
   const fasting = event.payload.fasting;
   if (!content || !fasting) return { speakerRu: "Пациент", textRu: "Время последнего приёма пищи и жидкости уточнено." };
@@ -468,9 +488,9 @@ function renderFastingHistory(event, bundle) {
   const template = byAnesthesiologist ? content.anesthesia_discovery_ru : content.answer_template_ru;
   return {
     speakerRu: byAnesthesiologist ? "Анестезиолог" : "Пациент",
-    textRu: agreeHours(template
+    textRu: agreeGender(agreeHours(template
       .replace("{solid}", String(Math.round(fasting.lastSolidFoodHoursAgo)))
-      .replace("{liquid}", String(Math.round(fasting.lastClearLiquidHoursAgo)))),
+      .replace("{liquid}", String(Math.round(fasting.lastClearLiquidHoursAgo)))), patient?.demographics?.sex),
   };
 }
 
@@ -483,6 +503,16 @@ function renderDischargeBundle(event) {
     speakerRu: "Система",
     textRu: ["Выписные рекомендации:", followUpRu, histopathologyRu, precautions].filter(Boolean).join(" "),
   };
+}
+
+/**
+ * Content may write a past-tense verb for either sex as «ел(а)»; once the
+ * patient's sex is known, show the one form that applies. Unknown sex keeps
+ * the authored text unchanged.
+ */
+export function agreeGender(text, sex) {
+  if (sex !== "male" && sex !== "female") return text;
+  return text.replace(/([а-яё]+)\(а\)/gi, (_, stem) => (sex === "female" ? `${stem}а` : stem));
 }
 
 function capitalise(text) {

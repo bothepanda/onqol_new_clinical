@@ -15,6 +15,7 @@ import {
   renderNoPendingWork,
   renderUnrecognizedFragments,
   renderRecognizedUnmodeled,
+  renderNoVisibleResponse,
 } from "../../ai/renderer/renderStatus.js";
 
 /**
@@ -77,6 +78,16 @@ export function renderTurnMessages({ turn, bundle, learnerVisibleBefore, interpr
 
   if (!route?.discuss && mentorTextRu) {
     rendered.push({ id: `${Date.now()}-mentor`, role: "mentor", speakerRu: "Наставник", textRu: mentorTextRu });
+  }
+
+  // The discussion channel answers after this; everywhere else an empty turn
+  // would leave the learner looking at nothing.
+  if (!route?.discuss && !rendered.some(Boolean)) {
+    const reasoningOnly = turn.outcomes.length > 0 && turn.outcomes.every((result) =>
+      result.outcome === "EXECUTED" && (result.events ?? []).length > 0 && result.events.every((event) => event.type === "REASONING_STATED"));
+    const waitedMinutes = Math.round(turn.session.state.clock.elapsedMinutes - (learnerVisibleBefore?.clock?.elapsedMinutes ?? turn.session.state.clock.elapsedMinutes));
+    if (turn.outcomes.length === 0 || reasoningOnly) rendered.push(notice(toMessage("env", renderNoVisibleResponse({ reasoningRecorded: reasoningOnly }))));
+    else if (waitedMinutes > 0) rendered.push(notice(toMessage("env", renderNoVisibleResponse({ waitedMinutes }))));
   }
   return rendered;
 }

@@ -172,8 +172,8 @@ test("the base abdominal examination matches the reviewed wording", () => {
   assert.match(rendered, /участвует в акте дыхания/);
   assert.match(rendered, /мягкий/);
   assert.match(rendered, /непроизвольного защитного напряжения мышц нет/);
-  assert.match(rendered, /признаков раздражения брюшины нет/);
-  assert.match(rendered, /перистальтика выслушивается/);
+  assert.match(rendered, /признаков раздражения брюшины нет/i);
+  assert.match(rendered, /перистальтика выслушивается/i);
 });
 
 // ===========================================================================
@@ -731,6 +731,16 @@ test("29. the KZ ABO/Rh requirement is jurisdictional, not universal", () => {
   const miss = debrief.importantMisses.find((entry) => entry.itemId === "blood_group_rh");
   assert.equal(miss.kind, "jurisdictional_workflow_omission");
   assert.match(miss.noteRu, /не универсальное доказательное правило/);
+  assert.match(miss.pointRu, /юрисдикции \(KZ\)/);
+});
+
+test("a hospital-workflow omission without a jurisdiction never prints a null jurisdiction", () => {
+  const session = saying(newSession("no-jurisdiction-null"), ["идём на операцию"]);
+  const debrief = buildDebrief({ session, bundle });
+  const miss = debrief.importantMisses.find((entry) => entry.itemId === "anesthesia_review");
+  assert.ok(miss, "anesthesia review omission is reported");
+  assert.doesNotMatch(miss.pointRu, /null|undefined/);
+  assert.match(miss.pointRu, /по порядку стационара: осмотр анестезиолога/);
 });
 
 test("a jurisdictional investigation the learner DID order is never reported as an omission", () => {

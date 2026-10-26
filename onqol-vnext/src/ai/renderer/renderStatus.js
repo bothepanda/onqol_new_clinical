@@ -205,6 +205,21 @@ export function renderUnsupported(result = null) {
 const RECOGNIZED_UNMODELED_LABEL_RU = Object.freeze({ pelvic_ultrasound: "УЗИ органов малого таза" });
 
 /**
+ * A turn that changed nothing visible (a stated hypothesis, a question no
+ * channel answers) must still get a reply: silence reads as a frozen app.
+ * Says only what happened - nothing about the patient.
+ */
+export function renderNoVisibleResponse({ reasoningRecorded = false, waitedMinutes = 0 } = {}) {
+  if (waitedMinutes > 0) return { speakerRu: "Система", textRu: `Прошло ${waitedMinutes} мин. Новых событий нет.` };
+  return {
+    speakerRu: "Система",
+    textRu: reasoningRecorded
+      ? "Рассуждение записано. Действий не выполнено."
+      : "Ответа на эту реплику в тренажёре нет, действий не выполнено. Если нужно что-то сделать с пациентом, назови действие.",
+  };
+}
+
+/**
  * Something the learner said sounded like a plan, a hypothesis, a condition or a
  * question rather than a decision, so nothing was carried out. The turn is
  * acknowledged instead of silently ignored, and no judgement is attached: this is

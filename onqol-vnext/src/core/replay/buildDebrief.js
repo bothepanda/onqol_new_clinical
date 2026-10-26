@@ -199,8 +199,12 @@ function buildMisses(state, bundle) {
         itemId: item.id,
         authorityLayer: authorityLayerOf(item),
         jurisdiction: jurisdictionOf(item),
+        // A hospital-workflow item with no jurisdiction (e.g. anesthesia
+        // review) is the hospital's own process, not a national standard.
         pointRu: jurisdictional
-          ? `Не оформлено до операции по требованиям юрисдикции (${jurisdictionOf(item)}): ${item.label_ru}.`
+          ? jurisdictionOf(item)
+            ? `Не оформлено до операции по требованиям юрисдикции (${jurisdictionOf(item)}): ${item.label_ru}.`
+            : `Не оформлено до операции по порядку стационара: ${item.label_ru}.`
           : `Не выполнено до операции: ${item.label_ru}.`,
         noteRu: jurisdictional
           ? "Требование стандарта конкретной юрисдикции/стационара, а не универсальное доказательное правило."
