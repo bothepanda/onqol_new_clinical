@@ -24,10 +24,10 @@
   "deterministicBaselineVsGold": {
     "metrics": {
       "runs": 52,
-      "commandPrecision": 0.8913,
-      "commandRecall": 0.7593,
-      "canonicalExactTurnAgreement": 0.7308,
-      "parameterFidelity": 0.7317,
+      "commandPrecision": 0.913,
+      "commandRecall": 0.7778,
+      "canonicalExactTurnAgreement": 0.75,
+      "parameterFidelity": 0.7561,
       "unsupportedActionFalsePositiveRate": 0.2143,
       "ambiguityDetectionRecall": 0,
       "unresolvedFragmentRecall": 0,
@@ -61,10 +61,10 @@
         "runs": 52,
         "goldCommands": 54,
         "actualCommands": 46,
-        "matchedCommands": 41,
-        "exactTurns": 38,
+        "matchedCommands": 42,
+        "exactTurns": 39,
         "parameterizedGoldCommands": 41,
-        "parameterMatches": 30,
+        "parameterMatches": 31,
         "unsupportedTurns": 14,
         "unsupportedFalsePositives": 3,
         "reasoningGold": 11,
@@ -571,10 +571,10 @@
       },
       "medication": {
         "runs": 6,
-        "commandPrecision": 0.8333,
-        "commandRecall": 0.8333,
-        "canonicalExactTurnAgreement": 0.8333,
-        "parameterFidelity": 0.8,
+        "commandPrecision": 1,
+        "commandRecall": 1,
+        "canonicalExactTurnAgreement": 1,
+        "parameterFidelity": 1,
         "unsupportedActionFalsePositiveRate": null,
         "ambiguityDetectionRecall": 0,
         "unresolvedFragmentRecall": null,
@@ -608,10 +608,10 @@
           "runs": 6,
           "goldCommands": 6,
           "actualCommands": 6,
-          "matchedCommands": 5,
-          "exactTurns": 5,
+          "matchedCommands": 6,
+          "exactTurns": 6,
           "parameterizedGoldCommands": 5,
-          "parameterMatches": 4,
+          "parameterMatches": 5,
           "unsupportedTurns": 0,
           "unsupportedFalsePositives": 0,
           "reasoningGold": 0,
@@ -6113,7 +6113,7 @@
             {
               "type": "ORDER_INFUSION",
               "params": {
-                "fluidId": "crystalloid",
+                "fluidId": "normal_saline",
                 "volumeMl": 500,
                 "durationMinutes": 60
               }
@@ -6177,7 +6177,7 @@
               "type": "order_infusion",
               "params": {
                 "durationMinutes": 60,
-                "fluidId": "crystalloid",
+                "fluidId": "normal_saline",
                 "volumeMl": 500
               }
             }
@@ -6192,10 +6192,10 @@
               }
             }
           ],
-          "matchedCommands": 0,
-          "exactTurn": false,
+          "matchedCommands": 1,
+          "exactTurn": true,
           "parameterizedGoldCommands": 1,
-          "parameterMatches": 0,
+          "parameterMatches": 1,
           "reasoning": {
             "gold": 0,
             "actual": 0,
@@ -8648,7 +8648,7 @@
         },
         "telemetry": {
           "status": "concept_validation_failure",
-          "elapsedMs": 5,
+          "elapsedMs": 0,
           "schemaErrors": [],
           "conceptErrors": [
             "clinicalActions[0].invented_dose_unit",
@@ -8922,7 +8922,7 @@
         },
         "telemetry": {
           "status": "concept_validation_failure",
-          "elapsedMs": 1,
+          "elapsedMs": 0,
           "schemaErrors": [],
           "conceptErrors": [
             "clinicalActions[0].tentative_not_committed"
@@ -9175,7 +9175,7 @@
         },
         "telemetry": {
           "status": "provider_timeout",
-          "elapsedMs": 1,
+          "elapsedMs": 0,
           "schemaErrors": [],
           "conceptErrors": [],
           "commandValidation": [],
@@ -9281,7 +9281,7 @@
         },
         "telemetry": {
           "status": "schema_validation_failure",
-          "elapsedMs": 1,
+          "elapsedMs": 0,
           "schemaErrors": [
             "patientQuestions_must_be_array",
             "ambiguities_must_be_array",

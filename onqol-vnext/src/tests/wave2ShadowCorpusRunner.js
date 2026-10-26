@@ -6,6 +6,9 @@ import { buildLearnerVisibleState } from "../core/state/learnerView.js";
 import { AI_INTERACTION_V2 } from "../ai/interaction/featureFlags.js";
 import { interpretTurn } from "../ai/interpreter/interpretTurn.js";
 import { runInterpreterShadow } from "../ai/interpreter/shadowInterpreter.js";
+
+// Offline rows replay labeled outputs; their wall-clock latency is not evidence.
+const OFFLINE_CLOCK = () => 0;
 import { aggregateGoldMetrics, aggregateGoldMetricsByCategory, evaluateInterpretationAgainstGold } from "../ai/interpreter/shadowComparison.js";
 import { WAVE2_SHADOW_CORPUS } from "./fixtures/wave2ShadowCorpus.js";
 
@@ -79,7 +82,7 @@ async function injectedRow({ fixture, learnerVisible }) {
   const provider = fixture.providerFailure
     ? { async complete() { const error = new Error(fixture.providerFailure); error.name = fixture.providerFailure === "timeout" ? "AbortError" : "Error"; throw error; } }
     : { async complete() { return { output: fixture.modelOutput, meta: { model: "deliberately-injected-test-output" } }; } };
-  const telemetry = await runInterpreterShadow({ provider, text: fixture.text, locale: fixture.locale, learnerVisible, turnContext: {}, bundle, deterministic });
+  const telemetry = await runInterpreterShadow({ provider, text: fixture.text, locale: fixture.locale, learnerVisible, turnContext: {}, bundle, deterministic, now: OFFLINE_CLOCK });
   const output = telemetry.modelOutput ?? {};
   const evaluation = evaluateInterpretationAgainstGold({
     commands: telemetry.acceptedCommands ?? [],

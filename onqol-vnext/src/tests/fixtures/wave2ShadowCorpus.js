@@ -85,7 +85,9 @@ export const WAVE2_SHADOW_CORPUS = Object.freeze([
     meta: { schemaVersion: MODEL_INTERPRETATION_SCHEMA_VERSION, confidence: 0.8 },
   }, source: "non-invention adversarial" }),
   fixture("M05", "medication", "антибиотикопрофилактика цефазолин 2 г в/в", [command("GIVE_ANTIBIOTIC_PROPHYLAXIS", { drugId: "cefazolin", dose: "2 г", doseMg: 2000, route: "iv" })]),
-  fixture("M06", "medication", "физраствор 500 мл за час", [command("ORDER_INFUSION", { fluidId: "crystalloid", volumeMl: 500, durationMinutes: 60 })]),
+  // «физраствор» names 0.9% NaCl; the original draft label predates the
+  // normal_saline concept (relabelled 2026-10-26, linguistic, not clinical).
+  fixture("M06", "medication", "физраствор 500 мл за час", [command("ORDER_INFUSION", { fluidId: "normal_saline", volumeMl: 500, durationMinutes: 60 })]),
   fixture("M07", "medication", "прокапаем его нормально", [command("ORDER_INFUSION", {})], { ambiguities: ["infusion_parameters_missing"] }),
 
   fixture("V01", "vague_or_unsupported", "сделайте что-нибудь", [], { ambiguities: ["vague_command"] }),

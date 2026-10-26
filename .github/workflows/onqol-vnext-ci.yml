@@ -21,6 +21,13 @@ jobs:
           cache-dependency-path: onqol-vnext/package-lock.json
       - run: npm ci
       - run: npm run verify
+      # verify must not rewrite committed evidence; a dirty tree means a
+      # generator wrote run-dependent output.
+      - run: git diff --exit-code
+      - run: npm run build:pilot
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
       - run: npm run test:e2e:hybrid
+      - run: npm run test:e2e:semantic
+      - run: npm run test:e2e:mentor
+      - run: npm run test:e2e:flexible

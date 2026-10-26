@@ -1,15 +1,17 @@
 import { interpretWithModel } from "./modelInterpreter.js";
 import { compareInterpretations } from "./shadowComparison.js";
 
-export async function runInterpreterShadow({ provider, text, locale, learnerVisible, turnContext, bundle, deterministic }) {
-  const startedAt = Date.now();
+// `now` is injectable so an OFFLINE corpus (labeled outputs, no provider)
+// writes reproducible evidence instead of sub-millisecond noise.
+export async function runInterpreterShadow({ provider, text, locale, learnerVisible, turnContext, bundle, deterministic, now = Date.now }) {
+  const startedAt = now();
   let modelResult;
   try {
     modelResult = await interpretWithModel({ provider, text, locale, learnerVisible, turnContext, bundle });
   } catch (error) {
     return emptyTelemetry({
       status: "normalization_failure",
-      elapsedMs: Date.now() - startedAt,
+      elapsedMs: now() - startedAt,
       errorCode: errorCode(error),
     });
   }
@@ -23,7 +25,7 @@ export async function runInterpreterShadow({ provider, text, locale, learnerVisi
         modelResult,
         status: "comparison_failure",
         comparison: null,
-        elapsedMs: Date.now() - startedAt,
+        elapsedMs: now() - startedAt,
         errorCode: errorCode(error),
       });
     }
@@ -33,7 +35,7 @@ export async function runInterpreterShadow({ provider, text, locale, learnerVisi
     modelResult,
     status: modelResult.status,
     comparison,
-    elapsedMs: Date.now() - startedAt,
+    elapsedMs: now() - startedAt,
     errorCode: modelResult.errorCode ?? null,
   });
 }

@@ -11,6 +11,8 @@
     "dev:flexible": "ONQOL_FLEXIBLE_PATIENT=true VITE_ONQOL_FLEXIBLE_PATIENT=true VITE_ONQOL_PILOT=false npm run dev -- --host 127.0.0.1",
     "build": "npm run content:build && vite build",
     "preview": "vite preview",
+    "build:pilot": "VITE_ONQOL_INTERPRETER=deterministic VITE_ONQOL_PILOT=true npm run build",
+    "start:pilot": "node server/pilotServer.mjs",
     "build:hybrid": "VITE_ONQOL_INTERPRETER=hybrid VITE_ONQOL_PILOT=true npm run build",
     "start:hybrid": "node --env-file-if-exists=.env.local server/pilotServer.mjs",
     "lint": "eslint .",
